@@ -8,6 +8,7 @@ using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Publishing.Verification;
 using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.ClassicWebParts.Bindings;
 using PnP.Framework.Migration.Pages.Ingredients;
@@ -15,6 +16,7 @@ using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Taxonomy;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Planning
 {
@@ -69,6 +71,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
         public TopologyPlan Topology { get; set; }
 
         public TopologyTargetAnalysis TopologyTargetAnalysis { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyPageReference SharedTopologyReference { get; set; }
 
         public ListMigrationPlanSet ListMigration { get; set; }
 

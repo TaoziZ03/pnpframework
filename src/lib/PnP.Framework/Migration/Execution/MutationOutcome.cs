@@ -4,6 +4,7 @@ namespace PnP.Framework.Migration.Execution
     {
         Applied = 1,
         AlreadySatisfied = 2,
-        Failed = 3
+        Failed = 3,
+        OutcomeUnknownButConverged = 4
     }
 }

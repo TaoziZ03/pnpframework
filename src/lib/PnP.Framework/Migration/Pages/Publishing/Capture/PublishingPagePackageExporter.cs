@@ -10,6 +10,7 @@ using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Lists.Items.Protection;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -89,11 +90,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 blockers,
                 warnings);
             SourceSiteCollectionSnapshot sourceTopology = null;
+            PathDerivedSourceTopologyEvidence pathDerivedTopologyEvidence = null;
             try
             {
-                sourceTopology = SourceTopologySnapshotReader.CaptureRequiredWebClosure(
+                var topologyCapture = SourceTopologySnapshotReader.CaptureRequiredWebClosureWithEvidence(
                     sourceContext,
-                    listClosure.RequiredSourceWebIds.Concat(new[] { sourceCapture.Identity.WebId }));
+                    listClosure.RequiredSourceWebIds.Concat(new[] { sourceCapture.Identity.WebId }),
+                    sourceCapture.Identity.WebId);
+                sourceTopology = topologyCapture.SourceTopology;
+                pathDerivedTopologyEvidence = topologyCapture.PathDerivedEvidence;
+                if (pathDerivedTopologyEvidence != null)
+                {
+                    warnings.Add("Source Web ancestor fidelity is authorization-limited; target path-container planning remains available from exact retained path evidence.");
+                }
             }
             catch (Exception exception) when (exception is ServerException || exception is InvalidOperationException || exception is IOException)
             {
@@ -160,6 +169,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 ListDependencies = listClosure.Dependencies,
                 ListLookupDependencies = listClosure.LookupDependencies,
                 SourceTopology = sourceTopology,
+                PathDerivedTopologyEvidence = pathDerivedTopologyEvidence,
                 Dependencies = references
                     .OrderBy(reference => reference.SourceAbsoluteUrl, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(reference => reference.Consumer, StringComparer.Ordinal)

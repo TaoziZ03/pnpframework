@@ -9,6 +9,7 @@ using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
 using PnP.Framework.Migration.Pages.Publishing.Execution;
 using PnP.Framework.Migration.Pages.Ingredients;
@@ -35,7 +36,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             IList<PageFieldImportResult> fieldResults,
             IList<MigrationMutationReceipt> steps,
             IEnumerable<string> warnings,
-            string expectedContentTypeId)
+            string expectedContentTypeId,
+            SharedTopologyExecutionProof sharedTopologyProof = null)
         {
             if (!executionScope.PageArtifact)
             {
@@ -49,7 +51,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     topologyReceipt,
                     listReceipts,
                     steps,
-                    warnings);
+                    warnings,
+                    sharedTopologyProof);
             }
             using (var verificationContext = targetContext.Clone(package.Plan.TargetWebUrl))
             {
@@ -224,7 +227,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 }
                 var webPartsMatched = webPartResults.All(result => result.Passed)
                     && webPartResults.Count == executableWebParts.Length;
-                var topologyMatched = TopologyMatched(executionScope, topologyReceipt);
+                var topologyMatched = TopologyMatched(package, executionScope, topologyReceipt, sharedTopologyProof);
                 var listsMatched = ListsMatched(executionScope, listReceipts);
                 if (!topologyMatched)
                 {
@@ -266,6 +269,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     && listsMatched
                     && dependenciesMatched;
                 AddFrontierWarnings(receiptWarnings, executionScope);
+                var sourceFidelityLimited = SourceFidelityLimited(package);
+                if (sourceFidelityLimited)
+                {
+                    receiptWarnings.Add("Source Web fidelity remains authorization-limited; target path and storage verification do not claim source topology parity.");
+                }
                 var runtimeVerificationRequired = executionScope.Runtime
                     && package.Plan.RuntimeVerification.Requirements.Any(item => item.Required);
                 var completedIngredientIds = executionScope.ExecutableIngredientIds;
@@ -335,6 +343,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     WebPartResults = webPartResults,
                     MaterializedDependencyCount = materializedDependencyCount,
                     TopologyMaterialization = topologyReceipt,
+                    SharedTopologyMaterialization = sharedTopologyProof?.Receipt,
                     TopologyMatched = topologyMatched,
                     ListMaterializations = listReceipts,
                     ApprovedProtectedDocumentExclusionCount = ApprovedProtectedDocumentExclusionCount(listReceipts),
@@ -359,7 +368,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                         ? MigrationAcceptanceStatus.Rejected
                         : runtimeVerificationRequired
                             ? MigrationAcceptanceStatus.Pending
-                            : executionScope.IsPartial
+                            : executionScope.IsPartial || sourceFidelityLimited
                                 ? MigrationAcceptanceStatus.PartiallyAccepted
                                 : MigrationAcceptanceStatus.Accepted,
                     Warnings = receiptWarnings.Distinct(StringComparer.Ordinal).OrderBy(value => value, StringComparer.Ordinal).ToList(),
@@ -377,13 +386,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             TopologyMaterializationReceipt topologyReceipt,
             IList<ListMaterializationReceipt> listReceipts,
             IList<MigrationMutationReceipt> steps,
-            IEnumerable<string> warnings)
+            IEnumerable<string> warnings,
+            SharedTopologyExecutionProof sharedTopologyProof)
         {
             var receiptWarnings = warnings
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
-            var topologyMatched = TopologyMatched(executionScope, topologyReceipt);
+            var topologyMatched = TopologyMatched(package, executionScope, topologyReceipt, sharedTopologyProof);
             var listsMatched = ListsMatched(executionScope, listReceipts);
             var expectedMaterializedDependencies = executionScope.ReferenceActions(package)
                 .Count(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget);
@@ -407,6 +417,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     "List " + listReceipt.SourceListId.ToString("D") + ": " + value));
             }
             AddFrontierWarnings(receiptWarnings, executionScope);
+            var sourceFidelityLimited = SourceFidelityLimited(package);
+            if (sourceFidelityLimited)
+            {
+                receiptWarnings.Add("Source Web fidelity remains authorization-limited; target path verification does not claim source topology parity.");
+            }
 
             var readbackPassed = topologyMatched && listsMatched && dependenciesMatched;
             var completedIngredientIds = executionScope.ExecutableIngredientIds;
@@ -462,6 +477,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 WebPartsMatched = true,
                 MaterializedDependencyCount = materializedDependencyCount,
                 TopologyMaterialization = topologyReceipt,
+                SharedTopologyMaterialization = sharedTopologyProof?.Receipt,
                 TopologyMatched = topologyMatched,
                 ListMaterializations = listReceipts,
                 ApprovedProtectedDocumentExclusionCount = ApprovedProtectedDocumentExclusionCount(listReceipts),
@@ -480,7 +496,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 RuntimeVerificationStatus = RuntimeVerificationStatus.NotRequired,
                 AcceptanceStatus = !readbackPassed
                     ? MigrationAcceptanceStatus.Rejected
-                    : executionScope.IsPartial
+                    : executionScope.IsPartial || sourceFidelityLimited
                         ? MigrationAcceptanceStatus.PartiallyAccepted
                         : MigrationAcceptanceStatus.Accepted,
                 Warnings = receiptWarnings
@@ -491,15 +507,40 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
         }
 
         private static bool TopologyMatched(
+            PublishingPageMigrationPackage package,
             PublishingPageExecutionScope executionScope,
-            TopologyMaterializationReceipt receipt)
+            TopologyMaterializationReceipt receipt,
+            SharedTopologyExecutionProof sharedProof)
         {
+            if (package.Plan.SharedTopologyReference != null)
+            {
+                try
+                {
+                    SharedTopologyPageReferenceFactory.ValidateReceipt(
+                        package.Plan.SharedTopologyReference,
+                        sharedProof?.SourcePlans,
+                        sharedProof?.GlobalActionDag,
+                        sharedProof?.ActionPlan,
+                        sharedProof?.Receipt);
+                    return true;
+                }
+                catch (System.IO.InvalidDataException)
+                {
+                    return false;
+                }
+            }
             var expected = executionScope.TopologyPlan?.SiteCollections
                 .SelectMany(value => value.Webs)
                 .Count() ?? 0;
             return receipt != null
                 && receipt.FreshReadbackPassed
                 && receipt.Webs.Count == expected;
+        }
+
+        private static bool SourceFidelityLimited(PublishingPageMigrationPackage package)
+        {
+            return package.Plan.SharedTopologyReference?.SourceFidelity?.Any(value =>
+                value.State == SourceWebFidelityState.AuthorizationBlocked) == true;
         }
 
         private static bool ListsMatched(

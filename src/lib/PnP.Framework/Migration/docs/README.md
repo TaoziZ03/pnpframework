@@ -18,8 +18,9 @@ The documents describe the current implementation and its intended invariants. T
 5. [Execution and verification](execution-and-verification.md) defines admission, journaling, retry, receipt, fresh-readback, and acceptance semantics.
 6. [Page classification and ingredient policy](page-classification-and-ingredient-policy.md) defines CLR runtime selection, non-exclusive profiles, validation cohorts, ingredient actions, dependency release, and aggregate outcomes.
 7. [Taxonomy relationship fidelity](taxonomy-relationship-fidelity.md) defines exact capture and reproduction of valid, outside-bound, and dangling taxonomy relationships without Term repair.
-8. [Performance and concurrency](performance-and-concurrency.md) defines measurement stages, safe read parallelism, write serialization, caching boundaries, and semantic regression requirements.
-9. [Protected document capture exclusions](protected-asset-capture-exclusions.md) defines the explicit pre-download metadata-only policy, existing-frontier exclusion, and typed absence verification.
+8. [Path-derived shared topology](path-derived-shared-topology.md) defines exact-path target containers, signature-based global actions, conservative ownership, and authorization-limited source fidelity.
+9. [Performance and concurrency](performance-and-concurrency.md) defines measurement stages, safe read parallelism, write serialization, caching boundaries, and semantic regression requirements.
+10. [Protected document capture exclusions](protected-asset-capture-exclusions.md) defines the explicit pre-download metadata-only policy, existing-frontier exclusion, and typed absence verification.
 
 ## Document roles
 
@@ -54,10 +55,18 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 | Publishing Page import receipt | `pnp-publishing-page-import-receipt/v4` |
 | Source ASPX artifact | `pnp-page-artifact/v1` |
 | Page runtime resolution | `pnp-page-runtime/v1` |
-| Canonical page ingredient graph | `pnp-page-ingredient-graph/v1` |
+| Canonical page ingredient graph | `pnp-page-ingredient-graph/v1`; `v2` for plan-time shared external references |
 | Source topology | `pnp-source-topology/v1` |
 | Topology plan | `pnp-topology-plan/v1` |
 | Topology target analysis | `pnp-topology-target-analysis/v1` |
+| Bound literal HTTP authorization evidence | `pnp-bound-literal-http-authorization/v1` |
+| Path-derived source topology evidence | `pnp-path-derived-source-topology-evidence/v2` |
+| Shared topology plan | `pnp-shared-topology-plan/v2` |
+| Shared topology global action DAG | `pnp-shared-topology-global-action-dag/v2` |
+| Shared topology target analysis | `pnp-shared-topology-global-target-analysis/v2` |
+| Shared topology action plan | `pnp-shared-topology-global-action-plan/v2` |
+| Shared topology materialization receipt | `pnp-shared-topology-global-receipt/v2` |
+| Shared topology page reference | `pnp-shared-topology-page-reference/v3` |
 | List dependency snapshot | `pnp-list-dependency/v1` |
 | List migration plan | `pnp-list-migration-plan/v1` |
 | Content type schema snapshot | `pnp-content-type-schema/v1` |
