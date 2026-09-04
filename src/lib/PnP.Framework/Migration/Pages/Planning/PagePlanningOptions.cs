@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Taxonomy.Assets;
+using PnP.Framework.Migration.Topology.Ingredients;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Planning
 {
@@ -25,5 +27,17 @@ namespace PnP.Framework.Migration.Pages.Planning
         public TopologyPlanningPolicy TopologyPolicy { get; set; } = new TopologyPlanningPolicy();
 
         public IList<ListTargetOverride> ListTargetOverrides { get; set; } = new List<ListTargetOverride>();
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyPlan SharedTopologyPlan { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyGlobalActionDag SharedTopologyGlobalActionDag { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyGlobalTargetAnalysis SharedTopologyTargetAnalysis { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyGlobalActionPlan SharedTopologyActionPlan { get; set; }
     }
 }

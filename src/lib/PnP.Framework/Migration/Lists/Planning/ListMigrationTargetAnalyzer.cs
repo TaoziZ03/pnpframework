@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Features;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +29,17 @@ namespace PnP.Framework.Migration.Lists.Planning
             ListMigrationPlanSet planSet,
             TopologyTargetAnalysis topologyAnalysis)
         {
-            return Analyze(targetContext, snapshots, planSet, topologyAnalysis, true);
+            return Analyze(targetContext, snapshots, planSet, TopologyProbes(topologyAnalysis), true);
+        }
+
+        public static ListMigrationTargetAnalysisResult PopulateAndSeal(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyPlan topology,
+            SharedTopologyGlobalTargetAnalysis topologyAnalysis)
+        {
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.Create(topology, topologyAnalysis), true);
         }
 
         public static ListMigrationTargetAnalysisResult InspectFresh(
@@ -37,14 +48,33 @@ namespace PnP.Framework.Migration.Lists.Planning
             ListMigrationPlanSet planSet,
             TopologyTargetAnalysis topologyAnalysis)
         {
-            return Analyze(targetContext, snapshots, planSet, topologyAnalysis, false);
+            return Analyze(targetContext, snapshots, planSet, TopologyProbes(topologyAnalysis), false);
+        }
+
+        public static ListMigrationTargetAnalysisResult InspectFresh(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyPlan topology,
+            SharedTopologyGlobalTargetAnalysis topologyAnalysis)
+        {
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.Create(topology, topologyAnalysis), false);
+        }
+
+        public static ListMigrationTargetAnalysisResult InspectFresh(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyGlobalMaterializationReceipt topologyReceipt)
+        {
+            return Analyze(targetContext, snapshots, planSet, ReceiptProbes(planSet, topologyReceipt), false);
         }
 
         private static ListMigrationTargetAnalysisResult Analyze(
             ClientContext targetContext,
             IEnumerable<ListDependencySnapshot> snapshots,
             ListMigrationPlanSet planSet,
-            TopologyTargetAnalysis topologyAnalysis,
+            IDictionary<Guid, TopologyWebTargetProbe> topologyProbes,
             bool populatePlan)
         {
             var result = new ListMigrationTargetAnalysisResult();
@@ -53,15 +83,13 @@ namespace PnP.Framework.Migration.Lists.Planning
             {
                 return result;
             }
-            if (targetContext == null || planSet == null || topologyAnalysis == null)
+            if (targetContext == null || planSet == null || topologyProbes == null)
             {
                 result.Issues.Add(Issue("ListTargetAnalysisUnavailable", "target-lists",
                     "List target analysis requires a target connection, List plan set, and topology target analysis."));
                 return result;
             }
 
-            var topologyProbes = topologyAnalysis.SiteCollections.SelectMany(value => value.Webs)
-                .ToDictionary(value => value.SourceWebId);
             foreach (var issue in planSet.Issues)
             {
                 result.Issues.Add(issue);
@@ -183,6 +211,60 @@ namespace PnP.Framework.Migration.Lists.Planning
                 ListMigrationPlanFactory.SealTargetAnalysis(planSet);
             }
             return result;
+        }
+
+        private static IDictionary<Guid, TopologyWebTargetProbe> ReceiptProbes(
+            ListMigrationPlanSet planSet,
+            SharedTopologyGlobalMaterializationReceipt receipt)
+        {
+            if (planSet == null || receipt == null || !receipt.FreshReadbackPassed || receipt.Actions == null)
+            {
+                return null;
+            }
+            var byAction = receipt.Actions
+                .Where(value => value != null && value.FreshReadbackPassed)
+                .ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+            var bySourceWeb = (receipt.SourceWebMappings ?? Array.Empty<SharedTopologySourceWebMaterializationReceipt>())
+                .Where(value => value != null && value.SourceWebId != Guid.Empty)
+                .GroupBy(value => value.SourceWebId)
+                .ToDictionary(value => value.Key, value => value.ToArray());
+            var result = new Dictionary<Guid, TopologyWebTargetProbe>();
+            foreach (var owner in planSet.Lists
+                .Where(value => value != null)
+                .GroupBy(value => value.SourceWebId))
+            {
+                var targetUrls = owner.Select(value => value.TargetWebUrl)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                if (targetUrls.Length != 1
+                    || !bySourceWeb.TryGetValue(owner.Key, out var mappings)
+                    || mappings.Length != 1
+                    || !byAction.TryGetValue(mappings[0].TargetGlobalActionKey, out var action)
+                    || !SharedTopologyPath.EqualsUrl(targetUrls[0], action.TargetWebUrl))
+                {
+                    return null;
+                }
+                result.Add(owner.Key, new TopologyWebTargetProbe
+                {
+                    SourceWebId = owner.Key,
+                    TargetWebUrl = action.TargetWebUrl,
+                    TargetServerRelativeUrl = action.TargetServerRelativeUrl,
+                    Exists = true,
+                    TargetSiteId = action.TargetSiteId,
+                    TargetWebId = action.TargetWebId,
+                    TargetParentWebId = action.TargetParentWebId,
+                    Disposition = action.Ownership == SharedTopologyOwnership.ExternalApprovedHost
+                        ? TopologyMaterializationDisposition.ReuseApprovedHost
+                        : TopologyMaterializationDisposition.ReuseOwned
+                });
+            }
+            return result;
+        }
+
+        private static IDictionary<Guid, TopologyWebTargetProbe> TopologyProbes(TopologyTargetAnalysis analysis)
+        {
+            return analysis?.SiteCollections.SelectMany(value => value.Webs)
+                .ToDictionary(value => value.SourceWebId);
         }
 
         private static void AnalyzeFeatures(

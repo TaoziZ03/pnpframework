@@ -1,5 +1,6 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -45,7 +46,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes.Execution
                             + string.Join("; ", admission.Issues.Select(value => value.Message)));
                     }
                     recorder.Execute(
-                        "schema.content-type." + plan.SourceOwnerWebId.ToString("N") + "." + plan.Schema.ContentTypeId,
+                        "schema.content-type." + OwnerActionKey(plan) + "." + plan.Schema.ContentTypeId,
                         "Ensure site content type '" + plan.Schema.Name + "' (" + plan.Schema.ContentTypeId + ").",
                         () => ContentTypeMaterializer.Ensure(context, context.Web, plan.Schema, admission),
                         disposition => disposition == ContentTypeMaterializationDisposition.ReuseOwned
@@ -54,6 +55,13 @@ namespace PnP.Framework.Migration.Schema.ContentTypes.Execution
                         disposition => "Site content type disposition: " + disposition + ".");
                 }
             }
+        }
+
+        private static string OwnerActionKey(ContentTypeClosureNodePlan plan)
+        {
+            return plan.SourceOwnerWebId != Guid.Empty
+                ? plan.SourceOwnerWebId.ToString("N")
+                : "path-" + SharedTopologyIdentity.StableDigest(plan.TargetOwnerWebUrl);
         }
     }
 }
