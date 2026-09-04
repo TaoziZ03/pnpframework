@@ -1,4 +1,6 @@
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.ContentTypes;
+using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
 using System;
 using System.Collections.Generic;
@@ -24,7 +26,17 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         public string ConsumerFieldInternalName { get; set; }
 
-        public bool ConsumerFieldRequired { get; set; }
+        public bool ConsumerListFieldRequired { get; set; }
+
+        public string ConsumerContentTypeId { get; set; }
+
+        public bool ConsumerContentTypeResolved { get; set; }
+
+        public bool ConsumerContentTypeFieldLinkRequired { get; set; }
+
+        public bool ConsumerEffectiveRequired { get; set; }
+
+        public bool ConsumerRequirementKnown { get; set; }
 
         public Guid ProviderSourceWebId { get; set; }
 
@@ -98,20 +110,31 @@ namespace PnP.Framework.Migration.Lists.Planning
                 seedItemKeys ?? Array.Empty<string>(),
                 StringComparer.Ordinal);
             var selected = new Dictionary<string, ListItemDependencyEdge>(StringComparer.Ordinal);
-            var changed = true;
-            while (changed)
+            var adjacency = values
+                .GroupBy(value => value.ProviderItemKey, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.ToArray(),
+                    StringComparer.Ordinal);
+            var pendingProviders = new Queue<string>(reachable.OrderBy(value => value, StringComparer.Ordinal));
+            var processedProviders = new HashSet<string>(StringComparer.Ordinal);
+            while (pendingProviders.Count > 0)
             {
-                changed = false;
-                foreach (var edge in values.Where(value => reachable.Contains(value.ProviderItemKey)))
+                var providerItemKey = pendingProviders.Dequeue();
+                if (!processedProviders.Add(providerItemKey)
+                    || !adjacency.TryGetValue(providerItemKey, out var outgoing))
+                {
+                    continue;
+                }
+                foreach (var edge in outgoing)
                 {
                     if (!selected.ContainsKey(edge.Key))
                     {
                         selected.Add(edge.Key, edge);
-                        changed = true;
                     }
                     if (reachable.Add(edge.ConsumerItemKey))
                     {
-                        changed = true;
+                        pendingProviders.Enqueue(edge.ConsumerItemKey);
                     }
                 }
             }
@@ -149,6 +172,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                     .Select(value => value.SourceItemId));
                 foreach (var item in consumer.Items.Where(value => value != null))
                 {
+                    var requirement = ResolveRequirement(consumer, item, field);
                     foreach (var lookupId in item.Values
                                  .Where(value => value != null
                                      && string.Equals(value.InternalName, field.InternalName, StringComparison.OrdinalIgnoreCase)
@@ -167,7 +191,12 @@ namespace PnP.Framework.Migration.Lists.Planning
                             ConsumerSourceListId = consumer.SourceListId,
                             ConsumerSourceItemId = item.SourceItemId,
                             ConsumerFieldInternalName = field.InternalName,
-                            ConsumerFieldRequired = field.Required,
+                            ConsumerListFieldRequired = requirement.ListFieldRequired,
+                            ConsumerContentTypeId = requirement.ContentTypeId,
+                            ConsumerContentTypeResolved = requirement.ContentTypeResolved,
+                            ConsumerContentTypeFieldLinkRequired = requirement.ContentTypeFieldLinkRequired,
+                            ConsumerEffectiveRequired = requirement.EffectiveRequired,
+                            ConsumerRequirementKnown = requirement.RequirementKnown,
                             ProviderSourceWebId = provider.SourceWebId,
                             ProviderSourceListId = provider.SourceListId,
                             ProviderSourceItemId = lookupId
@@ -183,23 +212,32 @@ namespace PnP.Framework.Migration.Lists.Planning
         {
             foreach (var list in lists)
             {
-                var folders = list.Items
+                var foldersByPath = new Dictionary<string, ListItemSnapshot>(StringComparer.OrdinalIgnoreCase);
+                foreach (var folder in list.Items
                     .Where(value => value?.Document?.Kind == ListDocumentObjectKind.Folder)
                     .Select(value => new
                     {
                         Item = value,
                         Path = NormalizePath(value.Document.ServerRelativeUrl)
                     })
-                    .Where(value => !string.IsNullOrWhiteSpace(value.Path))
-                    .ToArray();
+                    .Where(value => !string.IsNullOrWhiteSpace(value.Path)))
+                {
+                    if (!foldersByPath.ContainsKey(folder.Path))
+                    {
+                        foldersByPath.Add(folder.Path, folder.Item);
+                    }
+                    else if (foldersByPath[folder.Path]?.SourceItemId != folder.Item.SourceItemId)
+                    {
+                        foldersByPath[folder.Path] = null;
+                    }
+                }
                 foreach (var item in list.Items.Where(value => value?.Document != null))
                 {
                     var path = NormalizePath(item.Document.ServerRelativeUrl);
-                    var parent = folders
-                        .Where(value => value.Item.SourceItemId != item.SourceItemId
-                            && IsDescendant(path, value.Path))
-                        .OrderByDescending(value => value.Path.Length)
-                        .FirstOrDefault();
+                    var parent = FindNearestParentFolder(
+                        path,
+                        item.SourceItemId,
+                        foldersByPath);
                     if (parent == null)
                     {
                         continue;
@@ -212,10 +250,94 @@ namespace PnP.Framework.Migration.Lists.Planning
                         ConsumerSourceItemId = item.SourceItemId,
                         ProviderSourceWebId = list.SourceWebId,
                         ProviderSourceListId = list.SourceListId,
-                        ProviderSourceItemId = parent.Item.SourceItemId
+                        ProviderSourceItemId = parent.SourceItemId,
+                        ConsumerRequirementKnown = true
                     });
                 }
             }
+        }
+
+        private static RequirementEvidence ResolveRequirement(
+            ListDependencySnapshot consumer,
+            ListItemSnapshot item,
+            ListFieldSnapshot field)
+        {
+            var result = new RequirementEvidence
+            {
+                ListFieldRequired = field.Required,
+                EffectiveRequired = field.Required,
+                RequirementKnown = field.Required
+            };
+            var contentTypeValues = (item.Values ?? Array.Empty<ListItemValueSnapshot>())
+                .Where(value => value != null
+                    && string.Equals(value.InternalName, "ContentTypeId", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (contentTypeValues.Length != 1
+                || contentTypeValues[0].Availability != PnP.Framework.Migration.Evidence.EvidenceAvailability.Captured)
+            {
+                return result;
+            }
+            var contentTypeValue = contentTypeValues[0];
+            result.ContentTypeId = contentTypeValue.ScalarValue ?? contentTypeValue.RawValue;
+            if (string.IsNullOrWhiteSpace(result.ContentTypeId))
+            {
+                return result;
+            }
+            var matches = (consumer.ContentTypes ?? Array.Empty<ListContentTypeSnapshot>())
+                .Where(value => value != null
+                    && string.Equals(value.Id, result.ContentTypeId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (matches.Length != 1 || matches[0].FieldLinks == null)
+            {
+                return result;
+            }
+            var fieldLinks = matches[0].FieldLinks
+                .Where(value => value != null
+                    && (value.FieldId == field.Id
+                        || string.Equals(value.InternalName, field.InternalName, StringComparison.OrdinalIgnoreCase)))
+                .ToArray();
+            if (fieldLinks.Length > 1)
+            {
+                return result;
+            }
+            result.ContentTypeResolved = true;
+            result.ContentTypeFieldLinkRequired = fieldLinks.Length == 1 && fieldLinks[0].Required;
+            result.EffectiveRequired = result.ListFieldRequired || result.ContentTypeFieldLinkRequired;
+            result.RequirementKnown = true;
+            return result;
+        }
+
+        private static ListItemSnapshot FindNearestParentFolder(
+            string candidatePath,
+            int candidateItemId,
+            IReadOnlyDictionary<string, ListItemSnapshot> foldersByPath)
+        {
+            var parentPath = ParentPath(candidatePath);
+            while (!string.IsNullOrWhiteSpace(parentPath))
+            {
+                if (foldersByPath.TryGetValue(parentPath, out var parent)
+                    && parent != null
+                    && parent.SourceItemId != candidateItemId)
+                {
+                    return parent;
+                }
+                parentPath = ParentPath(parentPath);
+            }
+            return null;
+        }
+
+        private static string ParentPath(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, "/", StringComparison.Ordinal))
+            {
+                return null;
+            }
+            var separator = value.LastIndexOf('/');
+            if (separator <= 0)
+            {
+                return "/";
+            }
+            return value.Substring(0, separator);
         }
 
         private static void Add(
@@ -238,11 +360,19 @@ namespace PnP.Framework.Migration.Lists.Planning
             return normalized.Length == 0 ? "/" : normalized;
         }
 
-        private static bool IsDescendant(string candidate, string parent)
+        private sealed class RequirementEvidence
         {
-            return !string.IsNullOrWhiteSpace(candidate)
-                && !string.IsNullOrWhiteSpace(parent)
-                && candidate.StartsWith(parent.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase);
+            public bool ListFieldRequired { get; set; }
+
+            public string ContentTypeId { get; set; }
+
+            public bool ContentTypeResolved { get; set; }
+
+            public bool ContentTypeFieldLinkRequired { get; set; }
+
+            public bool EffectiveRequired { get; set; }
+
+            public bool RequirementKnown { get; set; }
         }
     }
 }

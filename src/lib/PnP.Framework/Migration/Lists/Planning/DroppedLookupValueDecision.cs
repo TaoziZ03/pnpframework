@@ -95,13 +95,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                     throw new InvalidDataException(
                         "A dropped lookup-value decision is null, incomplete, or uses an unsupported schema/disposition.");
                 }
-                var key = ListItemDependencyEdge.KeyFor(
-                    ListItemDependencyKind.LookupValue,
-                    decision.ConsumerSourceListId,
-                    decision.ConsumerSourceItemId,
-                    decision.ConsumerFieldInternalName,
-                    decision.ProviderSourceListId,
-                    decision.ProviderSourceItemId);
+                var key = ExactEdgeKey(decision);
                 if (result.ContainsKey(key))
                 {
                     throw new InvalidDataException(
@@ -110,6 +104,68 @@ namespace PnP.Framework.Migration.Lists.Planning
                 result.Add(key, decision);
             }
             return result;
+        }
+
+        internal static IList<DroppedLookupValueDecision> Canonicalize(
+            IEnumerable<DroppedLookupValueDecision> decisions)
+        {
+            var indexed = ValidateAndIndex(decisions);
+            if (indexed.Count == 0)
+            {
+                return null;
+            }
+            return indexed
+                .OrderBy(value => value.Key, StringComparer.Ordinal)
+                .Select(value => Clone(value.Value))
+                .ToList();
+        }
+
+        internal static void ValidateCanonicalOrder(
+            IList<DroppedLookupValueDecision> decisions)
+        {
+            if (decisions == null)
+            {
+                return;
+            }
+            if (decisions.Count == 0)
+            {
+                throw new InvalidDataException(
+                    "A sealed planning policy must represent an empty dropped lookup-value decision set as null.");
+            }
+            ValidateAndIndex(decisions);
+            var actual = decisions.Select(ExactEdgeKey).ToArray();
+            var expected = actual.OrderBy(value => value, StringComparer.Ordinal).ToArray();
+            if (!actual.SequenceEqual(expected, StringComparer.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "Dropped lookup-value decisions in a sealed planning policy are not in canonical exact-edge order.");
+            }
+        }
+
+        internal static string ExactEdgeKey(DroppedLookupValueDecision decision)
+        {
+            return ListItemDependencyEdge.KeyFor(
+                ListItemDependencyKind.LookupValue,
+                decision.ConsumerSourceListId,
+                decision.ConsumerSourceItemId,
+                decision.ConsumerFieldInternalName,
+                decision.ProviderSourceListId,
+                decision.ProviderSourceItemId);
+        }
+
+        private static DroppedLookupValueDecision Clone(DroppedLookupValueDecision value)
+        {
+            return new DroppedLookupValueDecision
+            {
+                SchemaVersion = value.SchemaVersion,
+                ConsumerSourceListId = value.ConsumerSourceListId,
+                ConsumerSourceItemId = value.ConsumerSourceItemId,
+                ConsumerFieldInternalName = value.ConsumerFieldInternalName,
+                ProviderSourceListId = value.ProviderSourceListId,
+                ProviderSourceItemId = value.ProviderSourceItemId,
+                Disposition = value.Disposition,
+                PolicyId = value.PolicyId
+            };
         }
     }
 }

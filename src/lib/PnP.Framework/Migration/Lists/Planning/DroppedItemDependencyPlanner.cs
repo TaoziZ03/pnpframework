@@ -34,10 +34,6 @@ namespace PnP.Framework.Migration.Lists.Planning
                 .Where(value => value != null)
                 .ToArray();
             var decisionByEdge = DroppedLookupValueDecision.ValidateAndIndex(decisions);
-            var edges = ListItemDependencyGraph.Build(sourceValues, lookupDependencies);
-            var edgeByKey = edges.ToDictionary(value => value.Key, StringComparer.Ordinal);
-            ValidateDecisions(decisionByEdge, edgeByKey);
-
             var dropped = new HashSet<string>(StringComparer.Ordinal);
             foreach (var plan in planValues)
             {
@@ -47,32 +43,47 @@ namespace PnP.Framework.Migration.Lists.Planning
                     dropped.Add(ListItemDependencyEdge.ItemKey(plan.SourceListId, exclusion.SourceItemId));
                 }
             }
+            if (dropped.Count == 0 && decisionByEdge.Count == 0)
+            {
+                return new DroppedItemDependencyProjection
+                {
+                    DroppedItemKeys = dropped
+                };
+            }
+
+            var edges = ListItemDependencyGraph.Build(sourceValues, lookupDependencies);
+            var edgeByKey = edges.ToDictionary(value => value.Key, StringComparer.Ordinal);
+            ValidateDecisions(decisionByEdge, edgeByKey);
 
             var active = new Dictionary<string, ListDroppedItemDependencyPlan>(StringComparer.Ordinal);
-            var changed = true;
-            while (changed)
+            var adjacency = edges
+                .GroupBy(value => value.ProviderItemKey, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.ToArray(),
+                    StringComparer.Ordinal);
+            var pendingProviders = new Queue<string>(dropped.OrderBy(value => value, StringComparer.Ordinal));
+            var processedProviders = new HashSet<string>(StringComparer.Ordinal);
+            while (pendingProviders.Count > 0)
             {
-                changed = false;
-                foreach (var edge in edges.Where(value => dropped.Contains(value.ProviderItemKey)))
+                var providerItemKey = pendingProviders.Dequeue();
+                if (!processedProviders.Add(providerItemKey)
+                    || !adjacency.TryGetValue(providerItemKey, out var outgoing))
                 {
-                    if (!active.ContainsKey(edge.Key))
-                    {
-                        active.Add(edge.Key, CreatePlan(edge, decisionByEdge));
-                        changed = true;
-                    }
+                    continue;
                 }
-
-                foreach (var group in active.Values
-                             .GroupBy(value => ListItemDependencyEdge.ItemKey(
-                                 value.ConsumerSourceListId,
-                                 value.ConsumerSourceItemId),
-                                 StringComparer.Ordinal))
+                foreach (var edge in outgoing)
                 {
-                    if (group.Any(value =>
-                            value.Disposition == DroppedItemDependencyDisposition.DropDependentItem)
-                        && dropped.Add(group.Key))
+                    if (active.ContainsKey(edge.Key))
                     {
-                        changed = true;
+                        continue;
+                    }
+                    var dependencyPlan = CreatePlan(edge, decisionByEdge);
+                    active.Add(edge.Key, dependencyPlan);
+                    if (dependencyPlan.Disposition == DroppedItemDependencyDisposition.DropDependentItem
+                        && dropped.Add(edge.ConsumerItemKey))
+                    {
+                        pendingProviders.Enqueue(edge.ConsumerItemKey);
                     }
                 }
             }
@@ -147,12 +158,20 @@ namespace PnP.Framework.Migration.Lists.Planning
                     throw new InvalidDataException(
                         "A dropped lookup-value decision does not match one exact captured lookup edge: " + pair.Key);
                 }
-                if (edge.ConsumerFieldRequired
+                if (edge.ConsumerEffectiveRequired
                     && pair.Value.Disposition == DroppedItemDependencyDisposition.ClearValue)
                 {
                     throw new InvalidDataException(
                         "Required lookup field '" + edge.ConsumerFieldInternalName
                         + "' cannot use ClearValue for source item " + edge.ConsumerSourceItemId + ".");
+                }
+                if (!edge.ConsumerRequirementKnown
+                    && pair.Value.Disposition == DroppedItemDependencyDisposition.ClearValue)
+                {
+                    throw new InvalidDataException(
+                        "Lookup field '" + edge.ConsumerFieldInternalName
+                        + "' cannot use ClearValue for source item " + edge.ConsumerSourceItemId
+                        + " because the captured ContentType requirement could not be determined.");
                 }
             }
         }
@@ -173,12 +192,20 @@ namespace PnP.Framework.Migration.Lists.Planning
             decisions.TryGetValue(edge.Key, out var decision);
             var disposition = decision?.Disposition
                 ?? DroppedItemDependencyDisposition.NeedsPolicyDecision;
-            if (edge.ConsumerFieldRequired
+            if (edge.ConsumerEffectiveRequired
                 && disposition == DroppedItemDependencyDisposition.ClearValue)
             {
                 throw new InvalidDataException(
                     "Required lookup field '" + edge.ConsumerFieldInternalName
                     + "' cannot use ClearValue for source item " + edge.ConsumerSourceItemId + ".");
+            }
+            if (!edge.ConsumerRequirementKnown
+                && disposition == DroppedItemDependencyDisposition.ClearValue)
+            {
+                throw new InvalidDataException(
+                    "Lookup field '" + edge.ConsumerFieldInternalName
+                    + "' cannot use ClearValue for source item " + edge.ConsumerSourceItemId
+                    + " because the captured ContentType requirement could not be determined.");
             }
             return FromEdge(
                 edge,
@@ -203,7 +230,12 @@ namespace PnP.Framework.Migration.Lists.Planning
                 ConsumerSourceListId = edge.ConsumerSourceListId,
                 ConsumerSourceItemId = edge.ConsumerSourceItemId,
                 ConsumerFieldInternalName = edge.ConsumerFieldInternalName,
-                ConsumerFieldRequired = edge.ConsumerFieldRequired,
+                ConsumerListFieldRequired = edge.ConsumerListFieldRequired,
+                ConsumerContentTypeId = edge.ConsumerContentTypeId,
+                ConsumerContentTypeResolved = edge.ConsumerContentTypeResolved,
+                ConsumerContentTypeFieldLinkRequired = edge.ConsumerContentTypeFieldLinkRequired,
+                ConsumerEffectiveRequired = edge.ConsumerEffectiveRequired,
+                ConsumerRequirementKnown = edge.ConsumerRequirementKnown,
                 ProviderSourceWebId = edge.ProviderSourceWebId,
                 ProviderSourceListId = edge.ProviderSourceListId,
                 ProviderSourceItemId = edge.ProviderSourceItemId,

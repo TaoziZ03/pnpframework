@@ -69,9 +69,21 @@ namespace PnP.Framework.Migration.Lists.Execution
                         + ": " + verification.Diagnostic);
                 }
             }
+            receipt.DroppedDependentItemVerifications = droppedLookupConsumerIds.Count == 0
+                ? null
+                : new List<ListDroppedDependentItemVerification>();
             foreach (var droppedConsumerId in droppedLookupConsumerIds.OrderBy(value => value))
             {
-                if (owned.ContainsKey(droppedConsumerId))
+                var present = owned.ContainsKey(droppedConsumerId);
+                receipt.DroppedDependentItemVerifications.Add(
+                    new ListDroppedDependentItemVerification
+                    {
+                        SourceItemId = droppedConsumerId,
+                        Status = present
+                            ? DroppedDependentTargetIdentityStatus.Present
+                            : DroppedDependentTargetIdentityStatus.Absent
+                    });
+                if (present)
                 {
                     diagnostics.Add("A migration-owned target item exists for dropped dependent source item "
                         + droppedConsumerId + " even though the fixed-point policy excludes it.");

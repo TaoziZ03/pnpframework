@@ -21,6 +21,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                     value.FieldId,
                     value.FieldInternalName,
                     "The lookup List and its source-to-target item-ID catalog must exist before this field value is written.")));
+            writer.Table(
+                "Supplied dropped lookup-value decisions",
+                new[] { "Consumer List", "Consumer item", "Field", "Provider List", "Provider item", "Disposition", "Policy" },
+                (plan.PlanningPolicy?.DroppedLookupValueDecisions
+                    ?? Array.Empty<DroppedLookupValueDecision>())
+                    .Select(value => Row(
+                        value.ConsumerSourceListId,
+                        value.ConsumerSourceItemId,
+                        value.ConsumerFieldInternalName,
+                        value.ProviderSourceListId,
+                        value.ProviderSourceItemId,
+                        value.Disposition,
+                        value.PolicyId)));
 
             var planSet = plan.ListMigration;
             writer.Table("List dependency execution order", new[] { "Order", "Source List ID", "Plan present" },
@@ -134,7 +147,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                         value.ReasonCode + ": " + value.Reason)));
             writer.Table(
                 "Dropped-item dependency closure",
-                new[] { "Kind", "Consumer List", "Consumer item", "Field", "Required", "Provider List", "Provider item", "Disposition", "Policy", "Reason" },
+                new[] { "Kind", "Consumer List", "Consumer item", "Field", "List required", "Content Type", "CT resolved", "CT link required", "Effective required", "Requirement known", "Provider List", "Provider item", "Disposition", "Policy", "Reason" },
                 (plan.DroppedItemDependencies ?? Array.Empty<ListDroppedItemDependencyPlan>())
                     .OrderBy(value => value.ConsumerSourceItemId)
                     .ThenBy(value => value.ConsumerFieldInternalName, StringComparer.OrdinalIgnoreCase)
@@ -144,7 +157,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                         value.ConsumerSourceListId,
                         value.ConsumerSourceItemId,
                         value.ConsumerFieldInternalName,
-                        value.ConsumerFieldRequired,
+                        value.ConsumerListFieldRequired,
+                        value.ConsumerContentTypeId,
+                        value.ConsumerContentTypeResolved,
+                        value.ConsumerContentTypeFieldLinkRequired,
+                        value.ConsumerEffectiveRequired,
+                        value.ConsumerRequirementKnown,
                         value.ProviderSourceListId,
                         value.ProviderSourceItemId,
                         value.Disposition,
