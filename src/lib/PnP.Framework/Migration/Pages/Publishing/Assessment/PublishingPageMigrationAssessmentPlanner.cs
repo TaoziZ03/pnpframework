@@ -80,9 +80,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 "Source capture diagnostic (classified by the ingredient assessment): " + value));
             if (exportPackage.Selection.ValidationCohort?.Disposition != ValidationCohortDisposition.Included)
             {
-                warnings.Add(
+                var cohortMessage =
                     $"The source page is '{exportPackage.Selection.ValidationCohort?.Disposition}' for validation cohort "
-                    + $"'{exportPackage.Selection.ValidationCohort?.CohortId}'; CLR runtime and ingredient capability remain authoritative.");
+                    + $"'{exportPackage.Selection.ValidationCohort?.CohortId}'.";
+                if (workflowPolicy.RequireIncludedValidationCohort)
+                {
+                    knownGaps.Add(cohortMessage + " This workflow requires an included validation cohort; use a page-family-specific workflow instead.");
+                }
+                else
+                {
+                    warnings.Add(cohortMessage + " CLR runtime and ingredient capability remain authoritative.");
+                }
             }
 
             var targetLifecycle = PublishingPageLifecyclePolicy.DeriveTargetLifecycle(snapshot.Lifecycle);

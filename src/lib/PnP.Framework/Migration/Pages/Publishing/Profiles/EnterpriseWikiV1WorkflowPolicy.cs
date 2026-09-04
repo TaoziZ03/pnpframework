@@ -8,6 +8,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         public static readonly PublishingPageWorkflowPolicy Instance = new PublishingPageWorkflowPolicy
         {
             WorkflowId = EnterpriseWikiV1CohortPolicy.CohortId,
+            RequireIncludedValidationCohort = true,
             PreferredTargetPageLayoutFileName = "EnterpriseWiki.aspx",
             FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {

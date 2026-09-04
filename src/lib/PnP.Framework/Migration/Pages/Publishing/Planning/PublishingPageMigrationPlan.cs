@@ -96,7 +96,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
 
         public IList<string> Warnings { get; set; } = new List<string>();
 
-        public bool IsExecutable => (MigrationOutcome == PageMigrationOutcome.Exact
+        public bool IsExecutable => Blockers != null
+            && Blockers.Count == 0
+            && (MigrationOutcome == PageMigrationOutcome.Exact
                 || MigrationOutcome == PageMigrationOutcome.ExecutableWithTransform
                 || MigrationOutcome == PageMigrationOutcome.ExecutableWithLoss
                 || MigrationOutcome == PageMigrationOutcome.PartiallyExecutable)

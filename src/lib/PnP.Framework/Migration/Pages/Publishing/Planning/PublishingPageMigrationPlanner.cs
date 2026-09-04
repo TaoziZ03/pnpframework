@@ -101,7 +101,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             var warnings = snapshot.Warnings.ToList();
             if (exportPackage.Selection?.ValidationCohort?.Disposition != ValidationCohortDisposition.Included)
             {
-                warnings.Add($"The source page is '{exportPackage.Selection.ValidationCohort.Disposition}' for validation cohort '{exportPackage.Selection.ValidationCohort.CohortId}'. Cohort membership is retained as evidence but does not override the CLR-selected Publishing runtime or ingredient capability decisions.");
+                var cohortMessage = $"The source page is '{exportPackage.Selection?.ValidationCohort?.Disposition}' for validation cohort '{exportPackage.Selection?.ValidationCohort?.CohortId}'.";
+                if (workflowPolicy.RequireIncludedValidationCohort)
+                {
+                    blockers.Add(cohortMessage + " This workflow requires an included validation cohort; use a page-family-specific workflow instead.");
+                }
+                else
+                {
+                    warnings.Add(cohortMessage + " Cohort membership is retained as evidence but does not override the CLR-selected Publishing runtime or ingredient capability decisions.");
+                }
             }
             if (!string.Equals(snapshot.Runtime?.AdapterId, PageRuntimeAdapterIds.Publishing, StringComparison.Ordinal))
             {

@@ -45,7 +45,7 @@ The source ASPX bytes and parsed directive are retained in `snapshot.pageArtifac
 
 Signals are facts, not authorization and not action selection. `selection.validationCohort` is a workflow-owned assessment with its own ID, policy version, disposition, and reasons. `selectionDigest` seals that choice, and the selected planner/importer recomputes it from source evidence before use. The first workflow is `enterprise-wiki-v1`.
 
-Cohort membership and migration capability are intentionally different questions. A page may be technically reproducible but outside a validation cohort, or inside the cohort but blocked by one unsupported ingredient.
+Cohort membership and migration capability are intentionally different questions. A page may be technically reproducible by the shared Publishing runtime but outside a validation cohort, or inside the cohort but blocked by one unsupported ingredient. Each workflow policy decides whether out-of-cohort capability is evidence-only or executable. `enterprise-wiki-v1` requires an included cohort, so Project Page descendants cannot reach planning approval or import until a page-family-specific workflow owns their additional semantics.
 
 ## Canonical ingredient graph
 

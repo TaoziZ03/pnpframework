@@ -37,6 +37,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
             var plan = package.Plan;
             ValidatePlanShape(package.Snapshot, plan);
+            ValidateSourceBlockerPropagation(package.Snapshot, plan);
             PublishingPageLayoutPackageValidator.ValidatePlan(
                 plan.PageLayoutName,
                 plan.IsExecutable,
@@ -164,6 +165,23 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || !string.Equals(plan.TargetProbe.TargetPathResolutionReason, plan.TargetPathResolutionReason, StringComparison.Ordinal))
             {
                 throw new InvalidDataException("The sealed target-page probe does not describe the preferred and final paths in the migration plan.");
+            }
+        }
+
+        private static void ValidateSourceBlockerPropagation(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageMigrationPlan plan)
+        {
+            var missing = snapshot.Blockers
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .Except(plan.Blockers, StringComparer.Ordinal)
+                .ToArray();
+            if (missing.Length > 0)
+            {
+                throw new InvalidDataException(
+                    "The migration plan omitted source-capture blocker(s): "
+                    + string.Join(" ", missing));
             }
         }
 

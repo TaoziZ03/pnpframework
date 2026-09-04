@@ -41,6 +41,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 throw new InvalidDataException("The sealed validation-cohort assessment does not match the selected workflow policy and source evidence.");
             }
 
+            if (workflowPolicy.RequireIncludedValidationCohort
+                && expectedSelection.ValidationCohort?.Disposition != ValidationCohortDisposition.Included)
+            {
+                throw new InvalidDataException(
+                    $"Source content type '{package.Snapshot.Source.ContentTypeId}' is outside required validation cohort '{expectedSelection.ValidationCohort?.CohortId}'.");
+            }
+
             if (!string.Equals(package.Snapshot.Runtime?.AdapterId, PageRuntimeAdapterIds.Publishing, StringComparison.Ordinal))
             {
                 throw new InvalidDataException($"Runtime adapter '{package.Snapshot.Runtime?.AdapterId ?? PageRuntimeAdapterIds.Unknown}' cannot be imported by the Publishing Page runtime.");

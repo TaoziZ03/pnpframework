@@ -235,6 +235,48 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void PartialIngredientExecutionRemainsApprovalReadyWithoutGlobalBlockers()
+        {
+            var plan = new PublishingPageMigrationPlan
+            {
+                MigrationOutcome = PageMigrationOutcome.PartiallyExecutable,
+                ExecutionFrontier = new PageIngredientExecutionFrontier
+                {
+                    Decisions = new List<PageIngredientExecutionDecision>
+                    {
+                        new PageIngredientExecutionDecision
+                        {
+                            IngredientId = "independent",
+                            State = PageIngredientExecutionState.Executable
+                        },
+                        new PageIngredientExecutionDecision
+                        {
+                            IngredientId = "deferred",
+                            State = PageIngredientExecutionState.Deferred
+                        }
+                    }
+                }
+            };
+
+            Assert.IsTrue(plan.IsExecutable);
+            Assert.AreEqual(
+                PublishingPagePackageState.ApprovalReady,
+                PublishingPagePackageStatePolicy.Derive(plan));
+
+            plan.Blockers.Add("A global workflow blocker must stop every ingredient branch.");
+            Assert.IsFalse(plan.IsExecutable);
+            Assert.AreEqual(
+                PublishingPagePackageState.MitigationPending,
+                PublishingPagePackageStatePolicy.Derive(plan));
+
+            plan.Blockers = null;
+            Assert.IsFalse(plan.IsExecutable);
+            Assert.AreEqual(
+                PublishingPagePackageState.Invalid,
+                PublishingPagePackageStatePolicy.Derive(plan));
+        }
+
+        [TestMethod]
         public void IngredientBlockRequiresMatchingLiteralHttpAuthorizationEvidence()
         {
             var graph = new CanonicalPageIngredientGraph
@@ -962,16 +1004,47 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
-        public void PublishingRuntimeCanImportOutsideValidationCohort()
+        public void EnterpriseWikiWorkflowRejectsPublishingRuntimeOutsideValidationCohort()
         {
             var package = CreateMigrationPackage();
             package.Snapshot.Source.ContentTypeId = BuiltInContentTypeId.ProjectPage + "001122";
             package.Selection = EnterpriseWikiV1WorkflowPolicy.Instance.Select(package.Snapshot.Source.ContentTypeId);
             package.SelectionDigest = PublishingPageDigest.ComputeSelectionDigest(package.Selection);
 
+            Assert.AreEqual(PageRuntimeAdapterIds.Publishing, package.Snapshot.Runtime.AdapterId);
+            Assert.AreEqual(
+                ValidationCohortDisposition.Excluded,
+                package.Selection.ValidationCohort.Disposition);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageImportPlanValidator.Validate(
+                    package,
+                    EnterpriseWikiV1WorkflowPolicy.Instance,
+                    PublishingPageExecutionScope.Create(package)));
+        }
+
+        [TestMethod]
+        public void GenericPublishingWorkflowCanAllowPublishingRuntimeOutsideValidationCohort()
+        {
+            var package = CreateMigrationPackage();
+            package.Snapshot.Source.ContentTypeId = BuiltInContentTypeId.ProjectPage + "001122";
+            var workflow = new PublishingPageWorkflowPolicy
+            {
+                WorkflowId = "publishing-page-test-v1",
+                AssessValidationCohort = _ => new ValidationCohortAssessment
+                {
+                    CohortId = "publishing-page-test-v1",
+                    PolicyVersion = "1",
+                    Disposition = ValidationCohortDisposition.Excluded,
+                    Reasons = new List<string> { "The generic workflow accepts this Publishing runtime outside its validation cohort." }
+                },
+                RequireIncludedValidationCohort = false
+            };
+            package.Selection = workflow.Select(package.Snapshot.Source.ContentTypeId);
+            package.SelectionDigest = PublishingPageDigest.ComputeSelectionDigest(package.Selection);
+
             PublishingPageImportPlanValidator.Validate(
                 package,
-                EnterpriseWikiV1WorkflowPolicy.Instance,
+                workflow,
                 PublishingPageExecutionScope.Create(package));
         }
 
@@ -984,6 +1057,69 @@ namespace PnP.Framework.Test.EnterpriseWiki
             package.Plan.TargetPageServerRelativeUrl = "/sites/target/Pages/changed.aspx";
 
             Assert.ThrowsException<InvalidDataException>(() => PublishingPagePackageValidator.ValidateMigration(package));
+        }
+
+        [TestMethod]
+        public void SourceFenceBlockerPreventsApprovalReadyPackage()
+        {
+            var package = CreateMigrationPackage();
+            const string sourceFenceBlocker = "The source page changed while it was being exported. Discard this snapshot and export again.";
+            package.Snapshot.Blockers.Add(sourceFenceBlocker);
+            package.Plan.Blockers.Add(sourceFenceBlocker);
+            package.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot);
+            package.Plan.SourceSnapshotDigest = package.SnapshotDigest;
+
+            Assert.IsFalse(package.Plan.IsExecutable);
+            Assert.AreEqual(
+                PublishingPagePackageState.MitigationPending,
+                PublishingPagePackageStatePolicy.Derive(package.Plan));
+
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateMigration(package));
+        }
+
+        [TestMethod]
+        public void MigrationValidationRejectsDroppedSourceCaptureBlocker()
+        {
+            var package = CreateMigrationPackage();
+            package.Snapshot.Blockers.Add("The source page changed while it was being exported. Discard this snapshot and export again.");
+            package.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot);
+            package.Plan.SourceSnapshotDigest = package.SnapshotDigest;
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateMigration(package));
+        }
+
+        [TestMethod]
+        public void ImportReturnsZeroMutationReceiptForPlanWithGlobalBlocker()
+        {
+            var package = CreateMigrationPackage();
+            const string sourceFenceBlocker = "The source page changed while it was being exported. Discard this snapshot and export again.";
+            package.Snapshot.Blockers.Add(sourceFenceBlocker);
+            package.Plan.Blockers.Add(sourceFenceBlocker);
+            package.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot);
+            package.Plan.SourceSnapshotDigest = package.SnapshotDigest;
+            package.State = PublishingPagePackageStatePolicy.Derive(package.Plan);
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+            var journal = new InMemoryMigrationExecutionJournal();
+
+            PublishingPagePackageValidator.ValidateMigration(package);
+            using (var context = new ClientContext(package.Plan.TargetWebUrl))
+            {
+                var receipt = new EnterpriseWikiMigrationImporter().Import(
+                    context,
+                    package,
+                    package.PlanDigest,
+                    journal);
+
+                Assert.AreEqual(MigrationExecutionStatus.NotStarted, receipt.ExecutionStatus);
+                Assert.AreEqual("PlanNotExecutable", receipt.AdmissionFailure.Code);
+                Assert.IsFalse(receipt.MutationStarted);
+                Assert.AreEqual(0, journal.Intents.Count);
+                Assert.AreEqual(1, journal.ExecutionStates.Count);
+            }
         }
 
         [TestMethod]

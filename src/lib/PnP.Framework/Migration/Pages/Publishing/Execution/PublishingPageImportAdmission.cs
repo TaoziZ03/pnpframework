@@ -25,7 +25,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             DateTimeOffset startedAt,
             MigrationExecutionRecorder recorder)
         {
-            if (package.State != PublishingPagePackageState.ApprovalReady || !package.Plan.IsExecutable)
+            if (package.State != PublishingPagePackageState.ApprovalReady
+                || !package.Plan.IsExecutable
+                || package.Plan.Blockers == null
+                || package.Plan.Blockers.Count > 0)
             {
                 return Failure(package, operationId, startedAt, "PlanNotExecutable", package.Plan.TargetPageServerRelativeUrl,
                     "The publishing-page package is not approval-ready.", recorder);

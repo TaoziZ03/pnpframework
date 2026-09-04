@@ -12,7 +12,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             {
                 throw new ArgumentNullException(nameof(plan));
             }
-            if (plan.IsExecutable)
+            if (plan.Blockers == null)
+            {
+                return PublishingPagePackageState.Invalid;
+            }
+
+            var hasBlockers = plan.Blockers.Count > 0;
+            if (!hasBlockers && plan.IsExecutable)
             {
                 return PublishingPagePackageState.ApprovalReady;
             }
@@ -21,7 +27,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 return PublishingPagePackageState.AuthorizationBlocked;
             }
             if (plan.MigrationOutcome == PageMigrationOutcome.MitigationPending
-                || ((plan.Blockers?.Count ?? 0) > 0
+                || (hasBlockers
                     && plan.MigrationOutcome != PageMigrationOutcome.Invalid
                     && plan.MigrationOutcome != PageMigrationOutcome.Unknown
                     && plan.MigrationOutcome != PageMigrationOutcome.Blocked))

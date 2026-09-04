@@ -77,6 +77,8 @@ The following composed capabilities remain shared and can be used by future Wiki
 
 These public types select `EnterpriseWikiV1WorkflowPolicy` and delegate to Publishing-family services. Generic readers and planners do not switch behavior based on an Enterprise Wiki flag.
 
+The Enterprise Wiki v1 workflow requires `selection.validationCohort.disposition=Included` before a plan can become approval-ready or be imported. A direct export may still retain evidence for an excluded Publishing Page, but Project Page descendants and other out-of-cohort Publishing Pages require their own page-family workflow before mutation. The shared Publishing runtime remains reusable by a future policy that explicitly permits capability assessment outside its validation cohort.
+
 ## Versioned artifacts
 
 JSON uses camel-case property names, string enum values, explicit nulls, and case-sensitive property names. Current schema identifiers are:
@@ -448,6 +450,7 @@ This layer owns migration evidence, policy, approval, and verification. It shoul
 
 The current Enterprise Wiki v1 workflow is intentionally narrow:
 
+- Project Page descendants and other Publishing Pages outside the Enterprise Wiki v1 validation cohort are evidence-only until a page-family-specific workflow owns their additional fields and behavior;
 - only create-only plans are executable; overwrite/update is refused;
 - target pages must be in the root of the target Publishing Pages library;
 - the target site collection must already exist; mapped child Webs can be created/recovered, but tenant-level site creation is not implemented;
