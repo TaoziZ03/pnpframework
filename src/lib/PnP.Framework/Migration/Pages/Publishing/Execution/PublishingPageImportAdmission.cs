@@ -11,6 +11,8 @@ using System.Linq;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Topology.Ingredients;
+using System.Globalization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Execution
 {
@@ -23,7 +25,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             string approvedPlanDigest,
             Guid operationId,
             DateTimeOffset startedAt,
-            MigrationExecutionRecorder recorder)
+            MigrationExecutionRecorder recorder,
+            SharedTopologyGlobalMaterializationReceipt sharedTopologyReceipt = null)
         {
             if (package.State != PublishingPagePackageState.ApprovalReady || !package.Plan.IsExecutable)
             {
@@ -39,7 +42,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             }
 
             var targetWeb = targetContext.Web;
-            targetContext.Load(targetWeb, web => web.Url, web => web.ServerRelativeUrl);
+            targetContext.Load(
+                targetWeb,
+                web => web.Id,
+                web => web.Url,
+                web => web.ServerRelativeUrl,
+                web => web.AllProperties);
+            targetContext.Load(targetContext.Site, site => site.Id);
             targetContext.ExecuteQueryRetry();
             if (executionScope.PageArtifact && !PagePath.UriEquals(targetWeb.Url, package.Plan.TargetWebUrl))
             {
@@ -50,6 +59,23 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             {
                 return Failure(package, operationId, startedAt, "TargetTenantMismatch", targetWeb.Url,
                     $"The target connection authority '{new Uri(targetWeb.Url).Authority}' differs from the approved target authority '{new Uri(package.Plan.TargetWebUrl).Authority}'.", recorder);
+            }
+
+            var sharedTopologyFailure = ValidateSharedTopology(
+                package,
+                targetContext.Site.Id,
+                targetWeb,
+                sharedTopologyReceipt);
+            if (sharedTopologyFailure != null)
+            {
+                return Failure(
+                    package,
+                    operationId,
+                    startedAt,
+                    "SharedTopologyReceiptInvalid",
+                    package.Plan.TargetWebUrl,
+                    sharedTopologyFailure,
+                    recorder);
             }
 
             var blockers = new List<string>();
@@ -88,11 +114,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     projectedPlan.Lists = projectedPlan.Lists
                         .Where(value => selectedListIds.Contains(value.SourceListId))
                         .ToList();
-                    var freshLists = ListMigrationTargetAnalyzer.InspectFresh(
-                        targetContext,
-                        projectedSources,
-                        projectedPlan,
-                        freshTopology);
+                    var freshLists = package.Plan.SharedTopologyReference == null
+                        ? ListMigrationTargetAnalyzer.InspectFresh(
+                            targetContext,
+                            projectedSources,
+                            projectedPlan,
+                            freshTopology)
+                        : ListMigrationTargetAnalyzer.InspectFresh(
+                            targetContext,
+                            projectedSources,
+                            projectedPlan,
+                            sharedTopologyReceipt);
                     blockers.AddRange(freshLists.Issues.Select(value => value.Code + ": " + value.Message));
                 }
             }
@@ -153,6 +185,63 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             }
 
             return null;
+        }
+
+        private static string ValidateSharedTopology(
+            PublishingPageMigrationPackage package,
+            Guid targetSiteId,
+            Web targetWeb,
+            SharedTopologyGlobalMaterializationReceipt receipt)
+        {
+            var reference = package.Plan.SharedTopologyReference;
+            if (reference == null)
+            {
+                return receipt == null
+                    ? null
+                    : "A shared topology receipt was supplied for a page that has no shared topology reference.";
+            }
+            try
+            {
+                SharedTopologyPageReferenceFactory.ValidateReceipt(reference, receipt);
+            }
+            catch (System.IO.InvalidDataException exception)
+            {
+                return exception.Message;
+            }
+            var leaf = receipt.Actions.Single(value => string.Equals(
+                value.GlobalActionKey,
+                reference.TargetLeafGlobalActionKey,
+                StringComparison.Ordinal));
+            if (leaf.TargetSiteId != targetSiteId
+                || leaf.TargetWebId != targetWeb.Id
+                || !SharedTopologyPath.EqualsUrl(targetWeb.Url, reference.TargetWebUrl)
+                || !SharedTopologyPath.EqualsPath(targetWeb.ServerRelativeUrl, reference.TargetServerRelativeUrl))
+            {
+                return "The current target connection differs from the freshly verified shared topology leaf identity.";
+            }
+            var currentOriginal = Property(targetWeb.AllProperties, TopologyPlanner.WebOriginalIdentifierPropertyName);
+            var currentMapping = Property(targetWeb.AllProperties, TopologyPlanner.WebPlanDigestPropertyName);
+            if (leaf.Ownership == SharedTopologyOwnership.MigrationOwned
+                && (!string.Equals(currentOriginal, leaf.ObservedOriginalIdentifier, StringComparison.Ordinal)
+                    || !string.Equals(currentMapping, leaf.ObservedMappingDigest, StringComparison.OrdinalIgnoreCase)))
+            {
+                return "The current target Web ownership markers drifted after the shared topology readback.";
+            }
+            if (leaf.Ownership == SharedTopologyOwnership.ExternalApprovedHost
+                && (!string.IsNullOrWhiteSpace(currentOriginal) || !string.IsNullOrWhiteSpace(currentMapping)))
+            {
+                return "The explicitly approved external host acquired migration ownership markers and must be replanned.";
+            }
+            return null;
+        }
+
+        private static string Property(PropertyValues values, string key)
+        {
+            if (values == null || !values.FieldValues.TryGetValue(key, out var value))
+            {
+                return null;
+            }
+            return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
 
         private static bool IsOwnedByApprovedPlan(

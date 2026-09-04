@@ -11,6 +11,7 @@ using PnP.Framework.Migration.Pages.Publishing.Lifecycle;
 using PnP.Framework.Migration.Pages.Publishing.Packaging.Taxonomy;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Verification;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -171,6 +172,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             PublishingPageMigrationPackage package,
             PublishingPageMigrationPlan plan)
         {
+            if (package.Snapshot.PathDerivedTopologyEvidence != null
+                && (plan.Topology != null
+                    || plan.TopologyTargetAnalysis != null
+                    || plan.SharedTopologyReference == null))
+            {
+                throw new InvalidDataException("Path-derived source topology requires one shared topology reference and no page-local topology plan.");
+            }
+            if (package.Snapshot.SourceTopology != null && plan.SharedTopologyReference != null)
+            {
+                throw new InvalidDataException("A complete source topology plan cannot also carry a path-derived shared topology reference.");
+            }
             if (package.Snapshot.SourceTopology != null && plan.Topology != null
                 && !string.Equals(Topology.TopologyPlanner.ComputeDigest(plan.Topology), plan.Topology.PlanDigest, StringComparison.OrdinalIgnoreCase))
             {
@@ -270,6 +282,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             PublishingPageCaptureBundle snapshot,
             PublishingPageMigrationPlan plan)
         {
+            if (plan.SharedTopologyReference != null)
+            {
+                ValidatePathDerivedPlanningIngredientGraph(snapshot, plan);
+                return;
+            }
             var projectionVersion = plan.IngredientGraph.ProjectionVersion;
             var supportedProjection = string.Equals(
                     projectionVersion,
@@ -304,6 +321,133 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             {
                 throw new InvalidDataException("The planning ingredient graph does not match its supported typed-evidence projection.");
             }
+        }
+
+        private static void ValidatePathDerivedPlanningIngredientGraph(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageMigrationPlan plan)
+        {
+            SharedTopologyPageReferenceFactory.Validate(plan.SharedTopologyReference);
+            var graph = plan.IngredientGraph;
+            var reference = plan.SharedTopologyReference;
+            if (snapshot.PathDerivedTopologyEvidence == null
+                || snapshot.SourceTopology != null
+                || graph == null
+                || !string.Equals(graph.SchemaVersion, "pnp-page-ingredient-graph/v2", StringComparison.Ordinal)
+                || !string.Equals(
+                    graph.ProjectionVersion,
+                    PublishingPagePathDerivedTopologyIngredientGraphProjector.ProjectionVersion,
+                    StringComparison.Ordinal)
+                || graph.Nodes == null
+                || graph.Edges == null
+                || graph.ExternalReferences == null
+                || !PublishingPageValidationCanonical.Equals(snapshot.IngredientGraph.Nodes, graph.Nodes))
+            {
+                throw new InvalidDataException("The path-derived planning ingredient graph is missing or differs from captured page ingredients.");
+            }
+            if (reference.SourceFidelityState != snapshot.PathDerivedTopologyEvidence.FidelityState
+                || !string.Equals(
+                    reference.SourceWebFidelityIngredientId,
+                    SharedTopologyIdentity.SourceWebFidelity(snapshot.Source.SiteId, snapshot.Source.WebId),
+                    StringComparison.Ordinal)
+                || !PublishingPageValidationCanonical.Equals(
+                    reference.SourceAuthorizationEvidence,
+                    snapshot.PathDerivedTopologyEvidence.AuthorizationEvidence))
+            {
+                throw new InvalidDataException("The shared topology page reference differs from retained source-fidelity evidence.");
+            }
+
+            if (graph.ExternalReferences.Any(value => value == null || string.IsNullOrWhiteSpace(value.IngredientId)))
+            {
+                throw new InvalidDataException("The path-derived planning graph contains an unidentified shared ingredient reference.");
+            }
+            var externalById = graph.ExternalReferences
+                .GroupBy(value => value?.IngredientId, StringComparer.Ordinal)
+                .ToDictionary(value => value.Key, value => value.ToArray(), StringComparer.Ordinal);
+            if (externalById.Any(value => string.IsNullOrWhiteSpace(value.Key) || value.Value.Length != 1)
+                || !externalById.TryGetValue(reference.SourceWebFidelityIngredientId, out var fidelityValues))
+            {
+                throw new InvalidDataException("The path-derived planning graph has missing or duplicate shared ingredient references.");
+            }
+            var fidelity = fidelityValues[0];
+            var expectedFidelityState = reference.SourceFidelityState == SourceWebFidelityState.AuthorizationBlocked
+                ? PageExternalIngredientState.AuthorizationBlocked
+                : reference.SourceFidelityState == SourceWebFidelityState.Captured
+                    ? PageExternalIngredientState.EvidenceOnly
+                    : PageExternalIngredientState.Blocked;
+            if (fidelity.State != expectedFidelityState
+                || string.IsNullOrWhiteSpace(fidelity.SharedPlanDigest)
+                || !string.Equals(fidelity.SupportCohortSignature, reference.SupportCohortSignature, StringComparison.Ordinal)
+                || !string.Equals(fidelity.EvidenceDigest, snapshot.PathDerivedTopologyEvidence.EvidenceSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("The shared source-fidelity graph reference is stale.");
+            }
+
+            var actions = graph.ExternalReferences
+                .Where(value => value != null && value.State == PageExternalIngredientState.PlannedGlobalAction)
+                .ToArray();
+            var actionKeys = new HashSet<string>(actions.Select(value => value.GlobalActionKey), StringComparer.Ordinal);
+            if (actions.Length != reference.RequiredGlobalActionKeys.Count
+                || !actionKeys.SetEquals(reference.RequiredGlobalActionKeys)
+                || actions.Any(value => string.IsNullOrWhiteSpace(value.ActionSignatureDigest)
+                    || string.IsNullOrWhiteSpace(value.SharedPlanDigest)
+                    || !string.Equals(value.SharedPlanDigest, fidelity.SharedPlanDigest, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(value.SupportCohortSignature, reference.SupportCohortSignature, StringComparison.Ordinal)))
+            {
+                throw new InvalidDataException("The path-derived planning graph does not reference every required global action exactly once.");
+            }
+            var leaf = actions.SingleOrDefault(value => string.Equals(
+                value.GlobalActionKey,
+                reference.TargetLeafGlobalActionKey,
+                StringComparison.Ordinal));
+            if (leaf == null
+                || !string.Equals(leaf.IngredientId, reference.TargetLeafContainerIngredientId, StringComparison.Ordinal)
+                || !SharedTopologyPath.EqualsUrl(leaf.TargetIdentity, reference.TargetWebUrl))
+            {
+                throw new InvalidDataException("The path-derived planning graph has a stale target leaf reference.");
+            }
+
+            var expectedEdges = snapshot.IngredientGraph.Edges.Select(EdgeIdentity).ToList();
+            expectedEdges.Add(EdgeIdentity(new PageIngredientEdge
+            {
+                FromIngredientId = PublishingPageIngredientIds.PageArtifact,
+                ToIngredientId = reference.SourceWebFidelityIngredientId,
+                Relationship = PageIngredientRelationship.GovernedBy,
+                Requirement = PageIngredientRequirement.Optional,
+                Condition = "Source Web fidelity evidence is reported independently from target path provisioning."
+            }));
+            expectedEdges.Add(EdgeIdentity(new PageIngredientEdge
+            {
+                FromIngredientId = PublishingPageIngredientIds.PageArtifact,
+                ToIngredientId = reference.TargetLeafContainerIngredientId,
+                Relationship = PageIngredientRelationship.DependsOn,
+                Requirement = PageIngredientRequirement.Required,
+                Condition = "The page is materialized only after the shared exact-path target Web container is ready."
+            }));
+            expectedEdges.AddRange(snapshot.ListDependencies.Where(value => value != null
+                    && value.SourceSiteId == snapshot.Source.SiteId
+                    && value.SourceWebId == snapshot.Source.WebId)
+                .Select(value => EdgeIdentity(new PageIngredientEdge
+                {
+                    FromIngredientId = PublishingPageIngredientIds.List(value.SourceWebId, value.SourceListId),
+                    ToIngredientId = reference.TargetLeafContainerIngredientId,
+                    Relationship = PageIngredientRelationship.DependsOn,
+                    Requirement = PageIngredientRequirement.Required,
+                    Condition = "The List owner is the shared exact-path target Web container, not the unavailable source ancestor closure."
+                })));
+            var expectedSet = new HashSet<string>(expectedEdges, StringComparer.Ordinal);
+            var actualValues = graph.Edges.Select(EdgeIdentity).ToArray();
+            if (actualValues.Length != expectedSet.Count
+                || !expectedSet.SetEquals(actualValues))
+            {
+                throw new InvalidDataException("The path-derived planning graph contains stale or unexpected dependency edges.");
+            }
+        }
+
+        private static string EdgeIdentity(PageIngredientEdge edge)
+        {
+            return edge.FromIngredientId + "\u001f" + edge.ToIngredientId + "\u001f"
+                + edge.Relationship + "\u001f" + edge.Requirement + "\u001f" + edge.Condition;
         }
 
         private static void ValidateIngredientActions(
