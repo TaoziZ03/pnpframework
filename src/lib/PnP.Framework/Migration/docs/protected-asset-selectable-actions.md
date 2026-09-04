@@ -20,9 +20,15 @@ The `MicrosoftTenantMetadataOnly` profile behaves as follows:
 | Unknown | Never (fail closed) | Metadata plus sealed `MetadataOnly` decision |
 | Explicitly unprotected | Allowed | Ordinary captured binary |
 
-`FidelityAllowed` is an explicit profile for an environment whose policy permits
-capturing and reproducing protected bytes. It is never inferred from a missing
-label. The capture decision and its digest are part of the immutable snapshot;
+`PageCaptureOptions` deliberately defaults to `MicrosoftTenantMetadataOnly`.
+This is a security-first public default: an omitted profile may reduce fidelity,
+but it cannot silently export a protected or indeterminate payload. OOCL and any
+other source environment whose policy permits full fidelity must opt in with
+`ProtectedAssetCapturePolicy.FidelityAllowed(...)` before capture. The selected
+profile, policy ID, and fail-closed flag round-trip in package JSON; they are not
+inferred from tenant naming, a missing label, or a planning-time choice.
+
+The capture decision and its digest are part of the immutable snapshot;
 planning cannot retroactively make a forbidden binary capture safe.
 
 ## Ingredient model
@@ -74,9 +80,12 @@ tampered receipts even if a caller recomputes the top-level plan digest.
 
 `Exclude` does not mean `Reproduced`, `KnownGap`, or `AuthorizationBlocked`.
 It is a non-blocking `SatisfiedByPolicy` terminal state. Only retained literal
-HTTP 401/403 evidence can classify an ingredient branch as authorization
-blocked, and an authorization branch stops the whole item only when the
-dependency-aware executable frontier is empty.
+HTTP 401/403 evidence, including the operation, request URI, timestamp, and a
+matching SHA-256 digest, can classify an ingredient branch as authorization
+blocked. A status copied into an action is non-authoritative. An authorization
+or deferred branch stops the whole item only when the dependency-aware
+executable frontier is empty; required consumers are skipped while independent
+branches continue.
 
 ## Execution and comparison
 

@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Layouts
 {
@@ -142,6 +143,37 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                     AssociatedContentTypeSchema = schema,
                     Diagnostics = schemaDiagnostics
                 };
+            }
+            catch (WebException exception)
+            {
+                using (var response = exception.Response as HttpWebResponse)
+                {
+                    var statusCode = response == null ? 0 : (int)response.StatusCode;
+                    if (statusCode != 401 && statusCode != 403)
+                    {
+                        throw;
+                    }
+
+                    var requestUri = response.ResponseUri?.AbsoluteUri
+                        ?? (absoluteLayoutUrl ?? new Uri(rootUri, layoutUrl)).AbsoluteUri;
+                    var evidence = LiteralHttpAuthorizationEvidence.Create(
+                        "capture-page-layout",
+                        requestUri,
+                        statusCode,
+                        DateTimeOffset.UtcNow);
+                    var diagnostic = $"Page Layout request returned literal HTTP {statusCode}.";
+                    blockers?.Add(diagnostic);
+                    return new PublishingPageLayoutSnapshot
+                    {
+                        Url = layoutUrl,
+                        ServerRelativeUrl = serverRelativeUrl,
+                        Description = description,
+                        EvidenceState = PublishingPageLayoutEvidenceState.AuthorizationBlocked,
+                        Availability = EvidenceAvailability.Unavailable,
+                        AuthorizationEvidence = evidence,
+                        Diagnostics = new List<string> { diagnostic }
+                    };
+                }
             }
             catch (ServerException exception)
             {

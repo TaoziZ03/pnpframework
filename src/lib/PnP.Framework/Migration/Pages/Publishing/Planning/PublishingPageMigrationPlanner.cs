@@ -219,9 +219,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 Warnings = warnings.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList()
             };
             plan.IngredientActions = PublishingPageIngredientActionProjector.Project(snapshot, plan);
-            var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(snapshot.IngredientGraph, plan.IngredientActions);
+            var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(
+                snapshot.IngredientGraph,
+                plan.IngredientActions,
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot));
             plan.MigrationOutcome = ingredientEvaluation.Outcome;
             plan.IngredientIssues = ingredientEvaluation.Issues;
+            plan.ExecutionFrontier = ingredientEvaluation.ExecutionFrontier;
             var package = new PublishingPageMigrationPackage
             {
                 PlannedAtUtc = DateTimeOffset.UtcNow,

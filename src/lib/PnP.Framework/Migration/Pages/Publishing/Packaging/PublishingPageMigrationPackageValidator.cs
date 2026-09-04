@@ -67,7 +67,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
             ValidateActionCoverage(package.Snapshot, plan);
             ValidateDerivedIngredientActions(package.Snapshot, plan);
-            ValidateIngredientActions(package.Snapshot.IngredientGraph, plan);
+            ValidateIngredientActions(package.Snapshot, package.Snapshot.IngredientGraph, plan);
             ValidateExpectedContent(package, plan);
             var derivedLifecycle = PublishingPageLifecyclePolicy.DeriveTargetLifecycle(package.Snapshot.Lifecycle);
             if (plan.TargetLifecycle != derivedLifecycle)
@@ -121,6 +121,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || plan.ProtectedAssets == null
                 || plan.ProtectedAssets.Actions == null
                 || plan.IngredientIssues == null
+                || plan.ExecutionFrontier == null
+                || plan.ExecutionFrontier.Decisions == null
                 || plan.Blockers == null
                 || plan.Warnings == null)
             {
@@ -210,6 +212,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
         }
 
         private static void ValidateIngredientActions(
+            PublishingPageCaptureBundle snapshot,
             CanonicalPageIngredientGraph graph,
             PublishingPageMigrationPlan plan)
         {
@@ -231,10 +234,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             {
                 throw new InvalidDataException($"Ingredient action ID '{duplicateActionId.Key}' is duplicated.");
             }
-            var evaluation = PageIngredientPlanEvaluator.Evaluate(graph, plan.IngredientActions);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                graph,
+                plan.IngredientActions,
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot));
             if (evaluation.Outcome != plan.MigrationOutcome)
             {
                 throw new InvalidDataException($"The sealed migration outcome '{plan.MigrationOutcome}' differs from evaluated outcome '{evaluation.Outcome}'.");
+            }
+            if (!PublishingPageValidationCanonical.Equals(evaluation.ExecutionFrontier, plan.ExecutionFrontier))
+            {
+                throw new InvalidDataException("The sealed ingredient execution frontier differs from dependency-closure evaluation.");
             }
             var expectedIssues = new HashSet<string>(evaluation.Issues.Select(IssueIdentity), StringComparer.Ordinal);
             var actualIssues = new HashSet<string>(plan.IngredientIssues.Select(IssueIdentity), StringComparer.Ordinal);

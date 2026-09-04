@@ -145,12 +145,12 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
 
             var blocked = PageIngredientPlanEvaluator.Evaluate(graph, actions);
-            Assert.AreEqual(PageMigrationOutcome.Blocked, blocked.Outcome);
+            Assert.AreEqual(PageMigrationOutcome.Invalid, blocked.Outcome);
             Assert.IsTrue(blocked.Issues.Any(value => value.Code == "RequiredIngredientDependencyUnsatisfied"));
 
             actions[0].ReleasedDependencyIngredientIds.Add("dependency");
             var invalidRelease = PageIngredientPlanEvaluator.Evaluate(graph, actions);
-            Assert.AreEqual(PageMigrationOutcome.Blocked, invalidRelease.Outcome);
+            Assert.AreEqual(PageMigrationOutcome.Invalid, invalidRelease.Outcome);
             Assert.IsTrue(invalidRelease.Issues.Any(value => value.Code == "IngredientDependencyReleaseInvalid"));
 
             actions[0].Disposition = IngredientDisposition.Transform;
@@ -453,6 +453,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 package.Plan.IngredientActions);
             package.Plan.MigrationOutcome = evaluation.Outcome;
             package.Plan.IngredientIssues = evaluation.Issues;
+            package.Plan.ExecutionFrontier = evaluation.ExecutionFrontier;
             package.State = PublishingPagePackageState.ApprovalReady;
             package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
 
@@ -2085,6 +2086,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 package.Plan.IngredientActions);
             package.Plan.MigrationOutcome = evaluation.Outcome;
             package.Plan.IngredientIssues = evaluation.Issues;
+            package.Plan.ExecutionFrontier = evaluation.ExecutionFrontier;
             package.State = PublishingPagePackageState.ApprovalReady;
             package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
         }
@@ -2316,6 +2318,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(snapshot.IngredientGraph, plan.IngredientActions);
             plan.MigrationOutcome = ingredientEvaluation.Outcome;
             plan.IngredientIssues = ingredientEvaluation.Issues;
+            plan.ExecutionFrontier = ingredientEvaluation.ExecutionFrontier;
             return new PublishingPageMigrationPackage
             {
                 PlannedAtUtc = DateTimeOffset.UtcNow,

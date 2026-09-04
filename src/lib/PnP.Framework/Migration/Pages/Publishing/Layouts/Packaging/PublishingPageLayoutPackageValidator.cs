@@ -35,6 +35,16 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts.Packaging
 
                 MigrationArtifactContractValidator.Validate(layout.Bytes, layout.ContentBase64, artifactStore, "Page Layout");
             }
+            else if (layout.EvidenceState == PublishingPageLayoutEvidenceState.AuthorizationBlocked)
+            {
+                if (layout.AuthorizationEvidence == null
+                    || layout.Bytes != null
+                    || !string.IsNullOrWhiteSpace(layout.ContentBase64))
+                {
+                    throw new InvalidDataException("An authorization-blocked Page Layout requires retained literal wire evidence and cannot contain byte evidence.");
+                }
+                LiteralHttpAuthorizationEvidence.Validate(layout.AuthorizationEvidence);
+            }
             else if (!string.IsNullOrWhiteSpace(layout.ContentBase64))
             {
                 if (layout.Bytes == null)
@@ -43,6 +53,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts.Packaging
                 }
 
                 MigrationArtifactContractValidator.Validate(layout.Bytes, layout.ContentBase64, artifactStore, "Page Layout");
+            }
+
+            if (layout.AuthorizationEvidence != null
+                && layout.EvidenceState != PublishingPageLayoutEvidenceState.AuthorizationBlocked)
+            {
+                throw new InvalidDataException("Page Layout authorization evidence is valid only for the AuthorizationBlocked evidence state.");
             }
 
             var duplicateReference = layout.ResourceReferences

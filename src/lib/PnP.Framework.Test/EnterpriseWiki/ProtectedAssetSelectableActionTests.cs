@@ -9,6 +9,8 @@ using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Layouts;
+using PnP.Framework.Migration.Pages.Publishing.Layouts.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Reporting;
@@ -223,7 +225,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             graph.Edges[0].Requirement = PageIngredientRequirement.HardRequired;
             var hard = PageIngredientPlanEvaluator.Evaluate(graph, new[] { consumer, payload });
-            Assert.AreEqual(PageMigrationOutcome.Blocked, hard.Outcome);
+            Assert.AreEqual(PageMigrationOutcome.Invalid, hard.Outcome);
             Assert.IsTrue(hard.Issues.Any(value => value.Code == "RequiredIngredientDependencyUnsatisfied"));
         }
 
@@ -254,7 +256,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             graph.Edges[0].Requirement = PageIngredientRequirement.PayloadRequired;
             Assert.AreEqual(
-                PageMigrationOutcome.Blocked,
+                PageMigrationOutcome.Invalid,
                 PageIngredientPlanEvaluator.Evaluate(graph, new[] { consumer, identity }).Outcome);
         }
 
@@ -377,44 +379,216 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
-        public void AuthorizationBlockRequiresLiteral401Or403AndOnlyStopsEmptyFrontier()
+        public void ForgedAuthorizationStatusWithoutRetainedWireEvidenceIsRejected()
         {
-            Assert.IsTrue(LiteralHttpAuthorizationPolicy.IsAuthorizationBlocked(401));
-            Assert.IsTrue(LiteralHttpAuthorizationPolicy.IsAuthorizationBlocked(403));
-            Assert.IsFalse(LiteralHttpAuthorizationPolicy.IsAuthorizationBlocked(423));
-            Assert.IsFalse(LiteralHttpAuthorizationPolicy.IsAuthorizationBlocked(null));
-
-            var authorizationBlocked = new PageIngredientAction
+            var forged = new PageIngredientAction
             {
-                IngredientId = "authorization-branch",
+                IngredientId = "forged-authorization",
+                Capability = IngredientCapability.Missing,
                 Disposition = IngredientDisposition.Block,
                 TerminalStatus = IngredientTerminalStatus.AuthorizationBlocked,
                 AuthorizationStatusCode = 403
             };
-            var policyExcluded = new PageIngredientAction
-            {
-                IngredientId = "policy-exclusion",
-                Disposition = IngredientDisposition.Exclude,
-                TerminalStatus = IngredientTerminalStatus.SatisfiedByPolicy
-            };
-            var frontier = PageIngredientExecutionFrontier.Create(new[]
-            {
-                authorizationBlocked,
-                policyExcluded,
-                ReproduceAction("remaining-branch")
-            });
-
-            Assert.IsFalse(frontier.ShouldStopWholeItem);
-            Assert.IsFalse(frontier.AuthorizationBlockedIngredientIds.Contains(policyExcluded.IngredientId));
-            Assert.IsTrue(PageIngredientExecutionFrontier.Create(new[] { authorizationBlocked }).ShouldStopWholeItem);
-
             var graph = new CanonicalPageIngredientGraph
             {
-                Nodes = new List<PageIngredientNode> { Node("authorization-branch"), Node("remaining-branch") }
+                Nodes = new List<PageIngredientNode> { Node("forged-authorization") }
             };
-            var evaluation = PageIngredientPlanEvaluator.Evaluate(graph, new[] { authorizationBlocked, ReproduceAction("remaining-branch") });
+
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(graph, new[] { forged });
+
+            Assert.AreEqual(PageMigrationOutcome.Invalid, evaluation.Outcome);
+            Assert.IsTrue(evaluation.Issues.Any(value => value.Code == "IngredientAuthorizationStatusCodeUnretained"));
+            Assert.IsTrue(evaluation.Issues.Any(value => value.Code == "IngredientAuthorizationTerminalStatusUnretained"));
+            Assert.IsTrue(evaluation.Issues.Any(value => value.Code == "IngredientBlockWithoutAuthorizationEvidence"));
+            Assert.AreEqual(PageIngredientExecutionState.Deferred, evaluation.ExecutionFrontier.GetState(forged.IngredientId));
+            Assert.IsFalse(evaluation.ExecutionFrontier.HasAuthorizationBlockedIngredients);
+        }
+
+        [TestMethod]
+        public void Retained403PrunesOnlyItsRequiredConsumerBranch()
+        {
+            var graph = DependencyGraph();
+            var blocked = new PageIngredientAction
+            {
+                ActionId = "action:dependency",
+                IngredientId = "dependency",
+                Capability = IngredientCapability.Missing,
+                Disposition = IngredientDisposition.Block,
+                TerminalStatus = IngredientTerminalStatus.AuthorizationBlocked,
+                AuthorizationStatusCode = 403
+            };
+            var evidence = new Dictionary<string, LiteralHttpAuthorizationEvidence>(StringComparer.Ordinal)
+            {
+                ["dependency"] = LiteralHttpAuthorizationEvidence.Create(
+                    "capture-layout",
+                    "https://source.example/_vti_bin/client.svc/ProcessQuery",
+                    403,
+                    DateTimeOffset.UtcNow)
+            };
+
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                graph,
+                new[] { ReproduceAction("consumer"), blocked, ReproduceAction("independent") },
+                evidence);
+
+            Assert.AreEqual(PageMigrationOutcome.PartiallyExecutable, evaluation.Outcome);
             Assert.IsTrue(evaluation.IsExecutable);
-            Assert.AreEqual(PageMigrationOutcome.ExecutableWithLoss, evaluation.Outcome);
+            Assert.AreEqual(PageIngredientExecutionState.AuthorizationBlocked, evaluation.ExecutionFrontier.GetState("dependency"));
+            Assert.AreEqual(PageIngredientExecutionState.SkippedByAuthorizationDependency, evaluation.ExecutionFrontier.GetState("consumer"));
+            Assert.AreEqual(PageIngredientExecutionState.Executable, evaluation.ExecutionFrontier.GetState("independent"));
+            Assert.IsFalse(evaluation.ExecutionFrontier.ShouldStopWholeItem);
+
+            var authorizationOnly = PageIngredientPlanEvaluator.Evaluate(
+                new CanonicalPageIngredientGraph
+                {
+                    Nodes = new List<PageIngredientNode> { Node("dependency") }
+                },
+                new[] { blocked },
+                evidence);
+            Assert.AreEqual(PageMigrationOutcome.AuthorizationBlocked, authorizationOnly.Outcome);
+            Assert.IsFalse(authorizationOnly.IsExecutable);
+            Assert.IsTrue(authorizationOnly.ExecutionFrontier.ShouldStopWholeItem);
+        }
+
+        [TestMethod]
+        public void TamperedAuthorizationEvidenceDigestIsRejected()
+        {
+            var blocked = new PageIngredientAction
+            {
+                ActionId = "action:dependency",
+                IngredientId = "dependency",
+                Capability = IngredientCapability.Missing,
+                Disposition = IngredientDisposition.Block,
+                TerminalStatus = IngredientTerminalStatus.AuthorizationBlocked,
+                AuthorizationStatusCode = 403
+            };
+            var evidence = LiteralHttpAuthorizationEvidence.Create(
+                "capture-layout",
+                "https://source.example/_vti_bin/client.svc/ProcessQuery",
+                403,
+                DateTimeOffset.UtcNow);
+            evidence.EvidenceSha256 = new string('0', 64);
+
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                new CanonicalPageIngredientGraph
+                {
+                    Nodes = new List<PageIngredientNode> { Node("dependency") }
+                },
+                new[] { blocked },
+                new Dictionary<string, LiteralHttpAuthorizationEvidence>(StringComparer.Ordinal)
+                {
+                    ["dependency"] = evidence
+                });
+
+            Assert.AreEqual(PageMigrationOutcome.Invalid, evaluation.Outcome);
+            Assert.IsTrue(evaluation.Issues.Any(value => value.Code == "IngredientAuthorizationEvidenceInvalid"));
+            Assert.IsFalse(evaluation.ExecutionFrontier.HasAuthorizationBlockedIngredients);
+        }
+
+        [TestMethod]
+        public void LiteralAuthorizationEvidenceRoundTripsOnlyInAuthorizationState()
+        {
+            var evidence = LiteralHttpAuthorizationEvidence.Create(
+                "capture-layout",
+                "https://source.example/_vti_bin/client.svc/ProcessQuery",
+                401,
+                DateTimeOffset.UtcNow);
+            var snapshot = new PublishingPageLayoutSnapshot
+            {
+                EvidenceState = PublishingPageLayoutEvidenceState.AuthorizationBlocked,
+                Availability = EvidenceAvailability.Unavailable,
+                AuthorizationEvidence = evidence
+            };
+
+            var roundTrip = PublishingPagePackageSerializer.Deserialize<PublishingPageLayoutSnapshot>(
+                PublishingPagePackageSerializer.Serialize(snapshot));
+
+            PublishingPageLayoutPackageValidator.ValidateSnapshot(roundTrip, null);
+            Assert.AreEqual(evidence.EvidenceSha256, roundTrip.AuthorizationEvidence.EvidenceSha256);
+
+            roundTrip.EvidenceState = PublishingPageLayoutEvidenceState.AccessDenied;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageLayoutPackageValidator.ValidateSnapshot(roundTrip, null));
+        }
+
+        [TestMethod]
+        public void DeferredBranchDoesNotBlockIndependentBranch()
+        {
+            var deferred = new PageIngredientAction
+            {
+                ActionId = "action:dependency",
+                IngredientId = "dependency",
+                Capability = IngredientCapability.Incompatible,
+                Disposition = IngredientDisposition.Defer,
+                TerminalStatus = IngredientTerminalStatus.DecisionRequired,
+                Reason = "Awaiting a reviewed replacement."
+            };
+
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                DependencyGraph(),
+                new[] { ReproduceAction("consumer"), deferred, ReproduceAction("independent") });
+
+            Assert.AreEqual(PageMigrationOutcome.PartiallyExecutable, evaluation.Outcome);
+            Assert.IsTrue(evaluation.IsExecutable);
+            Assert.IsTrue(evaluation.Issues.Any(value => value.Code == "IngredientMitigationPending"
+                && value.Severity == PnP.Framework.Migration.Diagnostics.MigrationIssueSeverity.Warning));
+            Assert.AreEqual(PageIngredientExecutionState.Deferred, evaluation.ExecutionFrontier.GetState("dependency"));
+            Assert.AreEqual(PageIngredientExecutionState.SkippedByDeferredDependency, evaluation.ExecutionFrontier.GetState("consumer"));
+            Assert.AreEqual(PageIngredientExecutionState.Executable, evaluation.ExecutionFrontier.GetState("independent"));
+            Assert.AreEqual(
+                PageReproductionOutcome.Rejected,
+                PageReproductionOutcomePolicy.Evaluate(true, evaluation.Outcome, Array.Empty<PageIngredientActionSelectionReceipt>()));
+        }
+
+        [TestMethod]
+        public void PolicyExclusionIsSatisfiedButIsNotAuthorizationEvidence()
+        {
+            var payload = PublishingPageProtectedAssetActionPlanner.Create(MicrosoftSnapshot(), "snapshot-a", null)
+                .Actions.Single(value => value.IngredientId.StartsWith("binary-payload:", StringComparison.Ordinal));
+            var graph = new CanonicalPageIngredientGraph
+            {
+                Nodes = new List<PageIngredientNode> { Node(payload.IngredientId) }
+            };
+
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(graph, new[] { payload });
+
+            Assert.AreEqual(PageMigrationOutcome.ExecutableWithApprovedExclusions, evaluation.Outcome);
+            Assert.AreEqual(PageIngredientExecutionState.SatisfiedByPolicy, evaluation.ExecutionFrontier.GetState(payload.IngredientId));
+            Assert.IsFalse(evaluation.ExecutionFrontier.HasAuthorizationBlockedIngredients);
+
+            var invalidEvidence = new Dictionary<string, LiteralHttpAuthorizationEvidence>(StringComparer.Ordinal)
+            {
+                [payload.IngredientId] = LiteralHttpAuthorizationEvidence.Create(
+                    "capture-protected-payload",
+                    "https://source.example/Docs/protected.pptx",
+                    403,
+                    DateTimeOffset.UtcNow)
+            };
+            var withUnconsumedEvidence = PageIngredientPlanEvaluator.Evaluate(graph, new[] { payload }, invalidEvidence);
+
+            Assert.AreEqual(PageMigrationOutcome.Invalid, withUnconsumedEvidence.Outcome);
+            Assert.IsTrue(withUnconsumedEvidence.Issues.Any(value => value.Code == "IngredientAuthorizationEvidenceUnconsumed"));
+            Assert.AreEqual(PageIngredientExecutionState.SatisfiedByPolicy, withUnconsumedEvidence.ExecutionFrontier.GetState(payload.IngredientId));
+            Assert.IsFalse(withUnconsumedEvidence.ExecutionFrontier.HasAuthorizationBlockedIngredients);
+        }
+
+        [TestMethod]
+        public void FidelityAllowedProfileRequiresExplicitOptInAndRoundTrips()
+        {
+            var secureDefault = new PageCaptureOptions();
+            Assert.AreEqual(ProtectedAssetCaptureProfile.MicrosoftTenantMetadataOnly, secureDefault.ProtectedAssets.Profile);
+            Assert.IsTrue(secureDefault.ProtectedAssets.FailClosedOnUnknown);
+
+            var explicitOocl = new PageCaptureOptions
+            {
+                ProtectedAssets = ProtectedAssetCapturePolicy.FidelityAllowed("policy.protected-asset.oocl-fidelity")
+            };
+            var roundTrip = PublishingPagePackageSerializer.Deserialize<PageCaptureOptions>(
+                PublishingPagePackageSerializer.Serialize(explicitOocl));
+
+            Assert.AreEqual(ProtectedAssetCaptureProfile.FidelityAllowed, roundTrip.ProtectedAssets.Profile);
+            Assert.AreEqual("policy.protected-asset.oocl-fidelity", roundTrip.ProtectedAssets.PolicyId);
+            Assert.IsFalse(roundTrip.ProtectedAssets.FailClosedOnUnknown);
         }
 
         [TestMethod]
@@ -547,6 +721,29 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 PolicyId = "policy.test",
                 PolicyVersion = "1",
                 TerminalStatus = IngredientTerminalStatus.Executable
+            };
+        }
+
+        private static CanonicalPageIngredientGraph DependencyGraph()
+        {
+            return new CanonicalPageIngredientGraph
+            {
+                Nodes = new List<PageIngredientNode>
+                {
+                    Node("consumer"),
+                    Node("dependency"),
+                    Node("independent")
+                },
+                Edges = new List<PageIngredientEdge>
+                {
+                    new PageIngredientEdge
+                    {
+                        FromIngredientId = "consumer",
+                        ToIngredientId = "dependency",
+                        Relationship = PageIngredientRelationship.DependsOn,
+                        Requirement = PageIngredientRequirement.Required
+                    }
+                }
             };
         }
     }

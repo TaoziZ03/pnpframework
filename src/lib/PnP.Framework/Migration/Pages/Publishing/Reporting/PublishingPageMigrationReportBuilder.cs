@@ -6,6 +6,7 @@ using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Reporting.Sections;
 using PnP.Framework.Migration.Pages.Markup;
 using PnP.Framework.Migration.Pages.Fields;
+using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Taxonomy;
 using System;
 using System.Linq;
@@ -217,14 +218,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
 
             writer.Table(
                 $"Ingredient actions ({plan.IngredientActions.Count})",
-                new[] { "Action ID", "Ingredient", "Capability", "Disposition", "Terminal status", "Authorization HTTP", "Candidates", "Selected action", "Selection receipt", "Realization", "Target identity", "Policy", "Reason", "Released dependencies", "Verification assertions" },
+                new[] { "Action ID", "Ingredient", "Capability", "Disposition", "Terminal status", "Candidates", "Selected action", "Selection receipt", "Realization", "Target identity", "Policy", "Reason", "Released dependencies", "Verification assertions" },
                 plan.IngredientActions.Select(action => Row(
                     action.ActionId,
                     action.IngredientId,
                     action.Capability,
                     action.Disposition,
                     action.TerminalStatus,
-                    action.AuthorizationStatusCode,
                     Join(action.CandidateActions.Select(value => value.CandidateActionId + "=" + value.Action + "/" + value.Scope)),
                     action.SelectedAction == null ? null : action.SelectedAction.CandidateActionId + "=" + action.SelectedAction.Action + "/" + action.SelectedAction.Scope,
                     action.SelectionReceipt == null ? null : action.SelectionReceipt.ReceiptDigest + "; comparison=" + action.SelectionReceipt.ComparisonRule + "; reason=" + action.SelectionReceipt.ReasonCode + "; approval=" + Format(action.SelectionReceipt.ApprovalReference),
@@ -234,6 +234,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
                     action.Reason,
                     Join(action.ReleasedDependencyIngredientIds),
                     Join(action.VerificationAssertions))));
+
+            writer.Table(
+                $"Ingredient execution frontier ({plan.ExecutionFrontier?.Decisions?.Count ?? 0})",
+                new[] { "Ingredient", "Execution state", "Caused by" },
+                (plan.ExecutionFrontier?.Decisions ?? Array.Empty<PageIngredientExecutionDecision>()).Select(decision => Row(
+                    decision.IngredientId,
+                    decision.State,
+                    Join(decision.CauseIngredientIds))));
 
             writer.Table(
                 $"Ingredient dependency issues ({plan.IngredientIssues.Count})",

@@ -14,9 +14,19 @@ namespace PnP.Framework.Migration.Pages.Ingredients
             {
                 return PageReproductionOutcome.Rejected;
             }
-            if ((approvedExclusions ?? Enumerable.Empty<PageIngredientActionSelectionReceipt>()).Any())
+            if (plannedOutcome == PageMigrationOutcome.ExecutableWithApprovedExclusions
+                || (approvedExclusions ?? Enumerable.Empty<PageIngredientActionSelectionReceipt>()).Any())
             {
                 return PageReproductionOutcome.ReproducedWithApprovedExclusions;
+            }
+            if (plannedOutcome == PageMigrationOutcome.Unknown
+                || plannedOutcome == PageMigrationOutcome.Blocked
+                || plannedOutcome == PageMigrationOutcome.MitigationPending
+                || plannedOutcome == PageMigrationOutcome.AuthorizationBlocked
+                || plannedOutcome == PageMigrationOutcome.Invalid
+                || plannedOutcome == PageMigrationOutcome.PartiallyExecutable)
+            {
+                return PageReproductionOutcome.Rejected;
             }
             return plannedOutcome == PageMigrationOutcome.ExecutableWithTransform
                 ? PageReproductionOutcome.ReproducedWithTransform

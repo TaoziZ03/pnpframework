@@ -34,6 +34,11 @@ namespace PnP.Framework.Migration.Pages.Ingredients
 
         public IngredientTerminalStatus TerminalStatus { get; set; } = IngredientTerminalStatus.Executable;
 
+        /// <summary>
+        /// Optional denormalized status for reporting compatibility. This value is
+        /// never authorization evidence; evaluators require a matching retained
+        /// <see cref="PnP.Framework.Migration.Evidence.LiteralHttpAuthorizationEvidence"/> record.
+        /// </summary>
         public int? AuthorizationStatusCode { get; set; }
     }
 }

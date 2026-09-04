@@ -32,12 +32,25 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     PublishingPageIngredientActionFactory.Add(actions, PublishingPageIngredientActionFactory.Create(
                         node.Id,
                         IngredientCapability.Unknown,
-                        IngredientDisposition.Block,
+                        IngredientDisposition.Defer,
                         "none",
                         "policy.ingredient.unknown",
                         "No ingredient handler produced an action for the captured ingredient."));
                 }
             }
+
+            // A typed domain planner's Block means that the ingredient cannot be
+            // materialized with the evidence/capability currently available. At
+            // the orchestration boundary that is a nonterminal mitigation item.
+            // Only the retained literal HTTP policy below may reintroduce Block.
+            foreach (var action in actions.Values.Where(value => value != null
+                         && value.Disposition == IngredientDisposition.Block))
+            {
+                action.Disposition = IngredientDisposition.Defer;
+                action.TerminalStatus = IngredientTerminalStatus.DecisionRequired;
+                action.AuthorizationStatusCode = null;
+            }
+            PublishingPageIngredientAuthorizationPolicy.Apply(snapshot, actions);
 
             return actions.Values.OrderBy(value => value.IngredientId, StringComparer.Ordinal).ToList();
         }
