@@ -32,7 +32,14 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `PublishingPageImportReceipt` | `pnp-publishing-page-import-receipt/v2` |
 | `PageArtifactSnapshot` | `pnp-page-artifact/v1` |
 | `PageRuntimeSnapshot` | `pnp-page-runtime/v1` |
-| `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1` |
+| `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1`; `v2` when the plan contains explicit shared external references |
+| `PathDerivedSourceTopologyEvidence` | `pnp-path-derived-source-topology-evidence/v1` |
+| `SharedTopologyPlan` | `pnp-shared-topology-plan/v1` |
+| `SharedTopologyGlobalActionDag` | `pnp-shared-topology-global-action-dag/v1` |
+| `SharedTopologyGlobalTargetAnalysis` | `pnp-shared-topology-global-target-analysis/v1` |
+| `SharedTopologyGlobalActionPlan` | `pnp-shared-topology-global-action-plan/v1` |
+| `SharedTopologyGlobalMaterializationReceipt` | `pnp-shared-topology-global-receipt/v1` |
+| `SharedTopologyPageReference` | `pnp-shared-topology-page-reference/v2` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
 | `TaxonomyValueRelationshipSnapshot` | `pnp-taxonomy-value-relationship/v1` |
@@ -148,6 +155,8 @@ Planning independently derives the current canonical graph from the typed snapsh
 
 Legacy export packages whose graph has no `projectionVersion` are validated against the legacy projector. A current plan over that evidence stores the current versioned projection in `plan.ingredientGraph`, while the embedded snapshot remains byte-for-byte and digest-equivalent to the export. Import validates both boundaries. This permits projector evolution without either silently accepting a tampered old graph or invalidating authentic frozen evidence.
 
+When complete source topology is unavailable only because a captured ancestor request returned literal HTTP `401/403`, the export stores mutually exclusive `pathDerivedTopologyEvidence` instead of a partial `sourceTopology`. The plan graph then uses schema `pnp-page-ingredient-graph/v2` and external shared references. Those references retain the authorization-limited source-fidelity ingredient but make the required target-Web producer a global action rather than a page-local node.
+
 ## Target-specific migration package
 
 `PublishingPageMigrationPackage` embeds the source snapshot and adds the complete reviewed target intent.
@@ -191,6 +200,7 @@ Legacy export packages whose graph has no `projectionVersion` are validated agai
 | `dependencyActions` | Exactly one result for every captured governed reference. |
 | `topology` | Source Site/Web to target Site/Web mapping and topology semantic digest. |
 | `topologyTargetAnalysis` | Target existence, identity, parent, template, ownership, disposition, and issues for each mapped Site/Web. |
+| `sharedTopologyReference` | For path-derived packages, the support cohort, source-fidelity limitation, target leaf, and ordered global-action keys that must have a verified external receipt before page mutation. It is mutually exclusive with page-local `topology`. |
 | `listMigration` | Ordered per-List plans, conditional platform-feature requirements, field/View/site-content-type actions, target probes, issues, and digests. Each feature requirement seals its ID, scope, dependency order, consuming and promised content-type IDs, and target Site Collection. |
 | `webPartActions` | Copy, rebind-after-materialization, or defer-for-mitigation result for each captured Web Part. |
 | `replacements` | Approved source-to-target text substitutions. |
@@ -236,7 +246,7 @@ The package stores planning probes because they are review evidence. Import must
 | Lifecycle fields | Planned lifecycle and actual file/check-out/moderation evidence. |
 | Content fields | Expected and persisted publishing-content digests. |
 | Web Part fields | Imported count and per-part fresh-readback results. |
-| `topologyMaterialization`, `topologyMatched` | Runtime Web mappings, actual dispositions, mapping digests, diagnostics, and topology readback. |
+| `topologyMaterialization`, `sharedTopologyMaterialization`, `topologyMatched` | Page-local or shared runtime Web mappings, actual dispositions, ownership, action signatures, runtime IDs, diagnostics, and fresh topology readback. A path-derived page consumes a previously executed global receipt and performs no duplicate page-local Web create. |
 | `listMaterializations`, `listsMatched` | Runtime Web/List/item/View/content-type maps, actual List dispositions, verified counts, diagnostics, and closure readback. |
 | `fieldResults` | Per-page-field execution result, including target-local taxonomy materialization receipts where applicable. |
 | `taxonomyRelationshipsMatched` / `taxonomyRelationshipResults` | Aggregate and per-executed-value fresh readback of field binding, page value, live/absent Term state, hidden-list identity, and `TaxCatchAll`. Evidence-only relationships are not target assertions. |

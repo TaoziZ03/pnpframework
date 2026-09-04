@@ -191,7 +191,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 targetFieldsLoaded: targetPages != null);
             var expectedContent = PageTextTransformer.Rewrite(snapshot.PublishingPageContent, replacements);
             var expectedContentDigest = PublishingPageDigest.ComputeSha256(expectedContent);
-            var planningIngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot);
+            var planningIngredientGraph = dependencyPlan.IngredientGraph
+                ?? PublishingPageIngredientGraphProjector.Project(snapshot);
             var plan = new PublishingPageMigrationPlan
             {
                 SourceSnapshotDigest = exportPackage.SnapshotDigest,
@@ -219,6 +220,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 DependencyActions = dependencyActions,
                 Topology = dependencyPlan.Topology,
                 TopologyTargetAnalysis = dependencyPlan.TopologyTargetAnalysis,
+                SharedTopologyReference = dependencyPlan.SharedTopologyReference,
                 ListMigration = dependencyPlan.ListMigration,
                 WebPartActions = dependencyPlan.WebPartActions,
                 Replacements = replacements,

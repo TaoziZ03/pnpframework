@@ -41,6 +41,7 @@ namespace PnP.Framework.Migration.Pages.Ingredients
             var nodes = graph.Nodes ?? new List<PageIngredientNode>();
             var actionList = (actions ?? Array.Empty<PageIngredientAction>()).ToList();
             var nodeById = UniqueNodes(nodes, issues);
+            var externalById = UniqueExternalReferences(graph.ExternalReferences, nodeById, issues);
             var actionByIngredient = UniqueActions(actionList, issues);
 
             foreach (var node in nodes.Where(value => value != null && value.HasContent))
@@ -119,10 +120,11 @@ namespace PnP.Framework.Migration.Pages.Ingredients
                 nodeById,
                 actionByIngredient,
                 issues);
-            ValidateDependencyReleases(graph.Edges, nodeById, actionByIngredient, issues);
+            ValidateDependencyReleases(graph.Edges, nodeById, externalById, actionByIngredient, issues);
             ValidateRequiredEdges(
                 graph.Edges,
                 nodeById,
+                externalById,
                 actionByIngredient,
                 authorizationIngredientIds,
                 issues);
@@ -263,9 +265,49 @@ namespace PnP.Framework.Migration.Pages.Ingredients
             return result;
         }
 
+        private static Dictionary<string, PageIngredientExternalReference> UniqueExternalReferences(
+            IEnumerable<PageIngredientExternalReference> references,
+            IDictionary<string, PageIngredientNode> localNodes,
+            ICollection<MigrationIssue> issues)
+        {
+            var result = new Dictionary<string, PageIngredientExternalReference>(StringComparer.Ordinal);
+            foreach (var reference in references ?? Array.Empty<PageIngredientExternalReference>())
+            {
+                if (reference == null
+                    || string.IsNullOrWhiteSpace(reference.IngredientId)
+                    || reference.Ownership != PageIngredientOwnership.Shared
+                    || string.IsNullOrWhiteSpace(reference.SupportCohortSignature)
+                    || localNodes.ContainsKey(reference.IngredientId)
+                    || result.ContainsKey(reference.IngredientId))
+                {
+                    issues.Add(Issue(
+                        "ExternalIngredientReferenceInvalid",
+                        reference?.IngredientId ?? "external-ingredient",
+                        "External ingredient references must have unique non-local IDs, shared ownership, and a support-cohort signature.",
+                        MigrationIssueSeverity.Error));
+                    continue;
+                }
+                if (reference.State == PageExternalIngredientState.PlannedGlobalAction
+                    && (string.IsNullOrWhiteSpace(reference.SharedPlanDigest)
+                        || string.IsNullOrWhiteSpace(reference.GlobalActionKey)
+                        || string.IsNullOrWhiteSpace(reference.ActionSignatureDigest)))
+                {
+                    issues.Add(Issue(
+                        "ExternalIngredientGlobalActionMissing",
+                        reference.IngredientId,
+                        "A planned shared ingredient requires a global action key and action signature digest.",
+                        MigrationIssueSeverity.Error));
+                    continue;
+                }
+                result.Add(reference.IngredientId, reference);
+            }
+            return result;
+        }
+
         private static void ValidateRequiredEdges(
             IEnumerable<PageIngredientEdge> edges,
             IDictionary<string, PageIngredientNode> nodes,
+            IDictionary<string, PageIngredientExternalReference> externalReferences,
             IDictionary<string, PageIngredientAction> actions,
             ISet<string> authorizationIngredientIds,
             ICollection<MigrationIssue> issues)
@@ -274,12 +316,13 @@ namespace PnP.Framework.Migration.Pages.Ingredients
             {
                 if (edge == null
                     || !nodes.ContainsKey(edge.FromIngredientId ?? string.Empty)
-                    || !nodes.ContainsKey(edge.ToIngredientId ?? string.Empty))
+                    || (!nodes.ContainsKey(edge.ToIngredientId ?? string.Empty)
+                        && !externalReferences.ContainsKey(edge.ToIngredientId ?? string.Empty)))
                 {
                     issues.Add(Issue(
                         "IngredientEdgeInvalid",
                         edge?.FromIngredientId ?? "ingredient-edge",
-                        "Every graph edge must connect two captured ingredients.",
+                        "Every graph edge must connect a local ingredient to a local or explicitly referenced shared ingredient.",
                         MigrationIssueSeverity.Error));
                     continue;
                 }
@@ -291,9 +334,24 @@ namespace PnP.Framework.Migration.Pages.Ingredients
                 if (edge.Requirement != PageIngredientRequirement.Required
                     || consumer == null
                     || !IsRetained(consumer.Disposition)
-                    || !nodes[edge.ToIngredientId].HasContent
+                    || (nodes.TryGetValue(edge.ToIngredientId, out var localDependency) && !localDependency.HasContent)
                     || explicitlyReleased)
                 {
+                    continue;
+                }
+
+                if (externalReferences.TryGetValue(edge.ToIngredientId, out var externalDependency))
+                {
+                    if (externalDependency.State != PageExternalIngredientState.PlannedGlobalAction)
+                    {
+                        issues.Add(Issue(
+                            "RequiredSharedIngredientDependencyUnsatisfied",
+                            edge.FromIngredientId,
+                            $"Retained ingredient '{edge.FromIngredientId}' requires shared ingredient '{edge.ToIngredientId}', whose state is '{externalDependency.State}'.",
+                            externalDependency.State == PageExternalIngredientState.AuthorizationBlocked
+                                ? MigrationIssueSeverity.Blocker
+                                : MigrationIssueSeverity.Error));
+                    }
                     continue;
                 }
 
@@ -341,6 +399,7 @@ namespace PnP.Framework.Migration.Pages.Ingredients
         private static void ValidateDependencyReleases(
             IEnumerable<PageIngredientEdge> edges,
             IDictionary<string, PageIngredientNode> nodes,
+            IDictionary<string, PageIngredientExternalReference> externalReferences,
             IDictionary<string, PageIngredientAction> actions,
             ICollection<MigrationIssue> issues)
         {
@@ -373,7 +432,7 @@ namespace PnP.Framework.Migration.Pages.Ingredients
                 }
                 foreach (var dependencyId in releases.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal))
                 {
-                    if (!nodes.ContainsKey(dependencyId)
+                    if ((!nodes.ContainsKey(dependencyId) && !externalReferences.ContainsKey(dependencyId))
                         || !requiredEdges.Contains(EdgeIdentity(action.IngredientId, dependencyId)))
                     {
                         issues.Add(Issue(
