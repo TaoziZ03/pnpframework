@@ -113,19 +113,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     TargetTitle = value.TargetTitle,
                     TargetRootFolderServerRelativeUrl = value.TargetRootFolderServerRelativeUrl
                 }).ToList(),
-                DroppedLookupValueDecisions = options.DroppedLookupValueDecisions == null
-                    ? null
-                    : options.DroppedLookupValueDecisions.Select(value => new DroppedLookupValueDecision
-                      {
-                          SchemaVersion = value.SchemaVersion,
-                          ConsumerSourceListId = value.ConsumerSourceListId,
-                          ConsumerSourceItemId = value.ConsumerSourceItemId,
-                          ConsumerFieldInternalName = value.ConsumerFieldInternalName,
-                          ProviderSourceListId = value.ProviderSourceListId,
-                          ProviderSourceItemId = value.ProviderSourceItemId,
-                          Disposition = value.Disposition,
-                          PolicyId = value.PolicyId
-                      }).ToList()
+                DroppedLookupValueDecisions = DroppedLookupValueDecision.Canonicalize(
+                    options.DroppedLookupValueDecisions)
             };
         }
     }

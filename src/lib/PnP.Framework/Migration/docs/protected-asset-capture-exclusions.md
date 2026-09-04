@@ -43,8 +43,15 @@ required value-level item edge. Decisions are sealed per exact edge by consumer
 List/item/field and provider List/item. The planning policy must explicitly
 choose `ClearValue` (remove only that provider value and release only that edge)
 or `DropDependentItem`; an omitted decision becomes `NeedsPolicyDecision` and
-defers only the dependent branch. Required single- and multi-value lookup fields
-cannot use `ClearValue` because source schema still requires a value.
+defers only the dependent branch. The sealed planning policy orders decisions by
+their exact edge identity and normalizes an empty set to null, so input order
+cannot alter plan identity or resume behavior.
+
+Required single- and multi-value lookup fields cannot use `ClearValue`.
+Effective requiredness is the List field `Required` flag OR the captured item's
+Content Type FieldLink `Required` flag. If the item Content Type cannot be
+resolved from captured evidence, planning does not assume the field is optional
+and will not execute `ClearValue` automatically.
 
 Dropping a dependent item feeds a fixed-point closure: its lookup consumers are
 evaluated in turn, so A -> B -> C propagates when both reviewed edges select
@@ -52,6 +59,10 @@ evaluated in turn, so A -> B -> C propagates when both reviewed edges select
 structurally drops its nearest captured child folders/files, then continues
 through their dependants. These folder-path edges are intrinsic and do not need
 a user lookup policy. Independent siblings remain executable throughout.
+When no protected seed item and no decision exists, planning returns before
+building the item dependency graph. Folder ancestry uses normalized path lookup,
+and closure traversal uses provider adjacency queues so each dependency edge is
+visited once.
 
 The exclusion is a document-backed-item exclusion, not a claim that SharePoint
 can create document metadata without a file. No protected-payload replay or
@@ -70,6 +81,10 @@ mapped document path remain absent. The receipt classifies the path probe as:
 
 Only `Absent` passes verification. Retryable and authorization results are not
 misreported as target presence.
+
+Dropped dependent items also retain one structured migration-owned identity
+verification (`Absent` or `Present`). The import receipt aggregates both counts,
+so a stale owned item cannot be hidden in free-form diagnostics.
 
 ## Compatibility
 

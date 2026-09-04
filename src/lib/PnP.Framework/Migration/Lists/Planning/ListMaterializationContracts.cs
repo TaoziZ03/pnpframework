@@ -74,7 +74,17 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         public string ConsumerFieldInternalName { get; set; }
 
-        public bool ConsumerFieldRequired { get; set; }
+        public bool ConsumerListFieldRequired { get; set; }
+
+        public string ConsumerContentTypeId { get; set; }
+
+        public bool ConsumerContentTypeResolved { get; set; }
+
+        public bool ConsumerContentTypeFieldLinkRequired { get; set; }
+
+        public bool ConsumerEffectiveRequired { get; set; }
+
+        public bool ConsumerRequirementKnown { get; set; }
 
         public Guid ProviderSourceWebId { get; set; }
 
@@ -118,6 +128,19 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         [JsonIgnore]
         public bool Passed => Status == ProtectedDocumentTargetAbsenceStatus.Absent;
+    }
+
+    public enum DroppedDependentTargetIdentityStatus
+    {
+        Absent = 1,
+        Present = 2
+    }
+
+    public sealed class ListDroppedDependentItemVerification
+    {
+        public int SourceItemId { get; set; }
+
+        public DroppedDependentTargetIdentityStatus Status { get; set; }
     }
 
     public sealed class ListTargetOverride
@@ -357,6 +380,9 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public IList<ListProtectedDocumentExclusionVerification> ProtectedDocumentExclusionVerifications { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<ListDroppedDependentItemVerification> DroppedDependentItemVerifications { get; set; }
 
         public IList<string> Diagnostics { get; set; } = new List<string>();
     }

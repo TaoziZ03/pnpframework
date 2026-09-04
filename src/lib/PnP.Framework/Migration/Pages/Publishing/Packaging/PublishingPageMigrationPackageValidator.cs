@@ -139,7 +139,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 throw new InvalidDataException("The planning policy contains a null taxonomy schema mapping collection.");
             }
             PagePlanningTaxonomyMappingResolver.Normalize(plan.PlanningPolicy);
-            DroppedLookupValueDecision.ValidateAndIndex(plan.PlanningPolicy.DroppedLookupValueDecisions);
+            DroppedLookupValueDecision.ValidateCanonicalOrder(
+                plan.PlanningPolicy.DroppedLookupValueDecisions);
 
             var expectedOriginalIdentifier = PublishingPageTargetOwnership.OriginalIdentifier(snapshot.Source);
             if (!string.Equals(plan.OriginalIdentifier, expectedOriginalIdentifier, StringComparison.Ordinal))

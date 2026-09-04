@@ -113,6 +113,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public int ApprovedProtectedDocumentExclusionCount { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public int DroppedDependentItemAbsentCount { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public int DroppedDependentItemPresentCount { get; set; }
+
         public bool ListsMatched { get; set; }
 
         public IList<PageFieldImportResult> FieldResults { get; set; } = new List<PageFieldImportResult>();

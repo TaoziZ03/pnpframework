@@ -22,9 +22,9 @@ namespace PnP.Framework.Migration.Lists.Packaging
             IEnumerable<ListDependencySnapshot> snapshots,
             IEnumerable<ListLookupDependency> lookupDependencies,
             ListMigrationPlanSet plan,
-            IEnumerable<DroppedLookupValueDecision> droppedLookupValueDecisions)
+            IList<DroppedLookupValueDecision> droppedLookupValueDecisions)
         {
-            DroppedLookupValueDecision.ValidateAndIndex(droppedLookupValueDecisions);
+            DroppedLookupValueDecision.ValidateCanonicalOrder(droppedLookupValueDecisions);
             var sources = (snapshots ?? Enumerable.Empty<ListDependencySnapshot>()).ToArray();
             if (sources.Length == 0 && plan == null)
             {
@@ -193,7 +193,7 @@ namespace PnP.Framework.Migration.Lists.Packaging
             IEnumerable<ListDependencySnapshot> sources,
             IEnumerable<ListLookupDependency> lookupDependencies,
             IEnumerable<ListMaterializationPlan> plans,
-            IEnumerable<DroppedLookupValueDecision> decisions)
+            IList<DroppedLookupValueDecision> decisions)
         {
             var planValues = plans.ToArray();
             var expected = DroppedItemDependencyPlanner.Project(

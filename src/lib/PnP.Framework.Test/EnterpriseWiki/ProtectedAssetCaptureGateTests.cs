@@ -2,6 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.ContentTypes;
 using PnP.Framework.Migration.Lists.Execution;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
@@ -10,6 +11,7 @@ using PnP.Framework.Migration.Lists.Packaging;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Assessment;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
@@ -17,6 +19,7 @@ using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Reporting;
 using PnP.Framework.Migration.Pages.Publishing.Reporting.Sections;
+using PnP.Framework.Migration.Pages.Publishing.Verification;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.Fields;
 using PnP.Framework.Migration.Topology;
@@ -645,8 +648,33 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 .Single(value => value.SourceListId == scenario.Consumer.SourceListId)
                 .DroppedItemDependencies.Single();
 
-            Assert.IsTrue(dependency.ConsumerFieldRequired);
+            Assert.IsTrue(dependency.ConsumerEffectiveRequired);
             Assert.AreEqual(DroppedItemDependencyDisposition.DropDependentItem, dependency.Disposition);
+        }
+
+        [DataTestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ContentTypeRequiredSingleAndMultiLookupRejectClearValue(bool multi)
+        {
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                CreateLookupScenario(
+                    DroppedItemDependencyDisposition.ClearValue,
+                    multi: multi,
+                    contentTypeRequired: true));
+
+            StringAssert.Contains(exception.Message, "Required lookup field");
+        }
+
+        [TestMethod]
+        public void ClearValueRequiresCapturedContentTypeRequirementEvidence()
+        {
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                CreateLookupScenario(
+                    DroppedItemDependencyDisposition.ClearValue,
+                    includeContentType: false));
+
+            StringAssert.Contains(exception.Message, "ContentType requirement could not be determined");
         }
 
         [TestMethod]
@@ -673,6 +701,46 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 7,
                 DroppedItemDependencyDisposition.ClearValue,
                 "policy.test.required.tampered-clear");
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ListMigrationPlanValidator.Validate(
+                    new[] { scenario.Provider, scenario.Consumer },
+                    scenario.LookupDependencies,
+                    scenario.PlanSet,
+                    new[] { clearDecision }));
+
+            StringAssert.Contains(exception.Message, "Required lookup field");
+        }
+
+        [TestMethod]
+        public void PlanValidatorRecomputesContentTypeFieldLinkRequiredAndRejectsTamperedClearDecision()
+        {
+            var scenario = CreateLookupScenario(
+                DroppedItemDependencyDisposition.DropDependentItem,
+                contentTypeRequired: true);
+            var consumerPlan = scenario.PlanSet.Lists
+                .Single(value => value.SourceListId == scenario.Consumer.SourceListId);
+            var dependency = consumerPlan.DroppedItemDependencies.Single();
+            Assert.IsFalse(dependency.ConsumerListFieldRequired);
+            Assert.IsTrue(dependency.ConsumerContentTypeResolved);
+            Assert.IsTrue(dependency.ConsumerContentTypeFieldLinkRequired);
+            Assert.IsTrue(dependency.ConsumerEffectiveRequired);
+            dependency.Disposition = DroppedItemDependencyDisposition.ClearValue;
+            dependency.PolicyId = "policy.test.ct-required.tampered-clear";
+            foreach (var plan in scenario.PlanSet.Lists)
+            {
+                plan.Disposition = ListMaterializationDisposition.Block;
+                plan.PlanDigest = ListMigrationPlanFactory.ComputePlanDigest(plan);
+            }
+            scenario.PlanSet.PlanDigest = ListMigrationPlanFactory.ComputeSetDigest(scenario.PlanSet);
+            var clearDecision = DroppedLookupValueDecision.Create(
+                scenario.Consumer.SourceListId,
+                11,
+                "ProtectedDocument",
+                scenario.Provider.SourceListId,
+                7,
+                DroppedItemDependencyDisposition.ClearValue,
+                "policy.test.ct-required.tampered-clear");
 
             var exception = Assert.ThrowsException<InvalidDataException>(() =>
                 ListMigrationPlanValidator.Validate(
@@ -791,6 +859,134 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void SealedPlanningPolicyCanonicalizesDecisionOrderAndResumeDigest()
+        {
+            var decisions = CanonicalDecisionPair();
+            var first = PublishingPagePlanningPolicy.CopyOptions(
+                new PagePlanningOptions
+                {
+                    TargetPageServerRelativeUrl = "/sites/target/pages/a.aspx",
+                    DroppedLookupValueDecisions = decisions.Reverse().ToList()
+                },
+                "/sites/target/pages/a.aspx");
+            var second = PublishingPagePlanningPolicy.CopyOptions(
+                new PagePlanningOptions
+                {
+                    TargetPageServerRelativeUrl = "/sites/target/pages/a.aspx",
+                    DroppedLookupValueDecisions = decisions.ToList()
+                },
+                "/sites/target/pages/a.aspx");
+            var expectedKeys = decisions
+                .Select(DroppedLookupValueDecision.ExactEdgeKey)
+                .OrderBy(value => value, StringComparer.Ordinal)
+                .ToArray();
+
+            CollectionAssert.AreEqual(
+                expectedKeys,
+                first.DroppedLookupValueDecisions
+                    .Select(DroppedLookupValueDecision.ExactEdgeKey)
+                    .ToArray());
+            Assert.AreEqual(
+                PublishingPagePackageSerializer.SerializeCanonical(first),
+                PublishingPagePackageSerializer.SerializeCanonical(second));
+
+            var firstPlan = new PublishingPageMigrationPlan { PlanningPolicy = first };
+            var secondPlan = new PublishingPageMigrationPlan { PlanningPolicy = second };
+            var firstDigest = PublishingPageDigest.ComputePlanDigest(firstPlan);
+            Assert.AreEqual(firstDigest, PublishingPageDigest.ComputePlanDigest(secondPlan));
+            var resumed = PublishingPagePackageSerializer.Deserialize<PublishingPageMigrationPlan>(
+                PublishingPagePackageSerializer.Serialize(firstPlan));
+            Assert.AreEqual(firstDigest, PublishingPageDigest.ComputePlanDigest(resumed));
+            CollectionAssert.AreEqual(
+                expectedKeys,
+                resumed.PlanningPolicy.DroppedLookupValueDecisions
+                    .Select(DroppedLookupValueDecision.ExactEdgeKey)
+                    .ToArray());
+        }
+
+        [TestMethod]
+        public void SealedPlanningPolicyNormalizesNullAndEmptyDecisionSetsToNull()
+        {
+            var fromNull = PublishingPagePlanningPolicy.CopyOptions(
+                new PagePlanningOptions { TargetPageServerRelativeUrl = "/sites/target/pages/a.aspx" },
+                "/sites/target/pages/a.aspx");
+            var fromEmpty = PublishingPagePlanningPolicy.CopyOptions(
+                new PagePlanningOptions
+                {
+                    TargetPageServerRelativeUrl = "/sites/target/pages/a.aspx",
+                    DroppedLookupValueDecisions = new List<DroppedLookupValueDecision>()
+                },
+                "/sites/target/pages/a.aspx");
+
+            Assert.IsNull(fromNull.DroppedLookupValueDecisions);
+            Assert.IsNull(fromEmpty.DroppedLookupValueDecisions);
+            Assert.AreEqual(
+                PublishingPagePackageSerializer.SerializeCanonical(fromNull),
+                PublishingPagePackageSerializer.SerializeCanonical(fromEmpty));
+        }
+
+        [TestMethod]
+        public void PlanValidatorRejectsNonCanonicalDecisionOrder()
+        {
+            var reversed = DroppedLookupValueDecision.Canonicalize(CanonicalDecisionPair())
+                .Reverse()
+                .ToList();
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ListMigrationPlanValidator.Validate(
+                    Array.Empty<ListDependencySnapshot>(),
+                    Array.Empty<ListLookupDependency>(),
+                    null,
+                    reversed));
+
+            StringAssert.Contains(exception.Message, "canonical exact-edge order");
+        }
+
+        [TestMethod]
+        public void PlanValidatorRejectsAnEmptyNonNullDecisionSet()
+        {
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ListMigrationPlanValidator.Validate(
+                    Array.Empty<ListDependencySnapshot>(),
+                    Array.Empty<ListLookupDependency>(),
+                    null,
+                    new List<DroppedLookupValueDecision>()));
+
+            StringAssert.Contains(exception.Message, "empty dropped lookup-value decision set as null");
+        }
+
+        [TestMethod]
+        public void ListReportIncludesEverySuppliedExactEdgeDecision()
+        {
+            var scenario = CreateMixedLookupDecisionScenario();
+            var writer = new MarkdownReportWriter();
+            ListDependencyMigrationReportSection.Append(
+                writer,
+                new PublishingPageCaptureBundle
+                {
+                    ListDependencies = scenario.Lists,
+                    ListLookupDependencies = scenario.LookupDependencies
+                },
+                new PublishingPageMigrationPlan
+                {
+                    PlanningPolicy = new PagePlanningOptions
+                    {
+                        DroppedLookupValueDecisions = DroppedLookupValueDecision.Canonicalize(
+                            scenario.Decisions)
+                    },
+                    ListMigration = scenario.PlanSet
+                });
+            var report = writer.ToString();
+
+            StringAssert.Contains(report, "Supplied dropped lookup-value decisions");
+            foreach (var decision in scenario.Decisions)
+            {
+                StringAssert.Contains(report, decision.PolicyId);
+                StringAssert.Contains(report, decision.ConsumerSourceItemId.ToString());
+            }
+        }
+
+        [TestMethod]
         public void ClearValueRemovesOnlyTheExactDroppedLookupFromAMultiValueField()
         {
             var providerListId = Guid.Parse("33333333-4444-5555-6666-777777777777");
@@ -880,6 +1076,28 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     sourceItemId);
                 Assert.AreEqual(IngredientDisposition.Drop, scenario.Actions[ingredientId].Disposition);
             }
+        }
+
+        [TestMethod]
+        public void NoSeedFastPathDoesNotEnumerateItemsOrBuildAnItemGraph()
+        {
+            var sourceListId = Guid.Parse("12345678-1234-1234-1234-123456789012");
+            var source = new ListDependencySnapshot
+            {
+                SourceListId = sourceListId,
+                Items = new ThrowOnEnumerationList<ListItemSnapshot>()
+            };
+            var plan = new ListMaterializationPlan { SourceListId = sourceListId };
+
+            var projection = DroppedItemDependencyPlanner.Project(
+                new[] { source },
+                Array.Empty<ListLookupDependency>(),
+                new[] { plan },
+                null);
+
+            Assert.AreEqual(0, projection.SourceEdges.Count);
+            Assert.AreEqual(0, projection.DroppedItemKeys.Count);
+            Assert.AreEqual(0, projection.PlansByConsumerList.Count);
         }
 
         [TestMethod]
@@ -1016,6 +1234,56 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsTrue(ListItemVerifier.RequiresOwnedItemRead(receipt, plan));
         }
 
+        [TestMethod]
+        public void DroppedDependentReceiptCountsAbsentAndPresentIdentities()
+        {
+            var listReceipts = new[]
+            {
+                new ListMaterializationReceipt
+                {
+                    DroppedDependentItemVerifications = new List<ListDroppedDependentItemVerification>
+                    {
+                        new ListDroppedDependentItemVerification
+                        {
+                            SourceItemId = 11,
+                            Status = DroppedDependentTargetIdentityStatus.Absent
+                        },
+                        new ListDroppedDependentItemVerification
+                        {
+                            SourceItemId = 12,
+                            Status = DroppedDependentTargetIdentityStatus.Present
+                        }
+                    }
+                },
+                new ListMaterializationReceipt
+                {
+                    DroppedDependentItemVerifications = new List<ListDroppedDependentItemVerification>
+                    {
+                        new ListDroppedDependentItemVerification
+                        {
+                            SourceItemId = 21,
+                            Status = DroppedDependentTargetIdentityStatus.Absent
+                        }
+                    }
+                }
+            };
+            var receipt = new PublishingPageImportReceipt
+            {
+                DroppedDependentItemAbsentCount = PublishingPageImportVerifier.DroppedDependentItemCount(
+                    listReceipts,
+                    DroppedDependentTargetIdentityStatus.Absent),
+                DroppedDependentItemPresentCount = PublishingPageImportVerifier.DroppedDependentItemCount(
+                    listReceipts,
+                    DroppedDependentTargetIdentityStatus.Present)
+            };
+            var json = PublishingPagePackageSerializer.SerializeCanonical(receipt);
+
+            Assert.AreEqual(2, receipt.DroppedDependentItemAbsentCount);
+            Assert.AreEqual(1, receipt.DroppedDependentItemPresentCount);
+            StringAssert.Contains(json, "\"droppedDependentItemAbsentCount\":2");
+            StringAssert.Contains(json, "\"droppedDependentItemPresentCount\":1");
+        }
+
         [DataTestMethod]
         [DataRow(404, ProtectedDocumentTargetAbsenceStatus.Absent)]
         [DataRow(401, ProtectedDocumentTargetAbsenceStatus.AuthorizationBlocked)]
@@ -1085,7 +1353,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
         private static LookupScenarioState CreateLookupScenario(
             DroppedItemDependencyDisposition? disposition,
             bool required = false,
-            bool multi = false)
+            bool multi = false,
+            bool contentTypeRequired = false,
+            bool includeContentType = true)
         {
             var provider = ProtectedList(ProtectedAssetCapturePolicy.MetadataOnly("policy.test.lookup.provider"));
             var fieldId = Guid.Parse("55555555-5555-5555-5555-555555555555");
@@ -1106,6 +1376,12 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 {
                     LookupField(fieldId, provider, required, multi)
                 },
+                ContentTypes = includeContentType
+                    ? new List<ListContentTypeSnapshot>
+                    {
+                        LookupContentType(fieldId, "ProtectedDocument", contentTypeRequired)
+                    }
+                    : new List<ListContentTypeSnapshot>(),
                 Items = new List<ListItemSnapshot>
                 {
                     new ListItemSnapshot { SourceItemId = 10 },
@@ -1114,6 +1390,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                         SourceItemId = 11,
                         Values = new List<ListItemValueSnapshot>
                         {
+                            ContentTypeValue(),
                             new ListItemValueSnapshot
                             {
                                 InternalName = "ProtectedDocument",
@@ -1169,13 +1446,14 @@ namespace PnP.Framework.Test.EnterpriseWiki
             IList<ListLookupDependency> lookupDependencies,
             IEnumerable<DroppedLookupValueDecision> decisions)
         {
+            var decisionValues = (decisions ?? Array.Empty<DroppedLookupValueDecision>()).ToList();
             var planSet = ListMigrationPlanFactory.Create(
                 lists,
                 lookupDependencies,
                 Topology(provider),
                 Array.Empty<PnP.Framework.Migration.Taxonomy.TaxonomyTargetMapping>(),
                 Array.Empty<ListTargetOverride>(),
-                decisions);
+                decisionValues);
             var snapshot = new PublishingPageCaptureBundle
             {
                 ListDependencies = lists,
@@ -1201,6 +1479,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 Consumer = consumer,
                 Lists = lists,
                 LookupDependencies = lookupDependencies,
+                Decisions = decisionValues,
                 PlanSet = planSet,
                 Graph = graph,
                 Actions = actions
@@ -1280,6 +1559,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 SourceItemId = 12,
                 Values = new List<ListItemValueSnapshot>
                 {
+                    ContentTypeValue(),
                     LookupValue("ProtectedDocument", 7)
                 }
             });
@@ -1423,6 +1703,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 {
                     LookupField(fieldId, provider, internalName: fieldInternalName)
                 },
+                ContentTypes = new List<ListContentTypeSnapshot>
+                {
+                    LookupContentType(fieldId, fieldInternalName, false)
+                },
                 Items = new List<ListItemSnapshot>
                 {
                     new ListItemSnapshot
@@ -1430,6 +1714,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                         SourceItemId = itemId,
                         Values = new List<ListItemValueSnapshot>
                         {
+                            ContentTypeValue(),
                             LookupValue(fieldInternalName, providerItemId)
                         }
                     }
@@ -1461,6 +1746,62 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 LookupValues = new List<ListItemLookupValueSnapshot>
                 {
                     new ListItemLookupValueSnapshot { LookupId = lookupId }
+                }
+            };
+        }
+
+        private static IList<DroppedLookupValueDecision> CanonicalDecisionPair()
+        {
+            return new List<DroppedLookupValueDecision>
+            {
+                DroppedLookupValueDecision.Create(
+                    Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    10,
+                    "FirstLookup",
+                    Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                    7,
+                    DroppedItemDependencyDisposition.ClearValue,
+                    "policy.test.canonical.first"),
+                DroppedLookupValueDecision.Create(
+                    Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                    20,
+                    "SecondLookup",
+                    Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                    8,
+                    DroppedItemDependencyDisposition.DropDependentItem,
+                    "policy.test.canonical.second")
+            };
+        }
+
+        private static ListItemValueSnapshot ContentTypeValue()
+        {
+            return new ListItemValueSnapshot
+            {
+                InternalName = "ContentTypeId",
+                Kind = ListItemValueKind.String,
+                ScalarValue = "0x0100AABBCCDDEEFF"
+            };
+        }
+
+        private static ListContentTypeSnapshot LookupContentType(
+            Guid fieldId,
+            string fieldInternalName,
+            bool required)
+        {
+            return new ListContentTypeSnapshot
+            {
+                Id = "0x0100AABBCCDDEEFF",
+                Name = "Lookup consumer",
+                ParentId = "0x01",
+                FieldLinks = new List<ListContentTypeFieldLinkSnapshot>
+                {
+                    new ListContentTypeFieldLinkSnapshot
+                    {
+                        FieldId = fieldId,
+                        InternalName = fieldInternalName,
+                        DisplayName = fieldInternalName,
+                        Required = required
+                    }
                 }
             };
         }
@@ -1642,11 +1983,47 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             public IList<ListLookupDependency> LookupDependencies { get; set; }
 
+            public IList<DroppedLookupValueDecision> Decisions { get; set; }
+
             public ListMigrationPlanSet PlanSet { get; set; }
 
             public CanonicalPageIngredientGraph Graph { get; set; }
 
             public IDictionary<string, PageIngredientAction> Actions { get; set; }
+        }
+
+        private sealed class ThrowOnEnumerationList<T> : IList<T>
+        {
+            public T this[int index]
+            {
+                get => throw new InvalidOperationException("The no-seed fast path must not read item entries.");
+                set => throw new NotSupportedException();
+            }
+
+            public int Count => 1;
+
+            public bool IsReadOnly => true;
+
+            public void Add(T item) => throw new NotSupportedException();
+
+            public void Clear() => throw new NotSupportedException();
+
+            public bool Contains(T item) => false;
+
+            public void CopyTo(T[] array, int arrayIndex) => throw new NotSupportedException();
+
+            public IEnumerator<T> GetEnumerator() =>
+                throw new InvalidOperationException("The no-seed fast path must not enumerate source items.");
+
+            public int IndexOf(T item) => -1;
+
+            public void Insert(int index, T item) => throw new NotSupportedException();
+
+            public bool Remove(T item) => throw new NotSupportedException();
+
+            public void RemoveAt(int index) => throw new NotSupportedException();
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
         private sealed class SpyArtifactStore : IMigrationArtifactStore
