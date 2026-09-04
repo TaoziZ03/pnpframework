@@ -19,6 +19,7 @@ The documents describe the current implementation and its intended invariants. T
 6. [Page classification and ingredient policy](page-classification-and-ingredient-policy.md) defines CLR runtime selection, non-exclusive profiles, validation cohorts, ingredient actions, dependency release, and aggregate outcomes.
 7. [Taxonomy relationship fidelity](taxonomy-relationship-fidelity.md) defines exact capture and reproduction of valid, outside-bound, and dangling taxonomy relationships without Term repair.
 8. [Performance and concurrency](performance-and-concurrency.md) defines measurement stages, safe read parallelism, write serialization, caching boundaries, and semantic regression requirements.
+9. [Shared path-derived Web topology](shared-path-derived-topology.md) defines shared target-Web container identity, literal HTTP authorization evidence, target-only provisioning values, and page references.
 
 ## Document roles
 
@@ -54,6 +55,11 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 | Source ASPX artifact | `pnp-page-artifact/v1` |
 | Page runtime resolution | `pnp-page-runtime/v1` |
 | Canonical page ingredient graph | `pnp-page-ingredient-graph/v1` |
+| Page plan graph with shared ingredient references | `pnp-page-ingredient-graph/v2` |
+| Shared path-derived topology plan | `pnp-shared-topology-plan/v1` |
+| Shared topology target analysis | `pnp-shared-topology-target-analysis/v1` |
+| Shared topology action plan | `pnp-shared-topology-action-plan/v1` |
+| Shared topology receipt | `pnp-shared-topology-receipt/v1` |
 | Source topology | `pnp-source-topology/v1` |
 | Topology plan | `pnp-topology-plan/v1` |
 | Topology target analysis | `pnp-topology-target-analysis/v1` |

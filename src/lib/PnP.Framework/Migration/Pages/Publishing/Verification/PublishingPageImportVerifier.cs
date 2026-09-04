@@ -10,6 +10,7 @@ using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +27,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             DateTimeOffset startedAt,
             int materializedDependencyCount,
             TopologyMaterializationReceipt topologyReceipt,
+            SharedTopologyMaterializationReceipt sharedTopologyReceipt,
             IList<ListMaterializationReceipt> listReceipts,
             IList<PageFieldImportResult> fieldResults,
             IList<MigrationMutationReceipt> steps,
@@ -164,10 +166,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 }
                 var webPartsMatched = webPartResults.All(result => result.Passed)
                     && webPartResults.Count == package.Snapshot.WebParts.Count;
-                var topologyMatched = topologyReceipt != null
+                var legacyTopologyMatched = topologyReceipt != null
                     && topologyReceipt.FreshReadbackPassed
                     && (package.Plan.Topology == null
                         || topologyReceipt.Webs.Count == package.Plan.Topology.SiteCollections.SelectMany(value => value.Webs).Count());
+                var sharedTopologyMatched = package.Plan.SharedTopologyReference == null
+                    || sharedTopologyReceipt != null
+                        && sharedTopologyReceipt.FreshReadbackPassed
+                        && string.Equals(sharedTopologyReceipt.SharedTopologyPlanDigest, package.Plan.SharedTopologyReference.SharedTopologyPlanDigest, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(sharedTopologyReceipt.ActionPlanDigest, package.Plan.SharedTopologyReference.ActionPlanDigest, StringComparison.OrdinalIgnoreCase)
+                        && package.Plan.SharedTopologyReference.RequiredTargetContainerIngredientIds.All(required =>
+                            sharedTopologyReceipt.Webs.Any(value => string.Equals(value.IngredientId, required, StringComparison.Ordinal)));
+                var topologyMatched = legacyTopologyMatched && sharedTopologyMatched;
                 var listsMatched = listReceipts.Count == package.Snapshot.ListDependencies.Count
                     && listReceipts.All(value => value.FreshReadbackPassed);
                 if (!topologyMatched)
@@ -229,6 +239,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     WebPartResults = webPartResults,
                     MaterializedDependencyCount = materializedDependencyCount,
                     TopologyMaterialization = topologyReceipt,
+                    SharedTopologyMaterialization = sharedTopologyReceipt,
                     TopologyMatched = topologyMatched,
                     ListMaterializations = listReceipts,
                     ListsMatched = listsMatched,

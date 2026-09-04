@@ -11,6 +11,7 @@ using System.Linq;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Topology.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Execution
 {
@@ -22,7 +23,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             string approvedPlanDigest,
             Guid operationId,
             DateTimeOffset startedAt,
-            MigrationExecutionRecorder recorder)
+            MigrationExecutionRecorder recorder,
+            SharedTopologyMaterializationReceipt sharedTopologyReceipt)
         {
             if (package.State != PublishingPagePackageState.ApprovalReady || !package.Plan.IsExecutable)
             {
@@ -35,6 +37,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             {
                 return Failure(package, operationId, startedAt, "PlanDigestNotApproved", package.Plan.TargetPageServerRelativeUrl,
                     "The approved plan digest does not match the sealed publishing-page package.", recorder);
+            }
+
+            if (package.Plan.SharedTopologyReference != null)
+            {
+                try
+                {
+                    SharedTopologyPageReferenceFactory.ValidateReceipt(package.Plan.SharedTopologyReference, sharedTopologyReceipt);
+                }
+                catch (System.IO.InvalidDataException exception)
+                {
+                    return Failure(package, operationId, startedAt, "SharedTopologyReceiptInvalid", package.Plan.TargetWebUrl,
+                        exception.Message, recorder);
+                }
             }
 
             var targetWeb = targetContext.Web;

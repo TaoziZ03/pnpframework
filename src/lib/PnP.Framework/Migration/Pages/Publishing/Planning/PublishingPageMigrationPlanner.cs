@@ -197,6 +197,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 DependencyActions = dependencyActions,
                 Topology = dependencyPlan.Topology,
                 TopologyTargetAnalysis = dependencyPlan.TopologyTargetAnalysis,
+                SharedTopologyReference = dependencyPlan.SharedTopologyReference,
                 ListMigration = dependencyPlan.ListMigration,
                 WebPartActions = dependencyPlan.WebPartActions,
                 Replacements = replacements,
@@ -208,11 +209,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     expectedContentDigest,
                     targetLifecycle),
                 RuntimeVerification = PublishingPageRuntimeVerificationPolicy.CreateManifest(),
+                IngredientGraph = dependencyPlan.IngredientGraph,
                 Blockers = blockers.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList(),
                 Warnings = warnings.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList()
             };
             plan.IngredientActions = PublishingPageIngredientActionProjector.Project(snapshot, plan);
-            var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(snapshot.IngredientGraph, plan.IngredientActions);
+            var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(plan.IngredientGraph ?? snapshot.IngredientGraph, plan.IngredientActions);
             plan.MigrationOutcome = ingredientEvaluation.Outcome;
             plan.IngredientIssues = ingredientEvaluation.Issues;
             var package = new PublishingPageMigrationPackage

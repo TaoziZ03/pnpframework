@@ -4,6 +4,8 @@ using PnP.Framework.Migration.Pages.ClassicWebParts.Planning;
 using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,6 +74,62 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     }
                 }
             }
+            else if (snapshot.PathDerivedTopologyEvidence != null)
+            {
+                var sharedPlan = options.SharedTopologyPlan;
+                var sharedAnalysis = options.SharedTopologyTargetAnalysis;
+                var sharedActions = options.SharedTopologyActionPlan;
+                if (sharedPlan == null || sharedAnalysis == null || sharedActions == null)
+                {
+                    blockers.Add("SharedTopologyPlanRequired: authorization-limited source topology requires one separately reviewed bundle/shared path-derived topology plan and target analysis.");
+                }
+                else
+                {
+                    try
+                    {
+                        PathDerivedSourceTopologyEvidenceFactory.Validate(snapshot.PathDerivedTopologyEvidence);
+                        SharedTopologyExecutionValidator.ValidateActionPlan(sharedPlan, sharedAnalysis, sharedActions);
+                        result.SharedTopologyReference = SharedTopologyPageReferenceFactory.Create(
+                            sharedPlan,
+                            sharedAnalysis,
+                            sharedActions,
+                            snapshot.Source.SiteId,
+                            snapshot.Source.WebId);
+                        if (!SharedTopologyPathEquals(targetWeb.Url, result.SharedTopologyReference.TargetWebUrl))
+                        {
+                            blockers.Add("TargetPageWebTopologyMismatch: the target connection Web must be the shared exact-path target container for the source page Web.");
+                        }
+
+                        result.ListMigration = ListMigrationPlanFactory.CreateFromSharedTopology(
+                            snapshot.ListDependencies,
+                            snapshot.ListLookupDependencies,
+                            sharedPlan,
+                            options.TaxonomySchemaMappings,
+                            options.ListTargetOverrides);
+                        var listTargetAnalysis = ListMigrationTargetAnalyzer.PopulateAndSeal(
+                            targetContext,
+                            snapshot.ListDependencies,
+                            result.ListMigration,
+                            sharedPlan,
+                            sharedAnalysis);
+                        AddIssues(listTargetAnalysis.Issues, blockers);
+                        foreach (var warning in listTargetAnalysis.Warnings)
+                        {
+                            warnings.Add(warning);
+                        }
+                        result.IngredientGraph = PublishingPagePathDerivedTopologyIngredientGraphProjector.Project(
+                            snapshot,
+                            sharedPlan,
+                            sharedAnalysis,
+                            result.SharedTopologyReference);
+                        warnings.Add("Source Web fidelity remains authorization-blocked; target Web path containers are independently planned from the exact relative path.");
+                    }
+                    catch (Exception exception) when (exception is System.IO.InvalidDataException || exception is InvalidOperationException || exception is ArgumentException)
+                    {
+                        blockers.Add("SharedTopologyPlanInvalid: " + exception.Message);
+                    }
+                }
+            }
             else if (snapshot.ListWebPartBindings.Count > 0 || snapshot.ListDependencies.Count > 0)
             {
                 blockers.Add("SourceTopologyUnavailable: list-bound Web Parts require the exact source Web ownership closure.");
@@ -83,6 +141,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 result.ListMigration,
                 blockers);
             return result;
+        }
+
+        private static bool SharedTopologyPathEquals(string left, string right)
+        {
+            return string.Equals(
+                new Uri(left).AbsoluteUri.TrimEnd('/'),
+                new Uri(right).AbsoluteUri.TrimEnd('/'),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private static void AddIssues(

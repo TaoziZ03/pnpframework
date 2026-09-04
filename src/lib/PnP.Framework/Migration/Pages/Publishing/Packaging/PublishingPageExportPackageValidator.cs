@@ -12,6 +12,7 @@ using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -69,6 +70,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 snapshot.SourceTopology,
                 artifactStore);
             ValidateDependencies(snapshot);
+            if (snapshot.SourceTopology != null && snapshot.PathDerivedTopologyEvidence != null)
+            {
+                throw new InvalidDataException("A source snapshot cannot contain both a complete source topology and path-derived fallback evidence.");
+            }
+            if (snapshot.PathDerivedTopologyEvidence != null)
+            {
+                PathDerivedSourceTopologyEvidenceFactory.Validate(snapshot.PathDerivedTopologyEvidence);
+            }
             ValidateDerivedIngredientGraph(snapshot);
 
             var snapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot);

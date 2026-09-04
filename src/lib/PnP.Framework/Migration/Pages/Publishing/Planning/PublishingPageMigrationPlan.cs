@@ -14,6 +14,8 @@ using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Taxonomy;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using PnP.Framework.Migration.Topology.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Planning
 {
@@ -61,6 +63,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
 
         public TopologyTargetAnalysis TopologyTargetAnalysis { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyPageReference SharedTopologyReference { get; set; }
+
         public ListMigrationPlanSet ListMigration { get; set; }
 
         public IList<ClassicWebPartAction> WebPartActions { get; set; } = new List<ClassicWebPartAction>();
@@ -74,6 +79,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
         public RuntimeVerificationManifest RuntimeVerification { get; set; } = new RuntimeVerificationManifest();
 
         public IList<PageIngredientAction> IngredientActions { get; set; } = new List<PageIngredientAction>();
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public CanonicalPageIngredientGraph IngredientGraph { get; set; }
 
         public PageMigrationOutcome MigrationOutcome { get; set; }
 

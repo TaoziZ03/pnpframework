@@ -9,6 +9,7 @@ using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Lists.Execution;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Topology.Execution;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,6 +26,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             DateTimeOffset startedAt,
             MigrationExecutionRecorder recorder,
             IMigrationArtifactStore artifactStore,
+            SharedTopologyMaterializationReceipt sharedTopologyReceipt,
             string expectedContentTypeId)
         {
             var warnings = new List<string>();
@@ -47,6 +49,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 startedAt,
                 materializedDependencies,
                 topologyReceipt,
+                sharedTopologyReceipt,
                 listReceipts.Values.OrderBy(value => value.SourceListId).ToList(),
                 writeResult.FieldResults,
                 recorder.Steps,

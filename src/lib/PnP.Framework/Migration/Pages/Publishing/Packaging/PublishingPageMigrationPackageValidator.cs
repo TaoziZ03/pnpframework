@@ -47,6 +47,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
 
             ValidateTopology(package, plan);
+            ValidateSharedTopologyReference(plan);
             ListMigrationPlanValidator.Validate(package.Snapshot.ListDependencies, plan.ListMigration);
             ValidateRuntimeVerification(plan);
             if (!string.Equals(plan.SourceSnapshotDigest, package.SnapshotDigest, StringComparison.OrdinalIgnoreCase))
@@ -61,7 +62,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
             ValidateActionCoverage(package.Snapshot, plan);
             ValidateDerivedIngredientActions(package.Snapshot, plan);
-            ValidateIngredientActions(package.Snapshot.IngredientGraph, plan);
+            ValidateIngredientActions(plan.IngredientGraph ?? package.Snapshot.IngredientGraph, plan);
             ValidateExpectedContent(package, plan);
             var derivedLifecycle = PublishingPageLifecyclePolicy.DeriveTargetLifecycle(package.Snapshot.Lifecycle);
             if (plan.TargetLifecycle != derivedLifecycle)
@@ -159,6 +160,44 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || !new HashSet<Guid>(plannedSiteIds).SetEquals(probedSiteIds))
             {
                 throw new InvalidDataException("The target topology analysis must cover every planned Web exactly once.");
+            }
+        }
+
+        private static void ValidateSharedTopologyReference(PublishingPageMigrationPlan plan)
+        {
+            if (plan.SharedTopologyReference == null)
+            {
+                if (plan.IngredientGraph != null)
+                {
+                    throw new InvalidDataException("A plan-specific ingredient graph requires a shared topology reference.");
+                }
+                return;
+            }
+            if (plan.Topology != null || plan.TopologyTargetAnalysis != null)
+            {
+                throw new InvalidDataException("A page plan cannot combine legacy embedded topology execution with a bundle/shared topology reference.");
+            }
+            var reference = plan.SharedTopologyReference;
+            if (!string.Equals(reference.SchemaVersion, Topology.Ingredients.SharedTopologyPageReference.CurrentSchemaVersion, StringComparison.Ordinal)
+                || string.IsNullOrWhiteSpace(reference.SharedTopologyPlanDigest)
+                || string.IsNullOrWhiteSpace(reference.TargetAnalysisDigest)
+                || string.IsNullOrWhiteSpace(reference.ActionPlanDigest)
+                || string.IsNullOrWhiteSpace(reference.SourceWebFidelityIngredientId)
+                || string.IsNullOrWhiteSpace(reference.TargetLeafContainerIngredientId)
+                || reference.RequiredTargetContainerIngredientIds == null
+                || plan.IngredientGraph == null
+                || !string.Equals(plan.IngredientGraph.SchemaVersion, "pnp-page-ingredient-graph/v2", StringComparison.Ordinal)
+                || plan.IngredientGraph.ExternalReferences == null)
+            {
+                throw new InvalidDataException("The shared topology page reference or its plan-specific ingredient graph is incomplete.");
+            }
+            var external = plan.IngredientGraph.ExternalReferences.ToDictionary(value => value.IngredientId, StringComparer.Ordinal);
+            if (!external.ContainsKey(reference.SourceWebFidelityIngredientId)
+                || !external.ContainsKey(reference.TargetLeafContainerIngredientId)
+                || reference.RequiredTargetContainerIngredientIds.Any(value => !external.ContainsKey(value))
+                || external.Values.Any(value => !string.Equals(value.SharedPlanDigest, reference.SharedTopologyPlanDigest, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidDataException("The plan-specific ingredient graph does not reference the exact shared topology ingredients.");
             }
         }
 
