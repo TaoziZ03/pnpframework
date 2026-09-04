@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using System.Collections.Generic;
 using System.Linq;
+using PnP.Framework.Migration.Pages.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Reporting
 {
@@ -29,7 +30,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
                     "Target publishing library, versioning, lifecycle, field, layout, and create-only probes"
                 },
                 Blockers = plan.Blockers.ToList(),
-                Warnings = plan.Warnings.ToList()
+                Warnings = plan.Warnings.ToList(),
+                ApprovedExclusions = plan.ProtectedAssets.Actions
+                    .Where(value => value.SelectedAction?.Action == IngredientSelectableAction.Exclude)
+                    .Select(value => value.IngredientId + " [" + value.TargetIdentity + "]: " + value.SelectionReceipt?.ReasonCode
+                        + " (" + value.SelectionReceipt?.PolicyId + "; approval=" + value.SelectionReceipt?.ApprovalReference
+                        + "; receipt=" + value.SelectionReceipt?.ReceiptDigest + ")")
+                    .ToList()
             };
         }
     }

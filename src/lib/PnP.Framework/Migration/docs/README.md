@@ -19,6 +19,7 @@ The documents describe the current implementation and its intended invariants. T
 6. [Page classification and ingredient policy](page-classification-and-ingredient-policy.md) defines CLR runtime selection, non-exclusive profiles, validation cohorts, ingredient actions, dependency release, and aggregate outcomes.
 7. [Taxonomy relationship fidelity](taxonomy-relationship-fidelity.md) defines exact capture and reproduction of valid, outside-bound, and dangling taxonomy relationships without Term repair.
 8. [Performance and concurrency](performance-and-concurrency.md) defines measurement stages, safe read parallelism, write serialization, caching boundaries, and semantic regression requirements.
+9. [Protected asset capture and selectable actions](protected-asset-selectable-actions.md) defines the pre-download tenant boundary, policy-filtered choices, receipts, exclusions, and ExpectedAbsent comparison.
 
 ## Document roles
 
@@ -48,17 +49,20 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 
 | Artifact | Schema |
 | --- | --- |
-| Publishing Page source export | `pnp-publishing-page-export/v2` |
-| Publishing Page migration package | `pnp-publishing-page-migration-package/v2` |
-| Publishing Page import receipt | `pnp-publishing-page-import-receipt/v2` |
+| Publishing Page source export | `pnp-publishing-page-export/v3` |
+| Publishing Page migration package | `pnp-publishing-page-migration-package/v3` |
+| Publishing Page import receipt | `pnp-publishing-page-import-receipt/v3` |
 | Source ASPX artifact | `pnp-page-artifact/v1` |
 | Page runtime resolution | `pnp-page-runtime/v1` |
-| Canonical page ingredient graph | `pnp-page-ingredient-graph/v1` |
+| Canonical page ingredient graph | `pnp-page-ingredient-graph/v2` |
 | Source topology | `pnp-source-topology/v1` |
 | Topology plan | `pnp-topology-plan/v1` |
 | Topology target analysis | `pnp-topology-target-analysis/v1` |
-| List dependency snapshot | `pnp-list-dependency/v1` |
-| List migration plan | `pnp-list-migration-plan/v1` |
+| List dependency snapshot | `pnp-list-dependency/v2` |
+| List migration plan | `pnp-list-migration-plan/v2` |
+| Protected-asset capture decision | `pnp-protected-asset-capture-decision/v1` |
+| Protected-asset action plan | `pnp-protected-asset-action-plan/v1` |
+| Ingredient selection receipt | `pnp-ingredient-action-selection-receipt/v1` |
 | Content type schema snapshot | `pnp-content-type-schema/v1` |
 | Publishing Page Layout snapshot | `pnp-publishing-page-layout/v1` |
 | External artifact manifest | `pnp-migration-artifacts/v1` |

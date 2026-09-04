@@ -7,6 +7,7 @@ using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Taxonomy;
+using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
 
@@ -91,6 +92,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
         public RuntimeVerificationStatus RuntimeVerificationStatus { get; set; }
 
         public MigrationAcceptanceStatus AcceptanceStatus { get; set; }
+
+        public PageMigrationOutcome MigrationOutcome { get; set; }
+
+        public PageReproductionOutcome ReproductionOutcome { get; set; }
+
+        public IList<PageIngredientActionSelectionReceipt> ApprovedExclusions { get; set; } = new List<PageIngredientActionSelectionReceipt>();
+
+        public IList<PageIngredientComparisonResult> IngredientComparisons { get; set; } = new List<PageIngredientComparisonResult>();
 
         public IList<string> Warnings { get; set; } = new List<string>();
 

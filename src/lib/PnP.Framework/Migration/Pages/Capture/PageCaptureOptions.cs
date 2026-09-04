@@ -1,3 +1,5 @@
+using PnP.Framework.Migration.Lists.Items.Protection;
+
 namespace PnP.Framework.Migration.Pages.Capture
 {
     public sealed class PageCaptureOptions
@@ -7,5 +9,7 @@ namespace PnP.Framework.Migration.Pages.Capture
         public bool IncludeWebParts { get; set; } = true;
 
         public long MaximumDependencyBytes { get; set; } = 10 * 1024 * 1024;
+
+        public ProtectedAssetCapturePolicy ProtectedAssets { get; set; } = ProtectedAssetCapturePolicy.MicrosoftTenant();
     }
 }

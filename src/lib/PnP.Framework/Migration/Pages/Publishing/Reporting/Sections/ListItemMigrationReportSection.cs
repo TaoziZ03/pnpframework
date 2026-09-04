@@ -32,6 +32,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                         Row("serverRelativeUrl", item.Document.ServerRelativeUrl, "Mapped relative to the source and target List roots."),
                         Row("length", item.Document.Length, "Source byte count for files."),
                         Row("majorVersion / minorVersion", $"{item.Document.MajorVersion} / {item.Document.MinorVersion}", "Captured evidence; version history is not replayed."),
+                        Row("informationProtection.state", item.Document.InformationProtection?.State, "Protection is classified from item metadata before any binary request."),
+                        Row("informationProtection.labelId", item.Document.InformationProtection?.LabelId, "Captured label relationship evidence; it is not proof that the target recognizes the same label."),
+                        Row("captureDecision", item.Document.CaptureDecision == null ? null : $"{item.Document.CaptureDecision.Disposition}; policy={item.Document.CaptureDecision.PolicyId}; reason={item.Document.CaptureDecision.ReasonCode}; digest={item.Document.CaptureDecision.DecisionDigest}", "MetadataOnly proves the capture gate did not request or persist bytes."),
                         Row("content", FormatArtifact(item.Document.Content), "Exact bytes may be inline Base64 or content-addressed in the artifact store.")
                     });
                 }

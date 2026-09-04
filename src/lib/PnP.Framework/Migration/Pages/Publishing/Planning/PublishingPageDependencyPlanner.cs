@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Pages.ClassicWebParts.Planning;
 using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             Site targetSite,
             Web targetRootWeb,
             PagePlanningOptions options,
+            ProtectedAssetActionPlan protectedAssets,
             ICollection<string> blockers,
             ICollection<string> warnings)
         {
@@ -59,7 +61,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                         snapshot.ListLookupDependencies,
                         result.Topology,
                         options.TaxonomySchemaMappings,
-                        options.ListTargetOverrides);
+                        options.ListTargetOverrides,
+                        protectedAssets);
                     var listTargetAnalysis = ListMigrationTargetAnalyzer.PopulateAndSeal(
                         targetContext,
                         snapshot.ListDependencies,

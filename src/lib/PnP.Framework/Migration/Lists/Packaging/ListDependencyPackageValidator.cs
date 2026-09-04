@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWebParts;
@@ -105,6 +106,7 @@ namespace PnP.Framework.Migration.Lists.Packaging
         private static void ValidateDependency(ListDependencySnapshot dependency, IMigrationArtifactStore artifactStore)
         {
             if (dependency == null || dependency.SourceSiteId == Guid.Empty || dependency.SourceWebId == Guid.Empty || dependency.SourceListId == Guid.Empty
+                || !string.Equals(dependency.SchemaVersion, "pnp-list-dependency/v2", StringComparison.Ordinal)
                 || string.IsNullOrWhiteSpace(dependency.SourceWebUrl) || string.IsNullOrWhiteSpace(dependency.RootFolderServerRelativeUrl)
                 || dependency.Fields == null || dependency.ContentTypes == null || dependency.UniqueContentTypeOrder == null || dependency.SiteContentTypes == null
                 || dependency.Views == null || dependency.Items == null || dependency.Diagnostics == null)
@@ -208,7 +210,7 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 }
                 if (item.Document != null && item.Document.Kind == ListDocumentObjectKind.File)
                 {
-                    ValidateBinary(item.Document.Content, artifactStore, "document " + item.Document.Name);
+                    ValidateDocumentCapture(item.Document, artifactStore);
                     if (item.Document.Content != null && item.Document.Content.Artifact != null && item.Document.Length != item.Document.Content.Artifact.Length)
                     {
                         var hasExplicitMismatchEvidence = item.Document.Content.Availability == EvidenceAvailability.Partial
@@ -221,6 +223,34 @@ namespace PnP.Framework.Migration.Lists.Packaging
                     }
                 }
             }
+        }
+
+        private static void ValidateDocumentCapture(ListDocumentSnapshot document, IMigrationArtifactStore artifactStore)
+        {
+            if (document.CaptureDecision == null && document.InformationProtection == null && document.Content != null)
+            {
+                ValidateBinary(document.Content, artifactStore, "document " + document.Name);
+                return;
+            }
+            if (document.CaptureDecision == null
+                || document.InformationProtection == null
+                || !string.Equals(document.CaptureDecision.SchemaVersion, ProtectedAssetCaptureDecision.ContractVersion, StringComparison.Ordinal)
+                || !string.Equals(
+                    ProtectedAssetCaptureGate.ComputeDigest(document.CaptureDecision),
+                    document.CaptureDecision.DecisionDigest,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("Document capture is missing sealed pre-download protection evidence or policy decision: " + document.ServerRelativeUrl);
+            }
+            if (document.CaptureDecision.IsMetadataOnly)
+            {
+                if (document.Content != null)
+                {
+                    throw new InvalidDataException("A metadata-only protected-asset capture must not contain binary bytes or an artifact descriptor: " + document.ServerRelativeUrl);
+                }
+                return;
+            }
+            ValidateBinary(document.Content, artifactStore, "document " + document.Name);
         }
 
         private static void ValidateBinary(ListBinaryArtifactSnapshot binary, IMigrationArtifactStore artifactStore, string subject)

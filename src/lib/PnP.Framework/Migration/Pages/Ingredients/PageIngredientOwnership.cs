@@ -6,6 +6,7 @@ namespace PnP.Framework.Migration.Pages.Ingredients
         SourceOwned = 1,
         Shared = 2,
         TargetRuntime = 3,
-        RunOwned = 4
+        RunOwned = 4,
+        External = 5
     }
 }

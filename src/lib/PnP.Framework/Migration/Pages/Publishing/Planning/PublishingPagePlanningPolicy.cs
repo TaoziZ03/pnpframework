@@ -5,6 +5,7 @@ using PnP.Framework.Migration.Pages.Publishing.Lifecycle;
 using PnP.Framework.Migration.Taxonomy;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
+using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -29,6 +30,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             if (!options.CreateOnly)
             {
                 throw new NotSupportedException("Only create-page plans are supported. Deferred-field recovery remains represented by the package schema but is not executable yet.");
+            }
+            if (options.IngredientActionSelections == null)
+            {
+                throw new ArgumentException("The ingredient action selection collection cannot be null.", nameof(options));
             }
         }
 
@@ -105,7 +110,25 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     SourceListId = value.SourceListId,
                     TargetTitle = value.TargetTitle,
                     TargetRootFolderServerRelativeUrl = value.TargetRootFolderServerRelativeUrl
-                }).ToList()
+                }).ToList(),
+                IngredientActionSelections = (options.IngredientActionSelections ?? new List<PageIngredientActionSelectionRequest>())
+                    .Select(value => new PageIngredientActionSelectionRequest
+                    {
+                        IngredientId = value.IngredientId,
+                        CandidateActionId = value.CandidateActionId,
+                        SnapshotDigest = value.SnapshotDigest,
+                        SelectedBy = value.SelectedBy,
+                        SelectedAtUtc = value.SelectedAtUtc,
+                        ApprovalReference = value.ApprovalReference
+                    }).ToList(),
+                DefaultIngredientSelectionAudit = options.DefaultIngredientSelectionAudit == null
+                    ? null
+                    : new PageIngredientSelectionAudit
+                    {
+                        SelectedBy = options.DefaultIngredientSelectionAudit.SelectedBy,
+                        SelectedAtUtc = options.DefaultIngredientSelectionAudit.SelectedAtUtc,
+                        ApprovalReference = options.DefaultIngredientSelectionAudit.ApprovalReference
+                    }
             };
         }
     }

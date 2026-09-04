@@ -4,6 +4,9 @@ namespace PnP.Framework.Migration.Pages.Ingredients
     {
         Optional = 1,
         Required = 2,
-        Conditional = 3
+        Conditional = 3,
+        IdentityRequired = 4,
+        PayloadRequired = 5,
+        HardRequired = 6
     }
 }

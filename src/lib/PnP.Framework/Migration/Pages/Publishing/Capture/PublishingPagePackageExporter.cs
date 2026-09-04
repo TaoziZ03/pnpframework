@@ -84,6 +84,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 listBindings,
                 options.MaximumDependencyBytes,
                 artifactStore,
+                options.ProtectedAssets,
                 blockers,
                 warnings);
             SourceSiteCollectionSnapshot sourceTopology = null;
@@ -125,7 +126,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 {
                     SourcePageServerRelativeUrl = sourcePagePath,
                     IncludeWebParts = options.IncludeWebParts,
-                    MaximumDependencyBytes = options.MaximumDependencyBytes
+                    MaximumDependencyBytes = options.MaximumDependencyBytes,
+                    ProtectedAssets = new Lists.Items.Protection.ProtectedAssetCapturePolicy
+                    {
+                        SchemaVersion = options.ProtectedAssets.SchemaVersion,
+                        Profile = options.ProtectedAssets.Profile,
+                        PolicyId = options.ProtectedAssets.PolicyId,
+                        FailClosedOnUnknown = options.ProtectedAssets.FailClosedOnUnknown
+                    }
                 },
                 Source = sourceCapture.Identity,
                 PageArtifact = sourceCapture.PageArtifact,
@@ -187,6 +195,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
             if (options.MaximumDependencyBytes <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(options), "MaximumDependencyBytes must be greater than zero.");
+            }
+            if (options.ProtectedAssets == null
+                || !string.Equals(options.ProtectedAssets.SchemaVersion, Lists.Items.Protection.ProtectedAssetCapturePolicy.ContractVersion, StringComparison.Ordinal)
+                || string.IsNullOrWhiteSpace(options.ProtectedAssets.PolicyId))
+            {
+                throw new ArgumentException("A supported protected-asset capture policy is required.", nameof(options));
             }
         }
     }

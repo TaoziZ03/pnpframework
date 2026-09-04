@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Verification;
+using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,6 +73,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     : StorageVerificationStatus.Failed,
                 RuntimeVerificationStatus = RuntimeVerificationStatus.NotRun,
                 AcceptanceStatus = MigrationAcceptanceStatus.Rejected,
+                MigrationOutcome = package.Plan.MigrationOutcome,
+                ReproductionOutcome = PageReproductionOutcome.Rejected,
                 Warnings = new List<string> { message }
             };
         }

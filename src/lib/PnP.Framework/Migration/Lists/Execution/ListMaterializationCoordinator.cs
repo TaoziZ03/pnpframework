@@ -82,6 +82,16 @@ namespace PnP.Framework.Migration.Lists.Execution
                     recorder.Execute(prefix + ".content-types.order", "Apply the captured List content type order.", () =>
                         ListContentTypeMaterializer.EnsureOrder(context, targetList, source, contentTypeIds));
 
+                    foreach (var exclusion in ListItemMaterializationPolicy.ApprovedExclusions(plan))
+                    {
+                        var selectionReceipt = ProtectedAssetExecutionPolicy.Execute(exclusion.SelectionReceipt, null);
+                        recorder.RecordAlreadySatisfied(
+                            prefix + ".items.policy-exclusion." + exclusion.SourceItemId,
+                            "No target mutation was performed for protected BinaryPayload '"
+                                + exclusion.BinaryPayloadIngredientId + "'. Selection receipt "
+                                + selectionReceipt.ReceiptDigest + " records SatisfiedByPolicy/ExpectedAbsent.");
+                    }
+
                     var itemIds = recorder.Execute(
                         prefix + ".items",
                         "Replay captured List items, documents, folders, and attachments.",
@@ -108,6 +118,8 @@ namespace PnP.Framework.Migration.Lists.Execution
                         TargetItemIds = itemIds,
                         TargetViewIds = viewIds,
                         TargetContentTypeIds = contentTypeIds,
+                        ApprovedExclusions = ListItemMaterializationPolicy.ApprovedExclusions(plan)
+                            .Select(value => value.SelectionReceipt).Where(value => value != null).ToList(),
                         Disposition = targetListResult.Disposition,
                         PlanDigest = plan.PlanDigest
                     };

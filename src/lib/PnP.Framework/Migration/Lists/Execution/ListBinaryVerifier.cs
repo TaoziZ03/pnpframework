@@ -118,5 +118,27 @@ namespace PnP.Framework.Migration.Lists.Execution
                 return false;
             }
         }
+
+        public static bool IsFilePresent(
+            ClientContext context,
+            string sourcePath,
+            ListDependencySnapshot source,
+            ListMaterializationPlan plan,
+            ICollection<string> diagnostics)
+        {
+            var path = ListDocumentMaterializer.MapPath(sourcePath, source.RootFolderServerRelativeUrl, plan.TargetRootFolderServerRelativeUrl);
+            try
+            {
+                var file = context.Web.GetFileByServerRelativePath(ResourcePath.FromDecodedUrl(path));
+                context.Load(file, value => value.Exists);
+                context.ExecuteQueryRetry();
+                return file.Exists;
+            }
+            catch (Exception exception) when (exception is ServerException || exception is ClientRequestException)
+            {
+                diagnostics.Add("Target protected-asset absence could not be verified: " + path + ": " + exception.Message);
+                return true;
+            }
+        }
     }
 }

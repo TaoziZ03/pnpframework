@@ -11,7 +11,7 @@ namespace PnP.Framework.Migration.Lists.Capture
 {
     public sealed class ListDependencySnapshot
     {
-        public string SchemaVersion { get; set; } = "pnp-list-dependency/v1";
+        public string SchemaVersion { get; set; } = "pnp-list-dependency/v2";
 
         public Guid SourceSiteId { get; set; }
 

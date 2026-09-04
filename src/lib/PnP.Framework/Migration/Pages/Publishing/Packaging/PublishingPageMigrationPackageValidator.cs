@@ -47,6 +47,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
 
             ValidateTopology(package, plan);
+            PublishingPageProtectedAssetActionPlanner.Validate(
+                package.Snapshot,
+                package.SnapshotDigest,
+                plan.ProtectedAssets,
+                plan.PlanningPolicy.IngredientActionSelections,
+                plan.PlanningPolicy.DefaultIngredientSelectionAudit);
             ListMigrationPlanValidator.Validate(package.Snapshot.ListDependencies, plan.ListMigration);
             ValidateRuntimeVerification(plan);
             if (!string.Equals(plan.SourceSnapshotDigest, package.SnapshotDigest, StringComparison.OrdinalIgnoreCase))
@@ -61,7 +67,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
             ValidateActionCoverage(package.Snapshot, plan);
             ValidateDerivedIngredientActions(package.Snapshot, plan);
-            ValidateIngredientActions(package.Snapshot.IngredientGraph, plan);
+            ValidateIngredientActions(package.Snapshot, package.Snapshot.IngredientGraph, plan);
             ValidateExpectedContent(package, plan);
             var derivedLifecycle = PublishingPageLifecyclePolicy.DeriveTargetLifecycle(package.Snapshot.Lifecycle);
             if (plan.TargetLifecycle != derivedLifecycle)
@@ -85,7 +91,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
             if (!string.Equals(package.SchemaVersion, PublishingPagePackageContract.MigrationSchemaVersion, StringComparison.Ordinal))
             {
-                throw new InvalidDataException($"Unsupported publishing-page migration schema '{package.SchemaVersion}'.");
+                throw new InvalidDataException($"Unsupported publishing-page migration schema '{package.SchemaVersion}'. Re-plan with '{PublishingPagePackageContract.MigrationSchemaVersion}' so selectable protected-asset actions and receipts are sealed.");
             }
             if (!string.Equals(package.ExportSchemaVersion, PublishingPagePackageContract.ExportSchemaVersion, StringComparison.Ordinal))
             {
@@ -112,7 +118,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || plan.RuntimeVerification == null
                 || plan.RuntimeVerification.Requirements == null
                 || plan.IngredientActions == null
+                || plan.ProtectedAssets == null
+                || plan.ProtectedAssets.Actions == null
                 || plan.IngredientIssues == null
+                || plan.ExecutionFrontier == null
+                || plan.ExecutionFrontier.Decisions == null
                 || plan.Blockers == null
                 || plan.Warnings == null)
             {
@@ -121,7 +131,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             if (plan.PlanningPolicy.TaxonomySchemaMappings == null
                 || plan.PlanningPolicy.TopologyPolicy == null
                 || plan.PlanningPolicy.TopologyPolicy.WebOverrides == null
-                || plan.PlanningPolicy.ListTargetOverrides == null)
+                || plan.PlanningPolicy.ListTargetOverrides == null
+                || plan.PlanningPolicy.IngredientActionSelections == null)
             {
                 throw new InvalidDataException("The planning policy contains a null taxonomy schema mapping collection.");
             }
@@ -201,6 +212,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
         }
 
         private static void ValidateIngredientActions(
+            PublishingPageCaptureBundle snapshot,
             CanonicalPageIngredientGraph graph,
             PublishingPageMigrationPlan plan)
         {
@@ -209,7 +221,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                     || string.IsNullOrWhiteSpace(action.PolicyId)
                     || string.IsNullOrWhiteSpace(action.PolicyVersion)
                     || action.ReleasedDependencyIngredientIds == null
-                    || action.VerificationAssertions == null))
+                    || action.VerificationAssertions == null
+                    || action.CandidateActions == null
+                    || action.CandidateActions.Count > 0 && (action.SelectedAction == null || action.SelectionReceipt == null)))
             {
                 throw new InvalidDataException("Every ingredient action must have an ID and non-null dependency/assertion collections.");
             }
@@ -220,10 +234,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             {
                 throw new InvalidDataException($"Ingredient action ID '{duplicateActionId.Key}' is duplicated.");
             }
-            var evaluation = PageIngredientPlanEvaluator.Evaluate(graph, plan.IngredientActions);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                graph,
+                plan.IngredientActions,
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot));
             if (evaluation.Outcome != plan.MigrationOutcome)
             {
                 throw new InvalidDataException($"The sealed migration outcome '{plan.MigrationOutcome}' differs from evaluated outcome '{evaluation.Outcome}'.");
+            }
+            if (!PublishingPageValidationCanonical.Equals(evaluation.ExecutionFrontier, plan.ExecutionFrontier))
+            {
+                throw new InvalidDataException("The sealed ingredient execution frontier differs from dependency-closure evaluation.");
             }
             var expectedIssues = new HashSet<string>(evaluation.Issues.Select(IssueIdentity), StringComparer.Ordinal);
             var actualIssues = new HashSet<string>(plan.IngredientIssues.Select(IssueIdentity), StringComparer.Ordinal);

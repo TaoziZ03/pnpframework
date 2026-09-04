@@ -25,5 +25,20 @@ namespace PnP.Framework.Migration.Pages.Ingredients
         public IList<string> ReleasedDependencyIngredientIds { get; set; } = new List<string>();
 
         public IList<string> VerificationAssertions { get; set; } = new List<string>();
+
+        public IList<PageIngredientActionCandidate> CandidateActions { get; set; } = new List<PageIngredientActionCandidate>();
+
+        public PageIngredientSelectedAction SelectedAction { get; set; }
+
+        public PageIngredientActionSelectionReceipt SelectionReceipt { get; set; }
+
+        public IngredientTerminalStatus TerminalStatus { get; set; } = IngredientTerminalStatus.Executable;
+
+        /// <summary>
+        /// Optional denormalized status for reporting compatibility. This value is
+        /// never authorization evidence; evaluators require a matching retained
+        /// <see cref="PnP.Framework.Migration.Evidence.LiteralHttpAuthorizationEvidence"/> record.
+        /// </summary>
+        public int? AuthorizationStatusCode { get; set; }
     }
 }

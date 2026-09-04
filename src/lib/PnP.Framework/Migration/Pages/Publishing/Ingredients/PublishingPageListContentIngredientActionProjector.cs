@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Ingredients;
 using System;
@@ -21,13 +22,22 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             foreach (var item in source.Items.Where(value => value != null))
             {
                 AddItem(source, listPlan, item, fieldPlans, listBlocked, actions);
-                if (item.Document != null)
+                var excluded = listPlan.ItemDecisions?.SingleOrDefault(value => value.SourceItemId == item.SourceItemId)?.Disposition
+                    == ListItemMaterializationDisposition.ExcludeProtectedAsset;
+                if (item.Document != null && !ProtectedAssetCaptureGate.IsControlledAsset(item.Document))
                 {
                     AddDocument(source, listPlan, item, listBlocked, actions);
                 }
                 foreach (var attachment in item.Attachments.Where(value => value != null))
                 {
-                    AddAttachment(source, listPlan, item, attachment, listBlocked, actions);
+                    if (excluded)
+                    {
+                        AddExcludedAttachment(source, item, attachment, actions);
+                    }
+                    else
+                    {
+                        AddAttachment(source, listPlan, item, attachment, listBlocked, actions);
+                    }
                 }
             }
         }
@@ -40,6 +50,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             bool listBlocked,
             IDictionary<string, PageIngredientAction> actions)
         {
+            var itemDecision = listPlan.ItemDecisions?.SingleOrDefault(value => value.SourceItemId == item.SourceItemId);
+            if (itemDecision?.Disposition == ListItemMaterializationDisposition.ExcludeProtectedAsset)
+            {
+                var evidenceOnly = PublishingPageIngredientActionFactory.Create(
+                    PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                    IngredientCapability.Available,
+                    IngredientDisposition.EvidenceOnly,
+                    "retain-protected-document-item-evidence",
+                    itemDecision.SelectionReceipt?.PolicyId ?? "policy.protected-asset",
+                    "The document-backed List item is retained as source evidence because its protected payload is an approved exclusion.");
+                PublishingPageIngredientActionFactory.Add(actions, evidenceOnly);
+                return;
+            }
             var mapping = MapItem(item, fieldPlans, listBlocked);
             var targetIdentity = listPlan.TargetRootFolderServerRelativeUrl + "#source-item:" + item.SourceItemId;
             PublishingPageIngredientActionFactory.Add(actions, PublishingPageIngredientActionFactory.Create(
@@ -113,6 +136,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     : "Copy the exact captured attachment bytes to the materialized target item.",
                 blocked ? null : listPlan.TargetRootFolderServerRelativeUrl + "#source-item:" + item.SourceItemId + "/attachment:" + attachment.FileName,
                 blocked ? null : $"Fresh readback verifies attachment bytes with SHA-256 '{attachment.Content?.Artifact?.Sha256}'."));
+        }
+
+        private static void AddExcludedAttachment(
+            ListDependencySnapshot source,
+            ListItemSnapshot item,
+            ListAttachmentSnapshot attachment,
+            IDictionary<string, PageIngredientAction> actions)
+        {
+            PublishingPageIngredientActionFactory.Add(actions, PublishingPageIngredientActionFactory.Create(
+                PublishingPageIngredientIds.ListAttachment(source.SourceWebId, source.SourceListId, item.SourceItemId, attachment.FileName),
+                IngredientCapability.Available,
+                IngredientDisposition.EvidenceOnly,
+                "retain-protected-document-attachment-evidence",
+                "policy.protected-asset.item-not-copied",
+                "The attachment remains source evidence because the protected document-backed item is an approved exclusion."));
         }
 
         private static (IngredientCapability Capability, IngredientDisposition Disposition, string Realization, string Reason) MapItem(

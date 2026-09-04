@@ -83,17 +83,17 @@ JSON uses camel-case property names, string enum values, explicit nulls, and cas
 
 | Artifact | Schema |
 | --- | --- |
-| Source export | `pnp-publishing-page-export/v2` |
-| Target-specific migration package | `pnp-publishing-page-migration-package/v2` |
-| Import receipt | `pnp-publishing-page-import-receipt/v2` |
+| Source export | `pnp-publishing-page-export/v3` |
+| Target-specific migration package | `pnp-publishing-page-migration-package/v3` |
+| Import receipt | `pnp-publishing-page-import-receipt/v3` |
 | Nested source ASPX artifact | `pnp-page-artifact/v1` |
 | Nested page runtime resolution | `pnp-page-runtime/v1` |
-| Nested canonical ingredient graph | `pnp-page-ingredient-graph/v1` |
+| Nested canonical ingredient graph | `pnp-page-ingredient-graph/v2` |
 | Nested Page Layout evidence | `pnp-publishing-page-layout/v1` |
 | Nested content type schema evidence | `pnp-content-type-schema/v1` |
 | Nested source topology | `pnp-source-topology/v1` |
 | Nested topology plan / target analysis | `pnp-topology-plan/v1` / `pnp-topology-target-analysis/v1` |
-| Nested List dependency / List plan | `pnp-list-dependency/v1` / `pnp-list-migration-plan/v1` |
+| Nested List dependency / List plan | `pnp-list-dependency/v2` / `pnp-list-migration-plan/v2` |
 
 A breaking JSON change requires a new schema version. A CLR namespace move does not itself change JSON property names, but released CLR compatibility still needs separate consideration.
 

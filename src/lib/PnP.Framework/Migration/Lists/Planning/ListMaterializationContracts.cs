@@ -3,6 +3,7 @@ using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Views;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Schema.ContentTypes;
+using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +36,32 @@ namespace PnP.Framework.Migration.Lists.Planning
         CreateOrReuseWebPartView = 2,
         SkipPersonal = 3,
         Block = 4
+    }
+
+    public enum ListItemMaterializationDisposition
+    {
+        Reproduce = 1,
+        ExcludeProtectedAsset = 2,
+        Block = 3
+    }
+
+    public sealed class ListItemMaterializationDecision
+    {
+        public int SourceItemId { get; set; }
+
+        public string BinaryPayloadIngredientId { get; set; }
+
+        public string InformationProtectionIngredientId { get; set; }
+
+        public string SourceServerRelativeUrl { get; set; }
+
+        public ListItemMaterializationDisposition Disposition { get; set; }
+
+        public PageIngredientActionSelectionReceipt SelectionReceipt { get; set; }
+
+        public PageIngredientActionSelectionReceipt InformationProtectionSelectionReceipt { get; set; }
+
+        public string Reason { get; set; }
     }
 
     public sealed class ListTargetOverride
@@ -150,6 +177,8 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         public IList<ListViewMaterializationPlan> Views { get; set; } = new List<ListViewMaterializationPlan>();
 
+        public IList<ListItemMaterializationDecision> ItemDecisions { get; set; } = new List<ListItemMaterializationDecision>();
+
         public IList<ContentTypeClosureNodePlan> SiteContentTypes { get; set; } = new List<ContentTypeClosureNodePlan>();
 
         public IList<MigrationIssue> Issues { get; set; } = new List<MigrationIssue>();
@@ -161,12 +190,13 @@ namespace PnP.Framework.Migration.Lists.Planning
         public bool IsExecutable => Disposition != ListMaterializationDisposition.Block
             && Issues.All(value => value.Severity != MigrationIssueSeverity.Blocker && value.Severity != MigrationIssueSeverity.Error)
             && SiteContentTypes.All(value => value.IsExecutable)
+            && ItemDecisions.All(value => value.Disposition != ListItemMaterializationDisposition.Block)
             && (TargetProbe == null || TargetProbe.IsAdmitted);
     }
 
     public sealed class ListMigrationPlanSet
     {
-        public string SchemaVersion { get; set; } = "pnp-list-migration-plan/v1";
+        public string SchemaVersion { get; set; } = "pnp-list-migration-plan/v2";
 
         public IList<Guid> OrderedSourceListIds { get; set; } = new List<Guid>();
 
@@ -215,6 +245,10 @@ namespace PnP.Framework.Migration.Lists.Planning
         public int VerifiedDocumentCount { get; set; }
 
         public int VerifiedAttachmentCount { get; set; }
+
+        public IList<PageIngredientActionSelectionReceipt> ApprovedExclusions { get; set; } = new List<PageIngredientActionSelectionReceipt>();
+
+        public IList<PageIngredientComparisonResult> IngredientComparisons { get; set; } = new List<PageIngredientComparisonResult>();
 
         public IList<string> Diagnostics { get; set; } = new List<string>();
     }

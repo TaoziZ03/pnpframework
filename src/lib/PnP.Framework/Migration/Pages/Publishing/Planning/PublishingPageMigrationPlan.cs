@@ -14,6 +14,7 @@ using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Taxonomy;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Planning
 {
@@ -75,16 +76,27 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
 
         public IList<PageIngredientAction> IngredientActions { get; set; } = new List<PageIngredientAction>();
 
+        public ProtectedAssetActionPlan ProtectedAssets { get; set; } = new ProtectedAssetActionPlan();
+
         public PageMigrationOutcome MigrationOutcome { get; set; }
 
         public IList<MigrationIssue> IngredientIssues { get; set; } = new List<MigrationIssue>();
+
+        public PageIngredientExecutionFrontier ExecutionFrontier { get; set; } = new PageIngredientExecutionFrontier();
 
         public IList<string> Blockers { get; set; } = new List<string>();
 
         public IList<string> Warnings { get; set; } = new List<string>();
 
         public bool IsExecutable => Blockers.Count == 0
-            && MigrationOutcome != PageMigrationOutcome.Blocked
-            && MigrationOutcome != PageMigrationOutcome.Unknown;
+            && (MigrationOutcome == PageMigrationOutcome.Exact
+                || MigrationOutcome == PageMigrationOutcome.ExecutableWithTransform
+                || MigrationOutcome == PageMigrationOutcome.ExecutableWithLoss
+                || MigrationOutcome == PageMigrationOutcome.ExecutableWithApprovedExclusions
+                || MigrationOutcome == PageMigrationOutcome.PartiallyExecutable)
+            && IngredientIssues.All(value => value.Severity != MigrationIssueSeverity.Error)
+            && (ExecutionFrontier?.HasExecutableIngredients == true
+                || MigrationOutcome == PageMigrationOutcome.ExecutableWithLoss
+                || MigrationOutcome == PageMigrationOutcome.ExecutableWithApprovedExclusions);
     }
 }

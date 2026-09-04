@@ -95,6 +95,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             targetContext.ExecuteQueryRetry();
 
             var snapshot = exportPackage.Snapshot;
+            var protectedAssetPlan = PublishingPageProtectedAssetActionPlanner.Create(
+                snapshot,
+                exportPackage.SnapshotDigest,
+                options.IngredientActionSelections,
+                options.DefaultIngredientSelectionAudit);
             var targetPagePath = PagePath.Normalize(targetWeb.ServerRelativeUrl, options.TargetPageServerRelativeUrl, "Pages");
             var blockers = snapshot.Blockers.ToList();
             var warnings = snapshot.Warnings.ToList();
@@ -157,6 +162,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 targetSite,
                 targetRootWeb,
                 options,
+                protectedAssetPlan,
                 blockers,
                 warnings);
             var taxonomyRelationshipActions = new List<TaxonomyRelationshipAction>();
@@ -208,13 +214,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     expectedContentDigest,
                     targetLifecycle),
                 RuntimeVerification = PublishingPageRuntimeVerificationPolicy.CreateManifest(),
+                ProtectedAssets = protectedAssetPlan,
                 Blockers = blockers.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList(),
                 Warnings = warnings.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList()
             };
             plan.IngredientActions = PublishingPageIngredientActionProjector.Project(snapshot, plan);
-            var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(snapshot.IngredientGraph, plan.IngredientActions);
+            var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(
+                snapshot.IngredientGraph,
+                plan.IngredientActions,
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot));
             plan.MigrationOutcome = ingredientEvaluation.Outcome;
             plan.IngredientIssues = ingredientEvaluation.Issues;
+            plan.ExecutionFrontier = ingredientEvaluation.ExecutionFrontier;
             var package = new PublishingPageMigrationPackage
             {
                 PlannedAtUtc = DateTimeOffset.UtcNow,
