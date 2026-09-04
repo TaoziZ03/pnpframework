@@ -6,7 +6,7 @@
 
 ## Execution is transaction-like, not transactional
 
-Each attempted mutation has an intent, an outcome, and a receipt. The overall import has a plan digest, operation ID, ordered steps, terminal status, and verification result. These properties make execution auditable and support safe retry; the importer does not automatically resume from the journal.
+Each attempted mutation has an intent, an outcome, and a receipt. The overall import has a plan digest, operation ID, ordered steps, terminal status, and verification result. These properties make execution auditable and support safe retry. A generic resume coordinator can interpret a validated durable journal, but an importer still does not treat the journal as mutation authority or automatically replay work.
 
 They do not create a SharePoint transaction spanning Webs, Lists, schema, files, Web Parts, and a page. There is no atomic commit and no automatic global rollback.
 
@@ -81,6 +81,12 @@ Execution status is not the same as source eligibility, plan approval, storage v
 
 ## Mutation journal
 
+`JsonLinesMigrationExecutionJournal` is the durable implementation. It writes one versioned, digest-sealed JSON object per line and flushes each record before returning. The library accepts a host-selected path and does not assume OneDrive, a package directory, or any target-side storage location.
+
+The append-only journal is the fact source. A compact `repro-status.json` is only a deterministic projection and is replaced atomically; deleting or rebuilding the projection does not change execution evidence.
+
+Every journal envelope has a monotonic journal sequence, record timestamp, typed payload, payload digest, and record digest. The reader rejects unsupported schemas, bad digests, envelope/payload identity disagreement, duplicate or out-of-order sequences, receipt/intent disagreement, and verification without a matching receipt. An unterminated final line is retained as explicit interrupted-write evidence; corruption in a completed middle record is never skipped.
+
 Before each mutating category, the importer writes `MigrationMutationIntent`:
 
 | Field | Meaning |
@@ -91,6 +97,8 @@ Before each mutating category, the importer writes `MigrationMutationIntent`:
 | `sequence` | Ordered mutation sequence. |
 | `writtenAtUtc` | Time intent was recorded. |
 | `description` | Human-readable intended mutation. |
+
+Durable-aware callers additionally bind each mutation to `sourceSnapshotDigest` when available, `approvalDigest`, `ingredientId`, selected disposition, semantic digest, and target-boundary digest. Those values produce a stable idempotency key that deliberately excludes the per-attempt `OperationId`.
 
 After the operation returns or is proven already satisfied, the importer writes `MigrationMutationReceipt`:
 
@@ -103,6 +111,19 @@ After the operation returns or is proven already satisfied, the importer writes 
 | `message` | Outcome details. |
 
 The current recorder leaves `exchangeIds` empty; concrete runtime identity maps are carried by topology and List domain receipts. An intent without a corresponding receipt indicates an interrupted or unobserved completion. The next attempt must freshly inspect the target; it must not assume either success or failure.
+
+### Resume trust model
+
+`MigrationResumeCoordinator` applies these rules to a validated journal:
+
+- no intent means pending work and does not trigger a target claim;
+- intent without receipt, or an applied receipt without verification, requires a fresh probe;
+- a verified prior action is `AlreadySatisfied` only after a new probe proves the exact ownership/provenance and semantic digest;
+- absent target state remains pending and must pass normal admission before retry;
+- drift, a foreign collision, stale snapshot/plan/approval identity, or changed target boundary requires replan and reapproval;
+- unavailable fresh inspection never falls back to journal truth.
+
+The same contracts can be used by Web, List, Page, Document, and Web Part domains. Taxonomy is the first domain that persists per-action verification plus sealed materialization-receipt and mapping-catalog artifacts into this journal.
 
 ## Dependency-ordered execution
 
