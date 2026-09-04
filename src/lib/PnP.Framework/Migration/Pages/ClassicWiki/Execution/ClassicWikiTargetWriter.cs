@@ -11,21 +11,6 @@ using System.IO;
 
 namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
 {
-    internal sealed class ClassicWikiWriteResult
-    {
-        public List TargetLibrary { get; set; }
-
-        public Microsoft.SharePoint.Client.File TargetFile { get; set; }
-
-        public ListItem TargetItem { get; set; }
-
-        public bool ResumedExistingOwnedPage { get; set; }
-
-        public string PersistedWikiFieldSha256 { get; set; }
-
-        public int ImportedWebPartCount { get; set; }
-    }
-
     internal static class ClassicWikiTargetWriter
     {
         public static ClassicWikiWriteResult Write(
@@ -137,21 +122,24 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
 
             // Write WikiField: exact first, fallback to entity-safe if SharePoint rewrote brackets
             var wikiPlan = package.Plan.WikiFieldPlan;
-            string persistedSha = null;
-            if (wikiPlan != null)
-            {
-                persistedSha = WriteWikiField(targetContext, targetItem, wikiPlan, recorder, warnings);
-            }
+            var titleToSet = package.Plan.FieldPlan?.Title ?? package.Snapshot.Source.Title;
+            var persistedSha = ClassicWikiFieldWriter.WriteFields(
+                targetContext,
+                targetItem,
+                wikiPlan,
+                titleToSet,
+                recorder,
+                warnings);
 
             // Place Web Parts
             var importedWebParts = 0;
             if (package.Plan.WebParts != null && package.Plan.WebParts.Count > 0)
             {
-                importedWebParts = WriteWebParts(targetContext, targetFile, package.Plan.WebParts, recorder, warnings);
+                importedWebParts = ClassicWikiWebPartWriter.WriteWebParts(targetContext, targetFile, package.Plan.WebParts, recorder, warnings);
             }
 
             // Write ownership provenance properties
-            WriteOwnership(targetContext, targetFile, package, recorder);
+            ClassicWikiProvenanceWriter.WriteOwnership(targetContext, targetFile, package, recorder);
 
             // Lifecycle: Check-in / Publish if needed
             if (targetLocation.TargetLibrary.EnableVersioning || targetLocation.TargetLibrary.ForceCheckout)
@@ -185,135 +173,6 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 PersistedWikiFieldSha256 = persistedSha,
                 ImportedWebPartCount = importedWebParts
             };
-        }
-
-        private static string WriteWikiField(
-            ClientContext context,
-            ListItem item,
-            WikiFieldWritePlan wikiPlan,
-            MigrationExecutionRecorder recorder,
-            ICollection<string> warnings)
-        {
-            // Step 1: Attempt exact write
-            recorder.Execute<bool>(
-                "wiki-field.exact",
-                "Write exact captured WikiField and verify stored value.",
-                () =>
-                {
-                    item["WikiField"] = wikiPlan.ExactValue;
-                    item.Update();
-                    context.ExecuteQueryRetry();
-                    return true;
-                },
-                value => MutationOutcome.Applied,
-                value => "Exact WikiField written.");
-
-            // Read back fresh value
-            context.Load(item);
-            context.ExecuteQueryRetry();
-            var readback = item.FieldValues.TryGetValue("WikiField", out var val) ? val as string ?? string.Empty : string.Empty;
-            var readbackSha = PageDigest.ComputeSha256(readback);
-
-            if (string.Equals(readbackSha, wikiPlan.ExpectedStoredSha256, StringComparison.OrdinalIgnoreCase))
-            {
-                return readbackSha;
-            }
-
-            // Step 2: Fallback to entity-safe literal double brackets
-            warnings.Add($"Exact WikiField readback digest mismatch (expected {wikiPlan.ExpectedStoredSha256}, got {readbackSha}). Executing entity-safe bracket fallback.");
-            recorder.Execute<bool>(
-                "wiki-field.entity-safe",
-                "Write entity-safe literal double brackets and verify normalization.",
-                () =>
-                {
-                    item["WikiField"] = wikiPlan.EntitySafeValue;
-                    item.Update();
-                    context.ExecuteQueryRetry();
-                    return true;
-                },
-                value => MutationOutcome.Applied,
-                value => "Entity-safe WikiField written.");
-
-            context.Load(item);
-            context.ExecuteQueryRetry();
-            var fallbackReadback = item.FieldValues.TryGetValue("WikiField", out var val2) ? val2 as string ?? string.Empty : string.Empty;
-            var fallbackSha = PageDigest.ComputeSha256(fallbackReadback);
-
-            var normalizedReadback = fallbackReadback.Replace("&#91;&#91;", "[[").Replace("&#93;&#93;", "]]");
-            var normalizedSha = PageDigest.ComputeSha256(normalizedReadback);
-
-            if (string.Equals(normalizedSha, wikiPlan.ExpectedStoredSha256, StringComparison.OrdinalIgnoreCase))
-            {
-                return normalizedSha;
-            }
-
-            return fallbackSha;
-        }
-
-        private static int WriteWebParts(
-            ClientContext context,
-            Microsoft.SharePoint.Client.File file,
-            IList<ClassicWikiWebPartPlacementPlan> webParts,
-            MigrationExecutionRecorder recorder,
-            ICollection<string> warnings)
-        {
-            var count = 0;
-            try
-            {
-                var wpm = file.GetLimitedWebPartManager(PersonalizationScope.Shared);
-                foreach (var wp in webParts)
-                {
-                    if (string.IsNullOrWhiteSpace(wp.Xml)) continue;
-                    try
-                    {
-                        recorder.Execute<WebPartDefinition>(
-                            "webpart.place." + wp.SourceId.ToString("N"),
-                            $"Place Web Part '{wp.Title}' into zone '{wp.ZoneId}'.",
-                            () =>
-                            {
-                                var def = wpm.ImportWebPart(wp.Xml);
-                                var added = wpm.AddWebPart(def.WebPart, wp.ZoneId ?? "Bottom", wp.TargetZoneIndex);
-                                context.Load(added, a => a.Id);
-                                context.ExecuteQueryRetry();
-                                return added;
-                            },
-                            value => MutationOutcome.Applied,
-                            value => $"Placed Web Part '{wp.Title}'.");
-                        count++;
-                    }
-                    catch (Exception ex)
-                    {
-                        warnings.Add($"WebPart placement warning for '{wp.Title}': {ex.Message}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                warnings.Add("WebPartManager initialization warning: " + ex.Message);
-            }
-            return count;
-        }
-
-        private static void WriteOwnership(
-            ClientContext context,
-            Microsoft.SharePoint.Client.File targetFile,
-            ClassicWikiMigrationPackage package,
-            MigrationExecutionRecorder recorder)
-        {
-            recorder.Execute<bool>(
-                "page.ownership",
-                "Write migration provenance properties to target file.",
-                () =>
-                {
-                    targetFile.Properties[ClassicWikiTargetOwnership.OriginalIdentifierPropertyName] = package.Plan.OriginalIdentifier;
-                    targetFile.Properties[ClassicWikiTargetOwnership.SourceSnapshotDigestPropertyName] = package.SnapshotDigest;
-                    targetFile.Properties[ClassicWikiTargetOwnership.PlanDigestPropertyName] = package.PlanDigest;
-                    targetFile.Update();
-                    context.ExecuteQueryRetry();
-                    return true;
-                },
-                value => MutationOutcome.Applied,
-                value => "Wrote provenance properties.");
         }
 
         private static bool IsMissing(ServerException ex)

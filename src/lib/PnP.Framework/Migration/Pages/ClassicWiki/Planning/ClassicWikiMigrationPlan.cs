@@ -32,6 +32,22 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
         public string Disposition { get; set; } = "Rewrite";
     }
 
+    public sealed class ClassicWikiFieldPlan
+    {
+        public string Title { get; set; }
+
+        public IList<string> DeferredFieldNames { get; set; } = new List<string>();
+    }
+
+    public sealed class ClassicWikiSecurityPlan
+    {
+        public bool HasUniqueRoleAssignments { get; set; }
+
+        public string Disposition { get; set; } = "Inherit";
+
+        public string Reason { get; set; }
+    }
+
     public sealed class ClassicWikiMigrationPlan
     {
         public string OriginalIdentifier { get; set; }
@@ -43,6 +59,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
         public ClassicWikiTargetLocationPlan TargetLocation { get; set; }
 
         public WikiFieldWritePlan WikiFieldPlan { get; set; }
+
+        public ClassicWikiFieldPlan FieldPlan { get; set; } = new ClassicWikiFieldPlan();
+
+        public ClassicWikiSecurityPlan SecurityPlan { get; set; } = new ClassicWikiSecurityPlan();
 
         public IList<ClassicWikiWebPartPlacementPlan> WebParts { get; set; } = new List<ClassicWikiWebPartPlacementPlan>();
 

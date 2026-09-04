@@ -12,12 +12,14 @@ using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Lifecycle;
 using PnP.Framework.Migration.Pages.Markup;
 using PnP.Framework.Migration.Pages.Packaging;
+using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Security;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace PnP.Framework.Test.ClassicWiki
 {
@@ -321,6 +323,84 @@ namespace PnP.Framework.Test.ClassicWiki
 
             var doclib101 = CreateExportPackage("Wiki in DocumentLibrary", 101);
             Assert.AreEqual(101, doclib101.Snapshot.LibraryBaseTemplate);
+        }
+
+        [TestMethod]
+        public void PlanningPopulatesFieldPlanWithTitleAndTracksDeferredFields()
+        {
+            var export = CreateExportPackage("Wiki content with fields", 119);
+            export.Snapshot.Fields.Add(new PageFieldValueSnapshot
+            {
+                InternalName = "CustomProjectCode",
+                Value = "PROJ-1234"
+            });
+            export.Snapshot.Fields.Add(new PageFieldValueSnapshot
+            {
+                InternalName = "AssignedDepartment",
+                Value = "Engineering"
+            });
+            export.Snapshot.Fields.Add(new PageFieldValueSnapshot
+            {
+                InternalName = "Title",
+                Value = "Overridden Wiki Title"
+            });
+
+            var package = ClassicWikiMigrationPlanner.PlanCore(
+                "https://contoso.sharepoint.com/sites/target",
+                "/sites/target",
+                export,
+                new PagePlanningOptions());
+
+            Assert.IsNotNull(package.Plan.FieldPlan);
+            Assert.AreEqual("Overridden Wiki Title", package.Plan.FieldPlan.Title);
+            Assert.IsTrue(package.Plan.FieldPlan.DeferredFieldNames.Contains("CustomProjectCode"));
+            Assert.IsTrue(package.Plan.FieldPlan.DeferredFieldNames.Contains("AssignedDepartment"));
+            Assert.IsFalse(package.Plan.FieldPlan.DeferredFieldNames.Contains("Title"));
+            Assert.IsTrue(package.Plan.Warnings.Any(w => w.Contains("CustomProjectCode")));
+            Assert.IsTrue(package.Report.Dispositions.Any(d => d.StartsWith("Fields:") && d.Contains("deferred")));
+        }
+
+        [TestMethod]
+        public void PlanningEvaluatesUniquePermissionsAndSetsSecurityPlan()
+        {
+            var export = CreateExportPackage("Wiki with unique security", 119);
+            export.Snapshot.Security = new PageSecuritySnapshot
+            {
+                HasUniqueRoleAssignments = true
+            };
+
+            var package = ClassicWikiMigrationPlanner.PlanCore(
+                "https://contoso.sharepoint.com/sites/target",
+                "/sites/target",
+                export,
+                new PagePlanningOptions());
+
+            Assert.IsNotNull(package.Plan.SecurityPlan);
+            Assert.IsTrue(package.Plan.SecurityPlan.HasUniqueRoleAssignments);
+            Assert.AreEqual("Deferred", package.Plan.SecurityPlan.Disposition);
+            Assert.IsTrue(package.Plan.Warnings.Any(w => w.Contains("Unique permissions")));
+            Assert.IsTrue(package.Report.Dispositions.Any(d => d.Contains("Security: Unique permissions deferred")));
+        }
+
+        [TestMethod]
+        public void PlanningInheritsPermissionsWhenNoUniqueRoleAssignments()
+        {
+            var export = CreateExportPackage("Wiki with inherited security", 119);
+            export.Snapshot.Security = new PageSecuritySnapshot
+            {
+                HasUniqueRoleAssignments = false
+            };
+
+            var package = ClassicWikiMigrationPlanner.PlanCore(
+                "https://contoso.sharepoint.com/sites/target",
+                "/sites/target",
+                export,
+                new PagePlanningOptions());
+
+            Assert.IsNotNull(package.Plan.SecurityPlan);
+            Assert.IsFalse(package.Plan.SecurityPlan.HasUniqueRoleAssignments);
+            Assert.AreEqual("Inherit", package.Plan.SecurityPlan.Disposition);
+            Assert.IsTrue(package.Report.Dispositions.Any(d => d.Contains("Security: Inherited")));
         }
 
         private static ClassicWikiExportPackage CreateExportPackage(string content, int libraryTemplate, string pageUrl = "/sites/demo/SitePages/Welcome.aspx")

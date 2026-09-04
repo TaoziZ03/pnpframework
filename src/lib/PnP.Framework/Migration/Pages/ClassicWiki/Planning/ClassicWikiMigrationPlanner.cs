@@ -27,26 +27,37 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             IMigrationArtifactStore artifactStore)
         {
             if (targetContext == null) throw new ArgumentNullException(nameof(targetContext));
+            var targetWeb = targetContext.Web;
+            targetContext.Load(targetWeb, w => w.Url, w => w.ServerRelativeUrl, w => w.Title);
+            targetContext.ExecuteQueryRetry();
+            return PlanCore(targetWeb.Url, targetWeb.ServerRelativeUrl, exportPackage, options, artifactStore);
+        }
+
+        internal static ClassicWikiMigrationPackage PlanCore(
+            string targetWebUrl,
+            string targetWebServerRelativeUrl,
+            ClassicWikiExportPackage exportPackage,
+            PagePlanningOptions options,
+            IMigrationArtifactStore artifactStore = null)
+        {
+            if (string.IsNullOrWhiteSpace(targetWebUrl)) throw new ArgumentException("Target web URL is required.", nameof(targetWebUrl));
             if (exportPackage == null) throw new ArgumentNullException(nameof(exportPackage));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
             ClassicWikiPackageValidator.ValidateExport(exportPackage, artifactStore);
 
-            var targetWeb = targetContext.Web;
-            targetContext.Load(targetWeb, w => w.Url, w => w.ServerRelativeUrl, w => w.Title);
-            targetContext.ExecuteQueryRetry();
-
+            var webServerRelativeUrl = targetWebServerRelativeUrl ?? "/";
             var snapshot = exportPackage.Snapshot;
             var targetPageUrl = options.TargetPageServerRelativeUrl;
             if (string.IsNullOrWhiteSpace(targetPageUrl))
             {
                 var libraryName = string.IsNullOrWhiteSpace(snapshot.LibraryTitle) ? "SitePages" : snapshot.LibraryTitle;
                 var fileName = PagePath.GetFileName(snapshot.Source.PageServerRelativeUrl);
-                targetPageUrl = PagePath.Normalize(targetWeb.ServerRelativeUrl, fileName, libraryName);
+                targetPageUrl = PagePath.Normalize(webServerRelativeUrl, fileName, libraryName);
             }
             else
             {
-                targetPageUrl = PagePath.Normalize(targetWeb.ServerRelativeUrl, targetPageUrl, "SitePages");
+                targetPageUrl = PagePath.Normalize(webServerRelativeUrl, targetPageUrl, "SitePages");
             }
 
             var warnings = new List<string>(snapshot.Warnings);
@@ -58,7 +69,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             var targetTemplate = snapshot.LibraryBaseTemplate == 101 ? 101 : 119;
             var targetLocation = new ClassicWikiTargetLocationPlan
             {
-                TargetWebUrl = targetWeb.Url.TrimEnd('/'),
+                TargetWebUrl = targetWebUrl.TrimEnd('/'),
                 TargetLibraryServerRelativeUrl = targetLibraryDir,
                 TargetLibraryTitle = snapshot.LibraryTitle ?? "Site Pages",
                 TargetLibraryTemplate = targetTemplate,
@@ -69,7 +80,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             var rewrittenWikiContent = RewriteWikiContent(
                 snapshot.WikiField ?? string.Empty,
                 snapshot.Source.WebServerRelativeUrl,
-                targetWeb.ServerRelativeUrl);
+                webServerRelativeUrl);
 
             var wikiFieldPlan = WikiFieldWritePolicy.Build(rewrittenWikiContent);
 
@@ -94,8 +105,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
                 dependencyPlans.Add(new ClassicWikiDependencyPlan
                 {
                     SourceOriginalUrl = dep.SourceServerRelativeUrl ?? dep.SourceAbsoluteUrl ?? dep.OriginalValue,
-                    TargetServerRelativeUrl = dep.SourceServerRelativeUrl != null && targetWeb.ServerRelativeUrl != null
-                        ? RewriteUrl(dep.SourceServerRelativeUrl, snapshot.Source.WebServerRelativeUrl, targetWeb.ServerRelativeUrl)
+                    TargetServerRelativeUrl = dep.SourceServerRelativeUrl != null && webServerRelativeUrl != null
+                        ? RewriteUrl(dep.SourceServerRelativeUrl, snapshot.Source.WebServerRelativeUrl, webServerRelativeUrl)
                         : dep.SourceServerRelativeUrl,
                     Disposition = "Rewrite"
                 });
@@ -104,6 +115,47 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             var originalIdentifier = "urn:pnp:spo-wiki-page:v1:" + snapshot.Source.SiteId.ToString("D")
                 + ":" + snapshot.Source.WebId.ToString("D") + ":" + snapshot.Source.FileUniqueId.ToString("D");
 
+            var fieldPlan = new ClassicWikiFieldPlan
+            {
+                Title = snapshot.Source.Title
+            };
+
+            if (snapshot.Fields != null)
+            {
+                foreach (var field in snapshot.Fields)
+                {
+                    if (string.Equals(field.InternalName, "Title", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrWhiteSpace(field.Value))
+                        {
+                            fieldPlan.Title = field.Value;
+                        }
+                    }
+                    else if (!string.Equals(field.InternalName, "WikiField", StringComparison.OrdinalIgnoreCase)
+                          && !string.Equals(field.InternalName, "FileLeafRef", StringComparison.OrdinalIgnoreCase)
+                          && !string.Equals(field.InternalName, "ContentTypeId", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fieldPlan.DeferredFieldNames.Add(field.InternalName);
+                        warnings.Add($"Field '{field.InternalName}' is captured but metadata replay is deferred in this classic wiki vertical slice.");
+                    }
+                }
+            }
+
+            var hasUniqueSecurity = snapshot.Security?.HasUniqueRoleAssignments == true;
+            var securityPlan = new ClassicWikiSecurityPlan
+            {
+                HasUniqueRoleAssignments = hasUniqueSecurity,
+                Disposition = hasUniqueSecurity ? "Deferred" : "Inherit",
+                Reason = hasUniqueSecurity
+                    ? "Unique role assignments on classic wiki pages are deferred in this vertical slice; target inherits library permissions."
+                    : "Target page inherits permissions from parent library."
+            };
+
+            if (hasUniqueSecurity)
+            {
+                warnings.Add($"Unique permissions on '{snapshot.Source.PageServerRelativeUrl}' are deferred; target page inherits library permissions.");
+            }
+
             var migrationPlan = new ClassicWikiMigrationPlan
             {
                 OriginalIdentifier = originalIdentifier,
@@ -111,6 +163,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
                 TargetPageServerRelativeUrl = targetPageUrl,
                 TargetLocation = targetLocation,
                 WikiFieldPlan = wikiFieldPlan,
+                FieldPlan = fieldPlan,
+                SecurityPlan = securityPlan,
                 WebParts = webPartPlans,
                 Dependencies = dependencyPlans,
                 LifecyclePolicy = "Publish",
@@ -120,10 +174,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
 
             var planDigest = ClassicWikiDigest.ComputePlanDigest(migrationPlan);
 
+            var dispositions = new List<string> { "ClassicWikiPage: " + targetPageUrl };
+            dispositions.Add("Fields: " + (fieldPlan.DeferredFieldNames.Count > 0 ? "Title materialized; metadata fields deferred" : "Title materialized"));
+            dispositions.Add("Security: " + (hasUniqueSecurity ? "Unique permissions deferred (target inherits)" : "Inherited"));
+
             var report = new ClassicWikiMigrationReport
             {
                 Status = blockers.Count > 0 ? "Blocked" : "Ready",
-                Dispositions = new List<string> { "ClassicWikiPage: " + targetPageUrl },
+                Dispositions = dispositions,
                 Warnings = warnings,
                 Blockers = blockers
             };
@@ -150,36 +208,28 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
 
         private static string RewriteWikiContent(string content, string sourceWebUrl, string targetWebUrl)
         {
-            if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(sourceWebUrl) || string.IsNullOrEmpty(targetWebUrl))
-            {
-                return content;
-            }
-
+            if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(sourceWebUrl) || string.IsNullOrEmpty(targetWebUrl)) return content;
             var src = sourceWebUrl.TrimEnd('/');
             var tgt = targetWebUrl.TrimEnd('/');
-            if (string.Equals(src, tgt, StringComparison.OrdinalIgnoreCase))
-            {
-                return content;
-            }
-
-            return content.Replace(src + "/", tgt + "/", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(src, tgt, StringComparison.OrdinalIgnoreCase) ? content : ReplaceCaseInsensitive(content, src + "/", tgt + "/");
         }
 
         private static string RewriteUrl(string url, string sourceWebUrl, string targetWebUrl)
         {
-            if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(sourceWebUrl) || string.IsNullOrEmpty(targetWebUrl))
-            {
-                return url;
-            }
-
+            if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(sourceWebUrl) || string.IsNullOrEmpty(targetWebUrl)) return url;
             var src = sourceWebUrl.TrimEnd('/');
             var tgt = targetWebUrl.TrimEnd('/');
-            if (url.StartsWith(src + "/", StringComparison.OrdinalIgnoreCase))
-            {
-                return tgt + "/" + url.Substring(src.Length + 1);
-            }
+            return url.StartsWith(src + "/", StringComparison.OrdinalIgnoreCase) ? tgt + "/" + url.Substring(src.Length + 1) : url;
+        }
 
-            return url;
+        private static string ReplaceCaseInsensitive(string input, string pattern, string replacement)
+        {
+            if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(pattern)) return input;
+            return System.Text.RegularExpressions.Regex.Replace(
+                input,
+                System.Text.RegularExpressions.Regex.Escape(pattern),
+                (replacement ?? string.Empty).Replace("$", "$$"),
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
     }
 }
