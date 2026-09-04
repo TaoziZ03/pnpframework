@@ -13,5 +13,11 @@ namespace PnP.Framework.Migration.Execution
         public MigrationExecutionStatus Status { get; set; }
 
         public string Message { get; set; }
+
+        public string SourceSnapshotDigest { get; set; }
+
+        public string ApprovalDigest { get; set; }
+
+        public string TargetBoundaryDigest { get; set; }
     }
 }

@@ -47,7 +47,7 @@ Every migration area should preserve the following boundaries:
 | --- | --- |
 | `PnP.Framework.Migration.Diagnostics` | Typed, stable migration issues that can be reported without parsing exception or blocker text. |
 | `PnP.Framework.Migration.Evidence` | Evidence availability, source lineage, and derived-artifact provenance shared by migration domains. |
-| `PnP.Framework.Migration.Execution` | Operation state, write-ahead mutation intents, step receipts, and pluggable execution journals. |
+| `PnP.Framework.Migration.Execution` | Operation state, stable idempotency boundaries, write-ahead mutation intents, step/verification receipts, append-only JSON Lines journaling, atomic status projection, and fresh-probe resume decisions. |
 | `PnP.Framework.Migration.Packaging` | Content-addressed artifact references, artifact-store contracts, digest helpers, and a local directory-backed content-addressed store for larger or binary evidence. |
 | `PnP.Framework.Migration.Topology` | Source SPSite/SPWeb evidence, parent-preserving target maps, collision probes, migration-owned provenance, child-Web materialization, and source-to-target runtime identity receipts. |
 | `PnP.Framework.Migration.Lists` | Page-required List/library dependency closure, lookup ordering, target planning, create-or-owned-reuse execution, and final fresh-readback results. |
@@ -57,7 +57,7 @@ Every migration area should preserve the following boundaries:
 | `PnP.Framework.Migration.Lists.Views` | Public, embedded/page-bound, and personal View evidence; personal Views remain evidence-only. |
 | `PnP.Framework.Migration.Schema.Fields` | Portable field-schema evidence, ownership classification, canonicalization, exact-ID materialization plans, and target probes. |
 | `PnP.Framework.Migration.Schema.ContentTypes` | Minimal required-field content-type closure capture, planning, target admission, exact-ID materialization, and fresh verification. |
-| `PnP.Framework.Migration.Taxonomy` | Explicit source term-store/term-set to target term-store/term-set schema mappings. |
+| `PnP.Framework.Migration.Taxonomy` | Explicit source term-store/term-set mappings plus reviewed Term Group/TermSet/Term asset planning, owned provenance, external-reuse boundaries, durable receipts, and mapping catalogs. |
 | `PnP.Framework.Migration.Verification` | Storage/runtime verification states and typed external runtime-verification manifests and receipts. |
 | [`PnP.Framework.Migration.Pages`](Pages/README.md) | Shared page identity, exact ASPX evidence, CLR runtime, non-exclusive profiles, cohorts, canonical ingredients, fields, references, security, classic Web Parts, content, capture, and planning capabilities. |
 | [`PnP.Framework.Migration.Pages.Publishing`](Pages/Publishing/README.md) | Classic publishing-page aggregate contracts, workflow policy, lifecycle, planning, packages, reports, execution, and verification. |
@@ -108,7 +108,7 @@ The following proof-of-concept behaviors are not silently approximated:
 - Child-Web feature activation is not inferred from the source template. The generic materializer uses the sealed target Web template; Publishing/Enterprise Wiki, Document ID, Document Set, asset-library, and other Feature prerequisites still need explicit capability plans.
 - A same-title template-created List is a blocker. `ListTargetOverride.TargetTitle` supports a reviewed alternate target title, but PnP does not yet rename a selected template List through the proof-of-concept's resumable claim protocol.
 - List View/Web Part `JSLink` and `XslLink` strings are captured, but custom referenced bytes do not yet have a List-rendering-resource artifact/materialization contract. Custom paths block planning.
-- Taxonomy schema can use reviewed source-store/set to target-store/set mappings, and item writes let target SharePoint resolve WssId. Creating Term Groups/Sets/Terms and retaining many-to-one source aliases is still a separate migration domain.
+- Taxonomy asset materialization can create or reconcile explicitly approved Term Groups/Sets/Terms and can reuse an explicitly reviewed external TermSet without claiming ownership. Retaining arbitrary many-to-one aliases and enabling optional external reference stamping remain separate reviewed extensions.
 - Full `ListViewXml`, View hidden/default repair in every collision shape, exact removal of extra List CT FieldLinks, and template/Feature-specific List creation remain narrower follow-up work.
 - Version history, audit identity/timestamps, unique ACLs, workflows, subscriptions, event receivers, personal Views, and browser DOM/visual acceptance remain outside the storage importer.
 

@@ -15,5 +15,19 @@ namespace PnP.Framework.Migration.Execution
         public DateTimeOffset WrittenAtUtc { get; set; }
 
         public string Description { get; set; }
+
+        public string SourceSnapshotDigest { get; set; }
+
+        public string ApprovalDigest { get; set; }
+
+        public string IngredientId { get; set; }
+
+        public string SelectedDisposition { get; set; }
+
+        public string TargetBoundaryDigest { get; set; }
+
+        public string SemanticDigest { get; set; }
+
+        public string IdempotencyKey { get; set; }
     }
 }

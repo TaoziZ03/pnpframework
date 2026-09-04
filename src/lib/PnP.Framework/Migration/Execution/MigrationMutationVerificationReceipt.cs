@@ -1,25 +1,26 @@
 using System;
-using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Execution
 {
-    public sealed class MigrationMutationReceipt
+    public sealed class MigrationMutationVerificationReceipt
     {
+        public string SchemaVersion { get; set; } = "pnp-migration-mutation-verification/v1";
+
         public Guid OperationId { get; set; }
 
         public string PlanDigest { get; set; }
 
         public string ActionId { get; set; }
 
-        public int Sequence { get; set; }
+        public DateTimeOffset VerifiedAtUtc { get; set; }
 
-        public DateTimeOffset CompletedAtUtc { get; set; }
+        public bool FreshReadbackPassed { get; set; }
 
-        public MutationOutcome Outcome { get; set; }
+        public string CurrentStateDigest { get; set; }
 
-        public IList<string> ExchangeIds { get; set; } = new List<string>();
+        public string Ownership { get; set; }
 
-        public string Message { get; set; }
+        public string TargetIdentity { get; set; }
 
         public string SourceSnapshotDigest { get; set; }
 
@@ -34,5 +35,7 @@ namespace PnP.Framework.Migration.Execution
         public string SemanticDigest { get; set; }
 
         public string IdempotencyKey { get; set; }
+
+        public string Message { get; set; }
     }
 }

@@ -36,8 +36,14 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
 | `TaxonomyValueRelationshipSnapshot` | `pnp-taxonomy-value-relationship/v1` |
+| `MigrationExecutionJournalRecord` | `pnp-migration-execution-journal-record/v1` |
+| `MigrationReproStatus` | `pnp-migration-repro-status/v1` |
+| `TaxonomyAssetMaterializationReceipt` | `pnp-taxonomy-asset-materialization-receipt/v2` |
+| `TaxonomyAssetMappingCatalog` | `pnp-taxonomy-asset-mapping-catalog/v2` |
 
 Nested snapshots and plans have their own schema identifiers where independent evolution or validation is required.
+
+Execution journal records are JSON Lines rather than one replaceable JSON document. Each line is independently schema- and digest-validated. The readable repro-status document is derived from the validated record stream and is not a substitute for it. Unsupported prior record schemas are rejected explicitly rather than guessed.
 
 JSON serialization uses camel-case property names, string enum values, explicit nulls, and case-sensitive property names.
 

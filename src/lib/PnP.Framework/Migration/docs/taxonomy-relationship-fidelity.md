@@ -106,3 +106,20 @@ The following are intentionally not migration actions:
 - overwriting a colliding hidden-list row.
 
 If a future workflow wants remediation, it must define a different explicit policy and action. Remediation must never be presented as faithful reproduction.
+
+## Taxonomy asset provenance and resume
+
+The separate taxonomy-asset workflow may create a missing Term only when a reviewed asset action and, for an external parent TermSet, a separate external-mutation approval authorize it. The page relationship writer above still never creates or repairs taxonomy assets implicitly.
+
+Migration-created TermSets and Terms carry two distinct custom properties:
+
+- `pnp_reserved_term_original_identifier` stores the stable GUID-first source URN;
+- `pnp_reserved_term_mapping_digest` stores a stable source-to-target semantic mapping digest that excludes mutable observed state.
+
+Fresh inspection requires both values before classifying an object as exact `ReuseOwned`. A missing mapping digest on an otherwise owned object may be reconciled, but a conflicting digest is a collision and is never overwritten. This makes an interrupted `Proof Points` create discoverable after its write-ahead intent even when the process stopped before its receipt.
+
+An existing external `Wiki Categories` TermSet or Term is not silently claimed. Its receipt and mapping catalog record `Ownership = External`, `Disposition = ReuseExternal`, source and target identities, review-plan digest, approval digest, and fresh-readback result. The owned marker is not written. Adding a missing child Term to an approved external TermSet creates an owned child with both markers while the parent remains external.
+
+Optional external reference stamping has a separate `pnp_reserved_term_external_source_reference` contract. It requires exact per-object, plan-digest, and approval-digest authorization, is not part of default external reuse, and is intentionally not wired to the materializer in this change. The owned inspector never treats that property as ownership.
+
+The durable execution journal persists the sealed taxonomy materialization receipt and mapping catalog, but resume always repeats target inspection. Journal evidence can identify what to probe; it cannot authorize a mutation or convert a foreign collision into reuse.
