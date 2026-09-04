@@ -1,5 +1,6 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Packaging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -443,11 +444,16 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 .OrderBy(value => value.Key, StringComparer.Ordinal))
             {
                 var bindings = group.ToArray();
-                if (bindings.Select(value => value.TargetLogicalActionKey).Distinct(StringComparer.Ordinal).Count() != 1)
+                var bindingIdentities = bindings.Select(SharedTopologySourceBindingIdentity.Compute)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+                if (bindingIdentities.Length != 1)
                 {
-                    throw new InvalidDataException("One source owner is bound to conflicting global topology actions.");
+                    throw new InvalidDataException("One source owner carries conflicting source or target binding evidence.");
                 }
-                var binding = bindings[0];
+                var binding = bindings
+                    .OrderBy(MigrationContractSerializer.SerializeCanonical, StringComparer.Ordinal)
+                    .First();
                 var target = completed[binding.TargetLogicalActionKey];
                 var mapping = new SharedTopologySourceWebMaterializationReceipt
                 {

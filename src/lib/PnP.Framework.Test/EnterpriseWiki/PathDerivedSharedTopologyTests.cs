@@ -10,6 +10,7 @@ using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
+using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Topology.Ingredients;
@@ -89,6 +90,79 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsTrue(compiled.IsExecutable);
             Assert.AreEqual(first.TargetWebContainers.Count, compiled.Dag.Actions.Count);
             Assert.IsTrue(compiled.Dag.Actions.All(value => value.ExecutionGrants.Count == 2));
+        }
+
+        [TestMethod]
+        public void GlobalDagAndActionPlanAreInputOrderInvariant()
+        {
+            var first = BuildPlan("groups/engineering", observedAt: DateTimeOffset.Parse("2026-09-04T00:00:00Z"));
+            var second = BuildPlan(
+                "departments/hr",
+                sourceAuthority: "https://source-b.example.com",
+                sourceSiteId: Guid.Parse("01010101-0101-0101-0101-010101010101"),
+                sourceRootWebId: Guid.Parse("02020202-0202-0202-0202-020202020202"),
+                sourceLeafWebId: Guid.Parse("03030303-0303-0303-0303-030303030303"),
+                observedAt: DateTimeOffset.Parse("2026-09-04T00:01:00Z"));
+
+            var forward = SharedTopologyGlobalActionDagCompiler.Compile(new[] { first, second });
+            var reverse = SharedTopologyGlobalActionDagCompiler.Compile(new[] { second, first });
+            Assert.IsTrue(forward.IsExecutable);
+            Assert.IsTrue(reverse.IsExecutable);
+            Assert.AreEqual(
+                MigrationContractSerializer.SerializeCanonical(forward.Dag),
+                MigrationContractSerializer.SerializeCanonical(reverse.Dag));
+            Assert.IsNull(forward.Dag.Actions.Single(value => value.IsTargetSiteRoot).SourceOwnerKey);
+            Assert.IsNull(forward.Dag.Actions.Single(value => value.IsTargetSiteRoot).OriginalIdentifier);
+
+            var runtime = new FakeRuntime(forward.Dag);
+            var observations = runtime.Inspect(forward.Dag.Actions);
+            var forwardAnalysis = PathDerivedTopologyTargetAnalyzer.Analyze(forward.Dag, observations);
+            var reverseAnalysis = PathDerivedTopologyTargetAnalyzer.Analyze(reverse.Dag, observations);
+            var forwardActionPlan = SharedTopologyGlobalActionPlanProjector.Project(forward.Dag, forwardAnalysis);
+            var reverseActionPlan = SharedTopologyGlobalActionPlanProjector.Project(reverse.Dag, reverseAnalysis);
+            Assert.AreEqual(
+                MigrationContractSerializer.SerializeCanonical(forwardActionPlan),
+                MigrationContractSerializer.SerializeCanonical(reverseActionPlan));
+        }
+
+        [TestMethod]
+        public void ValidateReceiptAcceptsReversedSourcePlans()
+        {
+            var engineering = BuildPlan("groups/engineering", observedAt: DateTimeOffset.Parse("2026-09-04T00:00:00Z"));
+            var hr = BuildPlan(
+                "groups/hr",
+                sourceLeafWebId: Guid.Parse("23232323-2323-2323-2323-232323232323"),
+                observedAt: DateTimeOffset.Parse("2026-09-04T00:01:00Z"));
+            var dag = SharedTopologyGlobalActionDagCompiler.Compile(new[] { engineering, hr }).Dag;
+            var runtime = new FakeRuntime(dag);
+            var analysis = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
+            var actionPlan = SharedTopologyGlobalActionPlanProjector.Project(dag, analysis);
+            var receipt = new PathDerivedTopologyMigrationService().Ensure(
+                runtime,
+                dag,
+                analysis,
+                actionPlan,
+                new[] { engineering, hr }).Receipt;
+
+            SharedTopologyGlobalExecutionValidator.ValidateReceipt(
+                new[] { hr, engineering },
+                dag,
+                actionPlan,
+                receipt);
+        }
+
+        [TestMethod]
+        public void DuplicateSourceOwnerKeyRequiresFullCanonicalBindingIdentity()
+        {
+            var original = BuildPlan("guides");
+            var recreatedRoot = BuildPlan(
+                "guides",
+                sourceRootWebId: Guid.Parse("abababab-abab-abab-abab-abababababab"));
+
+            var conflict = SharedTopologyGlobalActionDagCompiler.Compile(new[] { original, recreatedRoot });
+
+            Assert.IsFalse(conflict.IsExecutable);
+            Assert.IsTrue(conflict.Issues.Any(value => value.Code == "SourceOwnerEvidenceConflict"));
         }
 
         [TestMethod]

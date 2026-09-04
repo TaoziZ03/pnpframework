@@ -408,10 +408,21 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             SharedTopologyGlobalMaterializationReceipt receipt,
             IReadOnlyDictionary<string, SharedTopologyGlobalActionReceipt> actions)
         {
-            var expected = plans.SelectMany(value => value.SourceWebBindings)
-                .GroupBy(value => value.SourceOwnerKey, StringComparer.Ordinal)
-                .Select(value => value.First())
-                .ToDictionary(value => value.SourceOwnerKey, StringComparer.Ordinal);
+            var expected = new Dictionary<string, SourceWebTargetContainerBinding>(StringComparer.Ordinal);
+            foreach (var group in plans.SelectMany(value => value.SourceWebBindings)
+                .GroupBy(value => value.SourceOwnerKey, StringComparer.Ordinal))
+            {
+                var identities = group.Select(SharedTopologySourceBindingIdentity.Compute)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+                if (identities.Length != 1)
+                {
+                    throw new InvalidDataException("One source owner carries conflicting source or target binding evidence.");
+                }
+                expected.Add(group.Key, group
+                    .OrderBy(MigrationContractSerializer.SerializeCanonical, StringComparer.Ordinal)
+                    .First());
+            }
             var actual = receipt.SourceWebMappings
                 .GroupBy(value => value.SourceOwnerKey, StringComparer.Ordinal)
                 .ToDictionary(value => value.Key, value => value.ToArray(), StringComparer.Ordinal);
