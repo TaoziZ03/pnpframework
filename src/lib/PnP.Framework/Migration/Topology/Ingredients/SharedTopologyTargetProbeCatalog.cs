@@ -5,20 +5,64 @@ using System.Linq;
 
 namespace PnP.Framework.Migration.Topology.Ingredients
 {
+    internal sealed class TopologyOwnerProbeCatalog
+    {
+        public IDictionary<Guid, TopologyWebTargetProbe> BySourceWebId { get; } =
+            new Dictionary<Guid, TopologyWebTargetProbe>();
+
+        public IDictionary<string, TopologyWebTargetProbe> BySourceOwnerKey { get; } =
+            new Dictionary<string, TopologyWebTargetProbe>(StringComparer.Ordinal);
+
+        public bool TryGet(Guid sourceWebId, string sourceOwnerKey, out TopologyWebTargetProbe probe)
+        {
+            if (!string.IsNullOrWhiteSpace(sourceOwnerKey)
+                && BySourceOwnerKey.TryGetValue(sourceOwnerKey, out probe))
+            {
+                return true;
+            }
+            probe = null;
+            return sourceWebId != Guid.Empty && BySourceWebId.TryGetValue(sourceWebId, out probe);
+        }
+    }
+
     internal static class SharedTopologyTargetProbeCatalog
     {
-        public static IDictionary<Guid, TopologyWebTargetProbe> Create(
+        public static TopologyOwnerProbeCatalog Create(
             SharedTopologyPlan plan,
             SharedTopologyGlobalTargetAnalysis analysis)
         {
             SharedTopologyPlanValidator.Validate(plan);
-            var probes = analysis?.Probes?.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal)
+            var probes = analysis?.Probes?.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal)
                 ?? new Dictionary<string, PathDerivedTargetWebProbe>(StringComparer.Ordinal);
-            return plan.SourceWebBindings
-                .Where(value => value.SourceWebId != Guid.Empty)
-                .ToDictionary(
-                value => value.SourceWebId,
-                value => ToLegacyProbe(value, probes[value.TargetGlobalActionKey]));
+            var result = new TopologyOwnerProbeCatalog();
+            foreach (var binding in plan.SourceWebBindings)
+            {
+                var probe = ToLegacyProbe(binding, probes[binding.TargetLogicalActionKey]);
+                result.BySourceOwnerKey.Add(binding.SourceOwnerKey, probe);
+                if (binding.SourceWebId != Guid.Empty)
+                {
+                    result.BySourceWebId.Add(binding.SourceWebId, probe);
+                }
+            }
+            return result;
+        }
+
+        public static TopologyOwnerProbeCatalog CreateLegacy(TopologyTargetAnalysis analysis)
+        {
+            if (analysis == null)
+            {
+                return null;
+            }
+            var result = new TopologyOwnerProbeCatalog();
+            foreach (var probe in analysis.SiteCollections.SelectMany(value => value.Webs))
+            {
+                result.BySourceWebId.Add(probe.SourceWebId, probe);
+                if (!string.IsNullOrWhiteSpace(probe.SourceOwnerKey))
+                {
+                    result.BySourceOwnerKey.Add(probe.SourceOwnerKey, probe);
+                }
+            }
+            return result;
         }
 
         private static TopologyWebTargetProbe ToLegacyProbe(
@@ -27,6 +71,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             return new TopologyWebTargetProbe
             {
+                SourceOwnerKey = binding.SourceOwnerKey,
                 SourceSiteId = binding.SourceSiteId,
                 SourceWebId = binding.SourceWebId,
                 TargetWebUrl = binding.TargetWebUrl,

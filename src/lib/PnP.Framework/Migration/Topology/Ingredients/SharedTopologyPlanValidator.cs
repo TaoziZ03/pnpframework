@@ -39,11 +39,20 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 .OrderBy(value => SharedTopologyPath.Depth(value.SourceServerRelativeUrl))
                 .ToArray();
             if (orderedFidelity.First().State != SourceWebFidelityState.Captured
-                || orderedFidelity.Last().State != SourceWebFidelityState.Captured
-                || orderedFidelity.Skip(1).Take(orderedFidelity.Length - 2)
-                    .Any(value => value.State != SourceWebFidelityState.AuthorizationBlocked))
+                || orderedFidelity.Last().State != SourceWebFidelityState.Captured)
             {
-                throw new InvalidDataException("Partial topology must retain captured root and leaf Webs with one authorization-limited fidelity ingredient per unknown ancestor.");
+                throw new InvalidDataException("Partial topology must retain captured root and leaf Webs.");
+            }
+            for (var index = 1; index < orderedFidelity.Length; index++)
+            {
+                if (!SharedTopologyPath.EqualsPath(
+                    SharedTopologyPath.Combine(
+                        orderedFidelity[index - 1].SourceServerRelativeUrl,
+                        SharedTopologyPath.Leaf(orderedFidelity[index].SourceServerRelativeUrl)),
+                    orderedFidelity[index].SourceServerRelativeUrl))
+                {
+                    throw new InvalidDataException("Partial topology fidelity must cover every direct root-to-leaf path level exactly once.");
+                }
             }
 
             var containersById = new Dictionary<string, TargetWebContainerIngredientPlan>(StringComparer.Ordinal);
@@ -78,7 +87,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     || !string.Equals(binding.SourceWebUrl, fidelity.SourceWebUrl, StringComparison.OrdinalIgnoreCase)
                     || !SharedTopologyPath.EqualsPath(binding.SourceServerRelativeUrl, fidelity.SourceServerRelativeUrl)
                     || !string.Equals(binding.TargetContainerIngredientId, container.IngredientId, StringComparison.Ordinal)
-                    || !string.Equals(binding.TargetGlobalActionKey, container.GlobalActionKey, StringComparison.Ordinal)
+                    || !string.Equals(binding.TargetLogicalActionKey, container.LogicalActionKey, StringComparison.Ordinal)
                     || !SharedTopologyPath.EqualsUrl(binding.TargetWebUrl, container.TargetWebUrl)
                     || !SharedTopologyPath.EqualsPath(binding.TargetServerRelativeUrl, container.TargetServerRelativeUrl))
                 {
@@ -91,7 +100,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             }
             if (!string.Equals(
                     plan.ExecutionGroupDigest,
-                    SharedTopologyIdentity.ExecutionGroup(plan.TargetWebContainers.Select(value => value.ActionSignature)),
+                    SharedTopologyIdentity.ExecutionGroup(plan.TargetWebContainers.Select(value => value.LogicalActionKey)),
                     StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(plan.SupportCohortDigest, SharedTopologyDigest.ComputeSupportCohort(plan), StringComparison.OrdinalIgnoreCase)
                 || !MigrationActionSignature.IsSha256(plan.PlanDigest)
@@ -142,6 +151,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 if (fidelity.IdentityBasis != SharedTopologyIdentityBasis.CapturedSourceWeb
                     || fidelity.SourceWebId == Guid.Empty
                     || fidelity.AuthorizationEvidence != null
+                    || fidelity.AuthorizationOperation != null
+                    || fidelity.AuthorizationRequestUri != null
                     || !string.Equals(
                         fidelity.IngredientId,
                         SharedTopologyIdentity.SourceWebFidelity(fidelity.SourceSiteId, fidelity.SourceWebId),
@@ -154,9 +165,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 BoundLiteralHttpAuthorizationEvidence.Validate(
                     fidelity.AuthorizationEvidence,
-                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId);
+                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId,
+                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadOperation,
+                    new Uri(fidelity.SourceWebUrl).Authority,
+                    fidelity.AuthorizationRequestUri);
                 if (fidelity.IdentityBasis != SharedTopologyIdentityBasis.ExactRelativePath
                     || fidelity.SourceWebId != Guid.Empty
+                    || !string.Equals(fidelity.AuthorizationOperation, PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadOperation, StringComparison.Ordinal)
                     || !string.Equals(fidelity.IngredientId, SharedTopologyIdentity.SourcePathFidelity(fidelity.SourceOwnerKey), StringComparison.Ordinal))
                 {
                     throw new InvalidDataException("Unknown ancestor fidelity must be path-identified and bound to literal authorization evidence.");
@@ -209,7 +224,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 if (container.IdentityBasis != SharedTopologyIdentityBasis.TargetSiteRoot
                     || !SharedTopologyPath.EqualsPath(container.TargetServerRelativeUrl, site.TargetServerRelativeUrl)
                     || !SharedTopologyPath.EqualsUrl(container.TargetWebUrl, site.TargetSiteCollectionUrl)
-                    || container.ParentGlobalActionKey != null
+                    || container.ParentLogicalActionKey != null
                     || !string.Equals(container.ParentIngredientId, site.IngredientId, StringComparison.Ordinal)
                     || container.ExpectedOwnership != SharedTopologyOwnership.ExternalApprovedHost
                     || container.ApprovedExistingTargetWebId != site.ExpectedTargetRootWebId
@@ -223,7 +238,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 if (container.IdentityBasis != SharedTopologyIdentityBasis.ExactRelativePath
                     || string.IsNullOrWhiteSpace(container.ParentIngredientId)
                     || !priorContainers.TryGetValue(container.ParentIngredientId, out var parent)
-                    || !string.Equals(container.ParentGlobalActionKey, parent.GlobalActionKey, StringComparison.Ordinal)
+                    || !string.Equals(container.ParentLogicalActionKey, parent.LogicalActionKey, StringComparison.Ordinal)
                     || !SharedTopologyPath.EqualsUrl(container.TargetParentWebUrl, parent.TargetWebUrl)
                     || !SharedTopologyPath.EqualsPath(
                         SharedTopologyPath.Combine(parent.TargetServerRelativeUrl, SharedTopologyPath.Leaf(container.TargetServerRelativeUrl)),
@@ -238,17 +253,23 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 throw new InvalidDataException("A target Web action has a stale semantic mapping digest.");
             }
-            MigrationActionSignature.Validate(container.ActionSignature);
+            if (container.ExecutionGrants == null || container.ExecutionGrants.Count != 1)
+            {
+                throw new InvalidDataException("A shared topology source plan must retain exactly one per-capture execution grant per logical action.");
+            }
+            var executionGrant = container.ExecutionGrants[0];
+            MigrationActionSignature.Validate(executionGrant);
             var expectedDependencies = container.IsTargetSiteRoot
                 ? Array.Empty<string>()
-                : new[] { priorContainers[container.ParentIngredientId].ActionSignature.Signature };
-            if (!string.Equals(container.ActionSignature.ActionId, "topology.target-web." + SharedTopologyIdentity.StableDigest(container.TargetSlotKey), StringComparison.Ordinal)
-                || !string.Equals(container.ActionSignature.ActionKind, container.IsTargetSiteRoot ? "Topology.TargetSiteRoot" : "Topology.ChildWeb", StringComparison.Ordinal)
-                || !string.Equals(container.ActionSignature.SourceEvidenceDigest, fidelity.EvidenceSha256, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(container.ActionSignature.TargetIdentity, container.TargetSlotKey, StringComparison.Ordinal)
-                || !string.Equals(container.ActionSignature.SemanticDigest, SharedTopologyDigest.ComputeObservedSemanticState(container), StringComparison.OrdinalIgnoreCase)
-                || !container.ActionSignature.DependencySignatures.SequenceEqual(expectedDependencies, StringComparer.OrdinalIgnoreCase)
-                || !string.Equals(container.GlobalActionKey, SharedTopologyIdentity.GlobalAction(container.ActionSignature), StringComparison.Ordinal)
+                : new[] { priorContainers[container.ParentIngredientId].LogicalActionDigest };
+            if (!string.Equals(container.LogicalActionDigest, SharedTopologyDigest.ComputeLogicalAction(container), StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(container.LogicalActionKey, SharedTopologyIdentity.LogicalAction(container.LogicalActionDigest), StringComparison.Ordinal)
+                || !string.Equals(executionGrant.ActionId, "topology.target-web." + SharedTopologyIdentity.StableDigest(container.LogicalActionKey), StringComparison.Ordinal)
+                || !string.Equals(executionGrant.ActionKind, container.IsTargetSiteRoot ? "Topology.TargetSiteRoot" : "Topology.ChildWeb", StringComparison.Ordinal)
+                || !string.Equals(executionGrant.SourceEvidenceDigest, fidelity.EvidenceSha256, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(executionGrant.TargetIdentity, container.TargetSlotKey, StringComparison.Ordinal)
+                || !string.Equals(executionGrant.SemanticDigest, SharedTopologyDigest.ComputeObservedSemanticState(container), StringComparison.OrdinalIgnoreCase)
+                || !executionGrant.DependencySignatures.SequenceEqual(expectedDependencies, StringComparer.OrdinalIgnoreCase)
                 || string.IsNullOrWhiteSpace(container.OriginalIdentifier))
             {
                 throw new InvalidDataException("A target Web action differs from its generic migration action signature.");

@@ -10,20 +10,20 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             SharedTopologyGlobalTargetAnalysis analysis)
         {
             SharedTopologyGlobalExecutionValidator.ValidateAnalysis(dag, analysis);
-            var probes = analysis.Probes.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+            var probes = analysis.Probes.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var plan = new SharedTopologyGlobalActionPlan
             {
                 GlobalActionDagDigest = dag.DagDigest,
                 TargetAnalysisDigest = analysis.AnalysisDigest,
                 Actions = dag.Actions.Select(container =>
                 {
-                    var probe = probes[container.GlobalActionKey];
+                    var probe = probes[container.LogicalActionKey];
                     return new SharedTopologyGlobalAction
                     {
                         TargetSlotKey = container.TargetSlotKey,
-                        GlobalActionKey = container.GlobalActionKey,
-                        ParentGlobalActionKey = container.ParentGlobalActionKey,
-                        ActionSignature = container.ActionSignature,
+                        LogicalActionKey = container.LogicalActionKey,
+                        ParentLogicalActionKey = container.ParentLogicalActionKey,
+                        ExecutionGrant = container.ExecutionGrants.OrderBy(value => value.Signature, StringComparer.Ordinal).First(),
                         ReviewedState = probe.State,
                         SelectedAction = SelectedAction(probe.State),
                         ExpectedOwnership = container.ExpectedOwnership,

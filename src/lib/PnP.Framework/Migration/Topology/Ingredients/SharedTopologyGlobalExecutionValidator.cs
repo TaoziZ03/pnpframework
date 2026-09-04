@@ -17,7 +17,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             ValidateDag(dag);
             if (analysis == null
-                || !string.Equals(analysis.SchemaVersion, "pnp-shared-topology-global-target-analysis/v2", StringComparison.Ordinal)
+                || !string.Equals(analysis.SchemaVersion, "pnp-shared-topology-global-target-analysis/v3", StringComparison.Ordinal)
                 || analysis.Probes == null
                 || analysis.Probes.Any(value => value == null)
                 || analysis.Issues == null
@@ -25,17 +25,17 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 throw new InvalidDataException("The shared topology target analysis is missing or references another global action DAG.");
             }
-            ValidateCoverage(dag.Actions.Select(value => value.GlobalActionKey), analysis.Probes.Select(value => value.GlobalActionKey), "target analysis");
+            ValidateCoverage(dag.Actions.Select(value => value.LogicalActionKey), analysis.Probes.Select(value => value.LogicalActionKey), "target analysis");
             if (!string.Equals(analysis.AnalysisDigest, SharedTopologyGlobalExecutionDigest.ComputeAnalysis(analysis), StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("The shared topology target analysis digest is stale.");
             }
-            var containers = dag.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+            var containers = dag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             foreach (var probe in analysis.Probes)
             {
-                var container = containers[probe.GlobalActionKey];
+                var container = containers[probe.LogicalActionKey];
                 if (!string.Equals(probe.TargetSlotKey, container.TargetSlotKey, StringComparison.Ordinal)
-                    || !string.Equals(probe.ParentGlobalActionKey, container.ParentGlobalActionKey, StringComparison.Ordinal))
+                    || !string.Equals(probe.ParentLogicalActionKey, container.ParentLogicalActionKey, StringComparison.Ordinal))
                 {
                     throw new InvalidDataException("A shared topology target probe differs from its global action identity.");
                 }
@@ -43,11 +43,14 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 {
                     BoundLiteralHttpAuthorizationEvidence.Validate(
                         probe.AuthorizationEvidence,
-                        container.ActionSignature.ActionId);
+                        container.LogicalActionKey,
+                        PathDerivedTopologyTargetAnalyzer.TargetInspectionOperation,
+                        new Uri(PathDerivedTopologyTargetAnalyzer.ExpectedInspectionRequestUri(container)).Authority,
+                        PathDerivedTopologyTargetAnalyzer.ExpectedInspectionRequestUri(container));
                 }
                 if ((probe.State == TargetWebContainerState.ReuseOwned
                         || probe.State == TargetWebContainerState.ReuseExplicitApprovedHost)
-                    && !string.Equals(probe.ObservedStateDigest, container.ActionSignature.SemanticDigest, StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(probe.ObservedStateDigest, SharedTopologyDigest.ComputeObservedSemanticState(container), StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidDataException("A reusable target probe differs from its generic action semantic digest.");
                 }
@@ -61,7 +64,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             ValidateAnalysis(dag, analysis);
             if (plan == null
-                || !string.Equals(plan.SchemaVersion, "pnp-shared-topology-global-action-plan/v2", StringComparison.Ordinal)
+                || !string.Equals(plan.SchemaVersion, "pnp-shared-topology-global-action-plan/v3", StringComparison.Ordinal)
                 || plan.Actions == null
                 || plan.Actions.Any(value => value == null)
                 || !string.Equals(plan.GlobalActionDagDigest, dag.DagDigest, StringComparison.OrdinalIgnoreCase)
@@ -69,17 +72,17 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 throw new InvalidDataException("The shared topology action plan is missing or stale.");
             }
-            ValidateCoverage(dag.Actions.Select(value => value.GlobalActionKey), plan.Actions.Select(value => value.GlobalActionKey), "action plan");
-            var containers = dag.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
-            var probes = analysis.Probes.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+            ValidateCoverage(dag.Actions.Select(value => value.LogicalActionKey), plan.Actions.Select(value => value.LogicalActionKey), "action plan");
+            var containers = dag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+            var probes = analysis.Probes.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             foreach (var action in plan.Actions)
             {
-                var container = containers[action.GlobalActionKey];
-                var probe = probes[action.GlobalActionKey];
-                MigrationActionSignature.Validate(action.ActionSignature);
+                var container = containers[action.LogicalActionKey];
+                var probe = probes[action.LogicalActionKey];
+                MigrationActionSignature.Validate(action.ExecutionGrant);
                 if (!string.Equals(action.TargetSlotKey, container.TargetSlotKey, StringComparison.Ordinal)
-                    || !string.Equals(action.ParentGlobalActionKey, container.ParentGlobalActionKey, StringComparison.Ordinal)
-                    || !string.Equals(action.ActionSignature.Signature, container.ActionSignature.Signature, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(action.ParentLogicalActionKey, container.ParentLogicalActionKey, StringComparison.Ordinal)
+                    || !container.ExecutionGrants.Any(value => string.Equals(value.Signature, action.ExecutionGrant.Signature, StringComparison.OrdinalIgnoreCase))
                     || action.ReviewedState != probe.State
                     || action.SelectedAction != ExpectedAction(probe.State)
                     || action.ExpectedOwnership != container.ExpectedOwnership
@@ -104,7 +107,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             var plans = ValidateSourcePlans(sourcePlans, dag);
             ValidateActionPlanShape(dag, actionPlan);
             if (receipt == null
-                || !string.Equals(receipt.SchemaVersion, "pnp-shared-topology-global-receipt/v2", StringComparison.Ordinal)
+                || !string.Equals(receipt.SchemaVersion, "pnp-shared-topology-global-receipt/v3", StringComparison.Ordinal)
                 || receipt.OperationId == Guid.Empty
                 || receipt.StartedAtUtc == default(DateTimeOffset)
                 || receipt.CompletedAtUtc < receipt.StartedAtUtc
@@ -129,15 +132,15 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 throw new InvalidDataException("The shared topology receipt is incomplete, unverified, or references another approval boundary.");
             }
-            ValidateCoverage(actionPlan.Actions.Select(value => value.GlobalActionKey), receipt.Actions.Select(value => value.GlobalActionKey), "receipt");
-            var actionByKey = actionPlan.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
-            var containerByKey = dag.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
-            var receiptByKey = receipt.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+            ValidateCoverage(actionPlan.Actions.Select(value => value.LogicalActionKey), receipt.Actions.Select(value => value.LogicalActionKey), "receipt");
+            var actionByKey = actionPlan.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+            var containerByKey = dag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+            var receiptByKey = receipt.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var targetWebIds = new HashSet<Guid>();
             foreach (var item in receipt.Actions)
             {
-                var action = actionByKey[item.GlobalActionKey];
-                var container = containerByKey[item.GlobalActionKey];
+                var action = actionByKey[item.LogicalActionKey];
+                var container = containerByKey[item.LogicalActionKey];
                 if (item.TargetSiteId == Guid.Empty
                     || item.TargetWebId == Guid.Empty
                     || !targetWebIds.Add(item.TargetWebId)
@@ -145,17 +148,17 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     || item.SelectedAction != action.SelectedAction
                     || item.Ownership != container.ExpectedOwnership
                     || !string.Equals(item.TargetSlotKey, container.TargetSlotKey, StringComparison.Ordinal)
-                    || !string.Equals(item.ActionSignature, container.ActionSignature.Signature, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(item.ExecutionGrantSignature, action.ExecutionGrant.Signature, StringComparison.OrdinalIgnoreCase)
                     || !SharedTopologyPath.EqualsUrl(item.TargetWebUrl, container.TargetWebUrl)
                     || !SharedTopologyPath.EqualsPath(item.TargetServerRelativeUrl, container.TargetServerRelativeUrl)
-                    || !string.Equals(item.ObservedStateDigest, container.ActionSignature.SemanticDigest, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(item.ObservedStateDigest, SharedTopologyDigest.ComputeObservedSemanticState(container), StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(item.ReceiptDigest, SharedTopologyGlobalExecutionDigest.ComputeActionReceipt(item), StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidDataException("A shared topology action receipt differs from its approved generic action or target slot.");
                 }
                 ValidateActionObservedState(container, item);
                 ValidateExecutionOutcome(container, item);
-                ValidateVerificationCheckpoint(receipt, container, item);
+                ValidateVerificationCheckpoint(receipt, action.ExecutionGrant, item);
                 if (container.IsTargetSiteRoot)
                 {
                     if (item.TargetParentWebId != Guid.Empty || item.TargetWebId != container.ApprovedExistingTargetWebId)
@@ -165,7 +168,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 }
                 else
                 {
-                    var parent = receiptByKey[container.ParentGlobalActionKey];
+                    var parent = receiptByKey[container.ParentLogicalActionKey];
                     if (item.TargetParentWebId == Guid.Empty
                         || item.TargetSiteId != parent.TargetSiteId
                         || item.TargetParentWebId != parent.TargetWebId)
@@ -202,20 +205,37 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 || !IsDistinctDigestSet(dag.SupportCohortDigests)
                 || dag.Actions.Any(value => value == null)
                 || dag.Actions.Select(value => value.TargetSlotKey).Distinct(StringComparer.Ordinal).Count() != dag.Actions.Count
-                || dag.Actions.Select(value => value.GlobalActionKey).Distinct(StringComparer.Ordinal).Count() != dag.Actions.Count
+                || dag.Actions.Select(value => value.LogicalActionKey).Distinct(StringComparer.Ordinal).Count() != dag.Actions.Count
                 || !string.Equals(dag.DagDigest, SharedTopologyGlobalActionDagCompiler.ComputeDigest(dag), StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("The shared topology global action DAG is missing, structurally invalid, or stale.");
             }
-            var actionKeys = new HashSet<string>(dag.Actions.Select(value => value.GlobalActionKey), StringComparer.Ordinal);
+            var actionKeys = new HashSet<string>(dag.Actions.Select(value => value.LogicalActionKey), StringComparer.Ordinal);
             foreach (var action in dag.Actions)
             {
-                MigrationActionSignature.Validate(action.ActionSignature);
-                if (!string.Equals(action.GlobalActionKey, SharedTopologyIdentity.GlobalAction(action.ActionSignature), StringComparison.Ordinal)
-                    || !string.Equals(action.TargetSlotKey, action.ActionSignature.TargetIdentity, StringComparison.Ordinal)
-                    || !string.IsNullOrWhiteSpace(action.ParentGlobalActionKey) && !actionKeys.Contains(action.ParentGlobalActionKey))
+                if (action.ExecutionGrants == null
+                    || action.ExecutionGrants.Count == 0
+                    || action.ExecutionGrants.Select(value => value.Signature).Distinct(StringComparer.OrdinalIgnoreCase).Count() != action.ExecutionGrants.Count
+                    || !string.Equals(action.LogicalActionDigest, SharedTopologyDigest.ComputeLogicalAction(action), StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(action.LogicalActionKey, SharedTopologyIdentity.LogicalAction(action.LogicalActionDigest), StringComparison.Ordinal)
+                    || !string.IsNullOrWhiteSpace(action.ParentLogicalActionKey) && !actionKeys.Contains(action.ParentLogicalActionKey))
                 {
-                    throw new InvalidDataException("A global topology action has a stale generic signature or parent edge.");
+                    throw new InvalidDataException("A global topology action has a stale normalized identity, grant set, or parent edge.");
+                }
+                var expectedDependencies = action.IsTargetSiteRoot
+                    ? Array.Empty<string>()
+                    : new[] { dag.Actions.Single(value => value.LogicalActionKey == action.ParentLogicalActionKey).LogicalActionDigest };
+                foreach (var grant in action.ExecutionGrants)
+                {
+                    MigrationActionSignature.Validate(grant);
+                    if (!string.Equals(grant.ActionId, "topology.target-web." + SharedTopologyIdentity.StableDigest(action.LogicalActionKey), StringComparison.Ordinal)
+                        || !string.Equals(grant.ActionKind, action.IsTargetSiteRoot ? "Topology.TargetSiteRoot" : "Topology.ChildWeb", StringComparison.Ordinal)
+                        || !string.Equals(grant.TargetIdentity, action.TargetSlotKey, StringComparison.Ordinal)
+                        || !string.Equals(grant.SemanticDigest, SharedTopologyDigest.ComputeObservedSemanticState(action), StringComparison.OrdinalIgnoreCase)
+                        || !grant.DependencySignatures.SequenceEqual(expectedDependencies, StringComparer.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException("A global topology execution grant differs from its logical action identity or dependency edge.");
+                    }
                 }
             }
         }
@@ -254,7 +274,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             SharedTopologyGlobalActionPlan actionPlan)
         {
             if (actionPlan == null
-                || !string.Equals(actionPlan.SchemaVersion, "pnp-shared-topology-global-action-plan/v2", StringComparison.Ordinal)
+                || !string.Equals(actionPlan.SchemaVersion, "pnp-shared-topology-global-action-plan/v3", StringComparison.Ordinal)
                 || actionPlan.Actions == null
                 || actionPlan.Actions.Any(value => value == null)
                 || !string.Equals(actionPlan.GlobalActionDagDigest, dag.DagDigest, StringComparison.OrdinalIgnoreCase)
@@ -263,15 +283,15 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 throw new InvalidDataException("The shared topology action plan is missing, stale, or internally inconsistent.");
             }
-            ValidateCoverage(dag.Actions.Select(value => value.GlobalActionKey), actionPlan.Actions.Select(value => value.GlobalActionKey), "action plan");
-            var containers = dag.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+            ValidateCoverage(dag.Actions.Select(value => value.LogicalActionKey), actionPlan.Actions.Select(value => value.LogicalActionKey), "action plan");
+            var containers = dag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             foreach (var action in actionPlan.Actions)
             {
-                var container = containers[action.GlobalActionKey];
-                MigrationActionSignature.Validate(action.ActionSignature);
+                var container = containers[action.LogicalActionKey];
+                MigrationActionSignature.Validate(action.ExecutionGrant);
                 if (!string.Equals(action.TargetSlotKey, container.TargetSlotKey, StringComparison.Ordinal)
-                    || !string.Equals(action.ParentGlobalActionKey, container.ParentGlobalActionKey, StringComparison.Ordinal)
-                    || !string.Equals(action.ActionSignature.Signature, container.ActionSignature.Signature, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(action.ParentLogicalActionKey, container.ParentLogicalActionKey, StringComparison.Ordinal)
+                    || !container.ExecutionGrants.Any(value => string.Equals(value.Signature, action.ExecutionGrant.Signature, StringComparison.OrdinalIgnoreCase))
                     || action.ExpectedOwnership != container.ExpectedOwnership
                     || action.ApprovedExistingTargetWebId != container.ApprovedExistingTargetWebId)
                 {
@@ -338,7 +358,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                             && item.ExecutionOutcome == SharedTopologyActionExecutionOutcome.AlreadySatisfied)
                 || item.SelectedAction == SharedTopologyActionKind.RecoverInterruptedCreate
                     && (item.MutationAttempted
-                        && item.ExecutionOutcome == SharedTopologyActionExecutionOutcome.RecoveredInterruptedCreate
+                        && (item.ExecutionOutcome == SharedTopologyActionExecutionOutcome.RecoveredInterruptedCreate
+                            || item.ExecutionOutcome == SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged)
                         || !item.MutationAttempted
                             && item.ExecutionOutcome == SharedTopologyActionExecutionOutcome.AlreadySatisfied)
                 || item.SelectedAction == SharedTopologyActionKind.ReuseOwned
@@ -355,7 +376,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         private static void ValidateVerificationCheckpoint(
             SharedTopologyGlobalMaterializationReceipt receipt,
-            TargetWebContainerIngredientPlan container,
+            MigrationActionSignature executionGrant,
             SharedTopologyGlobalActionReceipt item)
         {
             var verification = item.VerificationCheckpoint;
@@ -366,15 +387,15 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 || !string.Equals(verification.SchemaVersion, MigrationMutationVerificationReceipt.CurrentSchemaVersion, StringComparison.Ordinal)
                 || verification.OperationId != receipt.OperationId
                 || !string.Equals(verification.PlanDigest, receipt.ActionPlanDigest, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(verification.ActionId, container.ActionSignature.ActionId, StringComparison.Ordinal)
-                || !string.Equals(verification.ActionSignature, container.ActionSignature.Signature, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(verification.ActionId, executionGrant.ActionId, StringComparison.Ordinal)
+                || !string.Equals(verification.ActionSignature, executionGrant.Signature, StringComparison.OrdinalIgnoreCase)
                 || verification.VerifiedAtUtc == default(DateTimeOffset)
                 || verification.VerifiedAtUtc < receipt.StartedAtUtc
                 || verification.VerifiedAtUtc > receipt.CompletedAtUtc
                 || !verification.FreshReadbackPassed
                 || !string.Equals(verification.ObservedStateDigest, item.ObservedStateDigest, StringComparison.OrdinalIgnoreCase)
                 || verification.Ownership != expectedOwnership
-                || !string.Equals(verification.TargetIdentityDigest, container.ActionSignature.TargetIdentityDigest, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(verification.TargetIdentityDigest, executionGrant.TargetIdentityDigest, StringComparison.OrdinalIgnoreCase)
                 || verification.ProvenanceMatched != (item.Ownership == SharedTopologyOwnership.ExternalApprovedHost
                     || !string.IsNullOrWhiteSpace(item.ObservedOriginalIdentifier)))
             {
@@ -403,12 +424,12 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 var binding = pair.Value;
                 var mapping = actual[pair.Key][0];
-                if (!actions.TryGetValue(binding.TargetGlobalActionKey, out var target)
+                if (!actions.TryGetValue(binding.TargetLogicalActionKey, out var target)
                     || mapping.SourceSiteId != binding.SourceSiteId
                     || mapping.SourceWebId != binding.SourceWebId
                     || !string.Equals(mapping.SourceWebUrl, binding.SourceWebUrl, StringComparison.OrdinalIgnoreCase)
                     || !SharedTopologyPath.EqualsPath(mapping.SourceServerRelativeUrl, binding.SourceServerRelativeUrl)
-                    || !string.Equals(mapping.TargetGlobalActionKey, binding.TargetGlobalActionKey, StringComparison.Ordinal)
+                    || !string.Equals(mapping.TargetLogicalActionKey, binding.TargetLogicalActionKey, StringComparison.Ordinal)
                     || mapping.TargetSiteId != target.TargetSiteId
                     || mapping.TargetWebId != target.TargetWebId
                     || mapping.Ownership != target.Ownership

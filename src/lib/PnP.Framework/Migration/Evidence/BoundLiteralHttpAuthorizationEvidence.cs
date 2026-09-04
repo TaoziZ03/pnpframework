@@ -43,28 +43,35 @@ namespace PnP.Framework.Migration.Evidence
                 LiteralEvidence = literalEvidence
             };
             result.EvidenceSha256 = ComputeDigest(result);
-            Validate(result, result.ActionId);
+            Validate(result, result.ActionId, result.ExpectedOperation, result.ExpectedAuthority, result.ExpectedRequestUri);
             return result;
         }
 
         public static void Validate(
             BoundLiteralHttpAuthorizationEvidence evidence,
-            string expectedActionId)
+            string expectedActionId,
+            string expectedOperation,
+            string expectedAuthority,
+            string expectedRequestUri)
         {
             if (evidence == null)
             {
                 throw new InvalidDataException("Bound literal authorization evidence is missing.");
             }
             LiteralHttpAuthorizationEvidence.Validate(evidence.LiteralEvidence);
+            var externallyExpectedUri = NormalizeUri(expectedRequestUri);
             var expectedUri = NormalizeUri(evidence.ExpectedRequestUri);
             var literalUri = NormalizeUri(evidence.LiteralEvidence.RequestUri);
-            var authority = new Uri(expectedUri).Authority.ToLowerInvariant();
+            var authority = new Uri(externallyExpectedUri).Authority.ToLowerInvariant();
             if (!string.Equals(evidence.SchemaVersion, CurrentSchemaVersion, StringComparison.Ordinal)
                 || string.IsNullOrWhiteSpace(evidence.ActionId)
                 || !string.Equals(evidence.ActionId, expectedActionId, StringComparison.Ordinal)
                 || string.IsNullOrWhiteSpace(evidence.ExpectedOperation)
+                || !string.Equals(evidence.ExpectedOperation, expectedOperation, StringComparison.Ordinal)
                 || !string.Equals(evidence.ExpectedOperation, evidence.LiteralEvidence.Operation, StringComparison.Ordinal)
+                || !string.Equals(expectedAuthority, authority, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(evidence.ExpectedAuthority, authority, StringComparison.Ordinal)
+                || !string.Equals(expectedUri, externallyExpectedUri, StringComparison.Ordinal)
                 || !string.Equals(expectedUri, literalUri, StringComparison.Ordinal)
                 || !MigrationActionSignature.IsSha256(evidence.EvidenceSha256)
                 || !string.Equals(evidence.EvidenceSha256, ComputeDigest(evidence), StringComparison.OrdinalIgnoreCase))

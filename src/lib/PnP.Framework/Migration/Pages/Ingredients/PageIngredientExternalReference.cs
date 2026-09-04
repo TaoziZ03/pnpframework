@@ -30,9 +30,9 @@ namespace PnP.Framework.Migration.Pages.Ingredients
 
         public string TargetSlotKey { get; set; }
 
-        public string GlobalActionKey { get; set; }
+        public string LogicalActionKey { get; set; }
 
-        public string ActionSignature { get; set; }
+        public string ExecutionGrantSignature { get; set; }
 
         public string OriginalIdentifier { get; set; }
 

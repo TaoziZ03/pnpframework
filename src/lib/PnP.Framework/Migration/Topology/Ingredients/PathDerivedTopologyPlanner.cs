@@ -34,8 +34,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 return Result(null, issues);
             }
 
-            var sourceRoot = request.Source.SourceRootWeb;
-            var sourceLeaf = request.Source.SourceLeafWeb;
+            var sourceRoot = PathDerivedSourceTopologyEvidenceFactory.Root(request.Source);
+            var sourceLeaf = PathDerivedSourceTopologyEvidenceFactory.PrimaryLeaf(request.Source);
             var sourceSegments = SharedTopologyPath.RelativeSegments(sourceRoot.ServerRelativeUrl, sourceLeaf.ServerRelativeUrl);
             if (sourceSegments.Length == 0)
             {
@@ -175,7 +175,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     ExpectedOwnership = expectedOwnership,
                     IdentityBasis = SharedTopologyIdentityBasis.ExactRelativePath,
                     ParentIngredientId = parent.IngredientId,
-                    ParentGlobalActionKey = parent.GlobalActionKey,
+                    ParentLogicalActionKey = parent.LogicalActionKey,
                     SourceRelativePath = relativePath,
                     SourcePathSegment = segment,
                     PreferredTargetServerRelativeUrl = preferredPath,
@@ -206,7 +206,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                         }
                     }
                 };
-                SealAction(container, sourceFidelity, parent.ActionSignature);
+                SealAction(container, sourceFidelity, parent.LogicalActionDigest);
                 containers.Add(container);
                 parent = container;
                 targetParentPath = targetPath;
@@ -233,7 +233,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     SourceWebUrl = value.SourceWebUrl,
                     SourceServerRelativeUrl = value.SourceServerRelativeUrl,
                     TargetContainerIngredientId = target.IngredientId,
-                    TargetGlobalActionKey = target.GlobalActionKey,
+                    TargetLogicalActionKey = target.LogicalActionKey,
                     TargetWebUrl = target.TargetWebUrl,
                     TargetServerRelativeUrl = target.TargetServerRelativeUrl
                 };
@@ -244,7 +244,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 SourceWebFidelityIngredients = fidelity,
                 TargetWebContainers = containers,
                 SourceWebBindings = bindings,
-                ExecutionGroupDigest = SharedTopologyIdentity.ExecutionGroup(containers.Select(value => value.ActionSignature))
+                ExecutionGroupDigest = SharedTopologyIdentity.ExecutionGroup(containers.Select(value => value.LogicalActionKey))
             };
             plan.SupportCohortDigest = SharedTopologyDigest.ComputeSupportCohort(plan);
             plan.PlanDigest = SharedTopologyDigest.ComputePlan(plan);
@@ -254,11 +254,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         private static IList<SourceWebFidelityIngredientPlan> CreateFidelityIngredients(PathDerivedSourceTopologyEvidence evidence)
         {
-            var root = evidence.SourceRootWeb;
-            var leaf = evidence.SourceLeafWeb;
             var result = new List<SourceWebFidelityIngredientPlan>();
-            result.Add(CreateCapturedFidelity(evidence, root));
-            foreach (var path in evidence.UnknownAncestorServerRelativeUrls)
+            foreach (var captured in evidence.CapturedWebs)
+            {
+                result.Add(CreateCapturedFidelity(evidence, captured));
+            }
+            var root = PathDerivedSourceTopologyEvidenceFactory.Root(evidence);
+            foreach (var path in evidence.UnknownAncestorPaths)
             {
                 var ownerKey = SharedTopologyIdentity.SourceOwner(root.SiteCollectionUrl, evidence.SourceSiteId, path);
                 result.Add(new SourceWebFidelityIngredientPlan
@@ -271,10 +273,11 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     SourceServerRelativeUrl = path,
                     State = SourceWebFidelityState.AuthorizationBlocked,
                     AuthorizationEvidence = evidence.AncestorAuthorizationEvidence,
+                    AuthorizationOperation = evidence.AncestorReadOperation,
+                    AuthorizationRequestUri = evidence.AncestorReadRequestUri,
                     EvidenceSha256 = SharedTopologyDigest.ComputeFidelityEvidence(evidence, ownerKey, SourceWebFidelityState.AuthorizationBlocked)
                 });
             }
-            result.Add(CreateCapturedFidelity(evidence, leaf));
             return result.OrderBy(value => SharedTopologyPath.Depth(value.SourceServerRelativeUrl)).ToList();
         }
 
@@ -300,10 +303,12 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         private static void SealAction(
             TargetWebContainerIngredientPlan container,
             SourceWebFidelityIngredientPlan fidelity,
-            MigrationActionSignature parentSignature)
+            string parentLogicalActionDigest)
         {
             container.IngredientId = SharedTopologyIdentity.TargetWebContainer(container.TargetSlotKey);
             container.SemanticMappingDigest = SharedTopologyDigest.ComputeContainerMapping(container);
+            container.LogicalActionDigest = SharedTopologyDigest.ComputeLogicalAction(container);
+            container.LogicalActionKey = SharedTopologyIdentity.LogicalAction(container.LogicalActionDigest);
             var selectionDigest = MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(new
             {
                 schemaVersion = "pnp-shared-topology-action-selection/v2",
@@ -313,15 +318,15 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 container.ApprovedExistingTargetWebId,
                 container.SemanticMappingDigest
             }));
-            container.ActionSignature = MigrationActionSignature.Create(
-                "topology.target-web." + SharedTopologyIdentity.StableDigest(container.TargetSlotKey),
+            var grant = MigrationActionSignature.Create(
+                "topology.target-web." + SharedTopologyIdentity.StableDigest(container.LogicalActionKey),
                 container.IsTargetSiteRoot ? "Topology.TargetSiteRoot" : "Topology.ChildWeb",
                 fidelity.EvidenceSha256,
                 selectionDigest,
                 container.TargetSlotKey,
                 SharedTopologyDigest.ComputeObservedSemanticState(container),
-                parentSignature == null ? null : new[] { parentSignature.Signature });
-            container.GlobalActionKey = SharedTopologyIdentity.GlobalAction(container.ActionSignature);
+                parentLogicalActionDigest == null ? null : new[] { parentLogicalActionDigest });
+            container.ExecutionGrants = new List<MigrationActionSignature> { grant };
         }
 
         private static IDictionary<string, TargetWebProvisioningOverride[]> GroupOverrides(

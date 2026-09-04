@@ -34,13 +34,13 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `PageRuntimeSnapshot` | `pnp-page-runtime/v1` |
 | `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1`; `v2` when the plan contains explicit shared external references |
 | `BoundLiteralHttpAuthorizationEvidence` | `pnp-bound-literal-http-authorization/v1` |
-| `PathDerivedSourceTopologyEvidence` | `pnp-path-derived-source-topology-evidence/v2` |
-| `SharedTopologyPlan` | `pnp-shared-topology-plan/v2` |
-| `SharedTopologyGlobalActionDag` | `pnp-shared-topology-global-action-dag/v2` |
-| `SharedTopologyGlobalTargetAnalysis` | `pnp-shared-topology-global-target-analysis/v2` |
-| `SharedTopologyGlobalActionPlan` | `pnp-shared-topology-global-action-plan/v2` |
-| `SharedTopologyGlobalMaterializationReceipt` | `pnp-shared-topology-global-receipt/v2` |
-| `SharedTopologyPageReference` | `pnp-shared-topology-page-reference/v3` |
+| `PathDerivedSourceTopologyEvidence` | `pnp-path-derived-source-topology-evidence/v3` |
+| `SharedTopologyPlan` | `pnp-shared-topology-plan/v3` |
+| `SharedTopologyGlobalActionDag` | `pnp-shared-topology-global-action-dag/v3` |
+| `SharedTopologyGlobalTargetAnalysis` | `pnp-shared-topology-global-target-analysis/v3` |
+| `SharedTopologyGlobalActionPlan` | `pnp-shared-topology-global-action-plan/v3` |
+| `SharedTopologyGlobalMaterializationReceipt` | `pnp-shared-topology-global-receipt/v3` |
+| `SharedTopologyPageReference` | `pnp-shared-topology-page-reference/v4` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
 | `MigrationActionSignature` | `pnp-migration-action-signature/v1` |
@@ -161,7 +161,7 @@ Planning independently derives the current canonical graph from the typed snapsh
 
 Legacy export packages whose graph has no `projectionVersion` are validated against the legacy projector. A current plan over that evidence stores the current versioned projection in `plan.ingredientGraph`, while the embedded snapshot remains byte-for-byte and digest-equivalent to the export. Import validates both boundaries. This permits projector evolution without either silently accepting a tampered old graph or invalidating authentic frozen evidence.
 
-When complete source topology is unavailable only because a captured ancestor request returned literal HTTP `401/403`, the export stores mutually exclusive `pathDerivedTopologyEvidence` instead of a partial `sourceTopology`. The v2 evidence still contains the captured root and leaf Webs and one authorization-limited fidelity record per unknown ancestor path. The plan graph uses schema `pnp-page-ingredient-graph/v2` and external shared references; target-Web producers remain global actions rather than page-local writes.
+When complete source topology is unavailable only because a captured ancestor request returned literal HTTP `401/403`, the export stores mutually exclusive `pathDerivedTopologyEvidence` instead of a partial `sourceTopology`. The v3 evidence retains every successfully captured root-to-leaf Web and one authorization-limited fidelity record for each still-unknown path. The plan graph uses schema `pnp-page-ingredient-graph/v2` and external shared references; stable logical target-Web producers remain global actions while page-specific evidence is retained as execution grants.
 
 ## Target-specific migration package
 

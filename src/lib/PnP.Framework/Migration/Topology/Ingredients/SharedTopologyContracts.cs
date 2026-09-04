@@ -70,19 +70,25 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class PathDerivedSourceTopologyEvidence
     {
-        public const string CurrentSchemaVersion = "pnp-path-derived-source-topology-evidence/v2";
+        public const string CurrentSchemaVersion = "pnp-path-derived-source-topology-evidence/v3";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
         public Guid SourceSiteId { get; set; }
 
-        public SourceWebSnapshot SourceRootWeb { get; set; }
+        public Guid SourceRootWebId { get; set; }
 
-        public SourceWebSnapshot SourceLeafWeb { get; set; }
+        public Guid PrimaryLeafWebId { get; set; }
+
+        public IList<SourceWebSnapshot> CapturedWebs { get; set; } = new List<SourceWebSnapshot>();
+
+        public IList<string> UnknownAncestorPaths { get; set; } = new List<string>();
+
+        public string AncestorReadOperation { get; set; }
+
+        public string AncestorReadRequestUri { get; set; }
 
         public BoundLiteralHttpAuthorizationEvidence AncestorAuthorizationEvidence { get; set; }
-
-        public IList<string> UnknownAncestorServerRelativeUrls { get; set; } = new List<string>();
 
         public IList<string> Diagnostics { get; set; } = new List<string>();
 
@@ -177,6 +183,10 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public BoundLiteralHttpAuthorizationEvidence AuthorizationEvidence { get; set; }
 
+        public string AuthorizationOperation { get; set; }
+
+        public string AuthorizationRequestUri { get; set; }
+
         public string EvidenceSha256 { get; set; }
     }
 
@@ -230,9 +240,11 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string TargetSlotKey { get; set; }
 
-        public MigrationActionSignature ActionSignature { get; set; }
+        public string LogicalActionKey { get; set; }
 
-        public string GlobalActionKey { get; set; }
+        public string LogicalActionDigest { get; set; }
+
+        public IList<MigrationActionSignature> ExecutionGrants { get; set; } = new List<MigrationActionSignature>();
 
         public string SemanticMappingDigest { get; set; }
 
@@ -244,7 +256,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string ParentIngredientId { get; set; }
 
-        public string ParentGlobalActionKey { get; set; }
+        public string ParentLogicalActionKey { get; set; }
 
         public string SourceRelativePath { get; set; }
 
@@ -285,7 +297,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string TargetContainerIngredientId { get; set; }
 
-        public string TargetGlobalActionKey { get; set; }
+        public string TargetLogicalActionKey { get; set; }
 
         public string TargetWebUrl { get; set; }
 
@@ -294,7 +306,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class SharedTopologyPlan
     {
-        public const string CurrentSchemaVersion = "pnp-shared-topology-plan/v2";
+        public const string CurrentSchemaVersion = "pnp-shared-topology-plan/v3";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 

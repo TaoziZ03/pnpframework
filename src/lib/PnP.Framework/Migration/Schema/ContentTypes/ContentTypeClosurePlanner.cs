@@ -68,9 +68,11 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                 }
                 var node = new ContentTypeClosureNodePlan
                 {
+                    SourceOwnerKey = owner.SourceOwnerKey,
                     SourceOwnerWebId = owner.SourceWebId,
                     SourceOwnerWebUrl = owner.SourceWebUrl,
                     TargetOwnerWebUrl = owner.TargetWebUrl,
+                    ExpectedTargetSiteId = owner.ExpectedTargetSiteId,
                     Schema = schema
                 };
                 node.PlanDigest = ComputeDigest(node);

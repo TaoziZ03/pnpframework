@@ -149,10 +149,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 return;
             }
             PathDerivedSourceTopologyEvidenceFactory.Validate(snapshot.PathDerivedTopologyEvidence);
+            var leaf = PathDerivedSourceTopologyEvidenceFactory.PrimaryLeaf(snapshot.PathDerivedTopologyEvidence);
             if (snapshot.PathDerivedTopologyEvidence.SourceSiteId != snapshot.Source.SiteId
-                || snapshot.PathDerivedTopologyEvidence.SourceLeafWeb.WebId != snapshot.Source.WebId
+                || leaf.WebId != snapshot.Source.WebId
                 || !string.Equals(
-                    snapshot.PathDerivedTopologyEvidence.SourceLeafWeb.ServerRelativeUrl,
+                    leaf.ServerRelativeUrl,
                     snapshot.Source.WebServerRelativeUrl,
                     StringComparison.OrdinalIgnoreCase))
             {
