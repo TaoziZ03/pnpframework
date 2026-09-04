@@ -15,6 +15,12 @@ namespace PnP.Framework.Migration.Execution
     {
         public const string CurrentSchemaVersion = "pnp-migration-action-signature/v1";
 
+        public static readonly string EmptySourceEvidenceDigest = MigrationDigest.ComputeSha256(
+            "pnp-migration-empty-source-evidence/v1");
+
+        public static readonly string EmptySelectionReceiptDigest = MigrationDigest.ComputeSha256(
+            "pnp-migration-empty-selection-receipt/v1");
+
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
         public string ActionId { get; set; }
@@ -48,8 +54,12 @@ namespace PnP.Framework.Migration.Execution
             {
                 ActionId = actionId?.Trim(),
                 ActionKind = actionKind?.Trim(),
-                SourceEvidenceDigest = NormalizeOptionalDigest(sourceEvidenceDigest),
-                SelectionReceiptDigest = NormalizeOptionalDigest(selectionReceiptDigest),
+                SourceEvidenceDigest = NormalizeRequiredDigest(
+                    sourceEvidenceDigest,
+                    EmptySourceEvidenceDigest),
+                SelectionReceiptDigest = NormalizeRequiredDigest(
+                    selectionReceiptDigest,
+                    EmptySelectionReceiptDigest),
                 TargetIdentity = targetIdentity?.Trim(),
                 SemanticDigest = semanticDigest?.Trim().ToLowerInvariant(),
                 DependencySignatures = (dependencySignatures ?? Enumerable.Empty<string>())
@@ -76,8 +86,8 @@ namespace PnP.Framework.Migration.Execution
             if (!string.Equals(value.SchemaVersion, CurrentSchemaVersion, StringComparison.Ordinal)
                 || string.IsNullOrWhiteSpace(value.ActionId)
                 || string.IsNullOrWhiteSpace(value.ActionKind)
-                || !IsOptionalSha256(value.SourceEvidenceDigest)
-                || !IsOptionalSha256(value.SelectionReceiptDigest)
+                || !IsSha256(value.SourceEvidenceDigest)
+                || !IsSha256(value.SelectionReceiptDigest)
                 || string.IsNullOrWhiteSpace(value.TargetIdentity)
                 || !IsSha256(value.TargetIdentityDigest)
                 || !string.Equals(
@@ -108,14 +118,16 @@ namespace PnP.Framework.Migration.Execution
                     nameof(Signature)));
         }
 
-        private static string NormalizeOptionalDigest(string value)
+        private static string NormalizeRequiredDigest(string value, string emptyDigest)
         {
-            return string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+            return string.IsNullOrWhiteSpace(value)
+                ? emptyDigest
+                : value.Trim().ToLowerInvariant();
         }
 
         internal static bool IsOptionalSha256(string value)
         {
-            return string.IsNullOrWhiteSpace(value) || IsSha256(value);
+            return value == null || IsSha256(value);
         }
 
         internal static bool IsSha256(string value)

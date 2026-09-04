@@ -45,7 +45,7 @@ namespace PnP.Framework.Migration.Execution.Resume
 
         public bool FreshProbePerformed { get; set; }
 
-        public bool PriorSignedEvidenceFound { get; set; }
+        public bool PriorSealedEvidenceFound { get; set; }
 
         public string ActionSignature { get; set; }
 

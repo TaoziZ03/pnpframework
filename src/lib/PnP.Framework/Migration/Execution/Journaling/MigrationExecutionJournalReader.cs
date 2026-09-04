@@ -113,12 +113,22 @@ namespace PnP.Framework.Migration.Execution.Journaling
             }
             var stem = Path.GetFileNameWithoutExtension(fullPath);
             var extension = Path.GetExtension(fullPath);
-            foreach (var candidate in Directory.GetFiles(directory, stem + ".segment-*" + extension))
+            var segmentPrefix = (string.IsNullOrEmpty(extension)
+                ? Path.GetFileName(fullPath)
+                : stem) + ".segment-";
+            foreach (var candidate in Directory.GetFiles(directory, segmentPrefix + "*" + extension))
             {
-                var fileName = Path.GetFileNameWithoutExtension(candidate);
-                var prefix = stem + ".segment-";
-                if (!fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-                    || !int.TryParse(fileName.Substring(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var index)
+                var fileName = Path.GetFileName(candidate);
+                var numericLength = fileName.Length - segmentPrefix.Length - extension.Length;
+                if (!fileName.StartsWith(segmentPrefix, StringComparison.OrdinalIgnoreCase)
+                    || (!string.IsNullOrEmpty(extension)
+                        && !fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                    || numericLength <= 0
+                    || !int.TryParse(
+                        fileName.Substring(segmentPrefix.Length, numericLength),
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out var index)
                     || index <= 0)
                 {
                     continue;
