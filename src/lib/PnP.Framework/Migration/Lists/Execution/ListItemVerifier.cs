@@ -21,20 +21,54 @@ namespace PnP.Framework.Migration.Lists.Execution
             ListMaterializationExecutionScope.ListSelection selection,
             ICollection<string> diagnostics)
         {
-            var owned = ReadOwnedItems(context, list, diagnostics);
+            var exclusions = (plan.ApprovedProtectedDocumentExclusions
+                    ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                .OrderBy(value => value.SourceItemId)
+                .ToList();
+            var excludedItemIds = new HashSet<int>(exclusions.Select(value => value.SourceItemId));
+            var reproducedItems = source.Items
+                .Where(value => !excludedItemIds.Contains(value.SourceItemId))
+                .OrderBy(value => value.SourceItemId)
+                .ToList();
+            var owned = receipt.TargetItemIds.Count == 0
+                ? new Dictionary<int, ListItem>()
+                : ReadOwnedItems(context, list, diagnostics);
             var exactInventory = selection == null || selection.ExactItemInventory;
-            if (exactInventory && list.ItemCount != source.Items.Count)
+            if (exactInventory && list.ItemCount != reproducedItems.Count)
             {
-                diagnostics.Add("Target List ItemCount " + list.ItemCount + " differs from captured current item count " + source.Items.Count + ".");
+                diagnostics.Add("Target List ItemCount " + list.ItemCount
+                    + " differs from approved reproduced item count " + reproducedItems.Count + ".");
             }
-            if ((exactInventory && owned.Count != source.Items.Count)
-                || receipt.TargetItemIds.Count != source.Items.Count)
+            if ((exactInventory && owned.Count != reproducedItems.Count)
+                || receipt.TargetItemIds.Count != reproducedItems.Count)
             {
-                diagnostics.Add("Target source-to-item mapping count differs from the captured current item count.");
+                diagnostics.Add("Target source-to-item mapping count differs from the approved reproduced item count.");
+            }
+            receipt.ProtectedDocumentExclusionVerifications = exclusions.Count == 0
+                ? null
+                : new List<ListProtectedDocumentExclusionVerification>();
+            foreach (var exclusion in exclusions)
+            {
+                var verification = ProtectedDocumentTargetAbsenceProbe.Inspect(context, exclusion);
+                if (owned.ContainsKey(exclusion.SourceItemId))
+                {
+                    verification.Status = ProtectedDocumentTargetAbsenceStatus.Present;
+                    verification.Diagnostic = "A migration-owned target item exists for the excluded protected source item.";
+                }
+                receipt.ProtectedDocumentExclusionVerifications.Add(verification);
+                if (!verification.Passed)
+                {
+                    diagnostics.Add("Protected-document exclusion verification returned "
+                        + verification.Status + " for '" + exclusion.TargetServerRelativeUrl + "'"
+                        + (verification.HttpStatusCode.HasValue
+                            ? " (HTTP " + verification.HttpStatusCode.Value + ")"
+                            : string.Empty)
+                        + ": " + verification.Diagnostic);
+                }
             }
             var allReceipts = new Dictionary<Guid, ListMaterializationReceipt>(dependencyReceipts);
             allReceipts[source.SourceListId] = receipt;
-            foreach (var sourceItem in source.Items.OrderBy(value => value.SourceItemId))
+            foreach (var sourceItem in reproducedItems)
             {
                 int targetId;
                 ListItem target;

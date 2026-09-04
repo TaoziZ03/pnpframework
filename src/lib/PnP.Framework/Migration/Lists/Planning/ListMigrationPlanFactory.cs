@@ -191,7 +191,11 @@ namespace PnP.Framework.Migration.Lists.Planning
                             "Exact attachment bytes are required before materialization."));
                 }
             }
-            foreach (var document in source.Items.Where(value => value.Document != null && value.Document.Kind == ListDocumentObjectKind.File).Select(value => value.Document))
+            foreach (var document in source.Items
+                         .Where(value => value.Document != null
+                             && value.Document.Kind == ListDocumentObjectKind.File
+                             && value.Document.CaptureDecision?.IsMetadataOnly != true)
+                         .Select(value => value.Document))
             {
                 if (!HasReplayableBinary(document.Content))
                 {
@@ -284,6 +288,24 @@ namespace PnP.Framework.Migration.Lists.Planning
             var targetPath = string.IsNullOrWhiteSpace(targetOverride == null ? null : targetOverride.TargetRootFolderServerRelativeUrl)
                 ? TopologyPlanner.MapWebOwnedServerRelativePath(source.RootFolderServerRelativeUrl, owner.SourceServerRelativeUrl, owner.TargetServerRelativeUrl)
                 : NormalizeTargetPath(targetOverride.TargetRootFolderServerRelativeUrl, owner.TargetServerRelativeUrl);
+            var approvedProtectedDocumentExclusions = source.Items
+                .Where(value => value?.Document?.Kind == ListDocumentObjectKind.File
+                    && value.Document.CaptureDecision?.IsMetadataOnly == true)
+                .OrderBy(value => value.SourceItemId)
+                .Select(value => new ListProtectedDocumentExclusionPlan
+                {
+                    SourceItemId = value.SourceItemId,
+                    SourceServerRelativeUrl = value.Document.ServerRelativeUrl,
+                    TargetServerRelativeUrl = MapDocumentPath(
+                        value.Document.ServerRelativeUrl,
+                        source.RootFolderServerRelativeUrl,
+                        targetPath),
+                    PolicyId = value.Document.CaptureDecision.PolicyId,
+                    CaptureDecisionDigest = value.Document.CaptureDecision.DecisionDigest,
+                    ReasonCode = value.Document.CaptureDecision.ReasonCode,
+                    Reason = value.Document.CaptureDecision.Reason
+                })
+                .ToList();
             var plan = new ListMaterializationPlan
             {
                 SourceSiteId = source.SourceSiteId,
@@ -303,6 +325,9 @@ namespace PnP.Framework.Migration.Lists.Planning
                 ViewRenderingResources = renderingResourcePlans,
                 SiteContentTypes = contentTypeClosure.Nodes,
                 RequiredFeatures = requiredFeatures,
+                ApprovedProtectedDocumentExclusions = approvedProtectedDocumentExclusions.Count == 0
+                    ? null
+                    : approvedProtectedDocumentExclusions,
                 Issues = issues.OrderBy(value => value.Code, StringComparer.Ordinal).ThenBy(value => value.Subject, StringComparer.Ordinal).ToList()
             };
             plan.PlanDigest = ComputePlanDigest(plan);
@@ -394,6 +419,43 @@ namespace PnP.Framework.Migration.Lists.Planning
         {
             return binary != null
                 && binary.RepresentationKind == ListBinaryRepresentationKind.Unclassified;
+        }
+
+        internal static void RetargetProtectedDocumentExclusions(
+            ListMaterializationPlan plan,
+            string previousTargetRoot,
+            string nextTargetRoot)
+        {
+            if (plan?.ApprovedProtectedDocumentExclusions == null
+                || string.Equals(previousTargetRoot, nextTargetRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+            var previous = (previousTargetRoot ?? string.Empty).TrimEnd('/');
+            var next = (nextTargetRoot ?? string.Empty).TrimEnd('/');
+            foreach (var exclusion in plan.ApprovedProtectedDocumentExclusions)
+            {
+                if (exclusion == null
+                    || string.IsNullOrWhiteSpace(exclusion.TargetServerRelativeUrl)
+                    || !exclusion.TargetServerRelativeUrl.StartsWith(previous + "/", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "A protected-document exclusion cannot be retargeted outside its sealed List root.");
+                }
+                exclusion.TargetServerRelativeUrl = next
+                    + exclusion.TargetServerRelativeUrl.Substring(previous.Length);
+            }
+        }
+
+        private static string MapDocumentPath(string sourcePath, string sourceRoot, string targetRoot)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath)
+                || string.IsNullOrWhiteSpace(sourceRoot)
+                || !sourcePath.StartsWith(sourceRoot.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("A protected document path is outside its captured List root: " + sourcePath);
+            }
+            return targetRoot.TrimEnd('/') + sourcePath.Substring(sourceRoot.TrimEnd('/').Length);
         }
 
         private static ListFieldMaterializationPlan CreateFieldPlan(

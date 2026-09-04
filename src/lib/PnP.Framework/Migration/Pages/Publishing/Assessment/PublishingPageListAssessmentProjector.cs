@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Lists.Views;
 using PnP.Framework.Migration.Pages.Assessment;
@@ -184,6 +185,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
             foreach (var item in source.Items.Where(value => value != null))
             {
+                if (item.Document?.CaptureDecision?.IsMetadataOnly == true)
+                {
+                    AddApprovedProtectedDocumentExclusion(source, item, assessments);
+                    continue;
+                }
                 var unavailable = item.Availability is EvidenceAvailability.Unavailable
                     or EvidenceAvailability.Conflict;
                 var snapshotOnlyValues = new List<string>();
@@ -264,6 +270,68 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     AddAttachment(source, plan, item, attachment, assessments);
                 }
             }
+        }
+
+        private static void AddApprovedProtectedDocumentExclusion(
+            ListDependencySnapshot source,
+            ListItemSnapshot item,
+            PublishingPageAssessmentAccumulator assessments)
+        {
+            var decision = item.Document.CaptureDecision;
+            AddApprovedExclusion(
+                assessments,
+                PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                decision,
+                "document-backed List item");
+            AddApprovedExclusion(
+                assessments,
+                PublishingPageIngredientIds.ListDocument(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                decision,
+                "protected document payload");
+            if (item.Document.InformationProtection != null)
+            {
+                AddApprovedExclusion(
+                    assessments,
+                    PublishingPageIngredientIds.ListDocumentInformationProtection(
+                        source.SourceWebId,
+                        source.SourceListId,
+                        item.SourceItemId),
+                    decision,
+                    "target Information Protection relationship");
+            }
+            foreach (var attachment in item.Attachments.Where(value => value != null))
+            {
+                AddApprovedExclusion(
+                    assessments,
+                    PublishingPageIngredientIds.ListAttachment(
+                        source.SourceWebId,
+                        source.SourceListId,
+                        item.SourceItemId,
+                        attachment.FileName),
+                    decision,
+                    "attachment owned by the excluded document-backed item");
+            }
+        }
+
+        private static void AddApprovedExclusion(
+            PublishingPageAssessmentAccumulator assessments,
+            string ingredientId,
+            ProtectedAssetCaptureDecision decision,
+            string subject)
+        {
+            assessments.Add(
+                ingredientId,
+                PageIngredientAssessmentState.Determined,
+                IngredientCapability.Available,
+                IngredientDisposition.Drop,
+                "exclude-protected-document-backed-item",
+                decision.PolicyId,
+                "The explicit protected-asset capture decision retains source metadata but excludes the "
+                    + subject + " from target materialization. " + decision.Reason,
+                null,
+                null,
+                "No target mutation is performed for this approved protected-asset exclusion.",
+                "Fresh target readback requires the excluded document path to remain absent.");
         }
 
         private static void AddDocument(

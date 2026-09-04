@@ -196,6 +196,9 @@ namespace PnP.Framework.Migration.Lists.Execution
                 RequiredFeatures = plan.RequiredFeatures
                     .Where(value => value != null && IncludesPlatformFeature(plan.SourceSiteId, value.FeatureId))
                     .ToList(),
+                ApprovedProtectedDocumentExclusions = plan.ApprovedProtectedDocumentExclusions == null
+                    ? null
+                    : plan.ApprovedProtectedDocumentExclusions.ToList(),
                 Issues = new List<PnP.Framework.Migration.Diagnostics.MigrationIssue>(),
                 TargetProbe = null,
                 PlanDigest = plan.PlanDigest

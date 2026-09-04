@@ -337,6 +337,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     TopologyMaterialization = topologyReceipt,
                     TopologyMatched = topologyMatched,
                     ListMaterializations = listReceipts,
+                    ApprovedProtectedDocumentExclusionCount = ApprovedProtectedDocumentExclusionCount(listReceipts),
                     ListsMatched = listsMatched,
                     FieldResults = fieldResults,
                     TaxonomyRelationshipsMatched = taxonomyRelationshipsMatched,
@@ -457,6 +458,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 TopologyMaterialization = topologyReceipt,
                 TopologyMatched = topologyMatched,
                 ListMaterializations = listReceipts,
+                ApprovedProtectedDocumentExclusionCount = ApprovedProtectedDocumentExclusionCount(listReceipts),
                 ListsMatched = listsMatched,
                 TaxonomyRelationshipsMatched = true,
                 FreshReadbackPassed = readbackPassed,
@@ -517,6 +519,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             return executionScope.Frontier.Decisions.Count(value => value != null
                 && (value.State == PageIngredientExecutionState.AuthorizationBlocked
                     || value.State == PageIngredientExecutionState.SkippedByAuthorizationDependency));
+        }
+
+        private static int ApprovedProtectedDocumentExclusionCount(
+            IEnumerable<ListMaterializationReceipt> listReceipts)
+        {
+            return (listReceipts ?? Array.Empty<ListMaterializationReceipt>())
+                .Where(value => value != null)
+                .Sum(value => value.ProtectedDocumentExclusionVerifications?.Count ?? 0);
         }
 
         private static void AddFrontierWarnings(

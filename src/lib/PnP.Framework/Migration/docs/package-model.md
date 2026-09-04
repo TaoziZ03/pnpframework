@@ -128,7 +128,7 @@ Changing any snapshot evidence after sealing invalidates `snapshotDigest`.
 | `fields` | Every returned Pages-library field definition plus typed or raw value evidence. Taxonomy fields additionally carry their exact binding, field-value-set digest, live-resolution state, `TaxonomyHiddenList`/`TaxCatchAll` evidence, and per-value relationship proof. |
 | `webParts` | Captured classic Web Part export XML, identity, placement, hidden state, and digest. |
 | `listWebPartBindings` | Parsed source Web/List/View bindings and relevant XML/path evidence. |
-| `listDependencies` | Required Lists/libraries, settings, fields, site/List content types, Views, current items, folders, files, and attachments. Every returned item field has a value snapshot; unknown runtime types retain best-effort raw evidence and may be marked `Partial`. Binary evidence records whether SharePoint returned an ordinary payload or an IRM envelope; protected documents retain exact artifact bytes plus available `cTag`/`QuickXorHash` logical identity. |
+| `listDependencies` | Required Lists/libraries, settings, fields, site/List content types, Views, current items, folders, files, and attachments. Every returned item field has a value snapshot; unknown runtime types retain best-effort raw evidence and may be marked `Partial`. Binary evidence records whether SharePoint returned an ordinary payload or an IRM envelope. Under an explicit metadata-only capture policy, a protected document instead retains a sealed optional `captureDecision` and no payload. |
 | `listLookupDependencies` | Directed lookup edges used for ordering and cycle detection. |
 | `sourceTopology` | Source Site Collection and complete required Web ancestor closure. |
 | `dependencies` | Authored references and safe payload evidence. |
@@ -141,6 +141,8 @@ Changing any snapshot evidence after sealing invalidates `snapshotDigest`.
 The bundle is not a list of writes. A value may be captured even when its later plan disposition is evidence-only or blocked.
 
 For an IRM envelope, `artifact.sha256` remains the package-integrity identity of the exact captured response. It is deliberately not interpreted as a stable source-content identity. `logicalContentIdentity.quickXorHash`, together with source file identity/version/length and `contentTag`, supports source-to-source semantic comparison while replay remains `Defer`. The full artifact still participates in `snapshotDigest`, so two faithful captures may have different immutable snapshot digests even when their protected logical document is unchanged.
+
+Metadata-only protected capture is additive to the v2 package. `capturePolicy.protectedAssets`, each document `captureDecision`, List-plan `approvedProtectedDocumentExclusions`, and receipt absence probes are omitted from canonical JSON when unused. Old v2 packages therefore retain their historical canonical shape and semantics; a new capture that selects the policy receives a new snapshot digest without changing the package schema version.
 
 ### Capture-time and plan-time ingredient projections
 

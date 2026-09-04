@@ -26,6 +26,25 @@ namespace PnP.Framework.Migration.Lists.Packaging
             SourceSiteCollectionSnapshot topology,
             IMigrationArtifactStore artifactStore)
         {
+            Validate(
+                webParts,
+                bindings,
+                dependencies,
+                lookupDependencies,
+                topology,
+                artifactStore,
+                null);
+        }
+
+        public static void Validate(
+            IEnumerable<ClassicWebPartSnapshot> webParts,
+            IEnumerable<ClassicListWebPartBindingSnapshot> bindings,
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            SourceSiteCollectionSnapshot topology,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy)
+        {
             if (bindings == null || dependencies == null || lookupDependencies == null)
             {
                 throw new InvalidDataException("The list dependency snapshot contains a null inventory collection.");
@@ -68,7 +87,7 @@ namespace PnP.Framework.Migration.Lists.Packaging
 
             foreach (var dependency in dependencyValues)
             {
-                ValidateDependency(dependency, artifactStore);
+                ValidateDependency(dependency, artifactStore, protectedAssetPolicy);
             }
             foreach (var edge in lookupDependencies)
             {
@@ -103,7 +122,10 @@ namespace PnP.Framework.Migration.Lists.Packaging
             }
         }
 
-        private static void ValidateDependency(ListDependencySnapshot dependency, IMigrationArtifactStore artifactStore)
+        private static void ValidateDependency(
+            ListDependencySnapshot dependency,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy)
         {
             if (dependency == null || dependency.SourceSiteId == Guid.Empty || dependency.SourceWebId == Guid.Empty || dependency.SourceListId == Guid.Empty
                 || string.IsNullOrWhiteSpace(dependency.SourceWebUrl) || string.IsNullOrWhiteSpace(dependency.RootFolderServerRelativeUrl)
@@ -265,7 +287,23 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 if (item.Document != null && item.Document.Kind == ListDocumentObjectKind.File)
                 {
                     ValidateInformationProtection(item.Document.InformationProtection, dependency.Title, item.SourceItemId);
-                    ValidateBinary(item.Document.Content, artifactStore, "document " + item.Document.Name);
+                    ProtectedAssetCaptureGate.ValidateDecision(
+                        item.Document.InformationProtection,
+                        protectedAssetPolicy,
+                        item.Document.CaptureDecision);
+                    if (item.Document.CaptureDecision?.IsMetadataOnly == true)
+                    {
+                        if (item.Document.Content != null || item.Attachments.Count != 0)
+                        {
+                            throw new InvalidDataException(
+                                "A metadata-only protected document must not contain captured document or attachment payloads: "
+                                + item.Document.ServerRelativeUrl);
+                        }
+                    }
+                    else
+                    {
+                        ValidateBinary(item.Document.Content, artifactStore, "document " + item.Document.Name);
+                    }
                     if (item.Document.Content != null && item.Document.Content.Artifact != null && item.Document.Length != item.Document.Content.Artifact.Length)
                     {
                         var rightsManaged = item.Document.Content.RepresentationKind

@@ -9,6 +9,7 @@ using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -84,6 +85,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 listBindings,
                 options.MaximumDependencyBytes,
                 artifactStore,
+                options.ProtectedAssets,
                 blockers,
                 warnings);
             SourceSiteCollectionSnapshot sourceTopology = null;
@@ -126,7 +128,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 {
                     SourcePageServerRelativeUrl = sourcePagePath,
                     IncludeWebParts = options.IncludeWebParts,
-                    MaximumDependencyBytes = options.MaximumDependencyBytes
+                    MaximumDependencyBytes = options.MaximumDependencyBytes,
+                    ProtectedAssets = options.ProtectedAssets == null
+                        ? null
+                        : new ProtectedAssetCapturePolicy
+                        {
+                            SchemaVersion = options.ProtectedAssets.SchemaVersion,
+                            PolicyId = options.ProtectedAssets.PolicyId,
+                            FailClosedOnUnknown = options.ProtectedAssets.FailClosedOnUnknown
+                        }
                 },
                 Source = sourceCapture.Identity,
                 PageArtifact = sourceCapture.PageArtifact,
@@ -189,6 +199,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
             {
                 throw new ArgumentOutOfRangeException(nameof(options), "MaximumDependencyBytes must be greater than zero.");
             }
+            ProtectedAssetCaptureGate.ValidatePolicy(options.ProtectedAssets);
         }
     }
 }
