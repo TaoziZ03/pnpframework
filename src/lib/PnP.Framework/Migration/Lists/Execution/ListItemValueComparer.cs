@@ -16,6 +16,17 @@ namespace PnP.Framework.Migration.Lists.Execution
             IDictionary<Guid, ListMaterializationReceipt> receipts,
             out string mismatch)
         {
+            return Matches(source, actual, fieldPlan, receipts, null, out mismatch);
+        }
+
+        public static bool Matches(
+            ListItemValueSnapshot source,
+            ListItemValueSnapshot actual,
+            ListFieldMaterializationPlan fieldPlan,
+            IDictionary<Guid, ListMaterializationReceipt> receipts,
+            ISet<int> clearedLookupProviderItemIds,
+            out string mismatch)
+        {
             mismatch = null;
             switch (source.Kind)
             {
@@ -59,13 +70,20 @@ namespace PnP.Framework.Migration.Lists.Execution
                         mismatch = "lookup mapping receipt is unavailable";
                         return false;
                     }
-                    var expectedLookupIds = source.LookupValues.Select(value =>
-                    {
-                        int mapped;
-                        return lookupReceipt.TargetItemIds.TryGetValue(value.LookupId, out mapped) ? mapped : -1;
-                    }).ToArray();
+                    var expectedLookupIds = (source.LookupValues ?? Array.Empty<ListItemLookupValueSnapshot>())
+                        .Where(value => value != null
+                            && (clearedLookupProviderItemIds == null
+                                || !clearedLookupProviderItemIds.Contains(value.LookupId)))
+                        .Select(value =>
+                        {
+                            int mapped;
+                            return lookupReceipt.TargetItemIds.TryGetValue(value.LookupId, out mapped) ? mapped : -1;
+                        }).ToArray();
                     return Match(expectedLookupIds.All(value => value > 0)
-                        && expectedLookupIds.SequenceEqual(actual.LookupValues.Select(value => value.LookupId)), "lookup target IDs", out mismatch);
+                        && expectedLookupIds.SequenceEqual(
+                            (actual.LookupValues ?? Array.Empty<ListItemLookupValueSnapshot>())
+                            .Where(value => value != null)
+                            .Select(value => value.LookupId)), "lookup target IDs", out mismatch);
                 case ListItemValueKind.Taxonomy:
                 case ListItemValueKind.TaxonomyCollection:
                     return Match(source.TaxonomyValues.Select(value => (value.TermGuid ?? string.Empty).ToUpperInvariant())

@@ -180,6 +180,7 @@ namespace PnP.Framework.Migration.Lists.Execution
                 SourceListId = plan.SourceListId,
                 TargetWebUrl = plan.TargetWebUrl,
                 TargetSiteCollectionUrl = plan.TargetSiteCollectionUrl,
+                ExpectedTargetSiteId = plan.ExpectedTargetSiteId,
                 TargetWebServerRelativeUrl = plan.TargetWebServerRelativeUrl,
                 PreferredTargetRootFolderServerRelativeUrl = plan.PreferredTargetRootFolderServerRelativeUrl,
                 TargetRootFolderServerRelativeUrl = plan.TargetRootFolderServerRelativeUrl,
@@ -196,6 +197,12 @@ namespace PnP.Framework.Migration.Lists.Execution
                 RequiredFeatures = plan.RequiredFeatures
                     .Where(value => value != null && IncludesPlatformFeature(plan.SourceSiteId, value.FeatureId))
                     .ToList(),
+                ApprovedProtectedDocumentExclusions = plan.ApprovedProtectedDocumentExclusions == null
+                    ? null
+                    : plan.ApprovedProtectedDocumentExclusions.ToList(),
+                DroppedItemDependencies = plan.DroppedItemDependencies == null
+                    ? null
+                    : plan.DroppedItemDependencies.ToList(),
                 Issues = new List<PnP.Framework.Migration.Diagnostics.MigrationIssue>(),
                 TargetProbe = null,
                 PlanDigest = plan.PlanDigest
@@ -254,9 +261,11 @@ namespace PnP.Framework.Migration.Lists.Execution
         {
             return new ContentTypeClosureNodePlan
             {
+                SourceOwnerKey = source.SourceOwnerKey,
                 SourceOwnerWebId = source.SourceOwnerWebId,
                 SourceOwnerWebUrl = source.SourceOwnerWebUrl,
                 TargetOwnerWebUrl = source.TargetOwnerWebUrl,
+                ExpectedTargetSiteId = source.ExpectedTargetSiteId,
                 Schema = source.Schema,
                 DeferredUntilTopologyMaterialization = source.DeferredUntilTopologyMaterialization,
                 TargetProbe = null,

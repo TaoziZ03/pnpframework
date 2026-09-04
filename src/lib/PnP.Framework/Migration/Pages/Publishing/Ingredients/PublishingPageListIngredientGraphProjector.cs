@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.ClassicWebParts.Bindings;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
@@ -178,6 +179,43 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     graph.Edges.Add(Edge(
                         PublishingPageIngredientIds.List(consumer.SourceWebId, consumer.SourceListId),
                         PublishingPageIngredientIds.List(provider.SourceWebId, provider.SourceListId),
+                        PageIngredientRelationship.DependsOn,
+                        PageIngredientRequirement.Required));
+                }
+            }
+
+            var seedItemKeys = snapshot.ListDependencies
+                .SelectMany(list => list.Items
+                    .Where(item => item?.Document?.CaptureDecision?.IsMetadataOnly == true)
+                    .Select(item => ListItemDependencyEdge.ItemKey(list.SourceListId, item.SourceItemId)))
+                .ToArray();
+            if (seedItemKeys.Length == 0)
+            {
+                return;
+            }
+            var contentNodeIds = new HashSet<string>(
+                graph.Nodes.Where(value => value?.HasContent == true).Select(value => value.Id),
+                StringComparer.Ordinal);
+            foreach (var edge in ListItemDependencyGraph.PotentialClosure(
+                         ListItemDependencyGraph.Build(
+                             snapshot.ListDependencies,
+                             snapshot.ListLookupDependencies),
+                         seedItemKeys))
+            {
+                var consumerItemId = PublishingPageIngredientIds.ListItem(
+                    edge.ConsumerSourceWebId,
+                    edge.ConsumerSourceListId,
+                    edge.ConsumerSourceItemId);
+                var providerItemId = PublishingPageIngredientIds.ListItem(
+                    edge.ProviderSourceWebId,
+                    edge.ProviderSourceListId,
+                    edge.ProviderSourceItemId);
+                if (contentNodeIds.Contains(consumerItemId)
+                    && contentNodeIds.Contains(providerItemId))
+                {
+                    graph.Edges.Add(Edge(
+                        consumerItemId,
+                        providerItemId,
                         PageIngredientRelationship.DependsOn,
                         PageIngredientRequirement.Required));
                 }

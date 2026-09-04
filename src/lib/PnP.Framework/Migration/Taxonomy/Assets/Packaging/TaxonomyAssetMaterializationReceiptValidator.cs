@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Taxonomy.Assets.Execution;
 using PnP.Framework.Migration.Taxonomy.Assets.Verification;
 using System;
@@ -39,7 +40,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
             }
 
             var errors = new List<string>();
-            if (!string.Equals(receipt.SchemaVersion, "pnp-taxonomy-asset-materialization-receipt/v1", StringComparison.Ordinal))
+            if (!string.Equals(receipt.SchemaVersion, "pnp-taxonomy-asset-materialization-receipt/v2", StringComparison.Ordinal))
             {
                 errors.Add("Unsupported taxonomy asset materialization-receipt schema.");
             }
@@ -67,6 +68,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
             var expectedApproved = approval.Actions
                 .Where(value => value.Decision == TaxonomyAssetApprovalDecision.Approve)
                 .ToDictionary(value => value.ActionId, StringComparer.Ordinal);
+            var expectedSignatures = TaxonomyAssetReceiptIdentity.CreateActionSignatures(reviewPlan, approval);
             var actual = new Dictionary<string, TaxonomyAssetActionReceipt>(StringComparer.Ordinal);
             foreach (var action in receipt.Actions ?? new List<TaxonomyAssetActionReceipt>())
             {
@@ -81,7 +83,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
                     errors.Add("The taxonomy receipt contains an action that was not approved: '" + action.ActionId + "'.");
                     continue;
                 }
-                ValidateAction(approved, action, errors);
+                ValidateAction(approved, action, expectedSignatures[approved.ActionId], errors);
             }
             foreach (var missing in expectedApproved.Keys.Except(actual.Keys, StringComparer.Ordinal))
             {
@@ -130,6 +132,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
         private static void ValidateAction(
             TaxonomyAssetActionApproval approved,
             TaxonomyAssetActionReceipt actual,
+            MigrationActionSignature expectedSignature,
             ICollection<string> errors)
         {
             if (actual.Kind != approved.Kind
@@ -152,6 +155,27 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
                 || !actual.FreshReadbackPassed)
             {
                 errors.Add("Taxonomy receipt action '" + actual.ActionId + "' lacks a safe preflight transition or exact fresh readback result.");
+            }
+            var expectedOwnership = approved.ReviewedDisposition == TaxonomyAssetTargetDisposition.ReviewExternalReuse
+                ? MigrationTargetOwnership.External
+                : MigrationTargetOwnership.MigrationOwned;
+            var expectedExecution = approved.ReviewedDisposition == TaxonomyAssetTargetDisposition.ReviewExternalReuse
+                ? TaxonomyAssetReceiptDisposition.ReuseExternal
+                : !actual.ChangedTarget
+                    ? TaxonomyAssetReceiptDisposition.ReuseOwned
+                    : approved.ReviewedDisposition == TaxonomyAssetTargetDisposition.ReconcileOwnedPlanDrift
+                        ? TaxonomyAssetReceiptDisposition.ReconciledOwned
+                        : TaxonomyAssetReceiptDisposition.CreatedOwned;
+            if (actual.Ownership != expectedOwnership
+                || actual.ExecutionDisposition != expectedExecution
+                || approved.ReviewedDisposition == TaxonomyAssetTargetDisposition.ReviewExternalReuse && actual.ChangedTarget
+                || !string.Equals(actual.SourceIdentity, TaxonomyAssetReceiptIdentity.SourceIdentity(approved), StringComparison.Ordinal)
+                || !string.Equals(actual.TargetIdentity, TaxonomyAssetReceiptIdentity.TargetIdentity(approved), StringComparison.Ordinal)
+                || !string.Equals(actual.SemanticMappingDigest, TaxonomyAssetReceiptIdentity.SemanticMappingDigest(approved), StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(actual.ActionSignature, expectedSignature.Signature, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(actual.ObservedStateDigest, expectedSignature.SemanticDigest, StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add("Taxonomy receipt action '" + actual.ActionId + "' lacks its action signature, observed semantic state, ownership, or source/target mapping identity.");
             }
         }
 

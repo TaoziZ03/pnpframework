@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Features;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +29,17 @@ namespace PnP.Framework.Migration.Lists.Planning
             ListMigrationPlanSet planSet,
             TopologyTargetAnalysis topologyAnalysis)
         {
-            return Analyze(targetContext, snapshots, planSet, topologyAnalysis, true);
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.CreateLegacy(topologyAnalysis), true);
+        }
+
+        public static ListMigrationTargetAnalysisResult PopulateAndSeal(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyPlan topology,
+            SharedTopologyGlobalTargetAnalysis topologyAnalysis)
+        {
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.Create(topology, topologyAnalysis), true);
         }
 
         public static ListMigrationTargetAnalysisResult InspectFresh(
@@ -37,14 +48,33 @@ namespace PnP.Framework.Migration.Lists.Planning
             ListMigrationPlanSet planSet,
             TopologyTargetAnalysis topologyAnalysis)
         {
-            return Analyze(targetContext, snapshots, planSet, topologyAnalysis, false);
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.CreateLegacy(topologyAnalysis), false);
+        }
+
+        public static ListMigrationTargetAnalysisResult InspectFresh(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyPlan topology,
+            SharedTopologyGlobalTargetAnalysis topologyAnalysis)
+        {
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.Create(topology, topologyAnalysis), false);
+        }
+
+        public static ListMigrationTargetAnalysisResult InspectFresh(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyGlobalMaterializationReceipt topologyReceipt)
+        {
+            return Analyze(targetContext, snapshots, planSet, ReceiptProbes(planSet, topologyReceipt), false);
         }
 
         private static ListMigrationTargetAnalysisResult Analyze(
             ClientContext targetContext,
             IEnumerable<ListDependencySnapshot> snapshots,
             ListMigrationPlanSet planSet,
-            TopologyTargetAnalysis topologyAnalysis,
+            TopologyOwnerProbeCatalog topologyProbes,
             bool populatePlan)
         {
             var result = new ListMigrationTargetAnalysisResult();
@@ -53,15 +83,13 @@ namespace PnP.Framework.Migration.Lists.Planning
             {
                 return result;
             }
-            if (targetContext == null || planSet == null || topologyAnalysis == null)
+            if (targetContext == null || planSet == null || topologyProbes == null)
             {
                 result.Issues.Add(Issue("ListTargetAnalysisUnavailable", "target-lists",
                     "List target analysis requires a target connection, List plan set, and topology target analysis."));
                 return result;
             }
 
-            var topologyProbes = topologyAnalysis.SiteCollections.SelectMany(value => value.Webs)
-                .ToDictionary(value => value.SourceWebId);
             foreach (var issue in planSet.Issues)
             {
                 result.Issues.Add(issue);
@@ -99,7 +127,12 @@ namespace PnP.Framework.Migration.Lists.Planning
                 }
 
                 TopologyWebTargetProbe ownerProbe;
-                if (!topologyProbes.TryGetValue(listPlan.SourceWebId, out ownerProbe) || !ownerProbe.IsAdmitted)
+                if (!topologyProbes.TryGet(listPlan.SourceWebId, null, out ownerProbe)
+                    || !ownerProbe.IsAdmitted
+                    || listPlan.ExpectedTargetSiteId.HasValue
+                        && ownerProbe.TargetSiteId != listPlan.ExpectedTargetSiteId
+                    || !SharedTopologyPath.EqualsUrl(ownerProbe.TargetWebUrl, listPlan.TargetWebUrl)
+                    || !SharedTopologyPath.EqualsPath(ownerProbe.TargetServerRelativeUrl, listPlan.TargetWebServerRelativeUrl))
                 {
                     result.Issues.Add(Issue("TargetListOwnerWebBlocked", "list:" + listPlan.SourceListId.ToString("D"),
                         "The source List has no admitted target owner Web."));
@@ -125,6 +158,10 @@ namespace PnP.Framework.Migration.Lists.Planning
                         if (!string.Equals(listPlan.TargetRootFolderServerRelativeUrl, listProbe.TargetRootFolderServerRelativeUrl, StringComparison.Ordinal)
                             || !string.Equals(listPlan.TargetTitle, listProbe.TargetTitle, StringComparison.Ordinal))
                         {
+                            ListMigrationPlanFactory.RetargetProtectedDocumentExclusions(
+                                listPlan,
+                                listPlan.TargetRootFolderServerRelativeUrl,
+                                listProbe.TargetRootFolderServerRelativeUrl);
                             listPlan.TargetRootFolderServerRelativeUrl = listProbe.TargetRootFolderServerRelativeUrl;
                             listPlan.TargetTitle = listProbe.TargetTitle;
                             listPlan.PlanDigest = ListMigrationPlanFactory.ComputePlanDigest(listPlan);
@@ -185,6 +222,59 @@ namespace PnP.Framework.Migration.Lists.Planning
             return result;
         }
 
+        private static TopologyOwnerProbeCatalog ReceiptProbes(
+            ListMigrationPlanSet planSet,
+            SharedTopologyGlobalMaterializationReceipt receipt)
+        {
+            if (planSet == null || receipt == null || !receipt.FreshReadbackPassed || receipt.Actions == null)
+            {
+                return null;
+            }
+            var byAction = receipt.Actions
+                .Where(value => value != null && value.FreshReadbackPassed)
+                .ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+            var result = new TopologyOwnerProbeCatalog();
+            foreach (var mapping in receipt.SourceWebMappings ?? Array.Empty<SharedTopologySourceWebMaterializationReceipt>())
+            {
+                if (mapping == null
+                    || string.IsNullOrWhiteSpace(mapping.SourceOwnerKey)
+                    || !byAction.TryGetValue(mapping.TargetLogicalActionKey, out var action)
+                    || mapping.TargetSiteId != action.TargetSiteId
+                    || mapping.TargetWebId != action.TargetWebId
+                    || !SharedTopologyPath.EqualsUrl(mapping.TargetWebUrl, action.TargetWebUrl)
+                    || !SharedTopologyPath.EqualsPath(mapping.TargetServerRelativeUrl, action.TargetServerRelativeUrl))
+                {
+                    return null;
+                }
+                var probe = new TopologyWebTargetProbe
+                {
+                    SourceOwnerKey = mapping.SourceOwnerKey,
+                    SourceSiteId = mapping.SourceSiteId,
+                    SourceWebId = mapping.SourceWebId,
+                    TargetWebUrl = action.TargetWebUrl,
+                    TargetServerRelativeUrl = action.TargetServerRelativeUrl,
+                    Exists = true,
+                    TargetSiteId = action.TargetSiteId,
+                    TargetWebId = action.TargetWebId,
+                    TargetParentWebId = action.TargetParentWebId,
+                    Disposition = action.Ownership == SharedTopologyOwnership.ExternalApprovedHost
+                        ? TopologyMaterializationDisposition.ReuseApprovedHost
+                        : TopologyMaterializationDisposition.ReuseOwned
+                };
+                if (result.BySourceOwnerKey.ContainsKey(mapping.SourceOwnerKey)
+                    || mapping.SourceWebId != Guid.Empty && result.BySourceWebId.ContainsKey(mapping.SourceWebId))
+                {
+                    return null;
+                }
+                result.BySourceOwnerKey.Add(mapping.SourceOwnerKey, probe);
+                if (mapping.SourceWebId != Guid.Empty)
+                {
+                    result.BySourceWebId.Add(mapping.SourceWebId, probe);
+                }
+            }
+            return result;
+        }
+
         private static void AnalyzeFeatures(
             ClientContext targetContext,
             ListMaterializationPlan listPlan,
@@ -225,14 +315,18 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         private static ContentTypeTargetAdmission AnalyzeContentType(
             ClientContext targetContext,
-            IDictionary<Guid, TopologyWebTargetProbe> topologyProbes,
+            TopologyOwnerProbeCatalog topologyProbes,
             ContentTypeClosureNodePlan plan,
             ContentTypeTargetAdmissionContext admissionContext,
             bool populatePlan,
             ListMigrationTargetAnalysisResult result)
         {
             TopologyWebTargetProbe ownerProbe;
-            if (!topologyProbes.TryGetValue(plan.SourceOwnerWebId, out ownerProbe) || !ownerProbe.IsAdmitted)
+            if (!topologyProbes.TryGet(plan.SourceOwnerWebId, plan.SourceOwnerKey, out ownerProbe)
+                || !ownerProbe.IsAdmitted
+                || plan.ExpectedTargetSiteId.HasValue
+                    && ownerProbe.TargetSiteId != plan.ExpectedTargetSiteId
+                || !SharedTopologyPath.EqualsUrl(ownerProbe.TargetWebUrl, plan.TargetOwnerWebUrl))
             {
                 result.Issues.Add(Issue("TargetContentTypeOwnerWebBlocked", "content-type:" + plan.Schema.ContentTypeId,
                     "The site content type has no admitted target owner Web."));

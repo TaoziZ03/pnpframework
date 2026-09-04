@@ -10,6 +10,7 @@ using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Features;
 using PnP.Framework.Migration.Taxonomy;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,6 +33,23 @@ namespace PnP.Framework.Migration.Lists.Planning
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
             IEnumerable<ListTargetOverride> targetOverrides)
         {
+            return Create(
+                dependencies,
+                lookupDependencies,
+                topology,
+                taxonomyMappings,
+                targetOverrides,
+                null);
+        }
+
+        public static ListMigrationPlanSet Create(
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            TopologyPlan topology,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
+            IEnumerable<ListTargetOverride> targetOverrides,
+            IEnumerable<DroppedLookupValueDecision> droppedLookupValueDecisions)
+        {
             if (dependencies == null)
             {
                 throw new ArgumentNullException(nameof(dependencies));
@@ -41,11 +59,73 @@ namespace PnP.Framework.Migration.Lists.Planning
                 throw new ArgumentNullException(nameof(topology));
             }
 
+            return Create(
+                dependencies,
+                lookupDependencies,
+                TopologyWebOwnerMappingCatalog.FromLegacy(topology),
+                taxonomyMappings,
+                targetOverrides,
+                droppedLookupValueDecisions);
+        }
+
+        public static ListMigrationPlanSet CreateFromSharedTopology(
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            SharedTopologyPlan topology,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
+            IEnumerable<ListTargetOverride> targetOverrides)
+        {
+            return CreateFromSharedTopology(
+                dependencies,
+                lookupDependencies,
+                topology,
+                taxonomyMappings,
+                targetOverrides,
+                null);
+        }
+
+        public static ListMigrationPlanSet CreateFromSharedTopology(
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            SharedTopologyPlan topology,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
+            IEnumerable<ListTargetOverride> targetOverrides,
+            IEnumerable<DroppedLookupValueDecision> droppedLookupValueDecisions)
+        {
+            if (topology == null)
+            {
+                throw new ArgumentNullException(nameof(topology));
+            }
+            return Create(
+                dependencies,
+                lookupDependencies,
+                TopologyWebOwnerMappingCatalog.FromShared(topology),
+                taxonomyMappings,
+                targetOverrides,
+                droppedLookupValueDecisions);
+        }
+
+        private static ListMigrationPlanSet Create(
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            IEnumerable<TopologyWebOwnerMapping> ownerMappings,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
+            IEnumerable<ListTargetOverride> targetOverrides,
+            IEnumerable<DroppedLookupValueDecision> droppedLookupValueDecisions)
+        {
+            if (dependencies == null)
+            {
+                throw new ArgumentNullException(nameof(dependencies));
+            }
+
             var sources = dependencies.ToArray();
             var edges = (lookupDependencies ?? Enumerable.Empty<ListLookupDependency>()).ToArray();
             var order = ListLookupDependencyGraph.Order(sources.Select(value => value.SourceListId), edges);
             var issues = order.Issues.ToList();
-            var webMappings = topology.SiteCollections.SelectMany(value => value.Webs).ToDictionary(value => value.SourceWebId);
+            var mappingValues = (ownerMappings ?? Enumerable.Empty<TopologyWebOwnerMapping>()).ToArray();
+            var webMappings = mappingValues
+                .Where(value => value.SourceWebId != Guid.Empty)
+                .ToDictionary(value => value.SourceWebId);
             var overrides = (targetOverrides ?? Enumerable.Empty<ListTargetOverride>())
                 .GroupBy(value => value.SourceListId).ToDictionary(group => group.Key, group => group.ToArray());
             foreach (var duplicate in overrides.Where(value => value.Value.Length != 1))
@@ -56,7 +136,7 @@ namespace PnP.Framework.Migration.Lists.Planning
             var plans = new List<ListMaterializationPlan>();
             foreach (var source in sources.OrderBy(value => IndexOf(order.OrderedSourceListIds, value.SourceListId)))
             {
-                WebMappingPlan owner;
+                TopologyWebOwnerMapping owner;
                 if (!webMappings.TryGetValue(source.SourceWebId, out owner))
                 {
                     issues.Add(Issue("SourceListOwnerMappingUnavailable", "list:" + source.SourceListId.ToString("D"), "The source List owner Web is absent from the topology plan."));
@@ -64,7 +144,21 @@ namespace PnP.Framework.Migration.Lists.Planning
                 }
                 ListTargetOverride[] candidates;
                 var targetOverride = overrides.TryGetValue(source.SourceListId, out candidates) && candidates.Length == 1 ? candidates[0] : null;
-                plans.Add(CreateListPlan(source, owner, topology, taxonomyMappings, targetOverride));
+                plans.Add(CreateListPlan(source, owner, mappingValues, taxonomyMappings, targetOverride));
+            }
+
+            var droppedProjection = DroppedItemDependencyPlanner.Project(
+                sources,
+                edges,
+                plans,
+                droppedLookupValueDecisions);
+            foreach (var plan in plans)
+            {
+                plan.DroppedItemDependencies = droppedProjection.PlansByConsumerList
+                    .TryGetValue(plan.SourceListId, out var itemDependencies)
+                    ? itemDependencies
+                    : null;
+                plan.PlanDigest = ComputePlanDigest(plan);
             }
 
             var result = new ListMigrationPlanSet
@@ -162,8 +256,8 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         private static ListMaterializationPlan CreateListPlan(
             ListDependencySnapshot source,
-            WebMappingPlan owner,
-            TopologyPlan topology,
+            TopologyWebOwnerMapping owner,
+            IEnumerable<TopologyWebOwnerMapping> ownerMappings,
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
             ListTargetOverride targetOverride)
         {
@@ -191,7 +285,11 @@ namespace PnP.Framework.Migration.Lists.Planning
                             "Exact attachment bytes are required before materialization."));
                 }
             }
-            foreach (var document in source.Items.Where(value => value.Document != null && value.Document.Kind == ListDocumentObjectKind.File).Select(value => value.Document))
+            foreach (var document in source.Items
+                         .Where(value => value.Document != null
+                             && value.Document.Kind == ListDocumentObjectKind.File
+                             && value.Document.CaptureDecision?.IsMetadataOnly != true)
+                         .Select(value => value.Document))
             {
                 if (!HasReplayableBinary(document.Content))
                 {
@@ -203,7 +301,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                 }
             }
 
-            var contentTypeClosure = ContentTypeClosurePlanner.Create(source.SiteContentTypes, topology, taxonomyMappings);
+            var contentTypeClosure = ContentTypeClosurePlanner.CreateFromOwnerMappings(source.SiteContentTypes, ownerMappings, taxonomyMappings);
             foreach (var issue in contentTypeClosure.Issues)
             {
                 issues.Add(issue);
@@ -219,8 +317,7 @@ namespace PnP.Framework.Migration.Lists.Planning
             var requiredFeatures = ContentTypeRuntimeCatalog.CreateFeatureRequirements(
                 source.ContentTypes.Select(value => value.ParentId),
                 source.SiteContentTypes,
-                topology.SiteCollections.Single(value => value.SourceSiteId == source.SourceSiteId).TargetSiteCollectionUrl);
-            var siteMapping = topology.SiteCollections.Single(value => value.SourceSiteId == source.SourceSiteId);
+                owner.TargetSiteCollectionUrl);
 
             var fieldOrder = ListCalculatedFieldOrder.Order(source.Fields.Select(field => CreateFieldPlan(source, field, taxonomyMappings, issues)));
             var fieldPlans = fieldOrder.Fields;
@@ -230,7 +327,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                     "Calculated fields contain a dependency cycle: " + string.Join(", ", fieldOrder.CycleFields) + "."));
             }
             var renderingResourcePlans = source.ViewRenderingResources
-                .Select(resource => CreateViewRenderingResourcePlan(resource, siteMapping, issues))
+                .Select(resource => CreateViewRenderingResourcePlan(resource, ownerMappings, owner.TargetSiteCollectionUrl, issues))
                 .ToList();
             var renderingResourcePlansById = renderingResourcePlans
                 .GroupBy(value => value.SourceResourceId, StringComparer.Ordinal)
@@ -284,13 +381,32 @@ namespace PnP.Framework.Migration.Lists.Planning
             var targetPath = string.IsNullOrWhiteSpace(targetOverride == null ? null : targetOverride.TargetRootFolderServerRelativeUrl)
                 ? TopologyPlanner.MapWebOwnedServerRelativePath(source.RootFolderServerRelativeUrl, owner.SourceServerRelativeUrl, owner.TargetServerRelativeUrl)
                 : NormalizeTargetPath(targetOverride.TargetRootFolderServerRelativeUrl, owner.TargetServerRelativeUrl);
+            var approvedProtectedDocumentExclusions = source.Items
+                .Where(value => value?.Document?.Kind == ListDocumentObjectKind.File
+                    && value.Document.CaptureDecision?.IsMetadataOnly == true)
+                .OrderBy(value => value.SourceItemId)
+                .Select(value => new ListProtectedDocumentExclusionPlan
+                {
+                    SourceItemId = value.SourceItemId,
+                    SourceServerRelativeUrl = value.Document.ServerRelativeUrl,
+                    TargetServerRelativeUrl = MapDocumentPath(
+                        value.Document.ServerRelativeUrl,
+                        source.RootFolderServerRelativeUrl,
+                        targetPath),
+                    PolicyId = value.Document.CaptureDecision.PolicyId,
+                    CaptureDecisionDigest = value.Document.CaptureDecision.DecisionDigest,
+                    ReasonCode = value.Document.CaptureDecision.ReasonCode,
+                    Reason = value.Document.CaptureDecision.Reason
+                })
+                .ToList();
             var plan = new ListMaterializationPlan
             {
                 SourceSiteId = source.SourceSiteId,
                 SourceWebId = source.SourceWebId,
                 SourceListId = source.SourceListId,
                 TargetWebUrl = owner.TargetWebUrl,
-                TargetSiteCollectionUrl = topology.SiteCollections.Single(value => value.SourceSiteId == source.SourceSiteId).TargetSiteCollectionUrl,
+                TargetSiteCollectionUrl = owner.TargetSiteCollectionUrl,
+                ExpectedTargetSiteId = owner.ExpectedTargetSiteId,
                 TargetWebServerRelativeUrl = owner.TargetServerRelativeUrl,
                 PreferredTargetRootFolderServerRelativeUrl = targetPath,
                 TargetRootFolderServerRelativeUrl = targetPath,
@@ -303,6 +419,9 @@ namespace PnP.Framework.Migration.Lists.Planning
                 ViewRenderingResources = renderingResourcePlans,
                 SiteContentTypes = contentTypeClosure.Nodes,
                 RequiredFeatures = requiredFeatures,
+                ApprovedProtectedDocumentExclusions = approvedProtectedDocumentExclusions.Count == 0
+                    ? null
+                    : approvedProtectedDocumentExclusions,
                 Issues = issues.OrderBy(value => value.Code, StringComparer.Ordinal).ThenBy(value => value.Subject, StringComparer.Ordinal).ToList()
             };
             plan.PlanDigest = ComputePlanDigest(plan);
@@ -311,7 +430,8 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         private static ListViewRenderingResourceMaterializationPlan CreateViewRenderingResourcePlan(
             ListViewRenderingResourceSnapshot source,
-            SiteCollectionMappingPlan siteMapping,
+            IEnumerable<TopologyWebOwnerMapping> ownerMappings,
+            string targetSiteCollectionUrl,
             ICollection<MigrationIssue> issues)
         {
             var plan = new ListViewRenderingResourceMaterializationPlan
@@ -331,7 +451,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                 return plan;
             }
 
-            var owner = (siteMapping.Webs ?? Array.Empty<WebMappingPlan>())
+            var owner = (ownerMappings ?? Enumerable.Empty<TopologyWebOwnerMapping>())
                 .Where(value => value != null
                     && !string.IsNullOrWhiteSpace(value.SourceServerRelativeUrl)
                     && IsWithin(source.SourceServerRelativeUrl, value.SourceServerRelativeUrl))
@@ -356,7 +476,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                 source.SourceServerRelativeUrl,
                 owner.SourceServerRelativeUrl,
                 owner.TargetServerRelativeUrl);
-            var targetAuthority = new Uri(siteMapping.TargetSiteCollectionUrl).GetLeftPart(UriPartial.Authority);
+            var targetAuthority = new Uri(targetSiteCollectionUrl).GetLeftPart(UriPartial.Authority);
             plan.TargetAbsoluteUrl = new Uri(new Uri(targetAuthority + "/"), plan.TargetServerRelativeUrl.TrimStart('/')).AbsoluteUri;
             if (source.Availability == EvidenceAvailability.Unavailable
                 || source.Availability == EvidenceAvailability.Conflict
@@ -394,6 +514,43 @@ namespace PnP.Framework.Migration.Lists.Planning
         {
             return binary != null
                 && binary.RepresentationKind == ListBinaryRepresentationKind.Unclassified;
+        }
+
+        internal static void RetargetProtectedDocumentExclusions(
+            ListMaterializationPlan plan,
+            string previousTargetRoot,
+            string nextTargetRoot)
+        {
+            if (plan?.ApprovedProtectedDocumentExclusions == null
+                || string.Equals(previousTargetRoot, nextTargetRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+            var previous = (previousTargetRoot ?? string.Empty).TrimEnd('/');
+            var next = (nextTargetRoot ?? string.Empty).TrimEnd('/');
+            foreach (var exclusion in plan.ApprovedProtectedDocumentExclusions)
+            {
+                if (exclusion == null
+                    || string.IsNullOrWhiteSpace(exclusion.TargetServerRelativeUrl)
+                    || !exclusion.TargetServerRelativeUrl.StartsWith(previous + "/", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "A protected-document exclusion cannot be retargeted outside its sealed List root.");
+                }
+                exclusion.TargetServerRelativeUrl = next
+                    + exclusion.TargetServerRelativeUrl.Substring(previous.Length);
+            }
+        }
+
+        private static string MapDocumentPath(string sourcePath, string sourceRoot, string targetRoot)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath)
+                || string.IsNullOrWhiteSpace(sourceRoot)
+                || !sourcePath.StartsWith(sourceRoot.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("A protected document path is outside its captured List root: " + sourcePath);
+            }
+            return targetRoot.TrimEnd('/') + sourcePath.Substring(sourceRoot.TrimEnd('/').Length);
         }
 
         private static ListFieldMaterializationPlan CreateFieldPlan(

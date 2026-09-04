@@ -4,6 +4,8 @@ using PnP.Framework.Migration.Pages.ClassicWebParts.Planning;
 using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -59,7 +61,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                         snapshot.ListLookupDependencies,
                         result.Topology,
                         options.TaxonomySchemaMappings,
-                        options.ListTargetOverrides);
+                        options.ListTargetOverrides,
+                        options.DroppedLookupValueDecisions);
                     var listTargetAnalysis = ListMigrationTargetAnalyzer.PopulateAndSeal(
                         targetContext,
                         snapshot.ListDependencies,
@@ -70,6 +73,76 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     {
                         warnings.Add(warning);
                     }
+                }
+            }
+            else if (snapshot.PathDerivedTopologyEvidence != null)
+            {
+                try
+                {
+                    PathDerivedSourceTopologyEvidenceFactory.Validate(snapshot.PathDerivedTopologyEvidence);
+                    if (options.SharedTopologyPlan == null
+                        || options.SharedTopologyGlobalActionDag == null
+                        || options.SharedTopologyTargetAnalysis == null
+                        || options.SharedTopologyActionPlan == null)
+                    {
+                        blockers.Add("SharedTopologyPlanRequired: path-derived topology requires a reviewed shared plan, global action DAG, fresh target analysis, and action plan.");
+                    }
+                    else
+                    {
+                        SharedTopologyPlanValidator.Validate(options.SharedTopologyPlan);
+                        SharedTopologyGlobalExecutionValidator.ValidateActionPlan(
+                            options.SharedTopologyGlobalActionDag,
+                            options.SharedTopologyTargetAnalysis,
+                            options.SharedTopologyActionPlan);
+                        if (!options.SharedTopologyGlobalActionDag.SourcePlanDigests.Contains(
+                            options.SharedTopologyPlan.PlanDigest,
+                            StringComparer.OrdinalIgnoreCase))
+                        {
+                            throw new System.IO.InvalidDataException("The global action DAG does not contain this page's shared topology plan.");
+                        }
+                        result.SharedTopologyReference = SharedTopologyPageReferenceFactory.Create(
+                            options.SharedTopologyPlan,
+                            options.SharedTopologyGlobalActionDag,
+                            options.SharedTopologyActionPlan,
+                            snapshot.Source.SiteId,
+                            snapshot.Source.WebId);
+                        if (!string.Equals(
+                            new Uri(result.SharedTopologyReference.TargetWebUrl).AbsoluteUri.TrimEnd('/'),
+                            new Uri(targetWeb.Url).AbsoluteUri.TrimEnd('/'),
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            blockers.Add("TargetPageWebTopologyMismatch: the target connection Web must be the exact path-derived leaf container.");
+                        }
+                        result.ListMigration = ListMigrationPlanFactory.CreateFromSharedTopology(
+                            snapshot.ListDependencies,
+                            snapshot.ListLookupDependencies,
+                            options.SharedTopologyPlan,
+                            options.TaxonomySchemaMappings,
+                            options.ListTargetOverrides,
+                            options.DroppedLookupValueDecisions);
+                        var listTargetAnalysis = ListMigrationTargetAnalyzer.PopulateAndSeal(
+                            targetContext,
+                            snapshot.ListDependencies,
+                            result.ListMigration,
+                            options.SharedTopologyPlan,
+                            options.SharedTopologyTargetAnalysis);
+                        AddIssues(listTargetAnalysis.Issues, blockers);
+                        foreach (var warning in listTargetAnalysis.Warnings)
+                        {
+                            warnings.Add(warning);
+                        }
+                        result.IngredientGraph = PublishingPagePathDerivedTopologyIngredientGraphProjector.Project(
+                            snapshot,
+                            options.SharedTopologyPlan,
+                            result.SharedTopologyReference);
+                        warnings.Add("Source Web fidelity remains authorization-limited; target path containers are independently planned from exact retained path evidence.");
+                    }
+                }
+                catch (Exception exception) when (exception is System.IO.InvalidDataException
+                    || exception is InvalidOperationException
+                    || exception is ArgumentException)
+                {
+                    blockers.Add("SharedTopologyPlanInvalid: " + exception.Message);
                 }
             }
             else if (snapshot.ListWebPartBindings.Count > 0 || snapshot.ListDependencies.Count > 0)

@@ -24,6 +24,7 @@ Start with:
 - [Page classification and ingredient policy](docs/page-classification-and-ingredient-policy.md)
 - [Object lifecycle](docs/object-lifecycle.md)
 - [Execution and verification](docs/execution-and-verification.md)
+- [Path-derived shared topology](docs/path-derived-shared-topology.md)
 - [Performance and concurrency](docs/performance-and-concurrency.md)
 
 ## Design rules
@@ -49,7 +50,7 @@ Every migration area should preserve the following boundaries:
 | `PnP.Framework.Migration.Evidence` | Evidence availability, source lineage, and derived-artifact provenance shared by migration domains. |
 | `PnP.Framework.Migration.Execution` | Operation state, write-ahead mutation intents, step receipts, and pluggable execution journals. |
 | `PnP.Framework.Migration.Packaging` | Content-addressed artifact references, artifact-store contracts, digest helpers, and a local directory-backed content-addressed store for larger or binary evidence. |
-| `PnP.Framework.Migration.Topology` | Source SPSite/SPWeb evidence, complete Site-relative target maps, collision probes, migration-owned provenance, child-Web materialization, and source-to-target runtime identity receipts. |
+| `PnP.Framework.Migration.Topology` | Source SPSite/SPWeb evidence, complete or authorization-limited exact-path target maps, signature-deduplicated global Web actions, conservative ownership, child-Web materialization, and source-to-target runtime identity receipts. |
 | `PnP.Framework.Migration.Features` | Explicit conditional SharePoint platform-feature plans, target probes, dependency-ordered activation, and promised runtime-contract verification. |
 | `PnP.Framework.Migration.Lists` | Page-required List/library dependency closure, lookup ordering, target planning, create-or-owned-reuse execution, and final fresh-readback results. |
 | `PnP.Framework.Migration.Lists.Fields` | Complete List field-schema evidence and List-specific schema/value planning. |
@@ -91,6 +92,7 @@ The object model deliberately does not place these capabilities under an `Enterp
 | Proven behavior | PnP Framework expression |
 | --- | --- |
 | Preserve SPSite versus SPWeb identity level and child-Web ancestry. | `SourceSiteCollectionSnapshot`, `TopologyPlan`, `TopologyTargetAnalysis`, and `TopologyMaterializationReceipt`. |
+| Continue exact target-path preparation without inventing denied source ancestor metadata. | `PathDerivedSourceTopologyEvidence`, stable logical target actions with per-capture execution grants, and root-to-leaf fresh probes keep source fidelity `401/403` separate from target-only provisioning. |
 | Preserve the complete Site/Web/Library/Folder/Page relative path and never overwrite an unowned collision. | Planning changes no relative segment. A stable suffix is added only at the topology/object node used for run isolation or where an observed ownership collision requires it, then per-object original-identifier plus semantic-digest provenance is sealed; Apply rejects any post-approval path change and requires replanning. |
 | Capture the complete List/lookup closure required by a page. | `ListDependencySnapshot`, `ListLookupDependency`, and deterministic DAG ordering with cycle blocking. |
 | Preserve unknown item values for future recovery while writing only understood fields. | Every returned `ListItemValueSnapshot` keeps typed and raw evidence; `ListFieldMaterializationDisposition` controls replay. |

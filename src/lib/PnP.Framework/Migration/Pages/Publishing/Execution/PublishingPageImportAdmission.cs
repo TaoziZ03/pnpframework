@@ -11,6 +11,7 @@ using System.Linq;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Topology.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Execution
 {
@@ -23,7 +24,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             string approvedPlanDigest,
             Guid operationId,
             DateTimeOffset startedAt,
-            MigrationExecutionRecorder recorder)
+            MigrationExecutionRecorder recorder,
+            SharedTopologyExecutionProof sharedTopologyProof = null)
         {
             if (package.State != PublishingPagePackageState.ApprovalReady || !package.Plan.IsExecutable)
             {
@@ -39,7 +41,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             }
 
             var targetWeb = targetContext.Web;
-            targetContext.Load(targetWeb, web => web.Url, web => web.ServerRelativeUrl);
+            targetContext.Load(
+                targetWeb,
+                web => web.Id,
+                web => web.Url,
+                web => web.ServerRelativeUrl,
+                web => web.Title,
+                web => web.Description,
+                web => web.WebTemplate,
+                web => web.Configuration,
+                web => web.Language,
+                web => web.HasUniqueRoleAssignments,
+                web => web.AllProperties);
+            targetContext.Load(targetContext.Site, site => site.Id);
             targetContext.ExecuteQueryRetry();
             if (executionScope.PageArtifact && !PagePath.UriEquals(targetWeb.Url, package.Plan.TargetWebUrl))
             {
@@ -50,6 +64,24 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             {
                 return Failure(package, operationId, startedAt, "TargetTenantMismatch", targetWeb.Url,
                     $"The target connection authority '{new Uri(targetWeb.Url).Authority}' differs from the approved target authority '{new Uri(package.Plan.TargetWebUrl).Authority}'.", recorder);
+            }
+
+            var sharedTopologyFailure = ValidateSharedTopology(
+                package,
+                targetContext,
+                targetContext.Site.Id,
+                targetWeb,
+                sharedTopologyProof);
+            if (sharedTopologyFailure != null)
+            {
+                return Failure(
+                    package,
+                    operationId,
+                    startedAt,
+                    "SharedTopologyReceiptInvalid",
+                    package.Plan.TargetWebUrl,
+                    sharedTopologyFailure,
+                    recorder);
             }
 
             var blockers = new List<string>();
@@ -88,11 +120,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     projectedPlan.Lists = projectedPlan.Lists
                         .Where(value => selectedListIds.Contains(value.SourceListId))
                         .ToList();
-                    var freshLists = ListMigrationTargetAnalyzer.InspectFresh(
-                        targetContext,
-                        projectedSources,
-                        projectedPlan,
-                        freshTopology);
+                    var freshLists = package.Plan.SharedTopologyReference == null
+                        ? ListMigrationTargetAnalyzer.InspectFresh(
+                            targetContext,
+                            projectedSources,
+                            projectedPlan,
+                            freshTopology)
+                        : ListMigrationTargetAnalyzer.InspectFresh(
+                            targetContext,
+                            projectedSources,
+                            projectedPlan,
+                            sharedTopologyProof?.Receipt);
                     blockers.AddRange(freshLists.Issues.Select(value => value.Code + ": " + value.Message));
                 }
             }
@@ -152,6 +190,50 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     "The target Publishing Page content type or layout changed after approval.", recorder);
             }
 
+            return null;
+        }
+
+        private static string ValidateSharedTopology(
+            PublishingPageMigrationPackage package,
+            ClientContext targetContext,
+            Guid targetSiteId,
+            Web targetWeb,
+            SharedTopologyExecutionProof proof)
+        {
+            var reference = package.Plan.SharedTopologyReference;
+            if (reference == null)
+            {
+                return proof == null
+                    ? null
+                    : "A shared topology execution proof was supplied for a page that has no shared topology reference.";
+            }
+            try
+            {
+                SharedTopologyPageReferenceFactory.ValidateReceipt(
+                    reference,
+                    proof?.SourcePlans,
+                    proof?.GlobalActionDag,
+                    proof?.ActionPlan,
+                    proof?.Receipt);
+                var actions = proof.GlobalActionDag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+                var required = reference.RequiredActions.Select(value => actions[value.LogicalActionKey]).ToArray();
+                var observations = new CsomPathDerivedTopologyTargetRuntime(targetContext).InspectAll(required);
+                var fresh = SharedTopologyPageReferenceFactory.ValidateFreshTarget(reference, proof, observations);
+                var leaf = fresh.Last();
+                if (leaf.TargetSiteId != targetSiteId
+                    || leaf.TargetWebId != targetWeb.Id
+                    || !SharedTopologyPath.EqualsUrl(targetWeb.Url, reference.TargetWebUrl)
+                    || !SharedTopologyPath.EqualsPath(targetWeb.ServerRelativeUrl, reference.TargetServerRelativeUrl))
+                {
+                    return "The current target connection differs from the freshly probed shared topology leaf identity.";
+                }
+            }
+            catch (Exception exception) when (exception is System.IO.InvalidDataException
+                || exception is ArgumentNullException
+                || exception is InvalidOperationException)
+            {
+                return exception.Message;
+            }
             return null;
         }
 

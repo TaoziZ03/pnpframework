@@ -12,6 +12,8 @@ using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Lists.Items.Protection;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -51,6 +53,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             ValidateIngredientGraph(snapshot.IngredientGraph);
             ValidateDerivedRuntime(snapshot);
             ValidateDerivedProfileSignals(snapshot);
+            ProtectedAssetCaptureGate.ValidatePolicy(snapshot.CapturePolicy.ProtectedAssets);
 
             var contentDigest = PublishingPageDigest.ComputeSha256(snapshot.PublishingPageContent ?? string.Empty);
             if (!string.Equals(contentDigest, snapshot.PublishingPageContentSha256, StringComparison.OrdinalIgnoreCase))
@@ -67,8 +70,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 snapshot.ListDependencies,
                 snapshot.ListLookupDependencies,
                 snapshot.SourceTopology,
-                artifactStore);
+                artifactStore,
+                snapshot.CapturePolicy.ProtectedAssets);
             ValidateDependencies(snapshot);
+            ValidateTopologyEvidence(snapshot);
             ValidateDerivedIngredientGraph(snapshot);
 
             var snapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot);
@@ -133,6 +138,29 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || !selection.ValidationCohort.Reasons.Any(value => !string.IsNullOrWhiteSpace(value)))
             {
                 throw new InvalidDataException("The package must identify its workflow and validation-cohort assessment.");
+            }
+        }
+
+        private static void ValidateTopologyEvidence(PublishingPageCaptureBundle snapshot)
+        {
+            if (snapshot.SourceTopology != null && snapshot.PathDerivedTopologyEvidence != null)
+            {
+                throw new InvalidDataException("The source snapshot cannot contain both a complete topology closure and path-derived fallback evidence.");
+            }
+            if (snapshot.PathDerivedTopologyEvidence == null)
+            {
+                return;
+            }
+            PathDerivedSourceTopologyEvidenceFactory.Validate(snapshot.PathDerivedTopologyEvidence);
+            var leaf = PathDerivedSourceTopologyEvidenceFactory.PrimaryLeaf(snapshot.PathDerivedTopologyEvidence);
+            if (snapshot.PathDerivedTopologyEvidence.SourceSiteId != snapshot.Source.SiteId
+                || leaf.WebId != snapshot.Source.WebId
+                || !string.Equals(
+                    leaf.ServerRelativeUrl,
+                    snapshot.Source.WebServerRelativeUrl,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("Path-derived topology evidence does not identify the captured page Site and leaf Web.");
             }
         }
 

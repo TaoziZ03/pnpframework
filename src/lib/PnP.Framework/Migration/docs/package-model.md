@@ -32,18 +32,31 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `PublishingPageImportReceipt` | `pnp-publishing-page-import-receipt/v2` |
 | `PageArtifactSnapshot` | `pnp-page-artifact/v1` |
 | `PageRuntimeSnapshot` | `pnp-page-runtime/v1` |
-| `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1` |
+| `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1`; `v2` when the plan contains explicit shared external references |
+| `BoundLiteralHttpAuthorizationEvidence` | `pnp-bound-literal-http-authorization/v1` |
+| `PathDerivedSourceTopologyEvidence` | `pnp-path-derived-source-topology-evidence/v3` |
+| `SharedTopologyPlan` | `pnp-shared-topology-plan/v3` |
+| `SharedTopologyGlobalActionDag` | `pnp-shared-topology-global-action-dag/v3` |
+| `SharedTopologyGlobalTargetAnalysis` | `pnp-shared-topology-global-target-analysis/v3` |
+| `SharedTopologyGlobalActionPlan` | `pnp-shared-topology-global-action-plan/v3` |
+| `SharedTopologyGlobalMaterializationReceipt` | `pnp-shared-topology-global-receipt/v3` |
+| `SharedTopologyPageReference` | `pnp-shared-topology-page-reference/v4` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
+| `MigrationActionSignature` | `pnp-migration-action-signature/v1` |
+| `MigrationExecutionJournalRecord` | `pnp-migration-execution-journal-record/v1` |
+| `MigrationMutationVerificationReceipt` | `pnp-migration-mutation-verification/v1` |
+| `MigrationExecutionArtifactReference` | `pnp-migration-execution-artifact-reference/v1` |
 | `TaxonomyValueRelationshipSnapshot` | `pnp-taxonomy-value-relationship/v1` |
 | `TaxonomyAssetSourceSnapshot` | `pnp-taxonomy-asset-source/v1` |
 | `TaxonomyTermGroupMaterializationPlan` | `pnp-taxonomy-termgroup-plan/v1` |
-| `TaxonomyTermSetMaterializationPlan` | `pnp-taxonomy-termset-plan/v1` |
-| `TaxonomyTermMaterializationPlan` | `pnp-taxonomy-term-plan/v1` |
+| `TaxonomyTermSetMaterializationPlan` | `pnp-taxonomy-termset-plan/v2` |
+| `TaxonomyTermMaterializationPlan` | `pnp-taxonomy-term-plan/v3` |
 | `TaxonomyAssetReviewPlan` | `pnp-taxonomy-asset-review-plan/v1` |
 | `TaxonomyAssetApprovalManifest` | `pnp-taxonomy-asset-approval/v1` |
 | `TaxonomyAssetExecutionAdmission` | `pnp-taxonomy-asset-execution-admission/v1` |
-| `TaxonomyAssetMaterializationReceipt` | `pnp-taxonomy-asset-materialization-receipt/v1` |
+| `TaxonomyAssetMaterializationReceipt` | `pnp-taxonomy-asset-materialization-receipt/v2` |
+| `TaxonomyAssetMappingCatalog` | `pnp-taxonomy-asset-mapping-catalog/v2` |
 
 Nested snapshots and plans have their own schema identifiers where independent evolution or validation is required.
 
@@ -123,7 +136,7 @@ Changing any snapshot evidence after sealing invalidates `snapshotDigest`.
 | `fields` | Every returned Pages-library field definition plus typed or raw value evidence. Taxonomy fields additionally carry their exact binding, field-value-set digest, live-resolution state, `TaxonomyHiddenList`/`TaxCatchAll` evidence, and per-value relationship proof. |
 | `webParts` | Captured classic Web Part export XML, identity, placement, hidden state, and digest. |
 | `listWebPartBindings` | Parsed source Web/List/View bindings and relevant XML/path evidence. |
-| `listDependencies` | Required Lists/libraries, settings, fields, site/List content types, Views, current items, folders, files, and attachments. Every returned item field has a value snapshot; unknown runtime types retain best-effort raw evidence and may be marked `Partial`. Binary evidence records whether SharePoint returned an ordinary payload or an IRM envelope; protected documents retain exact artifact bytes plus available `cTag`/`QuickXorHash` logical identity. |
+| `listDependencies` | Required Lists/libraries, settings, fields, site/List content types, Views, current items, folders, files, and attachments. Every returned item field has a value snapshot; unknown runtime types retain best-effort raw evidence and may be marked `Partial`. Binary evidence records whether SharePoint returned an ordinary payload or an IRM envelope. Under an explicit metadata-only capture policy, a protected document instead retains a sealed optional `captureDecision` and no payload. |
 | `listLookupDependencies` | Directed lookup edges used for ordering and cycle detection. |
 | `sourceTopology` | Source Site Collection and complete required Web ancestor closure. |
 | `dependencies` | Authored references and safe payload evidence. |
@@ -137,6 +150,8 @@ The bundle is not a list of writes. A value may be captured even when its later 
 
 For an IRM envelope, `artifact.sha256` remains the package-integrity identity of the exact captured response. It is deliberately not interpreted as a stable source-content identity. `logicalContentIdentity.quickXorHash`, together with source file identity/version/length and `contentTag`, supports source-to-source semantic comparison while replay remains `Defer`. The full artifact still participates in `snapshotDigest`, so two faithful captures may have different immutable snapshot digests even when their protected logical document is unchanged.
 
+Metadata-only protected capture is additive to the v2 package. `capturePolicy.protectedAssets`, each document `captureDecision`, List-plan `approvedProtectedDocumentExclusions`, and receipt absence probes are omitted from canonical JSON when unused. Old v2 packages therefore retain their historical canonical shape and semantics; a new capture that selects the policy receives a new snapshot digest without changing the package schema version.
+
 ### Capture-time and plan-time ingredient projections
 
 The snapshot's `ingredientGraph` is immutable capture evidence. Its projection version records the projector semantics used when that snapshot was sealed; validating or planning an older package must never rewrite that graph or change `snapshotDigest`.
@@ -147,6 +162,8 @@ Planning independently derives the current canonical graph from the typed snapsh
 - plan validation proves that the actions and dependency closure match the current projector and policy.
 
 Legacy export packages whose graph has no `projectionVersion` are validated against the legacy projector. A current plan over that evidence stores the current versioned projection in `plan.ingredientGraph`, while the embedded snapshot remains byte-for-byte and digest-equivalent to the export. Import validates both boundaries. This permits projector evolution without either silently accepting a tampered old graph or invalidating authentic frozen evidence.
+
+When complete source topology is unavailable only because a captured ancestor request returned literal HTTP `401/403`, the export stores mutually exclusive `pathDerivedTopologyEvidence` instead of a partial `sourceTopology`. The v3 evidence retains every successfully captured root-to-leaf Web and one authorization-limited fidelity record for each still-unknown path. The plan graph uses schema `pnp-page-ingredient-graph/v2` and external shared references; stable logical target-Web producers remain global actions while page-specific evidence is retained as execution grants.
 
 ## Target-specific migration package
 
@@ -191,6 +208,7 @@ Legacy export packages whose graph has no `projectionVersion` are validated agai
 | `dependencyActions` | Exactly one result for every captured governed reference. |
 | `topology` | Source Site/Web to target Site/Web mapping and topology semantic digest. |
 | `topologyTargetAnalysis` | Target existence, identity, parent, template, ownership, disposition, and issues for each mapped Site/Web. |
+| `sharedTopologyReference` | For path-derived packages, pins the shared-plan/DAG/action-plan digests, execution group, normalized support cohort, partial source fidelity, and each required slot/action-signature/original-id/ownership tuple. It is mutually exclusive with page-local `topology`. |
 | `listMigration` | Ordered per-List plans, conditional platform-feature requirements, field/View/site-content-type actions, target probes, issues, and digests. Each feature requirement seals its ID, scope, dependency order, consuming and promised content-type IDs, and target Site Collection. |
 | `webPartActions` | Copy, rebind-after-materialization, or defer-for-mitigation result for each captured Web Part. |
 | `replacements` | Approved source-to-target text substitutions. |
@@ -236,7 +254,7 @@ The package stores planning probes because they are review evidence. Import must
 | Lifecycle fields | Planned lifecycle and actual file/check-out/moderation evidence. |
 | Content fields | Expected and persisted publishing-content digests. |
 | Web Part fields | Imported count and per-part fresh-readback results. |
-| `topologyMaterialization`, `topologyMatched` | Runtime Web mappings, actual dispositions, mapping digests, diagnostics, and topology readback. |
+| `topologyMaterialization`, `sharedTopologyMaterialization`, `topologyMatched` | Page-local or shared runtime Web mappings, actual dispositions, ownership, action signatures, runtime IDs, diagnostics, and fresh topology readback. A path-derived page consumes a previously executed global receipt and performs no duplicate page-local Web create. |
 | `listMaterializations`, `listsMatched` | Runtime Web/List/item/View/content-type maps, actual List dispositions, verified counts, diagnostics, and closure readback. |
 | `fieldResults` | Per-page-field execution result, including target-local taxonomy materialization receipts where applicable. |
 | `taxonomyRelationshipsMatched` / `taxonomyRelationshipResults` | Aggregate and per-executed-value fresh readback of field binding, page value, live/absent Term state, hidden-list identity, and `TaxCatchAll`. Evidence-only relationships are not target assertions. |
@@ -294,6 +312,10 @@ The boundaries are deliberately narrower than the envelopes:
 Some nested domains also carry semantic ownership digests. For example, a List's semantic digest normalizes execution-time target observation state so an approved `CreateOwned` intent can later be recognized as the same owned object and recorded as `ReuseOwned`. This does not mutate or weaken the top-level `planDigest`, which still covers the complete planning-time plan.
 
 Execution-time runtime IDs do not belong in `planDigest` because SharePoint may allocate them only after mutation. They belong in receipts and are correlated by source identity and plan digest.
+
+Completed work can additionally carry an action-scoped digest signature. The signature binds one stable action ID and kind to SHA-256 source-evidence and selection-receipt digests, exact target identity, expected semantic state, and direct dependency signatures. Missing evidence or selection uses an explicit versioned empty digest, never `null`. It deliberately does not bind the complete page plan. A changed sibling action therefore does not invalidate unrelated completed evidence, while a changed target, selection, dependency, or semantic contract produces a new signature. Journal records with old and new signatures may coexist; only the exact current signature is evidence for a resume decision. The digest chain detects corruption/tampering inside the local trust boundary but does not authenticate the writer cryptographically.
+
+The local durable journal is a strict, canonical JSON Lines record chain. It persists only allowlisted execution state, mutation intent/receipt, fresh verification receipt, or content-addressed artifact reference contracts. Artifact bytes and arbitrary JSON are not embedded in the journal. A crash-partial final line is retained and hashed as interrupted-tail evidence; the next single writer continues in a digest-chained segment rather than truncating the damaged bytes.
 
 ## Package validation invariants
 

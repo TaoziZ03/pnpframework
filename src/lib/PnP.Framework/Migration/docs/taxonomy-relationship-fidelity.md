@@ -50,6 +50,8 @@ Page bundles retain the complete captured field/value evidence. The cohort taxon
 
 Asset identity is CLR-typed and GUID-first. Plans retain the source tenant, TermStore, deterministic target ownership TermGroup, TermSet, Term, parent, label/path, language, tagging/open settings, evidence digest, consumers, and Repro4-compatible `pnp_reserved_term_original_identifier` provenance. For every captured live Term they also retain SharePoint's raw `IsReused`, `IsSourceTerm`, reported `SourceTerm`, complete TermSet-membership list, and pin-source TermSet evidence. They never infer identity from a label alone.
 
+Migration-owned TermSets and Terms also carry `pnp_reserved_term_mapping_digest`, a stable semantic mapping marker derived from source identity and reviewed target identity. A matching original identifier with a missing marker may be upgraded only inside the already approved migration-owned reconciliation path. A conflicting marker is a collision and is never overwritten. External reuse requires both ownership markers to be absent and remains zero-mutation. Receipts and mapping-catalog entries record source identity, target identity, ownership, action signature, and freshly observed semantic state; they do not turn an external object into a migration-owned object.
+
 Term identity equality is not sufficient for relationship fidelity. An existing same-GUID target Term is equivalent only when its native/reused state, source-Term relationship, translated TermSet memberships, and pin relationship match the source evidence. The source owning TermSet ID is translated through the reviewed target mapping; other captured relationship identities remain exact. A same-GUID Term that would become reused or multi-member in order to fit a second target TermSet is a relationship change, not an exact reproduction.
 
 Read-only target inspection assigns one explicit disposition per asset:
@@ -120,6 +122,7 @@ Each executed result is emitted as `TaxonomyRelationshipVerificationResult`. Eve
 The following are intentionally not migration actions:
 
 - creating a Term whose source relationship was captured as `DanglingTermAbsent`;
+- adding ownership or semantic-mapping markers to an externally owned TermSet or Term;
 - creating a same-label replacement with a different GUID;
 - moving or copying an outside Term into the bound TermSet;
 - rebinding a field merely to make an invalid value valid;

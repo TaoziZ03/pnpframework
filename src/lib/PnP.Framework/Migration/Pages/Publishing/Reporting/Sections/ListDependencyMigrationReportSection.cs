@@ -21,6 +21,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                     value.FieldId,
                     value.FieldInternalName,
                     "The lookup List and its source-to-target item-ID catalog must exist before this field value is written.")));
+            writer.Table(
+                "Supplied dropped lookup-value decisions",
+                new[] { "Consumer List", "Consumer item", "Field", "Provider List", "Provider item", "Disposition", "Policy" },
+                (plan.PlanningPolicy?.DroppedLookupValueDecisions
+                    ?? Array.Empty<DroppedLookupValueDecision>())
+                    .Select(value => Row(
+                        value.ConsumerSourceListId,
+                        value.ConsumerSourceItemId,
+                        value.ConsumerFieldInternalName,
+                        value.ProviderSourceListId,
+                        value.ProviderSourceItemId,
+                        value.Disposition,
+                        value.PolicyId)));
 
             var planSet = plan.ListMigration;
             writer.Table("List dependency execution order", new[] { "Order", "Source List ID", "Plan present" },
@@ -116,8 +129,45 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                 Row("collisionResolutionReason", plan.TargetProbe?.CollisionResolutionReason, "Retained evidence for the path/title decision."),
                 Row("disposition", plan.Disposition, "CreateOwned creates; ReuseOwned requires exact provenance and semantic digest; local Block records a capability gap and becomes final ingredient Defer."),
                 Row("planDigest", plan.PlanDigest, "Semantic identity written with provenance and used for resume."),
+                Row("approvedProtectedDocumentExclusions.count", plan.ApprovedProtectedDocumentExclusions?.Count ?? 0, "Document-backed items whose payload was not requested under an explicit source policy and whose target path must remain absent."),
+                Row("droppedItemDependencies.count", plan.DroppedItemDependencies?.Count ?? 0, "Exact lookup and folder-path edges activated by the fixed-point dropped-item closure."),
                 Row("isExecutable", plan.IsExecutable, "Includes List issues, custom site-content-type closure, and target admission.")
             });
+            writer.Table(
+                "Approved protected document exclusions",
+                new[] { "Source item", "Source path", "Target path", "Policy", "Decision digest", "Reason" },
+                (plan.ApprovedProtectedDocumentExclusions ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                    .OrderBy(value => value.SourceItemId)
+                    .Select(value => Row(
+                        value.SourceItemId,
+                        value.SourceServerRelativeUrl,
+                        value.TargetServerRelativeUrl,
+                        value.PolicyId,
+                        value.CaptureDecisionDigest,
+                        value.ReasonCode + ": " + value.Reason)));
+            writer.Table(
+                "Dropped-item dependency closure",
+                new[] { "Kind", "Consumer List", "Consumer item", "Field", "List required", "Content Type", "CT resolved", "CT link required", "Effective required", "Requirement known", "Provider List", "Provider item", "Disposition", "Policy", "Reason" },
+                (plan.DroppedItemDependencies ?? Array.Empty<ListDroppedItemDependencyPlan>())
+                    .OrderBy(value => value.ConsumerSourceItemId)
+                    .ThenBy(value => value.ConsumerFieldInternalName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(value => value.ProviderSourceItemId)
+                    .Select(value => Row(
+                        value.Kind,
+                        value.ConsumerSourceListId,
+                        value.ConsumerSourceItemId,
+                        value.ConsumerFieldInternalName,
+                        value.ConsumerListFieldRequired,
+                        value.ConsumerContentTypeId,
+                        value.ConsumerContentTypeResolved,
+                        value.ConsumerContentTypeFieldLinkRequired,
+                        value.ConsumerEffectiveRequired,
+                        value.ConsumerRequirementKnown,
+                        value.ProviderSourceListId,
+                        value.ProviderSourceItemId,
+                        value.Disposition,
+                        value.PolicyId,
+                        value.Reason)));
             var probe = plan.TargetProbe;
             if (probe != null)
             {

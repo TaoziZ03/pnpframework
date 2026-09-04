@@ -197,6 +197,8 @@ A target URL in a plan is not proof that the Web exists. A target List ID in a r
 
 Default topology mapping preserves the complete source path relative to its Site Collection root. The target Site Collection leaf may receive an isolation suffix, and a proven foreign collision may receive a stable suffix at the colliding node; Web, library, folder, and page tails otherwise remain byte-for-byte path-equivalent after URL decoding. Missing target nodes are materialization work, not mapping failures.
 
+When the complete source ancestor-Web closure is denied by literal HTTP `401/403`, path-derived topology preserves every successfully captured root-to-leaf Web and represents only the remaining unknown paths as authorization-limited fidelity ingredients. The target root and each child path have a stable logical producer identity plus one or more exact per-capture execution grants. Cross-page plans union by authority/Site/path slot plus normalized logical semantics; timestamps and page-specific denial evidence do not fork producers, while incompatible target profiles still block globally. Pages pin their own grants and batch fresh-probe every required ancestor before mutation. See [Path-derived shared topology](path-derived-shared-topology.md).
+
 For Publishing Pages, target Content Type selection begins with the approved Page Layout association. Planning seals one exact Pages-library Content Type ID. Multiple descendants are an ambiguity blocker; Import and fresh readback require exact equality with the sealed ID rather than accepting any broad Enterprise Wiki descendant.
 
 ## Execution architecture
@@ -208,6 +210,8 @@ Malformed, unsupported, or digest-invalid packages currently throw before an ope
 Execution then follows dependency order. Each mutating category writes a `MigrationMutationIntent` before the SharePoint operation and a `MigrationMutationReceipt` after it completes or is proven already satisfied. Domain receipts expose runtime-generated target identities to later actions.
 
 The execution journal is an audit and recovery primitive. It is not a rollback log. Safe retry is based on deterministic targets, ownership markers, semantic digests, and fresh target inspection.
+
+Shared path-derived actions strengthen this rule with a per-action freshness fence. Every slot is inspected immediately before its action and read back immediately afterward. A reviewed `CreateMissing` may converge to exact owned reuse or interrupted-create recovery, but target drift, a foreign marker, or a different action signature requires a new plan and approval.
 
 See [Execution and verification](execution-and-verification.md) for detailed state semantics.
 

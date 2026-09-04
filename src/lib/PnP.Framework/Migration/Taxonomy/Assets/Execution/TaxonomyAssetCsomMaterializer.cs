@@ -76,6 +76,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                 created.IsOpenForTermCreation = plan.IsOpenForTermCreation;
                 created.IsAvailableForTagging = plan.IsAvailableForTagging;
                 created.SetCustomProperty(plan.OriginalIdentifierPropertyName, plan.OriginalIdentifier);
+                created.SetCustomProperty(plan.MappingDigestPropertyName, plan.MappingDigest);
                 store.CommitAll();
                 context.ExecuteQueryRetry();
                 return true;
@@ -96,10 +97,12 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                     value => value.IsAvailableForTagging);
                 context.ExecuteQueryRetry();
                 AssertOwned(existing.CustomProperties, plan.OriginalIdentifierPropertyName, plan.OriginalIdentifier, "TermSet");
+                AssertMapping(existing.CustomProperties, plan.MappingDigestPropertyName, plan.MappingDigest, "TermSet");
                 existing.Name = plan.TargetTermSetName;
                 existing.IsOpenForTermCreation = plan.IsOpenForTermCreation;
                 existing.IsAvailableForTagging = plan.IsAvailableForTagging;
                 existing.SetCustomProperty(plan.OriginalIdentifierPropertyName, plan.OriginalIdentifier);
+                existing.SetCustomProperty(plan.MappingDigestPropertyName, plan.MappingDigest);
                 store.CommitAll();
                 context.ExecuteQueryRetry();
                 return true;
@@ -125,6 +128,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                 var created = parent.CreateTerm(plan.Name, plan.Language, plan.PreferredTargetTermId);
                 created.IsAvailableForTagging = plan.IsAvailableForTagging;
                 created.SetCustomProperty(plan.OriginalIdentifierPropertyName, plan.OriginalIdentifier);
+                created.SetCustomProperty(plan.MappingDigestPropertyName, plan.MappingDigest);
                 store.CommitAll();
                 context.ExecuteQueryRetry();
                 return true;
@@ -151,6 +155,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                     throw new InvalidOperationException("The provenance-owned target Term disappeared after admission.");
                 }
                 AssertOwned(existing.CustomProperties, plan.OriginalIdentifierPropertyName, plan.OriginalIdentifier, "Term");
+                AssertMapping(existing.CustomProperties, plan.MappingDigestPropertyName, plan.MappingDigest, "Term");
                 context.Load(existing.TermSet, value => value.Id);
                 if (existing.Parent != null && !existing.Parent.ServerObjectIsNull.GetValueOrDefault(true))
                 {
@@ -173,6 +178,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                 existing.Name = plan.Name;
                 existing.IsAvailableForTagging = plan.IsAvailableForTagging;
                 existing.SetCustomProperty(plan.OriginalIdentifierPropertyName, plan.OriginalIdentifier);
+                existing.SetCustomProperty(plan.MappingDigestPropertyName, plan.MappingDigest);
                 store.CommitAll();
                 context.ExecuteQueryRetry();
                 return true;
@@ -230,6 +236,22 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                 || !string.Equals(actual, expectedIdentity, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(objectKind + " ownership provenance changed after admission.");
+            }
+        }
+
+        internal static void AssertMapping(
+            IDictionary<string, string> properties,
+            string propertyName,
+            string expectedDigest,
+            string objectKind)
+        {
+            if (properties != null
+                && properties.TryGetValue(propertyName, out var actual)
+                && !string.IsNullOrWhiteSpace(actual)
+                && !string.Equals(actual, expectedDigest, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    objectKind + " semantic mapping provenance conflicts with the reviewed plan; the existing value was not overwritten.");
             }
         }
     }

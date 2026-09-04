@@ -41,7 +41,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 startedAt,
                 recorder,
                 MigrationExecutionStatus.FailedUnexpectedly,
-                recorder.Steps.Any(step => step.Outcome == MutationOutcome.Applied || step.Outcome == MutationOutcome.Failed),
+                recorder.Steps.Any(step => step.Outcome == MutationOutcome.Applied
+                    || step.Outcome == MutationOutcome.OutcomeUnknownButConverged
+                    || step.Outcome == MutationOutcome.Failed),
                 exception.Message,
                 null);
         }

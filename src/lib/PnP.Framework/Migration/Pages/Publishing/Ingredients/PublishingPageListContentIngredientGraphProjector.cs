@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Views;
 using PnP.Framework.Migration.Pages.Ingredients;
 using System;
@@ -181,7 +182,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                         PageIngredientRelationship.DependsOn,
                         PageIngredientRequirement.Required));
                 }
-                if (item.Document.InformationProtection != null)
+                if (ProtectedAssetCaptureGate.HasItemProtection(item.Document.InformationProtection))
                 {
                     var informationProtectionId = PublishingPageIngredientIds.ListDocumentInformationProtection(
                         list.SourceWebId,

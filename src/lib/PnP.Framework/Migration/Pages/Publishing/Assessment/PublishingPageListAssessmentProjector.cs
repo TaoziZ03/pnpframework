@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Lists.Views;
 using PnP.Framework.Migration.Pages.Assessment;
@@ -184,10 +185,25 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
             foreach (var item in source.Items.Where(value => value != null))
             {
+                if (item.Document?.CaptureDecision?.IsMetadataOnly == true)
+                {
+                    AddApprovedProtectedDocumentExclusion(source, item, assessments);
+                    continue;
+                }
+                var droppedLookupDependencies = (plan?.DroppedItemDependencies
+                        ?? Array.Empty<ListDroppedItemDependencyPlan>())
+                    .Where(value => value.ConsumerSourceItemId == item.SourceItemId)
+                    .ToArray();
+                if (droppedLookupDependencies.Any(value =>
+                        value.Disposition != DroppedItemDependencyDisposition.ClearValue))
+                {
+                    AddDroppedItemDependencyConsumer(source, item, droppedLookupDependencies, assessments);
+                    continue;
+                }
                 var unavailable = item.Availability is EvidenceAvailability.Unavailable
                     or EvidenceAvailability.Conflict;
                 var snapshotOnlyValues = new List<string>();
-                var transformed = false;
+                var transformed = droppedLookupDependencies.Length > 0;
                 foreach (var value in item.Values.Where(value => value != null && value.Kind != ListItemValueKind.Null))
                 {
                     if (string.Equals(value.InternalName, "ContentTypeId", StringComparison.OrdinalIgnoreCase))
@@ -240,7 +256,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                             : snapshotOnlyValues.Count > 0
                                 ? "Replay recognized values and retain unrecognized or intentionally omitted fields only in the immutable snapshot: " + string.Join(", ", snapshotOnlyValues.Distinct(StringComparer.OrdinalIgnoreCase)) + "."
                                 : transformed
-                                    ? "Replay recognized values while remapping identity-bound values and regenerating reviewed target-runtime values."
+                                    ? droppedLookupDependencies.Length > 0
+                                        ? "Replay recognized values while clearing lookup fields whose provider items are approved protected-document exclusions."
+                                        : "Replay recognized values while remapping identity-bound values and regenerating reviewed target-runtime values."
                                     : "Replay every nonempty captured value through an approved lossless field action.",
                     blocked ? null : plan.TargetRootFolderServerRelativeUrl + "#source-item:" + item.SourceItemId,
                     blocked
@@ -249,12 +267,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     blocked ? null : $"The List receipt contains a source-to-target item ID mapping for source item '{item.SourceItemId}'.",
                     blocked ? null : snapshotOnlyValues.Count > 0
                         ? "Fresh readback verifies every approved value and the item provenance digest; snapshot-only fields are not fabricated on the target."
-                            : "Fresh readback verifies every approved value and the item provenance digest.");
+                            : droppedLookupDependencies.Length > 0
+                                ? "Fresh readback verifies the cleared lookup fields, every other approved value, and the item provenance digest."
+                                : "Fresh readback verifies every approved value and the item provenance digest.");
 
                 if (item.Document != null)
                 {
                     AddDocument(source, plan, item, assessments);
-                    if (item.Document.InformationProtection != null)
+                    if (ProtectedAssetCaptureGate.HasItemProtection(item.Document.InformationProtection))
                     {
                         AddInformationProtection(source, plan, item, assessments);
                     }
@@ -264,6 +284,175 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     AddAttachment(source, plan, item, attachment, assessments);
                 }
             }
+        }
+
+        private static void AddDroppedItemDependencyConsumer(
+            ListDependencySnapshot source,
+            ListItemSnapshot item,
+            IEnumerable<ListDroppedItemDependencyPlan> dependencies,
+            PublishingPageAssessmentAccumulator assessments)
+        {
+            var values = dependencies.Where(value => value != null).ToArray();
+            var drop = values.Any(value =>
+                value.Disposition == DroppedItemDependencyDisposition.DropDependentItem);
+            var unresolved = !drop && values.Any(value =>
+                value.Disposition == DroppedItemDependencyDisposition.NeedsPolicyDecision);
+            var disposition = drop ? IngredientDisposition.Drop : IngredientDisposition.Defer;
+            var state = unresolved
+                ? PageIngredientAssessmentState.KnownGap
+                : PageIngredientAssessmentState.Determined;
+            var capability = unresolved ? IngredientCapability.Unknown : IngredientCapability.Available;
+            var policyIds = values.Select(value => value.PolicyId)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var policyId = policyIds.Length == 1
+                ? policyIds[0]
+                : "policy.list-item.dropped-dependency";
+            var realization = unresolved
+                ? "select-dropped-item-dependency-policy"
+                : "exclude-dropped-item-dependent-subtree";
+            var reason = unresolved
+                ? "An exact item dependency reaches the dropped closure; choose a per-edge ClearValue or DropDependentItem decision."
+                : "The fixed-point dropped-item closure excludes this dependent object because an exact lookup or parent-folder dependency is dropped.";
+
+            AddDroppedItemDependencyAssessment(
+                assessments,
+                PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                state,
+                capability,
+                disposition,
+                realization,
+                policyId,
+                reason);
+            if (item.Document != null)
+            {
+                AddDroppedItemDependencyAssessment(
+                    assessments,
+                    PublishingPageIngredientIds.ListDocument(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                    state,
+                    capability,
+                    disposition,
+                    realization,
+                    policyId,
+                    reason);
+                if (ProtectedAssetCaptureGate.HasItemProtection(item.Document.InformationProtection))
+                {
+                    AddDroppedItemDependencyAssessment(
+                        assessments,
+                        PublishingPageIngredientIds.ListDocumentInformationProtection(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                        state,
+                        capability,
+                        disposition,
+                        realization,
+                        policyId,
+                        reason);
+                }
+            }
+            foreach (var attachment in item.Attachments.Where(value => value != null))
+            {
+                AddDroppedItemDependencyAssessment(
+                    assessments,
+                    PublishingPageIngredientIds.ListAttachment(
+                        source.SourceWebId,
+                        source.SourceListId,
+                        item.SourceItemId,
+                        attachment.FileName),
+                    state,
+                    capability,
+                    disposition,
+                    realization,
+                    policyId,
+                    reason);
+            }
+        }
+
+        private static void AddDroppedItemDependencyAssessment(
+            PublishingPageAssessmentAccumulator assessments,
+            string ingredientId,
+            PageIngredientAssessmentState state,
+            IngredientCapability capability,
+            IngredientDisposition disposition,
+            string realization,
+            string policyId,
+            string reason)
+        {
+            assessments.Add(
+                ingredientId,
+                state,
+                capability,
+                disposition,
+                realization,
+                policyId,
+                reason,
+                mitigationCode: disposition == IngredientDisposition.Defer
+                    ? "DroppedItemDependencyNeedsPolicyDecision"
+                    : null,
+                verificationAssertions: disposition == IngredientDisposition.Drop
+                    ? new[] { "Fresh target readback requires no migration-owned target identity for the excluded dependent item." }
+                    : Array.Empty<string>());
+        }
+
+        private static void AddApprovedProtectedDocumentExclusion(
+            ListDependencySnapshot source,
+            ListItemSnapshot item,
+            PublishingPageAssessmentAccumulator assessments)
+        {
+            var decision = item.Document.CaptureDecision;
+            AddApprovedExclusion(
+                assessments,
+                PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                decision,
+                "document-backed List item");
+            AddApprovedExclusion(
+                assessments,
+                PublishingPageIngredientIds.ListDocument(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                decision,
+                "protected document payload");
+            if (ProtectedAssetCaptureGate.HasItemProtection(item.Document.InformationProtection))
+            {
+                AddApprovedExclusion(
+                    assessments,
+                    PublishingPageIngredientIds.ListDocumentInformationProtection(
+                        source.SourceWebId,
+                        source.SourceListId,
+                        item.SourceItemId),
+                    decision,
+                    "target Information Protection relationship");
+            }
+            foreach (var attachment in item.Attachments.Where(value => value != null))
+            {
+                AddApprovedExclusion(
+                    assessments,
+                    PublishingPageIngredientIds.ListAttachment(
+                        source.SourceWebId,
+                        source.SourceListId,
+                        item.SourceItemId,
+                        attachment.FileName),
+                    decision,
+                    "attachment owned by the excluded document-backed item");
+            }
+        }
+
+        private static void AddApprovedExclusion(
+            PublishingPageAssessmentAccumulator assessments,
+            string ingredientId,
+            ProtectedAssetCaptureDecision decision,
+            string subject)
+        {
+            assessments.Add(
+                ingredientId,
+                PageIngredientAssessmentState.Determined,
+                IngredientCapability.Available,
+                IngredientDisposition.Drop,
+                "exclude-protected-document-backed-item",
+                decision.PolicyId,
+                "The explicit protected-asset capture decision retains source metadata but excludes the "
+                    + subject + " from target materialization. " + decision.Reason,
+                null,
+                null,
+                "No target mutation is performed for this approved protected-asset exclusion.",
+                "Fresh target readback requires the excluded document path to remain absent.");
         }
 
         private static void AddDocument(
@@ -278,7 +467,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             var archived = bytesMissing && ListMigrationPlanFactory.IsArchivedContent(document.Content);
             var rightsManaged = document.Kind == ListDocumentObjectKind.File
                 && ListMigrationPlanFactory.IsRightsManagedEnvelope(document.Content);
-            var informationProtected = document.InformationProtection != null;
+            var informationProtected = ProtectedAssetCaptureGate.HasItemProtection(document.InformationProtection);
             var unclassified = document.Kind == ListDocumentObjectKind.File
                 && ListMigrationPlanFactory.IsUnclassifiedBinary(document.Content);
             var deferred = bytesMissing || rightsManaged || unclassified || plan == null;

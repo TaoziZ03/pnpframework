@@ -1,5 +1,6 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Lists.Fields;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWebParts.Bindings;
@@ -29,6 +30,25 @@ namespace PnP.Framework.Migration.Lists.Capture
             ICollection<string> blockers,
             ICollection<string> warnings)
         {
+            return Read(
+                context,
+                bindings,
+                maximumBytes,
+                artifactStore,
+                null,
+                blockers,
+                warnings);
+        }
+
+        public static ListDependencyClosureCaptureResult Read(
+            ClientContext context,
+            IEnumerable<ClassicListWebPartBindingSnapshot> bindings,
+            long maximumBytes,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy,
+            ICollection<string> blockers,
+            ICollection<string> warnings)
+        {
             var result = new ListDependencyClosureCaptureResult();
             var queue = new Queue<ListIdentity>((bindings ?? Enumerable.Empty<ClassicListWebPartBindingSnapshot>())
                 .Select(value => new ListIdentity(value.SourceListWebId, value.SourceListId)));
@@ -45,7 +65,14 @@ namespace PnP.Framework.Migration.Lists.Capture
                 try
                 {
                     var web = context.Site.OpenWebById(identity.WebId);
-                    var dependency = ListDependencySnapshotReader.Read(context, web, identity.ListId, maximumBytes, artifactStore, warnings);
+                    var dependency = ListDependencySnapshotReader.Read(
+                        context,
+                        web,
+                        identity.ListId,
+                        maximumBytes,
+                        artifactStore,
+                        protectedAssetPolicy,
+                        warnings);
                     result.Dependencies.Add(dependency);
                     result.RequiredSourceWebIds.Add(dependency.SourceWebId);
                     foreach (var field in dependency.Fields.Where(ShouldFollowLookupDependency))

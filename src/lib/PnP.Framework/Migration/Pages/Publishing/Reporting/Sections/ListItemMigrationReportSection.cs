@@ -33,6 +33,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                         Row("serverRelativeUrl", item.Document.ServerRelativeUrl, "Mapped relative to the source and target List roots."),
                         Row("length", item.Document.Length, "Source byte count for files."),
                         Row("majorVersion / minorVersion", $"{item.Document.MajorVersion} / {item.Document.MinorVersion}", "Captured evidence; version history is not replayed."),
+                        Row("captureDecision.disposition", item.Document.CaptureDecision?.Disposition, "MetadataOnly proves the explicit policy prevented the document binary request."),
+                        Row("captureDecision.policyId", item.Document.CaptureDecision?.PolicyId, "Reviewed source-capture policy that selected the binary boundary."),
+                        Row("captureDecision.sourceListIrmStateObserved", item.Document.CaptureDecision?.SourceListIrmStateObserved, "SafeToCapture requires the source List IRM state to have been observed explicitly."),
+                        Row("captureDecision.sourceListIrmEnabled", item.Document.CaptureDecision?.SourceListIrmEnabled, "Exact source List IRM flag sealed into the pre-download decision."),
+                        Row("captureDecision.protectionState", item.Document.CaptureDecision?.ProtectionState, "Unprotected requires complete negative label, user-protection, encrypted-content, decrypt-skip, RMS-template, and List IRM evidence; any positive fact is Protected and incomplete evidence is Unknown."),
+                        Row("captureDecision.reasonCode", item.Document.CaptureDecision?.ReasonCode, "Stable machine-readable explanation for the capture decision."),
+                        Row("captureDecision.decisionDigest", item.Document.CaptureDecision?.DecisionDigest, "SHA-256 sealing the policy-derived decision; validators reject tampering."),
                         Row("content", FormatArtifact(item.Document.Content), "Exact bytes may be inline Base64 or content-addressed in the artifact store."),
                         Row("content.representationKind", item.Document.Content?.RepresentationKind, "OrdinaryFilePayload is byte-stable evidence; InformationRightsManagedEnvelope is the exact protected response envelope and requires a separate replay decision."),
                         Row("content.logicalContentIdentity.quickXorHash", item.Document.Content?.LogicalContentIdentity?.QuickXorHash, "Stable source-content change identity exposed by SharePoint metadata; it does not replace artifact integrity SHA-256."),
@@ -45,6 +52,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                         Row("informationProtection.labelHash", item.Document.InformationProtection?.LabelHash, "Source label hash retained for change comparison."),
                         Row("informationProtection.promotionCtagVersion", item.Document.InformationProtection?.PromotionCtagVersion, "Source label-promotion version evidence."),
                         Row("informationProtection.decryptSkipReason", item.Document.InformationProtection?.DecryptSkipReason, "Source parser/decryption handling code extracted from MetaInfo."),
+                        Row("informationProtection.hasEncryptedContent", item.Document.InformationProtection?.HasEncryptedContent, "Captured source encrypted-content flag used by the pre-download decision."),
+                        Row("informationProtection.rmsTemplateId", item.Document.InformationProtection?.RmsTemplateId, "Captured source RMS template identity used by the pre-download decision."),
+                        Row("informationProtection.negativeEvidenceComplete", item.Document.InformationProtection != null
+                            && item.Document.InformationProtection.LabelFieldObserved
+                            && item.Document.InformationProtection.UserDefinedProtectionFieldObserved
+                            && item.Document.InformationProtection.DecryptSkipReasonObserved
+                            && item.Document.InformationProtection.HasEncryptedContentFieldObserved
+                            && item.Document.InformationProtection.RmsTemplateIdFieldObserved,
+                            "True means every item-level field required to prove SafeToCapture was observed; values are still evaluated independently."),
                         Row("archivedContentEvidence", FormatArchivedContentEvidence(item.Document.Content), "Literal HTTP 423 locked/contentArchived evidence means source reactivation and a fresh capture are required; it is not an authorization block.")
                     });
                 }

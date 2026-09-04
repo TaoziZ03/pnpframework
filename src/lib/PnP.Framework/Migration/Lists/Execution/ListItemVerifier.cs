@@ -21,20 +21,77 @@ namespace PnP.Framework.Migration.Lists.Execution
             ListMaterializationExecutionScope.ListSelection selection,
             ICollection<string> diagnostics)
         {
-            var owned = ReadOwnedItems(context, list, diagnostics);
+            var exclusions = (plan.ApprovedProtectedDocumentExclusions
+                    ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                .OrderBy(value => value.SourceItemId)
+                .ToList();
+            var excludedItemIds = new HashSet<int>(exclusions.Select(value => value.SourceItemId));
+            var droppedLookupConsumerIds = DroppedItemDependencyPlanner
+                .DroppedConsumerItemIds(plan.DroppedItemDependencies);
+            excludedItemIds.UnionWith(droppedLookupConsumerIds);
+            var reproducedItems = source.Items
+                .Where(value => !excludedItemIds.Contains(value.SourceItemId))
+                .OrderBy(value => value.SourceItemId)
+                .ToList();
+            var owned = !RequiresOwnedItemRead(receipt, plan)
+                ? new Dictionary<int, ListItem>()
+                : ReadOwnedItems(context, list, diagnostics);
             var exactInventory = selection == null || selection.ExactItemInventory;
-            if (exactInventory && list.ItemCount != source.Items.Count)
+            if (exactInventory && list.ItemCount != reproducedItems.Count)
             {
-                diagnostics.Add("Target List ItemCount " + list.ItemCount + " differs from captured current item count " + source.Items.Count + ".");
+                diagnostics.Add("Target List ItemCount " + list.ItemCount
+                    + " differs from approved reproduced item count " + reproducedItems.Count + ".");
             }
-            if ((exactInventory && owned.Count != source.Items.Count)
-                || receipt.TargetItemIds.Count != source.Items.Count)
+            if ((exactInventory && owned.Count != reproducedItems.Count)
+                || receipt.TargetItemIds.Count != reproducedItems.Count)
             {
-                diagnostics.Add("Target source-to-item mapping count differs from the captured current item count.");
+                diagnostics.Add("Target source-to-item mapping count differs from the approved reproduced item count.");
+            }
+            receipt.ProtectedDocumentExclusionVerifications = exclusions.Count == 0
+                ? null
+                : new List<ListProtectedDocumentExclusionVerification>();
+            foreach (var exclusion in exclusions)
+            {
+                var verification = ProtectedDocumentTargetAbsenceProbe.Inspect(context, exclusion);
+                if (owned.ContainsKey(exclusion.SourceItemId))
+                {
+                    verification.Status = ProtectedDocumentTargetAbsenceStatus.Present;
+                    verification.Diagnostic = "A migration-owned target item exists for the excluded protected source item.";
+                }
+                receipt.ProtectedDocumentExclusionVerifications.Add(verification);
+                if (!verification.Passed)
+                {
+                    diagnostics.Add("Protected-document exclusion verification returned "
+                        + verification.Status + " for '" + exclusion.TargetServerRelativeUrl + "'"
+                        + (verification.HttpStatusCode.HasValue
+                            ? " (HTTP " + verification.HttpStatusCode.Value + ")"
+                            : string.Empty)
+                        + ": " + verification.Diagnostic);
+                }
+            }
+            receipt.DroppedDependentItemVerifications = droppedLookupConsumerIds.Count == 0
+                ? null
+                : new List<ListDroppedDependentItemVerification>();
+            foreach (var droppedConsumerId in droppedLookupConsumerIds.OrderBy(value => value))
+            {
+                var present = owned.ContainsKey(droppedConsumerId);
+                receipt.DroppedDependentItemVerifications.Add(
+                    new ListDroppedDependentItemVerification
+                    {
+                        SourceItemId = droppedConsumerId,
+                        Status = present
+                            ? DroppedDependentTargetIdentityStatus.Present
+                            : DroppedDependentTargetIdentityStatus.Absent
+                    });
+                if (present)
+                {
+                    diagnostics.Add("A migration-owned target item exists for dropped dependent source item "
+                        + droppedConsumerId + " even though the fixed-point policy excludes it.");
+                }
             }
             var allReceipts = new Dictionary<Guid, ListMaterializationReceipt>(dependencyReceipts);
             allReceipts[source.SourceListId] = receipt;
-            foreach (var sourceItem in source.Items.OrderBy(value => value.SourceItemId))
+            foreach (var sourceItem in reproducedItems)
             {
                 int targetId;
                 ListItem target;
@@ -75,6 +132,16 @@ namespace PnP.Framework.Migration.Lists.Execution
                         diagnostics);
                 }
             }
+        }
+
+        internal static bool RequiresOwnedItemRead(
+            ListMaterializationReceipt receipt,
+            ListMaterializationPlan plan)
+        {
+            return receipt?.TargetItemIds?.Count > 0
+                || (plan?.ApprovedProtectedDocumentExclusions?.Count ?? 0) > 0
+                || DroppedItemDependencyPlanner.DroppedConsumerItemIds(
+                    plan?.DroppedItemDependencies).Count > 0;
         }
 
         private static IDictionary<int, ListItem> ReadOwnedItems(ClientContext context, List list, ICollection<string> diagnostics)
@@ -135,15 +202,38 @@ namespace PnP.Framework.Migration.Lists.Execution
                 {
                     continue;
                 }
+                var clearedLookupProviderItemIds = fieldPlan.Disposition == ListFieldMaterializationDisposition.MapLookup
+                    ? DroppedItemDependencyPlanner.ClearedLookupProviderItemIds(
+                        plan.DroppedItemDependencies,
+                        sourceItem.SourceItemId,
+                        sourceValue.InternalName,
+                        fieldPlan.SourceLookupListId)
+                    : null;
                 object actualValue;
                 if (!targetItem.FieldValues.TryGetValue(sourceValue.InternalName, out actualValue))
                 {
-                    diagnostics.Add("Target value is missing for item " + sourceItem.SourceItemId + ", field '" + sourceValue.InternalName + "'.");
-                    continue;
+                    if (clearedLookupProviderItemIds?.Count > 0
+                        && sourceValue.Kind == ListItemValueKind.Lookup
+                        && (sourceValue.LookupValues ?? Array.Empty<ListItemLookupValueSnapshot>()).All(value => value != null
+                            && clearedLookupProviderItemIds.Contains(value.LookupId)))
+                    {
+                        actualValue = null;
+                    }
+                    else
+                    {
+                        diagnostics.Add("Target value is missing for item " + sourceItem.SourceItemId + ", field '" + sourceValue.InternalName + "'.");
+                        continue;
+                    }
                 }
                 var actual = ListItemValueSerializer.Serialize(sourceValue.InternalName, actualValue);
                 string mismatch;
-                if (!ListItemValueComparer.Matches(sourceValue, actual, fieldPlan, receipts, out mismatch))
+                if (!ListItemValueComparer.Matches(
+                        sourceValue,
+                        actual,
+                        fieldPlan,
+                        receipts,
+                        clearedLookupProviderItemIds,
+                        out mismatch))
                 {
                     diagnostics.Add("Target value differs for item " + sourceItem.SourceItemId + ", field '" + sourceValue.InternalName + "': " + mismatch);
                 }

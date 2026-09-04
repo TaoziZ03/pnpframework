@@ -145,12 +145,14 @@ namespace PnP.Framework.Migration.Lists.Planning
             var title = plan.TargetTitle;
             try
             {
+                ListMigrationPlanFactory.RetargetProtectedDocumentExclusions(plan, path, targetPath);
                 plan.TargetRootFolderServerRelativeUrl = targetPath;
                 plan.TargetTitle = targetTitle;
                 return ListMigrationPlanFactory.ComputePlanDigest(plan);
             }
             finally
             {
+                ListMigrationPlanFactory.RetargetProtectedDocumentExclusions(plan, targetPath, path);
                 plan.TargetRootFolderServerRelativeUrl = path;
                 plan.TargetTitle = title;
             }
