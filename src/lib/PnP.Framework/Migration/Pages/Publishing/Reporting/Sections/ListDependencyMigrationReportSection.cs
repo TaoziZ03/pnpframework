@@ -117,7 +117,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                 Row("disposition", plan.Disposition, "CreateOwned creates; ReuseOwned requires exact provenance and semantic digest; local Block records a capability gap and becomes final ingredient Defer."),
                 Row("planDigest", plan.PlanDigest, "Semantic identity written with provenance and used for resume."),
                 Row("approvedProtectedDocumentExclusions.count", plan.ApprovedProtectedDocumentExclusions?.Count ?? 0, "Document-backed items whose payload was not requested under an explicit source policy and whose target path must remain absent."),
-                Row("droppedLookupValueDependencies.count", plan.DroppedLookupValueDependencies?.Count ?? 0, "Value-level lookup dependencies whose provider item is an approved protected-document exclusion."),
+                Row("droppedItemDependencies.count", plan.DroppedItemDependencies?.Count ?? 0, "Exact lookup and folder-path edges activated by the fixed-point dropped-item closure."),
                 Row("isExecutable", plan.IsExecutable, "Includes List issues, custom site-content-type closure, and target admission.")
             });
             writer.Table(
@@ -133,17 +133,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                         value.CaptureDecisionDigest,
                         value.ReasonCode + ": " + value.Reason)));
             writer.Table(
-                "Lookup values with excluded provider items",
-                new[] { "Consumer item", "Field", "Provider List", "Provider item", "Disposition", "Policy", "Reason" },
-                (plan.DroppedLookupValueDependencies ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+                "Dropped-item dependency closure",
+                new[] { "Kind", "Consumer List", "Consumer item", "Field", "Required", "Provider List", "Provider item", "Disposition", "Policy", "Reason" },
+                (plan.DroppedItemDependencies ?? Array.Empty<ListDroppedItemDependencyPlan>())
                     .OrderBy(value => value.ConsumerSourceItemId)
                     .ThenBy(value => value.ConsumerFieldInternalName, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(value => value.DroppedLookupSourceItemId)
+                    .ThenBy(value => value.ProviderSourceItemId)
                     .Select(value => Row(
+                        value.Kind,
+                        value.ConsumerSourceListId,
                         value.ConsumerSourceItemId,
                         value.ConsumerFieldInternalName,
-                        value.LookupSourceListId,
-                        value.DroppedLookupSourceItemId,
+                        value.ConsumerFieldRequired,
+                        value.ProviderSourceListId,
+                        value.ProviderSourceItemId,
                         value.Disposition,
                         value.PolicyId,
                         value.Reason)));

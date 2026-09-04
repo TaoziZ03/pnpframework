@@ -15,14 +15,47 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
             IDictionary<string, object> fieldValues,
             bool retainNegativeEvidence)
         {
+            if (!retainNegativeEvidence)
+            {
+                var legacyLabelId = ReadValue(fieldValues, "_IpLabelId");
+                if (string.IsNullOrWhiteSpace(legacyLabelId))
+                {
+                    return null;
+                }
+                return new ListDocumentInformationProtectionSnapshot
+                {
+                    LabelId = legacyLabelId,
+                    AssignmentMethod = ReadValue(fieldValues, "_IpLabelAssignmentMethod"),
+                    HasUserDefinedProtection = ReadValue(fieldValues, "_HasUserDefinedProtection"),
+                    OwnerEmail = ReadValue(fieldValues, "_IpLabelOwnerEmail"),
+                    LabelHash = ReadValue(fieldValues, "_IpLabelHash"),
+                    PromotionCtagVersion = ReadValue(fieldValues, "_IpLabelPromotionCtagVersion"),
+                    DecryptSkipReason = ReadMetaInfoValue(fieldValues, "vti_decryptskipreason")
+                };
+            }
+
             var labelObserved = TryReadValue(fieldValues, "_IpLabelId", out var labelId);
             var userDefinedObserved = TryReadValue(
                 fieldValues,
                 "_HasUserDefinedProtection",
                 out var hasUserDefinedProtection);
-            if (string.IsNullOrWhiteSpace(labelId)
-                && !IsTrue(hasUserDefinedProtection)
-                && (!retainNegativeEvidence || !labelObserved && !userDefinedObserved))
+            var encryptedObserved = TryReadValue(
+                fieldValues,
+                "_HasEncryptedContent",
+                out var hasEncryptedContent);
+            var rmsTemplateObserved = TryReadValue(
+                fieldValues,
+                "_RmsTemplateId",
+                out var rmsTemplateId);
+            var decryptSkipObserved = TryReadMetaInfoValue(
+                fieldValues,
+                "vti_decryptskipreason",
+                out var decryptSkipReason);
+            if (!labelObserved
+                && !userDefinedObserved
+                && !encryptedObserved
+                && !rmsTemplateObserved
+                && !decryptSkipObserved)
             {
                 return null;
             }
@@ -35,9 +68,14 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
                 OwnerEmail = ReadValue(fieldValues, "_IpLabelOwnerEmail"),
                 LabelHash = ReadValue(fieldValues, "_IpLabelHash"),
                 PromotionCtagVersion = ReadValue(fieldValues, "_IpLabelPromotionCtagVersion"),
-                DecryptSkipReason = ReadMetaInfoValue(fieldValues, "vti_decryptskipreason"),
-                LabelFieldObserved = retainNegativeEvidence && labelObserved,
-                UserDefinedProtectionFieldObserved = retainNegativeEvidence && userDefinedObserved
+                DecryptSkipReason = decryptSkipReason,
+                HasEncryptedContent = hasEncryptedContent,
+                RmsTemplateId = rmsTemplateId,
+                LabelFieldObserved = labelObserved,
+                UserDefinedProtectionFieldObserved = userDefinedObserved,
+                DecryptSkipReasonObserved = decryptSkipObserved,
+                HasEncryptedContentFieldObserved = encryptedObserved,
+                RmsTemplateIdFieldObserved = rmsTemplateObserved
             };
         }
 
@@ -67,20 +105,27 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
             return TryReadValue(fieldValues, internalName, out var result) ? result : null;
         }
 
-        private static bool IsTrue(string value)
-        {
-            return bool.TryParse(value, out var parsed) && parsed
-                || string.Equals(value, "1", StringComparison.Ordinal);
-        }
-
         private static string ReadMetaInfoValue(
             IDictionary<string, object> fieldValues,
             string propertyName)
         {
-            var metaInfo = ReadValue(fieldValues, "MetaInfo");
+            TryReadMetaInfoValue(fieldValues, propertyName, out var result);
+            return result;
+        }
+
+        private static bool TryReadMetaInfoValue(
+            IDictionary<string, object> fieldValues,
+            string propertyName,
+            out string result)
+        {
+            result = null;
+            if (!TryReadValue(fieldValues, "MetaInfo", out var metaInfo))
+            {
+                return false;
+            }
             if (string.IsNullOrWhiteSpace(metaInfo))
             {
-                return null;
+                return true;
             }
             foreach (var line in metaInfo.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
             {
@@ -94,9 +139,10 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
                 {
                     continue;
                 }
-                return line.Substring(separator + 1);
+                result = line.Substring(separator + 1);
+                return true;
             }
-            return null;
+            return true;
         }
     }
 }

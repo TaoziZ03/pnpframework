@@ -13,7 +13,28 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
             Func<T> binaryFetcher,
             out ProtectedAssetCaptureDecision decision)
         {
-            decision = Decide(protection, sourceListIrmEnabled, policy);
+            return Capture(
+                protection,
+                sourceListIrmEnabled,
+                true,
+                policy,
+                binaryFetcher,
+                out decision);
+        }
+
+        public static T Capture<T>(
+            ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled,
+            bool sourceListIrmStateObserved,
+            ProtectedAssetCapturePolicy policy,
+            Func<T> binaryFetcher,
+            out ProtectedAssetCaptureDecision decision)
+        {
+            decision = Decide(
+                protection,
+                sourceListIrmEnabled,
+                sourceListIrmStateObserved,
+                policy);
             if (decision?.IsMetadataOnly == true)
             {
                 return default(T);
@@ -30,19 +51,32 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
             bool sourceListIrmEnabled,
             ProtectedAssetCapturePolicy policy)
         {
+            return Decide(protection, sourceListIrmEnabled, true, policy);
+        }
+
+        public static ProtectedAssetCaptureDecision Decide(
+            ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled,
+            bool sourceListIrmStateObserved,
+            ProtectedAssetCapturePolicy policy)
+        {
             if (policy == null)
             {
                 return null;
             }
             ValidatePolicy(policy);
 
-            var state = ProtectionState(protection, sourceListIrmEnabled);
+            var state = ProtectionState(
+                protection,
+                sourceListIrmEnabled,
+                sourceListIrmStateObserved);
             var metadataOnly = state != ProtectedAssetProtectionState.Unprotected;
             var decision = new ProtectedAssetCaptureDecision
             {
                 PolicyId = policy.PolicyId,
                 FailClosedOnUnknown = policy.FailClosedOnUnknown,
                 SourceListIrmEnabled = sourceListIrmEnabled,
+                SourceListIrmStateObserved = sourceListIrmStateObserved,
                 ProtectionState = state,
                 Disposition = metadataOnly
                     ? ProtectedAssetCaptureDisposition.MetadataOnly
@@ -57,8 +91,8 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
                         ? sourceListIrmEnabled
                             ? "The explicitly selected source-capture policy retains document metadata but does not request payload bytes from an IRM-enabled source library."
                             : "The explicitly selected source-capture policy retains document metadata but does not request protected payload bytes."
-                        : "The explicitly selected source-capture policy fails closed because item metadata did not prove that the document is unprotected."
-                    : "The source library is not IRM-enabled and captured item metadata explicitly proves that neither a label nor user-defined protection is present, so the binary request is safe to issue."
+                        : "The explicitly selected source-capture policy fails closed because List IRM state and item metadata did not completely prove that the document is unprotected."
+                    : "The source library is not IRM-enabled and captured item metadata explicitly proves that label, user-defined protection, encrypted-content, decrypt-skip, and RMS-template evidence are all absent, so the binary request is safe to issue."
             };
             decision.DecisionDigest = ComputeDigest(decision);
             return decision;
@@ -84,6 +118,21 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
             ProtectedAssetCapturePolicy policy,
             ProtectedAssetCaptureDecision decision)
         {
+            ValidateDecision(
+                protection,
+                sourceListIrmEnabled,
+                true,
+                policy,
+                decision);
+        }
+
+        public static void ValidateDecision(
+            ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled,
+            bool sourceListIrmStateObserved,
+            ProtectedAssetCapturePolicy policy,
+            ProtectedAssetCaptureDecision decision)
+        {
             if (policy == null)
             {
                 if (decision != null)
@@ -93,7 +142,11 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
                 return;
             }
 
-            var expected = Decide(protection, sourceListIrmEnabled, policy);
+            var expected = Decide(
+                protection,
+                sourceListIrmEnabled,
+                sourceListIrmStateObserved,
+                policy);
             if (decision == null
                 || !string.Equals(decision.SchemaVersion, ProtectedAssetCaptureDecision.ContractVersion, StringComparison.Ordinal)
                 || !string.Equals(decision.DecisionDigest, ComputeDigest(decision), StringComparison.OrdinalIgnoreCase)
@@ -122,16 +175,31 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
             ListDocumentInformationProtectionSnapshot protection,
             bool sourceListIrmEnabled)
         {
+            return ProtectionState(protection, sourceListIrmEnabled, true);
+        }
+
+        public static ProtectedAssetProtectionState ProtectionState(
+            ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled,
+            bool sourceListIrmStateObserved)
+        {
             if (sourceListIrmEnabled
                 || HasItemProtection(protection))
             {
                 return ProtectedAssetProtectionState.Protected;
             }
-            if (protection != null
+            if (sourceListIrmStateObserved
+                && protection != null
                 && protection.LabelFieldObserved
                 && protection.UserDefinedProtectionFieldObserved
+                && protection.DecryptSkipReasonObserved
+                && protection.HasEncryptedContentFieldObserved
+                && protection.RmsTemplateIdFieldObserved
                 && string.IsNullOrWhiteSpace(protection.LabelId)
-                && IsFalse(protection.HasUserDefinedProtection))
+                && IsFalse(protection.HasUserDefinedProtection)
+                && IsFalse(protection.HasEncryptedContent)
+                && IsZeroLike(protection.DecryptSkipReason)
+                && IsZeroLike(protection.RmsTemplateId))
             {
                 return ProtectedAssetProtectionState.Unprotected;
             }
@@ -143,7 +211,10 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
         {
             return protection != null
                 && (!string.IsNullOrWhiteSpace(protection.LabelId)
-                    || IsTrue(protection.HasUserDefinedProtection));
+                    || IsTrue(protection.HasUserDefinedProtection)
+                    || IsTrue(protection.HasEncryptedContent)
+                    || !IsZeroLike(protection.DecryptSkipReason)
+                    || !IsZeroLike(protection.RmsTemplateId));
         }
 
         private static bool IsTrue(string value)
@@ -156,6 +227,17 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
         {
             return bool.TryParse(value, out var parsed) && !parsed
                 || string.Equals(value, "0", StringComparison.Ordinal);
+        }
+
+        private static bool IsZeroLike(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)
+                || string.Equals(value, "0", StringComparison.Ordinal)
+                || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            return Guid.TryParse(value, out var guid) && guid == Guid.Empty;
         }
     }
 }

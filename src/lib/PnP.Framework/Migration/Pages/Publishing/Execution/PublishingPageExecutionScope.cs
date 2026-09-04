@@ -235,10 +235,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     (listPlan?.ApprovedProtectedDocumentExclusions
                         ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
                     .Select(value => value.SourceItemId));
-                approvedExcludedItemIds.UnionWith((listPlan?.DroppedLookupValueDependencies
-                        ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
-                    .Where(value => value.Disposition == DroppedLookupValueDisposition.DropDependentItem)
-                    .Select(value => value.ConsumerSourceItemId));
+                approvedExcludedItemIds.UnionWith(
+                    DroppedItemDependencyPlanner.DroppedConsumerItemIds(
+                        listPlan?.DroppedItemDependencies));
                 selection.ExactItemInventory = source.Items.All(value => value != null
                     && (selection.ItemIds.Contains(value.SourceItemId)
                         || approvedExcludedItemIds.Contains(value.SourceItemId)));

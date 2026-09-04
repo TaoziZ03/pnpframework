@@ -28,11 +28,11 @@ namespace PnP.Framework.Migration.Pages.Planning
         public IList<ListTargetOverride> ListTargetOverrides { get; set; } = new List<ListTargetOverride>();
 
         /// <summary>
-        /// Optional reviewed handling for lookup values that reference source
-        /// items excluded by an approved protected-document capture decision.
-        /// Null leaves only the affected consumer items pending a policy decision.
+        /// Optional exact per-edge decisions for lookup values whose provider
+        /// items enter the dropped-item closure. Missing active edges default to
+        /// NeedsPolicyDecision; folder hierarchy decisions are structural.
         /// </summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public DroppedLookupValuePolicy DroppedLookupValues { get; set; }
+        public IList<DroppedLookupValueDecision> DroppedLookupValueDecisions { get; set; }
     }
 }

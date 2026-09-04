@@ -64,19 +64,25 @@ namespace PnP.Framework.Migration.Lists.Planning
         public string Reason { get; set; }
     }
 
-    public sealed class ListDroppedLookupValueDependencyPlan
+    public sealed class ListDroppedItemDependencyPlan
     {
+        public ListItemDependencyKind Kind { get; set; }
+
+        public Guid ConsumerSourceListId { get; set; }
+
         public int ConsumerSourceItemId { get; set; }
 
         public string ConsumerFieldInternalName { get; set; }
 
-        public Guid LookupSourceWebId { get; set; }
+        public bool ConsumerFieldRequired { get; set; }
 
-        public Guid LookupSourceListId { get; set; }
+        public Guid ProviderSourceWebId { get; set; }
 
-        public int DroppedLookupSourceItemId { get; set; }
+        public Guid ProviderSourceListId { get; set; }
 
-        public DroppedLookupValueDisposition Disposition { get; set; }
+        public int ProviderSourceItemId { get; set; }
+
+        public DroppedItemDependencyDisposition Disposition { get; set; }
 
         public string PolicyId { get; set; }
 
@@ -278,7 +284,7 @@ namespace PnP.Framework.Migration.Lists.Planning
         public IList<ListProtectedDocumentExclusionPlan> ApprovedProtectedDocumentExclusions { get; set; }
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public IList<ListDroppedLookupValueDependencyPlan> DroppedLookupValueDependencies { get; set; }
+        public IList<ListDroppedItemDependencyPlan> DroppedItemDependencies { get; set; }
 
         public IList<MigrationIssue> Issues { get; set; } = new List<MigrationIssue>();
 
@@ -291,9 +297,7 @@ namespace PnP.Framework.Migration.Lists.Planning
             && SiteContentTypes.All(value => value.IsExecutable)
             && RequiredFeatures.All(value => value.IsExecutable)
             && ViewRenderingResources.All(value => value.IsExecutable)
-            && (DroppedLookupValueDependencies == null
-                || DroppedLookupValueDependencies.All(value =>
-                    value.Disposition != DroppedLookupValueDisposition.NeedsPolicyDecision))
+            && !DroppedItemDependencyPlanner.HasUnresolvedRetainedConsumer(DroppedItemDependencies)
             && (TargetProbe == null || TargetProbe.IsAdmitted);
     }
 

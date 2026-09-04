@@ -155,17 +155,15 @@ namespace PnP.Framework.Migration.Lists.Execution
                                 + "' is an approved metadata-only exclusion under policy '"
                                 + exclusion.PolicyId + "'; no target item or payload mutation is performed.");
                     }
-                    foreach (var dependentItemId in (plan.DroppedLookupValueDependencies
-                                 ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
-                             .Where(value => value.Disposition == DroppedLookupValueDisposition.DropDependentItem)
-                             .Select(value => value.ConsumerSourceItemId)
+                    foreach (var dependentItemId in DroppedItemDependencyPlanner
+                             .DroppedConsumerItemIds(plan.DroppedItemDependencies)
                              .Distinct()
                              .OrderBy(value => value))
                     {
                         recorder.RecordAlreadySatisfied(
-                            prefix + ".items.lookup-dependent-exclusion." + dependentItemId,
-                            "Lookup-dependent source item '" + dependentItemId
-                                + "' is excluded by the reviewed dropped-lookup-value policy; no target item mutation is performed.");
+                            prefix + ".items.dropped-dependent-exclusion." + dependentItemId,
+                            "Dependent source item '" + dependentItemId
+                                + "' is excluded by the fixed-point dropped-item policy; no target item mutation is performed.");
                     }
                     var itemIds = EnsureItems(
                         context,

@@ -25,8 +25,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 var exclusion = (listPlan.ApprovedProtectedDocumentExclusions
                         ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
                     .SingleOrDefault(value => value.SourceItemId == item.SourceItemId);
-                var droppedLookupDependencies = (listPlan.DroppedLookupValueDependencies
-                        ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+                var droppedLookupDependencies = (listPlan.DroppedItemDependencies
+                        ?? Array.Empty<ListDroppedItemDependencyPlan>())
                     .Where(value => value.ConsumerSourceItemId == item.SourceItemId)
                     .ToArray();
                 AddItem(source, listPlan, item, fieldPlans, listBlocked, actions, transactionDependencyProjection, exclusion, droppedLookupDependencies);
@@ -54,7 +54,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             IDictionary<string, PageIngredientAction> actions,
             bool transactionDependencyProjection,
             ListProtectedDocumentExclusionPlan exclusion,
-            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
+            IList<ListDroppedItemDependencyPlan> droppedLookupDependencies)
         {
             if (exclusion != null)
             {
@@ -107,7 +107,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             IDictionary<string, PageIngredientAction> actions,
             bool transactionDependencyProjection,
             ListProtectedDocumentExclusionPlan exclusion,
-            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
+            IList<ListDroppedItemDependencyPlan> droppedLookupDependencies)
         {
             var document = item.Document;
             if (exclusion != null)
@@ -174,7 +174,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             ListItemSnapshot item,
             IDictionary<string, PageIngredientAction> actions,
             ListProtectedDocumentExclusionPlan exclusion,
-            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
+            IList<ListDroppedItemDependencyPlan> droppedLookupDependencies)
         {
             var informationProtection = item.Document.InformationProtection;
             if (exclusion != null)
@@ -228,7 +228,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             IDictionary<string, PageIngredientAction> actions,
             bool transactionDependencyProjection,
             ListProtectedDocumentExclusionPlan exclusion,
-            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
+            IList<ListDroppedItemDependencyPlan> droppedLookupDependencies)
         {
             if (exclusion != null)
             {
@@ -304,10 +304,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
 
         private static PageIngredientAction LookupConsumerAction(
             string ingredientId,
-            IEnumerable<ListDroppedLookupValueDependencyPlan> dependencies,
+            IEnumerable<ListDroppedItemDependencyPlan> dependencies,
             string subject)
         {
-            var values = (dependencies ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+            var values = (dependencies ?? Array.Empty<ListDroppedItemDependencyPlan>())
                 .Where(value => value != null)
                 .ToArray();
             if (values.Length == 0)
@@ -315,13 +315,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 return null;
             }
 
-            var unresolved = values.Any(value =>
-                value.Disposition == DroppedLookupValueDisposition.NeedsPolicyDecision);
-            var drop = !unresolved && values.Any(value =>
-                value.Disposition == DroppedLookupValueDisposition.DropDependentItem);
-            var disposition = unresolved
-                ? IngredientDisposition.Defer
-                : drop ? IngredientDisposition.Drop : IngredientDisposition.Transform;
+            var drop = values.Any(value =>
+                value.Disposition == DroppedItemDependencyDisposition.DropDependentItem);
+            var unresolved = !drop && values.Any(value =>
+                value.Disposition == DroppedItemDependencyDisposition.NeedsPolicyDecision);
+            var disposition = drop
+                ? IngredientDisposition.Drop
+                : unresolved ? IngredientDisposition.Defer : IngredientDisposition.Transform;
             var policyIds = values.Select(value => value.PolicyId)
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.Ordinal)
@@ -331,21 +331,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 unresolved ? IngredientCapability.Unknown : IngredientCapability.Available,
                 disposition,
                 unresolved
-                    ? "select-dropped-lookup-value-policy"
-                    : drop ? "exclude-lookup-dependent-item" : "clear-lookup-value-with-excluded-provider",
-                policyIds.Length == 1 ? policyIds[0] : "policy.list-item.lookup-provider-excluded",
+                    ? "select-dropped-item-dependency-policy"
+                    : drop ? "exclude-dropped-item-dependent-subtree" : "clear-lookup-value-with-dropped-provider",
+                policyIds.Length == 1 ? policyIds[0] : "policy.list-item.dropped-dependency",
                 unresolved
-                    ? "The " + subject + " references an intentionally excluded protected document-backed item and requires an explicit clear-value or drop-dependent-item policy before execution."
+                    ? "The " + subject + " has an exact dependency on a dropped item and requires an explicit ClearValue or DropDependentItem decision before execution."
                     : drop
-                        ? "The reviewed dropped-lookup-value policy excludes the " + subject + " because its captured value depends on an intentionally excluded protected document-backed item."
-                        : "The reviewed dropped-lookup-value policy keeps the " + subject + " but clears each lookup field that references an intentionally excluded protected document-backed item.");
+                        ? "The fixed-point dropped-item closure excludes the " + subject + " because at least one exact lookup or parent-folder dependency is dropped."
+                        : "Exact per-edge decisions keep the " + subject + " but clear lookup fields whose provider items are dropped.");
             if (disposition == IngredientDisposition.Transform)
             {
                 action.ReleasedDependencyIngredientIds = values
                     .Select(value => PublishingPageIngredientIds.ListItem(
-                        value.LookupSourceWebId,
-                        value.LookupSourceListId,
-                        value.DroppedLookupSourceItemId))
+                        value.ProviderSourceWebId,
+                        value.ProviderSourceListId,
+                        value.ProviderSourceItemId))
                     .Distinct(StringComparer.Ordinal)
                     .OrderBy(value => value, StringComparer.Ordinal)
                     .ToList();

@@ -15,15 +15,16 @@ namespace PnP.Framework.Migration.Lists.Packaging
     {
         public static void Validate(IEnumerable<ListDependencySnapshot> snapshots, ListMigrationPlanSet plan)
         {
-            Validate(snapshots, plan, null);
+            Validate(snapshots, null, plan, null);
         }
 
         public static void Validate(
             IEnumerable<ListDependencySnapshot> snapshots,
+            IEnumerable<ListLookupDependency> lookupDependencies,
             ListMigrationPlanSet plan,
-            DroppedLookupValuePolicy droppedLookupValuePolicy)
+            IEnumerable<DroppedLookupValueDecision> droppedLookupValueDecisions)
         {
-            DroppedLookupValuePolicy.Validate(droppedLookupValuePolicy);
+            DroppedLookupValueDecision.ValidateAndIndex(droppedLookupValueDecisions);
             var sources = (snapshots ?? Enumerable.Empty<ListDependencySnapshot>()).ToArray();
             if (sources.Length == 0 && plan == null)
             {
@@ -72,7 +73,11 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 ValidateFeatures(sourceById[list.SourceListId], list);
                 ValidateProtectedDocumentExclusions(sourceById[list.SourceListId], list);
             }
-            ValidateDroppedLookupValueDependencies(sources, plan.Lists, droppedLookupValuePolicy);
+            ValidateDroppedItemDependencies(
+                sources,
+                lookupDependencies,
+                plan.Lists,
+                droppedLookupValueDecisions);
             if (!string.Equals(ListMigrationPlanFactory.ComputeSetDigest(plan), plan.PlanDigest, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("The List migration plan-set digest differs from its sealed content.");
@@ -184,136 +189,36 @@ namespace PnP.Framework.Migration.Lists.Packaging
             }
         }
 
-        private static void ValidateDroppedLookupValueDependencies(
+        private static void ValidateDroppedItemDependencies(
             IEnumerable<ListDependencySnapshot> sources,
+            IEnumerable<ListLookupDependency> lookupDependencies,
             IEnumerable<ListMaterializationPlan> plans,
-            DroppedLookupValuePolicy policy)
+            IEnumerable<DroppedLookupValueDecision> decisions)
         {
-            var sourceByList = sources.ToDictionary(value => value.SourceListId);
-            var planByList = plans.ToDictionary(value => value.SourceListId);
-            var excludedByList = planByList.ToDictionary(
-                value => value.Key,
-                value => new HashSet<int>((value.Value.ApprovedProtectedDocumentExclusions
-                    ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
-                    .Select(exclusion => exclusion.SourceItemId)));
-            var expected = new Dictionary<string, ExpectedDroppedLookupDependency>(StringComparer.Ordinal);
-            foreach (var consumer in sourceByList.Values)
+            var planValues = plans.ToArray();
+            var expected = DroppedItemDependencyPlanner.Project(
+                sources,
+                lookupDependencies,
+                planValues,
+                decisions);
+            foreach (var list in planValues)
             {
-                var lookupFields = consumer.Fields
-                    .Where(value => value?.SourceLookupListId.HasValue == true)
-                    .ToDictionary(value => value.InternalName, StringComparer.OrdinalIgnoreCase);
-                foreach (var item in consumer.Items.Where(value => value != null))
-                {
-                    foreach (var value in item.Values.Where(value => value != null
-                                 && (value.Kind == ListItemValueKind.Lookup
-                                     || value.Kind == ListItemValueKind.LookupCollection)))
-                    {
-                        if (!lookupFields.TryGetValue(value.InternalName, out var field)
-                            || !sourceByList.TryGetValue(field.SourceLookupListId.Value, out var provider)
-                            || !excludedByList.TryGetValue(provider.SourceListId, out var excludedIds))
-                        {
-                            continue;
-                        }
-                        foreach (var droppedId in value.LookupValues
-                                     .Where(lookup => lookup != null && excludedIds.Contains(lookup.LookupId))
-                                     .Select(lookup => lookup.LookupId)
-                                     .Distinct())
-                        {
-                            var entry = new ExpectedDroppedLookupDependency
-                            {
-                                ConsumerListId = consumer.SourceListId,
-                                ConsumerItemId = item.SourceItemId,
-                                ConsumerFieldInternalName = value.InternalName,
-                                ProviderWebId = provider.SourceWebId,
-                                ProviderListId = provider.SourceListId,
-                                ProviderItemId = droppedId
-                            };
-                            expected.Add(entry.Key, entry);
-                        }
-                    }
-                }
-            }
-
-            var actual = new Dictionary<string, ListDroppedLookupValueDependencyPlan>(StringComparer.Ordinal);
-            foreach (var list in plans)
-            {
-                foreach (var value in list.DroppedLookupValueDependencies
-                             ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
-                {
-                    if (value == null)
-                    {
-                        throw new InvalidDataException("A dropped lookup-value dependency plan is null.");
-                    }
-                    var key = ExpectedDroppedLookupDependency.KeyFor(
-                        list.SourceListId,
-                        value.ConsumerSourceItemId,
-                        value.ConsumerFieldInternalName,
-                        value.LookupSourceListId,
-                        value.DroppedLookupSourceItemId);
-                    if (actual.ContainsKey(key)
-                        || !Enum.IsDefined(typeof(DroppedLookupValueDisposition), value.Disposition)
-                        || string.IsNullOrWhiteSpace(value.Reason)
-                        || value.Disposition != DroppedLookupValueDisposition.NeedsPolicyDecision
-                            && string.IsNullOrWhiteSpace(value.PolicyId)
-                        || value.Disposition != (policy?.Disposition
-                            ?? DroppedLookupValueDisposition.NeedsPolicyDecision)
-                        || !string.Equals(value.PolicyId, policy?.PolicyId, StringComparison.Ordinal))
-                    {
-                        throw new InvalidDataException("A dropped lookup-value dependency plan is duplicate, incomplete, or has no reviewed policy.");
-                    }
-                    actual.Add(key, value);
-                }
-            }
-            if (!new HashSet<string>(expected.Keys, StringComparer.Ordinal).SetEquals(actual.Keys))
-            {
-                throw new InvalidDataException(
-                    "The dropped lookup-value dependency plans do not exactly cover captured lookup values that reference approved protected-document exclusions.");
-            }
-            foreach (var pair in expected)
-            {
-                var observed = actual[pair.Key];
-                if (observed.LookupSourceWebId != pair.Value.ProviderWebId
-                    || observed.LookupSourceListId != pair.Value.ProviderListId)
+                var expectedValues = expected.PlansByConsumerList.TryGetValue(
+                    list.SourceListId,
+                    out var projected)
+                    ? projected
+                    : Array.Empty<ListDroppedItemDependencyPlan>();
+                var actualValues = list.DroppedItemDependencies
+                    ?? Array.Empty<ListDroppedItemDependencyPlan>();
+                if (!string.Equals(
+                        PnP.Framework.Migration.Packaging.MigrationContractSerializer.SerializeCanonical(expectedValues),
+                        PnP.Framework.Migration.Packaging.MigrationContractSerializer.SerializeCanonical(actualValues),
+                        StringComparison.Ordinal))
                 {
                     throw new InvalidDataException(
-                        "A dropped lookup-value dependency plan differs from its captured provider identity.");
+                        "The dropped-item dependency closure differs from captured lookup/folder edges and exact reviewed decisions for List "
+                        + list.SourceListId.ToString("D") + ".");
                 }
-            }
-        }
-
-        private sealed class ExpectedDroppedLookupDependency
-        {
-            public Guid ConsumerListId { get; set; }
-
-            public int ConsumerItemId { get; set; }
-
-            public string ConsumerFieldInternalName { get; set; }
-
-            public Guid ProviderWebId { get; set; }
-
-            public Guid ProviderListId { get; set; }
-
-            public int ProviderItemId { get; set; }
-
-            public string Key => KeyFor(
-                ConsumerListId,
-                ConsumerItemId,
-                ConsumerFieldInternalName,
-                ProviderListId,
-                ProviderItemId);
-
-            public static string KeyFor(
-                Guid consumerListId,
-                int consumerItemId,
-                string consumerFieldInternalName,
-                Guid providerListId,
-                int providerItemId)
-            {
-                return consumerListId.ToString("D") + "\u001f"
-                    + consumerItemId + "\u001f"
-                    + (consumerFieldInternalName ?? string.Empty).ToUpperInvariant() + "\u001f"
-                    + providerListId.ToString("D") + "\u001f"
-                    + providerItemId;
             }
         }
     }

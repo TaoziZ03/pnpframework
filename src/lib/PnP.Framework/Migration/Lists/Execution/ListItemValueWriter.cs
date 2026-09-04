@@ -23,13 +23,6 @@ namespace PnP.Framework.Migration.Lists.Execution
             bool lookupPhase)
         {
             var plans = plan.Fields.ToDictionary(value => value.InternalName, StringComparer.OrdinalIgnoreCase);
-            var clearedLookupFields = new HashSet<string>(
-                (plan.DroppedLookupValueDependencies
-                    ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
-                .Where(value => value.ConsumerSourceItemId == sourceItem.SourceItemId
-                    && value.Disposition == DroppedLookupValueDisposition.ClearValue)
-                .Select(value => value.ConsumerFieldInternalName),
-                StringComparer.OrdinalIgnoreCase);
             var changed = false;
             foreach (var value in sourceItem.Values)
             {
@@ -47,12 +40,6 @@ namespace PnP.Framework.Migration.Lists.Execution
                 {
                     continue;
                 }
-                if (lookupPhase && clearedLookupFields.Contains(value.InternalName))
-                {
-                    targetItem[fieldPlan.InternalName] = null;
-                    changed = true;
-                    continue;
-                }
                 if (!WritesValue(fieldPlan.Disposition))
                 {
                     continue;
@@ -63,7 +50,18 @@ namespace PnP.Framework.Migration.Lists.Execution
                     field.SetFieldValueByLabelGuidPair(targetItem, string.Join(";", value.TaxonomyValues.Select(term => term.Label + "|" + term.TermGuid)));
                     continue;
                 }
-                targetItem[fieldPlan.InternalName] = ToTargetValue(value, fieldPlan, dependencyReceipts);
+                var clearedLookupProviderItemIds = isLookup
+                    ? DroppedItemDependencyPlanner.ClearedLookupProviderItemIds(
+                        plan.DroppedItemDependencies,
+                        sourceItem.SourceItemId,
+                        value.InternalName,
+                        fieldPlan.SourceLookupListId)
+                    : null;
+                targetItem[fieldPlan.InternalName] = ToTargetValue(
+                    value,
+                    fieldPlan,
+                    dependencyReceipts,
+                    clearedLookupProviderItemIds);
                 changed = true;
             }
             if (changed)
@@ -110,7 +108,8 @@ namespace PnP.Framework.Migration.Lists.Execution
         private static object ToTargetValue(
             ListItemValueSnapshot value,
             ListFieldMaterializationPlan fieldPlan,
-            IDictionary<Guid, ListMaterializationReceipt> dependencyReceipts)
+            IDictionary<Guid, ListMaterializationReceipt> dependencyReceipts,
+            ISet<int> clearedLookupProviderItemIds = null)
         {
             switch (value.Kind)
             {
@@ -130,24 +129,48 @@ namespace PnP.Framework.Migration.Lists.Execution
                     return new FieldUrlValue { Url = value.UrlValue == null ? null : value.UrlValue.Url, Description = value.UrlValue == null ? null : value.UrlValue.Description };
                 case ListItemValueKind.Lookup:
                 case ListItemValueKind.LookupCollection:
-                    ListMaterializationReceipt receipt;
-                    if (!fieldPlan.SourceLookupListId.HasValue || !dependencyReceipts.TryGetValue(fieldPlan.SourceLookupListId.Value, out receipt))
-                    {
-                        throw new InvalidDataException("Lookup value has no target item-ID catalog for field '" + fieldPlan.InternalName + "'.");
-                    }
-                    var mapped = value.LookupValues.Select(source =>
-                    {
-                        int targetId;
-                        if (!receipt.TargetItemIds.TryGetValue(source.LookupId, out targetId))
-                        {
-                            throw new InvalidDataException("Lookup source item " + source.LookupId + " has no target item mapping for field '" + fieldPlan.InternalName + "'.");
-                        }
-                        return new FieldLookupValue { LookupId = targetId };
-                    }).ToArray();
-                    return value.Kind == ListItemValueKind.Lookup ? (object)mapped.Single() : mapped;
+                    return ProjectLookupValue(
+                        value,
+                        fieldPlan,
+                        dependencyReceipts,
+                        clearedLookupProviderItemIds);
                 default:
                     throw new InvalidDataException("Value kind '" + value.Kind + "' is not approved for List item replay.");
             }
+        }
+
+        internal static object ProjectLookupValue(
+            ListItemValueSnapshot value,
+            ListFieldMaterializationPlan fieldPlan,
+            IDictionary<Guid, ListMaterializationReceipt> dependencyReceipts,
+            ISet<int> clearedLookupProviderItemIds)
+        {
+            ListMaterializationReceipt receipt;
+            if (!fieldPlan.SourceLookupListId.HasValue
+                || dependencyReceipts == null
+                || !dependencyReceipts.TryGetValue(fieldPlan.SourceLookupListId.Value, out receipt))
+            {
+                throw new InvalidDataException("Lookup value has no target item-ID catalog for field '" + fieldPlan.InternalName + "'.");
+            }
+            var mapped = (value.LookupValues ?? Array.Empty<ListItemLookupValueSnapshot>())
+                .Where(source => source != null
+                    && (clearedLookupProviderItemIds == null
+                        || !clearedLookupProviderItemIds.Contains(source.LookupId)))
+                .Select(source =>
+                {
+                    int targetId;
+                    if (!receipt.TargetItemIds.TryGetValue(source.LookupId, out targetId))
+                    {
+                        throw new InvalidDataException("Lookup source item " + source.LookupId + " has no target item mapping for field '" + fieldPlan.InternalName + "'.");
+                    }
+                    return new FieldLookupValue { LookupId = targetId };
+                })
+                .ToArray();
+            if (value.Kind == ListItemValueKind.Lookup)
+            {
+                return mapped.Length == 0 ? null : (object)mapped.Single();
+            }
+            return mapped;
         }
     }
 }
