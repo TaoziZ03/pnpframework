@@ -11,6 +11,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 {
     public static class SharedTopologyIdentity
     {
+        private const string LogicalActionPrefix = "topology:logical-action:v1:";
+
         public static string SourceOwner(
             string sourceSiteCollectionUrl,
             Guid sourceSiteId,
@@ -91,26 +93,40 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             return "urn:pnp:spo-path-web:v2:" + sourceSiteId.ToString("N") + ":" + relative.TrimStart('/').ToLowerInvariant();
         }
 
-        public static string GlobalAction(MigrationActionSignature signature)
+        public static string LogicalAction(string logicalActionDigest)
         {
-            MigrationActionSignature.Validate(signature);
-            return "topology:global-action:v2:" + signature.Signature;
+            if (!MigrationActionSignature.IsSha256(logicalActionDigest))
+            {
+                throw new ArgumentException("A logical action SHA-256 digest is required.", nameof(logicalActionDigest));
+            }
+            return LogicalActionPrefix + logicalActionDigest.ToLowerInvariant();
         }
 
-        public static string ExecutionGroup(IEnumerable<MigrationActionSignature> signatures)
+        public static string LogicalActionDigest(string logicalActionKey)
         {
-            var values = (signatures ?? Enumerable.Empty<MigrationActionSignature>())
-                .Select(value =>
-                {
-                    MigrationActionSignature.Validate(value);
-                    return value.Signature;
-                })
+            if (string.IsNullOrWhiteSpace(logicalActionKey)
+                || !logicalActionKey.StartsWith(LogicalActionPrefix, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("A canonical logical action key is required.", nameof(logicalActionKey));
+            }
+            var digest = logicalActionKey.Substring(LogicalActionPrefix.Length);
+            if (!MigrationActionSignature.IsSha256(digest))
+            {
+                throw new ArgumentException("A canonical logical action key is required.", nameof(logicalActionKey));
+            }
+            return digest;
+        }
+
+        public static string ExecutionGroup(IEnumerable<string> logicalActionKeys)
+        {
+            var values = (logicalActionKeys ?? Enumerable.Empty<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(value => value, StringComparer.Ordinal)
                 .ToArray();
             if (values.Length == 0)
             {
-                throw new ArgumentException("At least one migration action signature is required.", nameof(signatures));
+                throw new ArgumentException("At least one logical action key is required.", nameof(logicalActionKeys));
             }
             return StableDigest(string.Join("\n", values));
         }
@@ -158,7 +174,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 plan.TargetSlotKey,
                 plan.OriginalIdentifier,
                 plan.ExpectedOwnership,
-                plan.ParentGlobalActionKey,
+                plan.ParentLogicalActionKey,
                 plan.SourceRelativePath,
                 plan.SourcePathSegment,
                 plan.PreferredTargetWebUrl,
@@ -235,6 +251,23 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 ownership = external ? MigrationTargetOwnership.External : MigrationTargetOwnership.MigrationOwned,
                 originalIdentifier = external ? null : observation.ExistingOriginalIdentifier,
                 mappingDigest = external ? null : observation.ExistingMappingDigest
+            }));
+        }
+
+        public static string ComputeLogicalAction(TargetWebContainerIngredientPlan plan)
+        {
+            if (plan == null)
+            {
+                throw new ArgumentNullException(nameof(plan));
+            }
+            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(new
+            {
+                schemaVersion = "pnp-shared-topology-logical-action/v1",
+                plan.IsTargetSiteRoot,
+                plan.TargetSlotKey,
+                plan.ParentLogicalActionKey,
+                plan.ExpectedOwnership,
+                semanticStateDigest = ComputeObservedSemanticState(plan)
             }));
         }
 

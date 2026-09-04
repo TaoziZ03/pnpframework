@@ -9,6 +9,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 {
     public static class PathDerivedTopologyTargetAnalyzer
     {
+        public const string TargetInspectionOperation = "InspectPathDerivedTargetWeb";
+
         public static PathDerivedTargetWebProbe AnalyzeContainer(
             TargetWebContainerIngredientPlan container,
             PathDerivedTargetWebObservation observation,
@@ -19,7 +21,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 throw new ArgumentNullException(nameof(container));
             }
             if (observation == null
-                || !string.Equals(observation.GlobalActionKey, container.GlobalActionKey, StringComparison.Ordinal))
+                || !string.Equals(observation.LogicalActionKey, container.LogicalActionKey, StringComparison.Ordinal))
             {
                 throw new System.IO.InvalidDataException("A fresh target observation must identify the requested global action exactly.");
             }
@@ -40,7 +42,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             SharedTopologyGlobalExecutionValidator.ValidateDag(dag);
             var byAction = (observations ?? Enumerable.Empty<PathDerivedTargetWebObservation>())
                 .Where(value => value != null)
-                .GroupBy(value => value.GlobalActionKey, StringComparer.Ordinal)
+                .GroupBy(value => value.LogicalActionKey, StringComparer.Ordinal)
                 .ToDictionary(value => value.Key, value => value.ToArray(), StringComparer.Ordinal);
             var result = new SharedTopologyGlobalTargetAnalysis { GlobalActionDagDigest = dag.DagDigest };
             var probes = new Dictionary<string, PathDerivedTargetWebProbe>(StringComparer.Ordinal);
@@ -48,23 +50,23 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 .OrderBy(value => SharedTopologyPath.Depth(value.TargetServerRelativeUrl))
                 .ThenBy(value => value.TargetSlotKey, StringComparer.Ordinal))
             {
-                if (!string.IsNullOrWhiteSpace(container.ParentGlobalActionKey)
-                    && probes.TryGetValue(container.ParentGlobalActionKey, out var parent)
+                if (!string.IsNullOrWhiteSpace(container.ParentLogicalActionKey)
+                    && probes.TryGetValue(container.ParentLogicalActionKey, out var parent)
                     && !parent.IsExecutable)
                 {
                     var skipped = Base(container);
                     skipped.State = TargetWebContainerState.SkippedByDependency;
-                    skipped.CauseGlobalActionKeys.Add(parent.GlobalActionKey);
-                    foreach (var cause in parent.CauseGlobalActionKeys)
+                    skipped.CauseLogicalActionKeys.Add(parent.LogicalActionKey);
+                    foreach (var cause in parent.CauseLogicalActionKeys)
                     {
-                        skipped.CauseGlobalActionKeys.Add(cause);
+                        skipped.CauseLogicalActionKeys.Add(cause);
                     }
                     skipped.Issues.Add(Issue("PathDerivedTargetParentBlocked", container.TargetSlotKey, "The direct parent global topology action is not executable."));
                     Add(result, probes, container, skipped);
                     continue;
                 }
 
-                byAction.TryGetValue(container.GlobalActionKey, out var candidates);
+                byAction.TryGetValue(container.LogicalActionKey, out var candidates);
                 PathDerivedTargetWebProbe probe;
                 if (candidates != null && candidates.Length > 1)
                 {
@@ -72,8 +74,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 }
                 else if (candidates == null || candidates.Length == 0)
                 {
-                    var parentWillBeCreated = !string.IsNullOrWhiteSpace(container.ParentGlobalActionKey)
-                        && probes.TryGetValue(container.ParentGlobalActionKey, out var plannedParent)
+                    var parentWillBeCreated = !string.IsNullOrWhiteSpace(container.ParentLogicalActionKey)
+                        && probes.TryGetValue(container.ParentLogicalActionKey, out var plannedParent)
                         && (plannedParent.State == TargetWebContainerState.CreateMissing
                             || plannedParent.State == TargetWebContainerState.RecoverInterruptedCreate);
                     probe = parentWillBeCreated
@@ -85,8 +87,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     probe = AnalyzeObservation(container, candidates[0]);
                 }
                 if (!container.IsTargetSiteRoot
-                    && !string.IsNullOrWhiteSpace(container.ParentGlobalActionKey)
-                    && probes.TryGetValue(container.ParentGlobalActionKey, out var observedParent)
+                    && !string.IsNullOrWhiteSpace(container.ParentLogicalActionKey)
+                    && probes.TryGetValue(container.ParentLogicalActionKey, out var observedParent)
                     && observedParent.TargetWebId.HasValue
                     && probe.TargetParentWebId.HasValue
                     && observedParent.TargetWebId != probe.TargetParentWebId)
@@ -114,6 +116,16 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 || statusCode >= 500 && statusCode <= 599;
         }
 
+        public static string ExpectedInspectionRequestUri(TargetWebContainerIngredientPlan container)
+        {
+            if (container == null)
+            {
+                throw new ArgumentNullException(nameof(container));
+            }
+            var webUrl = container.IsTargetSiteRoot ? container.TargetWebUrl : container.TargetParentWebUrl;
+            return webUrl.TrimEnd('/') + "/_vti_bin/client.svc/ProcessQuery";
+        }
+
         private static PathDerivedTargetWebProbe AnalyzeObservation(
             TargetWebContainerIngredientPlan container,
             PathDerivedTargetWebObservation observation)
@@ -128,7 +140,10 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     {
                         BoundLiteralHttpAuthorizationEvidence.Validate(
                             observation.AuthorizationEvidence,
-                            container.ActionSignature.ActionId);
+                            container.LogicalActionKey,
+                            TargetInspectionOperation,
+                            new Uri(ExpectedInspectionRequestUri(container)).Authority,
+                            ExpectedInspectionRequestUri(container));
                         if (observation.AuthorizationEvidence.LiteralEvidence.HttpStatusCode != status)
                         {
                             throw new System.IO.InvalidDataException("Authorization evidence status differs from the observation.");
@@ -140,7 +155,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     }
                     probe.State = TargetWebContainerState.AuthorizationBlocked;
                     probe.AuthorizationEvidence = observation.AuthorizationEvidence;
-                    probe.CauseGlobalActionKeys.Add(container.GlobalActionKey);
+                    probe.CauseLogicalActionKeys.Add(container.LogicalActionKey);
                     probe.Issues.Add(Issue("PathDerivedTargetAuthorizationBlocked", container.TargetSlotKey,
                         "Target Web inspection returned literal HTTP " + status.ToString(CultureInfo.InvariantCulture) + "."));
                     return probe;
@@ -223,7 +238,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             TargetWebContainerIngredientPlan container,
             PathDerivedTargetWebProbe probe)
         {
-            return string.Equals(probe.ObservedStateDigest, container.ActionSignature.SemanticDigest, StringComparison.OrdinalIgnoreCase)
+            return string.Equals(probe.ObservedStateDigest, SharedTopologyDigest.ComputeObservedSemanticState(container), StringComparison.OrdinalIgnoreCase)
                 ? probe
                 : Block(container, "PathDerivedTargetSemanticDrift", "Fresh target state differs from the generic action signature semantic digest.");
         }
@@ -301,7 +316,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             var probe = Base(container);
             probe.State = state;
-            probe.CauseGlobalActionKeys.Add(container.GlobalActionKey);
+            probe.CauseLogicalActionKeys.Add(container.LogicalActionKey);
             probe.Issues.Add(Issue(code, container.TargetSlotKey, message));
             return probe;
         }
@@ -311,8 +326,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             return new PathDerivedTargetWebProbe
             {
                 TargetSlotKey = container.TargetSlotKey,
-                GlobalActionKey = container.GlobalActionKey,
-                ParentGlobalActionKey = container.ParentGlobalActionKey
+                LogicalActionKey = container.LogicalActionKey,
+                ParentLogicalActionKey = container.ParentLogicalActionKey
             };
         }
 
@@ -322,7 +337,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             TargetWebContainerIngredientPlan container,
             PathDerivedTargetWebProbe probe)
         {
-            probes.Add(container.GlobalActionKey, probe);
+            probes.Add(container.LogicalActionKey, probe);
             result.Probes.Add(probe);
             foreach (var issue in probe.Issues)
             {

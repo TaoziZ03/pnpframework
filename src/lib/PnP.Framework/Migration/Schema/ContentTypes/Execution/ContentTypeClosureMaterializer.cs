@@ -59,7 +59,9 @@ namespace PnP.Framework.Migration.Schema.ContentTypes.Execution
 
         private static string OwnerActionKey(ContentTypeClosureNodePlan plan)
         {
-            return plan.SourceOwnerWebId != Guid.Empty
+            return !string.IsNullOrWhiteSpace(plan.SourceOwnerKey)
+                ? "owner-" + SharedTopologyIdentity.StableDigest(plan.SourceOwnerKey)
+                : plan.SourceOwnerWebId != Guid.Empty
                 ? plan.SourceOwnerWebId.ToString("N")
                 : "path-" + SharedTopologyIdentity.StableDigest(plan.TargetOwnerWebUrl);
         }

@@ -55,19 +55,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             {
                 graph.ExternalReferences.Add(new PageIngredientExternalReference
                 {
-                    IngredientId = sharedPlan.TargetWebContainers.Single(value => value.GlobalActionKey == required.GlobalActionKey).IngredientId,
+                    IngredientId = sharedPlan.TargetWebContainers.Single(value => value.LogicalActionKey == required.LogicalActionKey).IngredientId,
                     Kind = PageIngredientKind.Web,
                     SharedPlanDigest = reference.SharedPlanDigest,
                     ExecutionGroupDigest = reference.ExecutionGroupDigest,
                     SupportCohortDigest = reference.SupportCohortDigest,
                     TargetSlotKey = required.TargetSlotKey,
-                    GlobalActionKey = required.GlobalActionKey,
-                    ActionSignature = required.ActionSignature.Signature,
+                    LogicalActionKey = required.LogicalActionKey,
+                    ExecutionGrantSignature = required.ExecutionGrant.Signature,
                     OriginalIdentifier = required.OriginalIdentifier,
                     ExpectedOwnership = required.ExpectedOwnership.ToString(),
                     State = PageExternalIngredientState.PlannedGlobalAction,
                     TargetIdentity = required.TargetWebUrl,
-                    EvidenceDigest = required.ActionSignature.SemanticDigest
+                    EvidenceDigest = required.ExecutionGrant.SemanticDigest
                 });
             }
 
@@ -134,8 +134,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     ExecutionGroupDigest = value.ExecutionGroupDigest,
                     SupportCohortDigest = value.SupportCohortDigest,
                     TargetSlotKey = value.TargetSlotKey,
-                    GlobalActionKey = value.GlobalActionKey,
-                    ActionSignature = value.ActionSignature,
+                    LogicalActionKey = value.LogicalActionKey,
+                    ExecutionGrantSignature = value.ExecutionGrantSignature,
                     OriginalIdentifier = value.OriginalIdentifier,
                     ExpectedOwnership = value.ExpectedOwnership,
                     State = value.State,

@@ -7,11 +7,15 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
 {
     public sealed class ContentTypeClosureNodePlan
     {
+        public string SourceOwnerKey { get; set; }
+
         public Guid SourceOwnerWebId { get; set; }
 
         public string SourceOwnerWebUrl { get; set; }
 
         public string TargetOwnerWebUrl { get; set; }
+
+        public Guid? ExpectedTargetSiteId { get; set; }
 
         public ContentTypeMaterializationPlan Schema { get; set; }
 

@@ -8,7 +8,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 {
     public sealed class SharedTopologyGlobalActionDag
     {
-        public const string CurrentSchemaVersion = "pnp-shared-topology-global-action-dag/v2";
+        public const string CurrentSchemaVersion = "pnp-shared-topology-global-action-dag/v3";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -54,33 +54,41 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 .GroupBy(value => value.TargetSlotKey, StringComparer.Ordinal)
                 .OrderBy(value => value.Key, StringComparer.Ordinal))
             {
-                var signatures = slot.Select(value => value.ActionSignature.Signature)
+                var logicalDigests = slot.Select(value => value.LogicalActionDigest)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
-                if (signatures.Length != 1)
+                if (logicalDigests.Length != 1)
                 {
                     issues.Add(Issue(
                         "SharedTopologyTargetSlotSignatureConflict",
                         slot.Key,
-                        "The same authority/Site/path target slot has more than one generic action signature. No plan wins implicitly."));
+                        "The same authority/Site/path target slot has more than one normalized semantic logical action. No plan wins implicitly."));
                     continue;
                 }
                 var candidates = slot.ToArray();
-                if (candidates.Select(value => value.GlobalActionKey).Distinct(StringComparer.Ordinal).Count() != 1)
+                if (candidates.Select(value => value.LogicalActionKey).Distinct(StringComparer.Ordinal).Count() != 1)
                 {
                     issues.Add(Issue(
                         "SharedTopologyGlobalActionIdentityConflict",
                         slot.Key,
-                        "Equivalent target-slot signatures produced different global action keys.",
+                        "Equivalent normalized target-slot actions produced different logical action keys.",
                         MigrationIssueSeverity.Error));
                     continue;
                 }
-                actions.Add(candidates[0]);
+                var logicalAction = MigrationContractSerializer.Deserialize<TargetWebContainerIngredientPlan>(
+                    MigrationContractSerializer.SerializeCanonical(candidates[0]));
+                logicalAction.ExecutionGrants = candidates
+                    .SelectMany(value => value.ExecutionGrants)
+                    .GroupBy(value => value.Signature, StringComparer.OrdinalIgnoreCase)
+                    .Select(value => value.First())
+                    .OrderBy(value => value.Signature, StringComparer.Ordinal)
+                    .ToList();
+                actions.Add(logicalAction);
             }
             foreach (var source in materialized.SelectMany(value => value.SourceWebBindings)
                 .GroupBy(value => value.SourceOwnerKey, StringComparer.Ordinal))
             {
-                if (source.Select(value => value.TargetGlobalActionKey).Distinct(StringComparer.Ordinal).Count() > 1)
+                if (source.Select(value => value.TargetLogicalActionKey).Distinct(StringComparer.Ordinal).Count() > 1)
                 {
                     issues.Add(Issue(
                         "SharedTopologySourceOwnerMappingConflict",
@@ -93,9 +101,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 return new SharedTopologyGlobalActionDagBuildResult { Issues = issues };
             }
 
-            var actionKeys = new HashSet<string>(actions.Select(value => value.GlobalActionKey), StringComparer.Ordinal);
-            if (actions.Any(value => !string.IsNullOrWhiteSpace(value.ParentGlobalActionKey)
-                && !actionKeys.Contains(value.ParentGlobalActionKey)))
+            var actionKeys = new HashSet<string>(actions.Select(value => value.LogicalActionKey), StringComparer.Ordinal);
+            if (actions.Any(value => !string.IsNullOrWhiteSpace(value.ParentLogicalActionKey)
+                && !actionKeys.Contains(value.ParentLogicalActionKey)))
             {
                 issues.Add(Issue(
                     "SharedTopologyGlobalActionParentMissing",

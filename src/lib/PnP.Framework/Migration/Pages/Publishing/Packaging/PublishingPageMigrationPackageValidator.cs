@@ -353,9 +353,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 throw new InvalidDataException("The path-derived planning ingredient graph is missing or differs from captured page ingredients.");
             }
             PathDerivedSourceTopologyEvidenceFactory.Validate(snapshot.PathDerivedTopologyEvidence);
+            var sourceLeaf = PathDerivedSourceTopologyEvidenceFactory.PrimaryLeaf(snapshot.PathDerivedTopologyEvidence);
             if (reference.SourceSiteId != snapshot.Source.SiteId
                 || reference.SourceWebId != snapshot.Source.WebId
-                || snapshot.PathDerivedTopologyEvidence.SourceLeafWeb.WebId != snapshot.Source.WebId)
+                || sourceLeaf.WebId != snapshot.Source.WebId)
             {
                 throw new InvalidDataException("The shared topology page reference differs from retained source-fidelity evidence.");
             }
@@ -374,7 +375,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                     || actual.SourceWebId != expected.SourceWebId
                     || actual.State != expected.State
                     || !string.Equals(actual.IngredientId, expected.IngredientId, StringComparison.Ordinal)
+                    || !SharedTopologyPath.EqualsUrl(actual.SourceWebUrl, expected.SourceWebUrl)
                     || !SharedTopologyPath.EqualsPath(actual.SourceServerRelativeUrl, expected.SourceServerRelativeUrl)
+                    || !string.Equals(actual.AuthorizationOperation, expected.AuthorizationOperation, StringComparison.Ordinal)
+                    || !string.Equals(actual.AuthorizationRequestUri, expected.AuthorizationRequestUri, StringComparison.Ordinal)
                     || !string.Equals(actual.EvidenceDigest, expected.EvidenceDigest, StringComparison.OrdinalIgnoreCase)
                     || !PublishingPageValidationCanonical.Equals(actual.AuthorizationEvidence, expected.AuthorizationEvidence))
                 {
@@ -416,20 +420,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             var actions = graph.ExternalReferences
                 .Where(value => value != null && value.State == PageExternalIngredientState.PlannedGlobalAction)
                 .ToArray();
-            var actionKeys = new HashSet<string>(actions.Select(value => value.GlobalActionKey), StringComparer.Ordinal);
+            var actionKeys = new HashSet<string>(actions.Select(value => value.LogicalActionKey), StringComparer.Ordinal);
             if (actions.Length != reference.RequiredActions.Count
-                || !actionKeys.SetEquals(reference.RequiredActions.Select(value => value.GlobalActionKey)))
+                || !actionKeys.SetEquals(reference.RequiredActions.Select(value => value.LogicalActionKey)))
             {
                 throw new InvalidDataException("The path-derived planning graph does not reference every required global action exactly once.");
             }
             foreach (var required in reference.RequiredActions)
             {
-                var action = actions.Single(value => value.GlobalActionKey == required.GlobalActionKey);
+                var action = actions.Single(value => value.LogicalActionKey == required.LogicalActionKey);
                 if (!string.Equals(action.SharedPlanDigest, reference.SharedPlanDigest, StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(action.ExecutionGroupDigest, reference.ExecutionGroupDigest, StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(action.SupportCohortDigest, reference.SupportCohortDigest, StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(action.TargetSlotKey, required.TargetSlotKey, StringComparison.Ordinal)
-                    || !string.Equals(action.ActionSignature, required.ActionSignature.Signature, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(action.ExecutionGrantSignature, required.ExecutionGrant.Signature, StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(action.OriginalIdentifier, required.OriginalIdentifier, StringComparison.Ordinal)
                     || !string.Equals(action.ExpectedOwnership, required.ExpectedOwnership.ToString(), StringComparison.Ordinal)
                     || !SharedTopologyPath.EqualsUrl(action.TargetIdentity, required.TargetWebUrl))
@@ -438,8 +442,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 }
             }
             var leaf = actions.SingleOrDefault(value => string.Equals(
-                value.GlobalActionKey,
-                reference.TargetLeafGlobalActionKey,
+                value.LogicalActionKey,
+                reference.TargetLeafLogicalActionKey,
                 StringComparison.Ordinal));
             if (leaf == null
                 || !string.Equals(leaf.IngredientId, reference.TargetLeafContainerIngredientId, StringComparison.Ordinal)
@@ -495,28 +499,34 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             PathDerivedSourceTopologyEvidence evidence)
         {
             var values = new List<SharedTopologySourceFidelityReference>();
-            AddCaptured(evidence.SourceRootWeb);
-            foreach (var path in evidence.UnknownAncestorServerRelativeUrls)
+            foreach (var captured in evidence.CapturedWebs)
+            {
+                AddCaptured(captured);
+            }
+            var sourceRoot = PathDerivedSourceTopologyEvidenceFactory.Root(evidence);
+            foreach (var path in evidence.UnknownAncestorPaths)
             {
                 var ownerKey = SharedTopologyIdentity.SourceOwner(
-                    evidence.SourceRootWeb.SiteCollectionUrl,
+                    sourceRoot.SiteCollectionUrl,
                     evidence.SourceSiteId,
                     path);
                 values.Add(new SharedTopologySourceFidelityReference
                 {
                     IngredientId = SharedTopologyIdentity.SourcePathFidelity(ownerKey),
                     SourceOwnerKey = ownerKey,
+                    SourceWebUrl = SharedTopologyPath.AbsoluteUrl(sourceRoot.SiteCollectionUrl, path),
                     SourceServerRelativeUrl = path,
                     State = SourceWebFidelityState.AuthorizationBlocked,
                     AuthorizationEvidence = evidence.AncestorAuthorizationEvidence,
+                    AuthorizationOperation = evidence.AncestorReadOperation,
+                    AuthorizationRequestUri = evidence.AncestorReadRequestUri,
                     EvidenceDigest = SharedTopologyDigest.ComputeFidelityEvidence(
                         evidence,
                         ownerKey,
                         SourceWebFidelityState.AuthorizationBlocked)
                 });
             }
-            AddCaptured(evidence.SourceLeafWeb);
-            return values;
+            return values.OrderBy(value => SharedTopologyPath.Depth(value.SourceServerRelativeUrl)).ToList();
 
             void AddCaptured(Topology.SourceWebSnapshot web)
             {
@@ -529,6 +539,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                     IngredientId = SharedTopologyIdentity.SourceWebFidelity(web.SiteId, web.WebId),
                     SourceOwnerKey = ownerKey,
                     SourceWebId = web.WebId,
+                    SourceWebUrl = web.WebUrl,
                     SourceServerRelativeUrl = web.ServerRelativeUrl,
                     State = SourceWebFidelityState.Captured,
                     EvidenceDigest = SharedTopologyDigest.ComputeFidelityEvidence(

@@ -18,7 +18,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class PathDerivedTargetWebObservation
     {
-        public string GlobalActionKey { get; set; }
+        public string LogicalActionKey { get; set; }
 
         public int? HttpStatusCode { get; set; }
 
@@ -63,9 +63,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
     {
         public string TargetSlotKey { get; set; }
 
-        public string GlobalActionKey { get; set; }
+        public string LogicalActionKey { get; set; }
 
-        public string ParentGlobalActionKey { get; set; }
+        public string ParentLogicalActionKey { get; set; }
 
         public TargetWebContainerState State { get; set; }
 
@@ -97,7 +97,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public BoundLiteralHttpAuthorizationEvidence AuthorizationEvidence { get; set; }
 
-        public IList<string> CauseGlobalActionKeys { get; set; } = new List<string>();
+        public IList<string> CauseLogicalActionKeys { get; set; } = new List<string>();
 
         public IList<MigrationIssue> Issues { get; set; } = new List<MigrationIssue>();
 
@@ -109,7 +109,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class SharedTopologyGlobalTargetAnalysis
     {
-        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-target-analysis/v2";
+        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-target-analysis/v3";
 
         public string GlobalActionDagDigest { get; set; }
 
@@ -128,11 +128,11 @@ namespace PnP.Framework.Migration.Topology.Ingredients
     {
         public string TargetSlotKey { get; set; }
 
-        public string GlobalActionKey { get; set; }
+        public string LogicalActionKey { get; set; }
 
-        public string ParentGlobalActionKey { get; set; }
+        public string ParentLogicalActionKey { get; set; }
 
-        public MigrationActionSignature ActionSignature { get; set; }
+        public MigrationActionSignature ExecutionGrant { get; set; }
 
         public SharedTopologyActionKind SelectedAction { get; set; }
 
@@ -147,7 +147,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class SharedTopologyGlobalActionPlan
     {
-        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-action-plan/v2";
+        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-action-plan/v3";
 
         public string GlobalActionDagDigest { get; set; }
 
@@ -165,9 +165,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
     {
         public string TargetSlotKey { get; set; }
 
-        public string GlobalActionKey { get; set; }
+        public string LogicalActionKey { get; set; }
 
-        public string ActionSignature { get; set; }
+        public string ExecutionGrantSignature { get; set; }
 
         public SharedTopologyActionKind SelectedAction { get; set; }
 
@@ -218,7 +218,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class SharedTopologyGlobalMaterializationReceipt
     {
-        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-receipt/v2";
+        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-receipt/v3";
 
         public Guid OperationId { get; set; }
 
@@ -261,7 +261,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string SourceServerRelativeUrl { get; set; }
 
-        public string TargetGlobalActionKey { get; set; }
+        public string TargetLogicalActionKey { get; set; }
 
         public Guid TargetSiteId { get; set; }
 
@@ -280,9 +280,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
     {
         public string TargetSlotKey { get; set; }
 
-        public string GlobalActionKey { get; set; }
+        public string LogicalActionKey { get; set; }
 
-        public MigrationActionSignature ActionSignature { get; set; }
+        public MigrationActionSignature ExecutionGrant { get; set; }
 
         public string OriginalIdentifier { get; set; }
 
@@ -301,18 +301,24 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public Guid SourceWebId { get; set; }
 
+        public string SourceWebUrl { get; set; }
+
         public string SourceServerRelativeUrl { get; set; }
 
         public SourceWebFidelityState State { get; set; }
 
         public BoundLiteralHttpAuthorizationEvidence AuthorizationEvidence { get; set; }
 
+        public string AuthorizationOperation { get; set; }
+
+        public string AuthorizationRequestUri { get; set; }
+
         public string EvidenceDigest { get; set; }
     }
 
     public sealed class SharedTopologyPageReference
     {
-        public string SchemaVersion { get; set; } = "pnp-shared-topology-page-reference/v3";
+        public string SchemaVersion { get; set; } = "pnp-shared-topology-page-reference/v4";
 
         public string SharedPlanDigest { get; set; }
 
@@ -332,7 +338,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string TargetLeafContainerIngredientId { get; set; }
 
-        public string TargetLeafGlobalActionKey { get; set; }
+        public string TargetLeafLogicalActionKey { get; set; }
 
         public string TargetWebUrl { get; set; }
 

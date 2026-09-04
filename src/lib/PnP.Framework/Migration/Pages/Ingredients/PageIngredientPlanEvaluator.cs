@@ -290,9 +290,9 @@ namespace PnP.Framework.Migration.Pages.Ingredients
                 }
                 if (reference.State == PageExternalIngredientState.PlannedGlobalAction
                     && (string.IsNullOrWhiteSpace(reference.SharedPlanDigest)
-                        || string.IsNullOrWhiteSpace(reference.GlobalActionKey)
+                        || string.IsNullOrWhiteSpace(reference.LogicalActionKey)
                         || string.IsNullOrWhiteSpace(reference.TargetSlotKey)
-                        || string.IsNullOrWhiteSpace(reference.ActionSignature)
+                        || string.IsNullOrWhiteSpace(reference.ExecutionGrantSignature)
                         || string.IsNullOrWhiteSpace(reference.OriginalIdentifier)
                         || string.IsNullOrWhiteSpace(reference.ExpectedOwnership)))
                 {

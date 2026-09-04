@@ -406,6 +406,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                 SourceListId = source.SourceListId,
                 TargetWebUrl = owner.TargetWebUrl,
                 TargetSiteCollectionUrl = owner.TargetSiteCollectionUrl,
+                ExpectedTargetSiteId = owner.ExpectedTargetSiteId,
                 TargetWebServerRelativeUrl = owner.TargetServerRelativeUrl,
                 PreferredTargetRootFolderServerRelativeUrl = targetPath,
                 TargetRootFolderServerRelativeUrl = targetPath,

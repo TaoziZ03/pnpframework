@@ -108,10 +108,11 @@ namespace PnP.Framework.Migration.Topology
                     return new SourceTopologyCaptureResult
                     {
                         PathDerivedEvidence = PathDerivedSourceTopologyEvidenceFactory.CreateAuthorizationBlocked(
-                            captured[root.Id],
-                            leaf,
+                            captured.Values,
+                            root.Id,
+                            leaf.WebId,
                             authorizationEvidence.Operation,
-                            context.Url.TrimEnd('/') + "/_vti_bin/client.svc/ProcessQuery",
+                            leaf.WebUrl.TrimEnd('/') + "/_vti_bin/client.svc/ProcessQuery",
                             authorizationEvidence,
                             new[] { "Ancestor Web identity, title, template, and configuration were not captured." })
                     };

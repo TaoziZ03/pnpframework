@@ -12,7 +12,6 @@ using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
 using PnP.Framework.Migration.Topology.Ingredients;
-using System.Globalization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Execution
 {
@@ -69,6 +68,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
 
             var sharedTopologyFailure = ValidateSharedTopology(
                 package,
+                targetContext,
                 targetContext.Site.Id,
                 targetWeb,
                 sharedTopologyProof);
@@ -195,6 +195,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
 
         private static string ValidateSharedTopology(
             PublishingPageMigrationPackage package,
+            ClientContext targetContext,
             Guid targetSiteId,
             Web targetWeb,
             SharedTopologyExecutionProof proof)
@@ -214,6 +215,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     proof?.GlobalActionDag,
                     proof?.ActionPlan,
                     proof?.Receipt);
+                var actions = proof.GlobalActionDag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+                var required = reference.RequiredActions.Select(value => actions[value.LogicalActionKey]).ToArray();
+                var observations = new CsomPathDerivedTopologyTargetRuntime(targetContext).InspectAll(required);
+                var fresh = SharedTopologyPageReferenceFactory.ValidateFreshTarget(reference, proof, observations);
+                var leaf = fresh.Last();
+                if (leaf.TargetSiteId != targetSiteId
+                    || leaf.TargetWebId != targetWeb.Id
+                    || !SharedTopologyPath.EqualsUrl(targetWeb.Url, reference.TargetWebUrl)
+                    || !SharedTopologyPath.EqualsPath(targetWeb.ServerRelativeUrl, reference.TargetServerRelativeUrl))
+                {
+                    return "The current target connection differs from the freshly probed shared topology leaf identity.";
+                }
             }
             catch (Exception exception) when (exception is System.IO.InvalidDataException
                 || exception is ArgumentNullException
@@ -221,70 +234,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             {
                 return exception.Message;
             }
-            var leaf = proof.Receipt.Actions.Single(value => string.Equals(
-                value.GlobalActionKey,
-                reference.TargetLeafGlobalActionKey,
-                StringComparison.Ordinal));
-            if (leaf.TargetSiteId != targetSiteId
-                || leaf.TargetWebId != targetWeb.Id
-                || !SharedTopologyPath.EqualsUrl(targetWeb.Url, reference.TargetWebUrl)
-                || !SharedTopologyPath.EqualsPath(targetWeb.ServerRelativeUrl, reference.TargetServerRelativeUrl))
-            {
-                return "The current target connection differs from the freshly verified shared topology leaf identity.";
-            }
-            var currentOriginal = Property(targetWeb.AllProperties, TopologyPlanner.WebOriginalIdentifierPropertyName);
-            var currentMapping = Property(targetWeb.AllProperties, TopologyPlanner.WebPlanDigestPropertyName);
-            if (leaf.Ownership == SharedTopologyOwnership.MigrationOwned
-                && (!string.Equals(currentOriginal, leaf.ObservedOriginalIdentifier, StringComparison.Ordinal)
-                    || !string.Equals(currentMapping, leaf.ObservedMappingDigest, StringComparison.OrdinalIgnoreCase)))
-            {
-                return "The current target Web ownership markers drifted after the shared topology readback.";
-            }
-            if (leaf.Ownership == SharedTopologyOwnership.ExternalApprovedHost
-                && (!string.IsNullOrWhiteSpace(currentOriginal) || !string.IsNullOrWhiteSpace(currentMapping)))
-            {
-                return "The explicitly approved external host acquired migration ownership markers and must be replanned.";
-            }
-            var sharedPlan = proof.SourcePlans.Single(value => string.Equals(
-                value.PlanDigest,
-                reference.SharedPlanDigest,
-                StringComparison.OrdinalIgnoreCase));
-            var leafPlan = sharedPlan.TargetWebContainers.Single(value => string.Equals(
-                value.GlobalActionKey,
-                reference.TargetLeafGlobalActionKey,
-                StringComparison.Ordinal));
-            var currentStateDigest = SharedTopologyDigest.ComputeObservedSemanticState(
-                leafPlan,
-                new PathDerivedTargetWebObservation
-                {
-                    TargetSiteId = targetSiteId,
-                    TargetWebId = targetWeb.Id,
-                    TargetWebUrl = targetWeb.Url,
-                    TargetServerRelativeUrl = targetWeb.ServerRelativeUrl,
-                    ExistingTitle = targetWeb.Title,
-                    ExistingDescription = targetWeb.Description,
-                    ExistingTemplate = targetWeb.WebTemplate,
-                    ExistingConfiguration = targetWeb.Configuration,
-                    ExistingLanguage = checked((int)targetWeb.Language),
-                    ExistingHasUniqueRoleAssignments = targetWeb.HasUniqueRoleAssignments,
-                    ExistingOriginalIdentifier = currentOriginal,
-                    ExistingMappingDigest = currentMapping
-                },
-                leaf.Ownership);
-            if (!string.Equals(currentStateDigest, leafPlan.ActionSignature.SemanticDigest, StringComparison.OrdinalIgnoreCase))
-            {
-                return "The current target Web semantic state drifted after the signed shared topology checkpoint.";
-            }
             return null;
-        }
-
-        private static string Property(PropertyValues values, string key)
-        {
-            if (values == null || !values.FieldValues.TryGetValue(key, out var value))
-            {
-                return null;
-            }
-            return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
 
         private static bool IsOwnedByApprovedPlan(

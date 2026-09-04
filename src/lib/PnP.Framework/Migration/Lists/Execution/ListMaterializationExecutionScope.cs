@@ -180,6 +180,7 @@ namespace PnP.Framework.Migration.Lists.Execution
                 SourceListId = plan.SourceListId,
                 TargetWebUrl = plan.TargetWebUrl,
                 TargetSiteCollectionUrl = plan.TargetSiteCollectionUrl,
+                ExpectedTargetSiteId = plan.ExpectedTargetSiteId,
                 TargetWebServerRelativeUrl = plan.TargetWebServerRelativeUrl,
                 PreferredTargetRootFolderServerRelativeUrl = plan.PreferredTargetRootFolderServerRelativeUrl,
                 TargetRootFolderServerRelativeUrl = plan.TargetRootFolderServerRelativeUrl,
@@ -260,9 +261,11 @@ namespace PnP.Framework.Migration.Lists.Execution
         {
             return new ContentTypeClosureNodePlan
             {
+                SourceOwnerKey = source.SourceOwnerKey,
                 SourceOwnerWebId = source.SourceOwnerWebId,
                 SourceOwnerWebUrl = source.SourceOwnerWebUrl,
                 TargetOwnerWebUrl = source.TargetOwnerWebUrl,
+                ExpectedTargetSiteId = source.ExpectedTargetSiteId,
                 Schema = source.Schema,
                 DeferredUntilTopologyMaterialization = source.DeferredUntilTopologyMaterialization,
                 TargetProbe = null,

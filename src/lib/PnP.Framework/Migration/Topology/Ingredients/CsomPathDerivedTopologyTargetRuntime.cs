@@ -10,7 +10,6 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 {
     public sealed class CsomPathDerivedTopologyTargetRuntime : IPathDerivedTopologyTargetRuntime
     {
-        private const string InspectOperation = "InspectPathDerivedTargetWeb";
         private readonly ClientContext anchorContext;
 
         public CsomPathDerivedTopologyTargetRuntime(ClientContext anchorContext)
@@ -20,24 +19,37 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public IList<PathDerivedTargetWebObservation> Inspect(IEnumerable<TargetWebContainerIngredientPlan> containers)
         {
+            return InspectCore(containers, skipBlockedDescendants: true);
+        }
+
+        public IList<PathDerivedTargetWebObservation> InspectAll(IEnumerable<TargetWebContainerIngredientPlan> containers)
+        {
+            return InspectCore(containers, skipBlockedDescendants: false);
+        }
+
+        private IList<PathDerivedTargetWebObservation> InspectCore(
+            IEnumerable<TargetWebContainerIngredientPlan> containers,
+            bool skipBlockedDescendants)
+        {
             var requested = (containers ?? Enumerable.Empty<TargetWebContainerIngredientPlan>())
                 .OrderBy(value => SharedTopologyPath.Depth(value.TargetServerRelativeUrl))
                 .ThenBy(value => value.TargetSlotKey, StringComparer.Ordinal)
                 .ToArray();
-            var requestedKeys = new HashSet<string>(requested.Select(value => value.GlobalActionKey), StringComparer.Ordinal);
+            var requestedKeys = new HashSet<string>(requested.Select(value => value.LogicalActionKey), StringComparer.Ordinal);
             var byAction = new Dictionary<string, PathDerivedTargetWebObservation>(StringComparer.Ordinal);
             var result = new List<PathDerivedTargetWebObservation>();
             foreach (var container in requested)
             {
-                if (!string.IsNullOrWhiteSpace(container.ParentGlobalActionKey)
-                    && requestedKeys.Contains(container.ParentGlobalActionKey)
-                    && byAction.TryGetValue(container.ParentGlobalActionKey, out var parent)
+                if (skipBlockedDescendants
+                    && !string.IsNullOrWhiteSpace(container.ParentLogicalActionKey)
+                    && requestedKeys.Contains(container.ParentLogicalActionKey)
+                    && byAction.TryGetValue(container.ParentLogicalActionKey, out var parent)
                     && (!parent.Exists || parent.HttpStatusCode.HasValue || parent.InspectionFailed || parent.IdentityConflict))
                 {
                     continue;
                 }
                 var observation = InspectOne(container);
-                byAction[container.GlobalActionKey] = observation;
+                byAction[container.LogicalActionKey] = observation;
                 result.Add(observation);
             }
             return result;
@@ -121,20 +133,20 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 if (TryGetHttpResponse(exception, out var response))
                 {
                     var status = (int)response.StatusCode;
-                    var expectedRequestUri = ExpectedRequestUri(container);
+                    var expectedRequestUri = PathDerivedTopologyTargetAnalyzer.ExpectedInspectionRequestUri(container);
                     BoundLiteralHttpAuthorizationEvidence bound = null;
                     if (status == 401 || status == 403)
                     {
                         var literal = LiteralHttpAuthorizationEvidence.Create(
-                            InspectOperation,
+                            PathDerivedTopologyTargetAnalyzer.TargetInspectionOperation,
                             response.ResponseUri?.AbsoluteUri ?? expectedRequestUri,
                             status,
                             DateTimeOffset.UtcNow);
                         try
                         {
                             bound = BoundLiteralHttpAuthorizationEvidence.Create(
-                                container.ActionSignature.ActionId,
-                                InspectOperation,
+                                container.LogicalActionKey,
+                                PathDerivedTopologyTargetAnalyzer.TargetInspectionOperation,
                                 expectedRequestUri,
                                 literal);
                         }
@@ -145,7 +157,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     }
                     return new PathDerivedTargetWebObservation
                     {
-                        GlobalActionKey = container.GlobalActionKey,
+                        LogicalActionKey = container.LogicalActionKey,
                         HttpStatusCode = status,
                         AuthorizationEvidence = bound,
                         Diagnostic = "Target Web inspection returned literal HTTP "
@@ -169,7 +181,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 {
                     return new PathDerivedTargetWebObservation
                     {
-                        GlobalActionKey = container.GlobalActionKey,
+                        LogicalActionKey = container.LogicalActionKey,
                         IdentityConflict = true,
                         Diagnostic = "The target root connection differs from the approved authority/Site/path fence."
                     };
@@ -204,7 +216,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 {
                     return new PathDerivedTargetWebObservation
                     {
-                        GlobalActionKey = container.GlobalActionKey,
+                        LogicalActionKey = container.LogicalActionKey,
                         IdentityConflict = true,
                         Diagnostic = "The target connection did not resolve the approved direct parent Web."
                     };
@@ -214,7 +226,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 {
                     return new PathDerivedTargetWebObservation
                     {
-                        GlobalActionKey = container.GlobalActionKey,
+                        LogicalActionKey = container.LogicalActionKey,
                         Exists = false,
                         TargetSiteId = context.Site.Id,
                         TargetParentWebId = parent.Id,
@@ -226,7 +238,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 {
                     return new PathDerivedTargetWebObservation
                     {
-                        GlobalActionKey = container.GlobalActionKey,
+                        LogicalActionKey = container.LogicalActionKey,
                         IdentityConflict = true,
                         Diagnostic = "The direct parent returned more than one Web for the exact target path."
                     };
@@ -259,7 +271,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             return new PathDerivedTargetWebObservation
             {
-                GlobalActionKey = container.GlobalActionKey,
+                LogicalActionKey = container.LogicalActionKey,
                 Exists = true,
                 TargetSiteId = targetSiteId,
                 TargetWebId = target.Id,
@@ -315,12 +327,6 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     container.TargetServerRelativeUrl);
         }
 
-        private static string ExpectedRequestUri(TargetWebContainerIngredientPlan container)
-        {
-            var webUrl = container.IsTargetSiteRoot ? container.TargetWebUrl : container.TargetParentWebUrl;
-            return webUrl.TrimEnd('/') + "/_vti_bin/client.svc/ProcessQuery";
-        }
-
         private static string NormalizeTemplate(string template, int configuration)
         {
             return (template ?? string.Empty).IndexOf('#') >= 0
@@ -341,7 +347,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             return new PathDerivedTargetWebObservation
             {
-                GlobalActionKey = container.GlobalActionKey,
+                LogicalActionKey = container.LogicalActionKey,
                 InspectionFailed = true,
                 Diagnostic = diagnostic
             };

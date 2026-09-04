@@ -20,11 +20,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string TargetSiteCollectionUrl { get; set; }
 
+        public Guid? ExpectedTargetSiteId { get; set; }
+
         public string TargetServerRelativeUrl { get; set; }
 
         public string TargetContainerIngredientId { get; set; }
 
-        public string TargetGlobalActionKey { get; set; }
+        public string TargetLogicalActionKey { get; set; }
     }
 
     internal static class TopologyWebOwnerMappingCatalog
@@ -44,6 +46,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 SourceServerRelativeUrl = value.SourceServerRelativeUrl,
                 TargetWebUrl = value.TargetWebUrl,
                 TargetSiteCollectionUrl = topology.SiteCollections.Single(site => site.SourceSiteId == value.SourceSiteId).TargetSiteCollectionUrl,
+                ExpectedTargetSiteId = topology.SiteCollections.Single(site => site.SourceSiteId == value.SourceSiteId).ExpectedTargetSiteId,
                 TargetServerRelativeUrl = value.TargetServerRelativeUrl
             }).ToList();
         }
@@ -71,9 +74,10 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 SourceServerRelativeUrl = value.SourceServerRelativeUrl,
                 TargetWebUrl = value.TargetWebUrl,
                 TargetSiteCollectionUrl = topology.TargetSite.TargetSiteCollectionUrl,
+                ExpectedTargetSiteId = topology.TargetSite.ExpectedTargetSiteId,
                 TargetServerRelativeUrl = value.TargetServerRelativeUrl,
                 TargetContainerIngredientId = value.TargetContainerIngredientId,
-                TargetGlobalActionKey = value.TargetGlobalActionKey
+                TargetLogicalActionKey = value.TargetLogicalActionKey
             }).ToList();
         }
     }

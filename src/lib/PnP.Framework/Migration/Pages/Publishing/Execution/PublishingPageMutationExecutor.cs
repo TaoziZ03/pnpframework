@@ -125,6 +125,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 proof?.GlobalActionDag,
                 proof?.ActionPlan,
                 proof?.Receipt);
+            var requiredActions = new HashSet<string>(
+                package.Plan.SharedTopologyReference.RequiredActions.Select(value => value.LogicalActionKey),
+                StringComparer.Ordinal);
             recorder.RecordAlreadySatisfied(
                 "topology.shared.global-actions",
                 "A separately executed global topology DAG supplied freshly verified target-Web receipts.");
@@ -135,7 +138,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 {
                     "Projected shared global-action receipts for dependency owner resolution; no page-local topology mutation was performed."
                 },
-                Webs = proof.Receipt.Actions.Select(value => new TopologyWebMaterializationReceipt
+                Webs = proof.Receipt.Actions
+                    .Where(value => requiredActions.Contains(value.LogicalActionKey))
+                    .Select(value => new TopologyWebMaterializationReceipt
                 {
                     SourceSiteId = Guid.Empty,
                     SourceWebId = Guid.Empty,
@@ -145,7 +150,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     Disposition = value.Ownership == SharedTopologyOwnership.ExternalApprovedHost
                         ? TopologyMaterializationDisposition.ReuseApprovedHost
                         : TopologyMaterializationDisposition.ReuseOwned,
-                    MappingDigest = value.ActionSignature
+                    MappingDigest = value.ExecutionGrantSignature
                 }).ToList()
             };
         }

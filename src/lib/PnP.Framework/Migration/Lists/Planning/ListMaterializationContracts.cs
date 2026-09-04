@@ -279,6 +279,8 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         public string TargetSiteCollectionUrl { get; set; }
 
+        public Guid? ExpectedTargetSiteId { get; set; }
+
         public string TargetWebServerRelativeUrl { get; set; }
 
         public string PreferredTargetRootFolderServerRelativeUrl { get; set; }

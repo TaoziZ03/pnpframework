@@ -36,8 +36,17 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%23fragment"));
             Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%3areserved"));
             Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%252fescape"));
+            Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%2523fragment"));
+            Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%253Fquery"));
+            Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%2501control"));
+            Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%255cdelimiter"));
+            Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/%01control"));
             Assert.ThrowsException<ArgumentException>(() => Normalize("/sites/target/a\u0001b"));
             Assert.AreEqual(Normalize("/sites/target/Caf\u00e9"), Normalize("/sites/target/Cafe\u0301"));
+            var encodedSpace = Normalize("/sites/target/Legal%20Name");
+            Assert.AreEqual("/sites/target/Legal Name", encodedSpace);
+            var decodedAgain = Uri.UnescapeDataString(encodedSpace);
+            Assert.IsFalse(decodedAgain.Any(value => value == '?' || value == '#' || char.IsControl(value)));
         }
 
         [TestMethod]
@@ -65,6 +74,63 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void IndependentCaptureTimestampsShareLogicalActionsButRetainDistinctExecutionGrants()
+        {
+            var first = BuildPlan("groups/engineering", observedAt: DateTimeOffset.Parse("2026-09-04T00:00:00Z"));
+            var second = BuildPlan("groups/engineering", observedAt: DateTimeOffset.Parse("2026-09-04T00:05:00Z"));
+            Assert.AreNotEqual(first.PlanDigest, second.PlanDigest);
+            CollectionAssert.AreEqual(
+                first.TargetWebContainers.Select(value => value.LogicalActionKey).ToArray(),
+                second.TargetWebContainers.Select(value => value.LogicalActionKey).ToArray());
+            Assert.IsTrue(first.TargetWebContainers.Zip(second.TargetWebContainers, (left, right) =>
+                left.ExecutionGrants.Single().Signature != right.ExecutionGrants.Single().Signature).All(value => value));
+
+            var compiled = SharedTopologyGlobalActionDagCompiler.Compile(new[] { first, second });
+            Assert.IsTrue(compiled.IsExecutable);
+            Assert.AreEqual(first.TargetWebContainers.Count, compiled.Dag.Actions.Count);
+            Assert.IsTrue(compiled.Dag.Actions.All(value => value.ExecutionGrants.Count == 2));
+        }
+
+        [TestMethod]
+        public void TwoLeafCapturesDeduplicateSharedRootAndIntermediateLogicalActions()
+        {
+            var engineering = BuildPlan("groups/engineering", observedAt: DateTimeOffset.Parse("2026-09-04T00:00:00Z"));
+            var hr = BuildPlan(
+                "groups/hr",
+                sourceLeafWebId: Guid.Parse("23232323-2323-2323-2323-232323232323"),
+                observedAt: DateTimeOffset.Parse("2026-09-04T00:01:00Z"));
+            var compiled = SharedTopologyGlobalActionDagCompiler.Compile(new[] { engineering, hr });
+            Assert.IsTrue(compiled.IsExecutable);
+            Assert.AreEqual(4, compiled.Dag.Actions.Count);
+            Assert.AreEqual(2, compiled.Dag.Actions.Single(value => value.IsTargetSiteRoot).ExecutionGrants.Count);
+            Assert.AreEqual(2, compiled.Dag.Actions.Single(value =>
+                SharedTopologyPath.EqualsPath(value.TargetServerRelativeUrl, "/sites/target/groups")).ExecutionGrants.Count);
+            var runtime = new FakeRuntime(compiled.Dag);
+            var analysis = PathDerivedTopologyTargetAnalyzer.Analyze(compiled.Dag, runtime.Inspect(compiled.Dag.Actions));
+            var actionPlan = SharedTopologyGlobalActionPlanProjector.Project(compiled.Dag, analysis);
+            var pageReference = SharedTopologyPageReferenceFactory.Create(
+                engineering,
+                compiled.Dag,
+                actionPlan,
+                SourceSiteId,
+                SourceLeafWebId);
+            Assert.AreEqual(engineering.TargetWebContainers.Count, pageReference.RequiredActions.Count);
+            Assert.IsTrue(pageReference.RequiredActions.Count < compiled.Dag.Actions.Count);
+            var execution = new PathDerivedTopologyMigrationService().Ensure(
+                runtime,
+                compiled.Dag,
+                analysis,
+                actionPlan,
+                new[] { engineering, hr });
+            SharedTopologyPageReferenceFactory.ValidateReceipt(
+                pageReference,
+                new[] { engineering, hr },
+                compiled.Dag,
+                actionPlan,
+                execution.Receipt);
+        }
+
+        [TestMethod]
         public void PartialTopologyRetainsCapturedRootAndLeafWithIndependentUnknownAncestors()
         {
             var plan = BuildPlan("groups/engineering/guides");
@@ -84,6 +150,28 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(ordered.Length, plan.SourceWebBindings.Count);
             Assert.IsTrue(plan.TargetWebContainers.First().IsTargetSiteRoot);
             Assert.AreEqual(SharedTopologyOwnership.ExternalApprovedHost, plan.TargetWebContainers.First().ExpectedOwnership);
+        }
+
+        [TestMethod]
+        public void LaterAncestor403PreservesAnIntermediateWebCapturedByAnEarlierPass()
+        {
+            var intermediateId = Guid.Parse("13131313-1313-1313-1313-131313131313");
+            var evidence = CreateEvidenceWithCapturedIntermediate(
+                "groups/engineering/guides",
+                "/sites/source/groups",
+                intermediateId);
+            Assert.AreEqual(3, evidence.CapturedWebs.Count);
+            CollectionAssert.AreEqual(
+                new[] { "/sites/source/groups/engineering" },
+                evidence.UnknownAncestorPaths.ToArray());
+
+            var plan = BuildPlan("groups/engineering/guides", sourceEvidence: evidence);
+            var ordered = plan.SourceWebFidelityIngredients
+                .OrderBy(value => SharedTopologyPath.Depth(value.SourceServerRelativeUrl))
+                .ToArray();
+            Assert.AreEqual(intermediateId, ordered[1].SourceWebId);
+            Assert.AreEqual(SourceWebFidelityState.Captured, ordered[1].State);
+            Assert.AreEqual(SourceWebFidelityState.AuthorizationBlocked, ordered[2].State);
         }
 
         [TestMethod]
@@ -145,6 +233,60 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(
                 "/sites/target/Style Library/root.js",
                 listPlan.Lists.Single().ViewRenderingResources.Single().TargetServerRelativeUrl);
+
+            var unknownGroupOwner = mappings.Single(value =>
+                SharedTopologyPath.EqualsPath(value.SourceServerRelativeUrl, "/sites/source/groups"));
+            Assert.AreEqual(Guid.Empty, unknownGroupOwner.SourceWebId);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(unknownGroupOwner.SourceOwnerKey));
+            var groupContentType = new ContentTypeSchemaSnapshot
+            {
+                EvidenceState = ContentTypeSchemaEvidenceState.Readable,
+                Availability = EvidenceAvailability.Captured,
+                SourceWebUrl = "https://source.example.com/sites/source/groups",
+                SourceScope = "/sites/source/groups",
+                ContentTypeId = "0x010100BB",
+                Name = "Path-owned intermediate support",
+                ParentContentTypeId = "0x0101",
+                ParentContentTypeName = "Document"
+            };
+            list.SiteContentTypes.Add(groupContentType);
+            list.ViewRenderingResources.Add(new ListViewRenderingResourceSnapshot
+            {
+                Id = "group-style",
+                Kind = ListViewRenderingResourceKind.JavaScript,
+                SourceAbsoluteUrl = "https://source.example.com/sites/source/groups/Style%20Library/group.js",
+                SourceServerRelativeUrl = "/sites/source/groups/Style Library/group.js",
+                Availability = EvidenceAvailability.Partial
+            });
+            var intermediatePlan = ListMigrationPlanFactory.CreateFromSharedTopology(
+                new[] { list },
+                Array.Empty<ListLookupDependency>(),
+                plan,
+                Array.Empty<PnP.Framework.Migration.Taxonomy.TaxonomyTargetMapping>(),
+                Array.Empty<ListTargetOverride>());
+            var intermediateContentType = intermediatePlan.Lists.Single().SiteContentTypes.Single(value =>
+                value.Schema.ContentTypeId == groupContentType.ContentTypeId);
+            Assert.AreEqual(unknownGroupOwner.SourceOwnerKey, intermediateContentType.SourceOwnerKey);
+            Assert.AreEqual(Guid.Empty, intermediateContentType.SourceOwnerWebId);
+            Assert.AreEqual("https://target.example.com/sites/target/groups", intermediateContentType.TargetOwnerWebUrl);
+            Assert.AreEqual(
+                "/sites/target/groups/Style Library/group.js",
+                intermediatePlan.Lists.Single().ViewRenderingResources.Single(value => value.SourceResourceId == "group-style").TargetServerRelativeUrl);
+
+            var dag = Compile(plan);
+            var runtime = new FakeRuntime(dag);
+            var topologyAnalysis = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
+            using (var context = new Microsoft.SharePoint.Client.ClientContext("https://target.example.com/sites/target/groups/engineering/guides"))
+            {
+                var analysis = ListMigrationTargetAnalyzer.PopulateAndSeal(
+                    context,
+                    new[] { list },
+                    intermediatePlan,
+                    plan,
+                    topologyAnalysis);
+                Assert.IsFalse(analysis.Issues.Any(value => value.Code == "TargetContentTypeOwnerWebBlocked"));
+                Assert.IsTrue(intermediateContentType.DeferredUntilTopologyMaterialization);
+            }
         }
 
         [TestMethod]
@@ -153,7 +295,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var evidence = CreateEvidence("groups/engineering");
             BoundLiteralHttpAuthorizationEvidence.Validate(
                 evidence.AncestorAuthorizationEvidence,
-                PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId);
+                PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId,
+                PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadOperation,
+                "source.example.com",
+                evidence.AncestorReadRequestUri);
 
             evidence.AncestorAuthorizationEvidence.ActionId = "wrong-action";
             evidence.AncestorAuthorizationEvidence.EvidenceSha256 = BoundLiteralHttpAuthorizationEvidence.ComputeDigest(
@@ -161,16 +306,25 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.ThrowsException<InvalidDataException>(() =>
                 BoundLiteralHttpAuthorizationEvidence.Validate(
                     evidence.AncestorAuthorizationEvidence,
-                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId));
+                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId,
+                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadOperation,
+                    "source.example.com",
+                    evidence.AncestorReadRequestUri));
 
-            var uriEvidence = CreateEvidence("groups/engineering").AncestorAuthorizationEvidence;
-            uriEvidence.ExpectedRequestUri = "https://different.example.com/_vti_bin/client.svc/ProcessQuery";
+            var original = CreateEvidence("groups/engineering");
+            var uriEvidence = original.AncestorAuthorizationEvidence;
+            uriEvidence.ExpectedRequestUri = "https://different.example.com/sites/source/groups/engineering/_vti_bin/client.svc/ProcessQuery";
             uriEvidence.ExpectedAuthority = "different.example.com";
+            uriEvidence.LiteralEvidence.RequestUri = uriEvidence.ExpectedRequestUri;
+            uriEvidence.LiteralEvidence.EvidenceSha256 = LiteralHttpAuthorizationEvidence.ComputeSha256(uriEvidence.LiteralEvidence);
             uriEvidence.EvidenceSha256 = BoundLiteralHttpAuthorizationEvidence.ComputeDigest(uriEvidence);
             Assert.ThrowsException<InvalidDataException>(() =>
                 BoundLiteralHttpAuthorizationEvidence.Validate(
                     uriEvidence,
-                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId));
+                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadActionId,
+                    PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadOperation,
+                    "source.example.com",
+                    original.AncestorReadRequestUri));
 
             var plan = BuildPlan("guides");
             var dag = Compile(plan);
@@ -190,12 +344,52 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 ExactExternalRoot(dag.Actions.First()),
                 new PathDerivedTargetWebObservation
                 {
-                    GlobalActionKey = child.GlobalActionKey,
+                    LogicalActionKey = child.LogicalActionKey,
                     HttpStatusCode = 403,
                     AuthorizationEvidence = wrongActionEvidence
                 }
             });
             Assert.AreEqual(TargetWebContainerState.CollisionBlocked, targetAnalysis.Probes.Last().State);
+        }
+
+        [TestMethod]
+        public void OwnerProjectionRejectsCrossTenantAndDifferentSiteFenceProbes()
+        {
+            var expected = BuildPlan("groups/engineering/guides", targetAuthority: "https://target-a.example.com");
+            var list = CreateMinimalLeafList();
+            var listPlan = ListMigrationPlanFactory.CreateFromSharedTopology(
+                new[] { list },
+                Array.Empty<ListLookupDependency>(),
+                expected,
+                Array.Empty<PnP.Framework.Migration.Taxonomy.TaxonomyTargetMapping>(),
+                Array.Empty<ListTargetOverride>());
+
+            var otherTenant = BuildPlan("groups/engineering/guides", targetAuthority: "https://target-b.example.com");
+            var otherTenantDag = Compile(otherTenant);
+            var otherTenantAnalysis = PathDerivedTopologyTargetAnalyzer.Analyze(
+                otherTenantDag,
+                new FakeRuntime(otherTenantDag).Inspect(otherTenantDag.Actions));
+            using (var context = new Microsoft.SharePoint.Client.ClientContext("https://target-a.example.com/sites/target/groups/engineering/guides"))
+            {
+                var result = ListMigrationTargetAnalyzer.PopulateAndSeal(
+                    context, new[] { list }, listPlan, otherTenant, otherTenantAnalysis);
+                Assert.IsTrue(result.Issues.Any(value => value.Code == "TargetListOwnerWebBlocked"));
+            }
+
+            var otherSiteFence = BuildPlan(
+                "groups/engineering/guides",
+                targetAuthority: "https://target-a.example.com",
+                targetSiteId: Guid.Parse("56565656-5656-5656-5656-565656565656"));
+            var otherSiteDag = Compile(otherSiteFence);
+            var otherSiteAnalysis = PathDerivedTopologyTargetAnalyzer.Analyze(
+                otherSiteDag,
+                new FakeRuntime(otherSiteDag).Inspect(otherSiteDag.Actions));
+            using (var context = new Microsoft.SharePoint.Client.ClientContext("https://target-a.example.com/sites/target/groups/engineering/guides"))
+            {
+                var result = ListMigrationTargetAnalyzer.PopulateAndSeal(
+                    context, new[] { list }, listPlan, otherSiteFence, otherSiteAnalysis);
+                Assert.IsTrue(result.Issues.Any(value => value.Code == "TargetListOwnerWebBlocked"));
+            }
         }
 
         [TestMethod]
@@ -210,7 +404,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 ExactExternalRoot(root),
                 new PathDerivedTargetWebObservation
                 {
-                    GlobalActionKey = child.GlobalActionKey,
+                    LogicalActionKey = child.LogicalActionKey,
                     HttpStatusCode = 404
                 }
             });
@@ -221,7 +415,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 ExactExternalRoot(root),
                 new PathDerivedTargetWebObservation
                 {
-                    GlobalActionKey = child.GlobalActionKey,
+                    LogicalActionKey = child.LogicalActionKey,
                     Exists = false,
                     TargetWebUrl = child.TargetWebUrl,
                     TargetServerRelativeUrl = child.TargetServerRelativeUrl
@@ -236,15 +430,15 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var plan = BuildPlan("guides");
             var dag = Compile(plan);
             var runtime = new FakeRuntime(dag);
-            runtime.SetUnowned(dag.Actions.Last().GlobalActionKey);
+            runtime.SetUnowned(dag.Actions.Last().LogicalActionKey);
             var blocked = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
-            Assert.AreEqual(TargetWebContainerState.CollisionBlocked, blocked.Probes.Single(value => value.GlobalActionKey == dag.Actions.Last().GlobalActionKey).State);
+            Assert.AreEqual(TargetWebContainerState.CollisionBlocked, blocked.Probes.Single(value => value.LogicalActionKey == dag.Actions.Last().LogicalActionKey).State);
 
             var approvedId = Guid.Parse("55555555-5555-5555-5555-555555555555");
             var approved = BuildPlan("guides", approvedLeafWebId: approvedId);
             var approvedDag = Compile(approved);
             var approvedRuntime = new FakeRuntime(approvedDag);
-            approvedRuntime.SetExternal(approvedDag.Actions.Last().GlobalActionKey, approvedId);
+            approvedRuntime.SetExternal(approvedDag.Actions.Last().LogicalActionKey, approvedId);
             var admitted = PathDerivedTopologyTargetAnalyzer.Analyze(approvedDag, approvedRuntime.Inspect(approvedDag.Actions));
             Assert.AreEqual(TargetWebContainerState.ReuseExplicitApprovedHost, admitted.Probes.Last().State);
         }
@@ -258,7 +452,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var analysis = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
             var actionPlan = SharedTopologyGlobalActionPlanProjector.Project(dag, analysis);
             runtime.ResetCounters();
-            runtime.RaceOnCreateKey = dag.Actions.First(value => !value.IsTargetSiteRoot).GlobalActionKey;
+            runtime.RaceOnCreateKey = dag.Actions.First(value => !value.IsTargetSiteRoot).LogicalActionKey;
             var journal = new InMemoryMigrationExecutionJournal();
 
             var result = new PathDerivedTopologyMigrationService().Ensure(
@@ -274,10 +468,39 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsTrue(converged.MutationAttempted);
             Assert.IsTrue(converged.FreshReadbackPassed);
             Assert.AreEqual(MutationOutcome.OutcomeUnknownButConverged,
-                journal.Receipts.Single(value => value.ActionSignature == converged.ActionSignature).Outcome);
+                journal.Receipts.Single(value => value.ActionSignature == converged.ExecutionGrantSignature).Outcome);
             Assert.IsTrue(journal.Intents.All(value => !string.IsNullOrWhiteSpace(value.ActionSignature)));
             Assert.AreEqual(dag.Actions.Count, journal.Verifications.Count);
             Assert.IsTrue(journal.Verifications.All(value => value.FreshReadbackPassed));
+            SharedTopologyGlobalExecutionValidator.ValidateReceipt(new[] { plan }, dag, actionPlan, result.Receipt);
+        }
+
+        [TestMethod]
+        public void OwnershipRecoveryResponseLossConvergesThroughFreshProbe()
+        {
+            var plan = BuildPlan("guides");
+            var dag = Compile(plan);
+            var child = dag.Actions.Last();
+            var runtime = new FakeRuntime(dag);
+            runtime.SetInterrupted(child.LogicalActionKey);
+            var analysis = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
+            var actionPlan = SharedTopologyGlobalActionPlanProjector.Project(dag, analysis);
+            Assert.AreEqual(SharedTopologyActionKind.RecoverInterruptedCreate, actionPlan.Actions.Last().SelectedAction);
+            runtime.RaceOnRecoverKey = child.LogicalActionKey;
+            var journal = new InMemoryMigrationExecutionJournal();
+
+            var result = new PathDerivedTopologyMigrationService().Ensure(
+                runtime,
+                dag,
+                analysis,
+                actionPlan,
+                new[] { plan },
+                journal);
+            var recovered = result.Receipt.Actions.Single(value => value.LogicalActionKey == child.LogicalActionKey);
+            Assert.IsTrue(recovered.MutationAttempted);
+            Assert.AreEqual(SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged, recovered.ExecutionOutcome);
+            Assert.AreEqual(MutationOutcome.OutcomeUnknownButConverged,
+                journal.Receipts.Single(value => value.ActionSignature == recovered.ExecutionGrantSignature).Outcome);
             SharedTopologyGlobalExecutionValidator.ValidateReceipt(new[] { plan }, dag, actionPlan, result.Receipt);
         }
 
@@ -299,7 +522,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(context.Plan.TargetWebContainers.Count, reference.RequiredActions.Count);
             Assert.IsTrue(reference.RequiredActions.All(value =>
                 !string.IsNullOrWhiteSpace(value.TargetSlotKey)
-                && value.ActionSignature != null
+                && value.ExecutionGrant != null
                 && !string.IsNullOrWhiteSpace(value.OriginalIdentifier)));
             SharedTopologyPageReferenceFactory.ValidateReceipt(
                 reference,
@@ -316,6 +539,50 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     context.Dag,
                     context.ActionPlan,
                     context.Result.Receipt));
+
+            reference = SharedTopologyPageReferenceFactory.Create(
+                context.Plan,
+                context.Dag,
+                context.ActionPlan,
+                SourceSiteId,
+                SourceLeafWebId);
+            reference.RequiredActions[1].TargetWebUrl = "https://target.example.com/sites/target/tampered";
+            reference.RequiredActions[1].TargetServerRelativeUrl = "/sites/target/tampered";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                SharedTopologyPageReferenceFactory.ValidateReceipt(
+                    reference,
+                    new[] { context.Plan },
+                    context.Dag,
+                    context.ActionPlan,
+                    context.Result.Receipt));
+        }
+
+        [TestMethod]
+        public void PageAdmissionFreshProbeRejectsIntermediateAncestorDriftAfterReceipt()
+        {
+            var context = Execute(BuildPlan("groups/engineering/guides"));
+            var reference = SharedTopologyPageReferenceFactory.Create(
+                context.Plan,
+                context.Dag,
+                context.ActionPlan,
+                SourceSiteId,
+                SourceLeafWebId);
+            var proof = new SharedTopologyExecutionProof
+            {
+                SourcePlans = new List<SharedTopologyPlan> { context.Plan },
+                GlobalActionDag = context.Dag,
+                ActionPlan = context.ActionPlan,
+                Receipt = context.Result.Receipt
+            };
+            var fresh = context.Runtime.Inspect(reference.RequiredActions.Select(value =>
+                context.Dag.Actions.Single(action => action.LogicalActionKey == value.LogicalActionKey)));
+            Assert.AreEqual(reference.RequiredActions.Count,
+                SharedTopologyPageReferenceFactory.ValidateFreshTarget(reference, proof, fresh).Count);
+
+            var intermediateKey = reference.RequiredActions[1].LogicalActionKey;
+            fresh.Single(value => value.LogicalActionKey == intermediateKey).ExistingMappingDigest = new string('b', 64);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                SharedTopologyPageReferenceFactory.ValidateFreshTarget(reference, proof, fresh));
         }
 
         [TestMethod]
@@ -479,6 +746,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 Plan = plan,
                 Dag = dag,
                 ActionPlan = actionPlan,
+                Runtime = runtime,
                 Result = result
             };
         }
@@ -493,7 +761,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Guid? targetSiteId = null,
             Guid? targetRootWebId = null,
             bool useSamePermissions = true,
-            Guid? approvedLeafWebId = null)
+            Guid? approvedLeafWebId = null,
+            DateTimeOffset? observedAt = null,
+            PathDerivedSourceTopologyEvidence sourceEvidence = null)
         {
             var policy = new PathDerivedTargetWebProvisioningPolicy
             {
@@ -512,12 +782,13 @@ namespace PnP.Framework.Test.EnterpriseWiki
             }
             var result = new PathDerivedTopologyPlanner().Build(new PathDerivedTopologyPlanningRequest
             {
-                Source = CreateEvidence(
+                Source = sourceEvidence ?? CreateEvidence(
                     relativePath,
                     sourceAuthority,
                     sourceSiteId ?? SourceSiteId,
                     sourceRootWebId ?? SourceRootWebId,
-                    sourceLeafWebId ?? SourceLeafWebId),
+                    sourceLeafWebId ?? SourceLeafWebId,
+                    observedAt),
                 TargetSiteCollectionUrl = targetAuthority + "/sites/target",
                 TargetSiteServerRelativeUrl = "/sites/target",
                 ExpectedTargetSiteId = targetSiteId ?? TargetSiteId,
@@ -538,19 +809,20 @@ namespace PnP.Framework.Test.EnterpriseWiki
             string sourceAuthority = "https://source.example.com",
             Guid? siteId = null,
             Guid? rootWebId = null,
-            Guid? leafWebId = null)
+            Guid? leafWebId = null,
+            DateTimeOffset? observedAt = null)
         {
             var sourceSite = siteId ?? SourceSiteId;
             var rootId = rootWebId ?? SourceRootWebId;
             var leafId = leafWebId ?? SourceLeafWebId;
             var sourceRootUrl = sourceAuthority + "/sites/source";
             var leafPath = "/sites/source/" + relativePath;
-            var requestUri = sourceRootUrl + "/_vti_bin/client.svc/ProcessQuery";
+            var requestUri = sourceAuthority + leafPath + "/_vti_bin/client.svc/ProcessQuery";
             var literal = LiteralHttpAuthorizationEvidence.Create(
                 "ReadSourceParentWeb",
                 requestUri,
                 403,
-                DateTimeOffset.Parse("2026-09-04T00:00:00Z"));
+                observedAt ?? DateTimeOffset.Parse("2026-09-04T00:00:00Z"));
             return PathDerivedSourceTopologyEvidenceFactory.CreateAuthorizationBlocked(
                 new SourceWebSnapshot
                 {
@@ -577,6 +849,64 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     Availability = EvidenceAvailability.Captured
                 },
                 "ReadSourceParentWeb",
+                requestUri,
+                literal);
+        }
+
+        private static PathDerivedSourceTopologyEvidence CreateEvidenceWithCapturedIntermediate(
+            string relativePath,
+            string intermediatePath,
+            Guid intermediateWebId)
+        {
+            var sourceRootUrl = "https://source.example.com/sites/source";
+            var leafPath = "/sites/source/" + relativePath;
+            var requestUri = "https://source.example.com" + leafPath + "/_vti_bin/client.svc/ProcessQuery";
+            var captured = new[]
+            {
+                new SourceWebSnapshot
+                {
+                    SiteId = SourceSiteId,
+                    WebId = SourceRootWebId,
+                    SiteCollectionUrl = sourceRootUrl,
+                    WebUrl = sourceRootUrl,
+                    ServerRelativeUrl = "/sites/source",
+                    Title = "Source root",
+                    WebTemplate = "STS",
+                    Configuration = 3
+                },
+                new SourceWebSnapshot
+                {
+                    SiteId = SourceSiteId,
+                    WebId = intermediateWebId,
+                    SiteCollectionUrl = sourceRootUrl,
+                    WebUrl = "https://source.example.com" + intermediatePath,
+                    ServerRelativeUrl = intermediatePath,
+                    Title = "Captured intermediate",
+                    WebTemplate = "STS",
+                    Configuration = 0
+                },
+                new SourceWebSnapshot
+                {
+                    SiteId = SourceSiteId,
+                    WebId = SourceLeafWebId,
+                    SiteCollectionUrl = sourceRootUrl,
+                    WebUrl = "https://source.example.com" + leafPath,
+                    ServerRelativeUrl = leafPath,
+                    Title = "Source leaf",
+                    WebTemplate = "STS",
+                    Configuration = 0
+                }
+            };
+            var literal = LiteralHttpAuthorizationEvidence.Create(
+                PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadOperation,
+                requestUri,
+                403,
+                DateTimeOffset.Parse("2026-09-04T00:02:00Z"));
+            return PathDerivedSourceTopologyEvidenceFactory.CreateAuthorizationBlocked(
+                captured,
+                SourceRootWebId,
+                SourceLeafWebId,
+                PathDerivedSourceTopologyEvidenceFactory.SourceAncestorReadOperation,
                 requestUri,
                 literal);
         }
@@ -614,7 +944,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         {
             return new PathDerivedTargetWebObservation
             {
-                GlobalActionKey = root.GlobalActionKey,
+                LogicalActionKey = root.LogicalActionKey,
                 Exists = true,
                 TargetSiteId = root.ExpectedTargetSiteId,
                 TargetWebId = root.ApprovedExistingTargetWebId,
@@ -637,6 +967,8 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             public SharedTopologyGlobalActionPlan ActionPlan { get; set; }
 
+            public FakeRuntime Runtime { get; set; }
+
             public PathDerivedTopologyMigrationExecutionResult Result { get; set; }
         }
 
@@ -648,9 +980,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             public FakeRuntime(SharedTopologyGlobalActionDag dag)
             {
-                containers = dag.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+                containers = dag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
                 targetWebIds = dag.Actions.ToDictionary(
-                    value => value.GlobalActionKey,
+                    value => value.LogicalActionKey,
                     value => value.ApprovedExistingTargetWebId ?? Guid.NewGuid(),
                     StringComparer.Ordinal);
                 observations = new Dictionary<string, PathDerivedTargetWebObservation>(StringComparer.Ordinal);
@@ -658,14 +990,14 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 {
                     if (container.IsTargetSiteRoot)
                     {
-                        SetExternal(container.GlobalActionKey, container.ApprovedExistingTargetWebId.Value);
+                        SetExternal(container.LogicalActionKey, container.ApprovedExistingTargetWebId.Value);
                     }
                     else
                     {
-                        observations[container.GlobalActionKey] = Missing(container);
+                        observations[container.LogicalActionKey] = Missing(container);
                     }
                 }
-                InspectCounts = dag.Actions.ToDictionary(value => value.GlobalActionKey, value => 0, StringComparer.Ordinal);
+                InspectCounts = dag.Actions.ToDictionary(value => value.LogicalActionKey, value => 0, StringComparer.Ordinal);
             }
 
             public IDictionary<string, int> InspectCounts { get; }
@@ -676,12 +1008,14 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             public string RaceOnCreateKey { get; set; }
 
+            public string RaceOnRecoverKey { get; set; }
+
             public IList<PathDerivedTargetWebObservation> Inspect(IEnumerable<TargetWebContainerIngredientPlan> requested)
             {
                 return requested.Select(value =>
                 {
-                    InspectCounts[value.GlobalActionKey]++;
-                    return Clone(observations[value.GlobalActionKey]);
+                    InspectCounts[value.LogicalActionKey]++;
+                    return Clone(observations[value.LogicalActionKey]);
                 }).ToList();
             }
 
@@ -692,26 +1026,31 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     throw new InvalidOperationException("root create is not allowed");
                 }
                 CreateCalls++;
-                SetOwned(container.GlobalActionKey);
-                if (string.Equals(RaceOnCreateKey, container.GlobalActionKey, StringComparison.Ordinal))
+                SetOwned(container.LogicalActionKey);
+                if (string.Equals(RaceOnCreateKey, container.LogicalActionKey, StringComparison.Ordinal))
                 {
                     RaceOnCreateKey = null;
                     throw new InvalidOperationException("simulated lost create response");
                 }
-                return Current(container.GlobalActionKey);
+                return Current(container.LogicalActionKey);
             }
 
             public PathDerivedTargetWebObservation RecoverOwnership(TargetWebContainerIngredientPlan container)
             {
                 RecoverCalls++;
-                var current = observations[container.GlobalActionKey];
+                var current = observations[container.LogicalActionKey];
                 if (!string.IsNullOrWhiteSpace(current.ExistingOriginalIdentifier)
                     || !string.IsNullOrWhiteSpace(current.ExistingMappingDigest))
                 {
                     throw new InvalidOperationException("conflicting marker");
                 }
-                SetOwned(container.GlobalActionKey);
-                return Current(container.GlobalActionKey);
+                SetOwned(container.LogicalActionKey);
+                if (string.Equals(RaceOnRecoverKey, container.LogicalActionKey, StringComparison.Ordinal))
+                {
+                    RaceOnRecoverKey = null;
+                    throw new InvalidOperationException("simulated lost recovery response");
+                }
+                return Current(container.LogicalActionKey);
             }
 
             public void SetUnowned(string key)
@@ -723,6 +1062,17 @@ namespace PnP.Framework.Test.EnterpriseWiki
             {
                 targetWebIds[key] = webId;
                 SetExisting(key, webId, null, null, "ordinary external Web");
+            }
+
+            public void SetInterrupted(string key)
+            {
+                var container = containers[key];
+                SetExisting(
+                    key,
+                    targetWebIds[key],
+                    null,
+                    null,
+                    PathDerivedTopologyTargetAnalyzer.InterruptedCreateDescription(container));
             }
 
             public PathDerivedTargetWebObservation Current(string key)
@@ -756,7 +1106,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 var container = containers[key];
                 observations[key] = new PathDerivedTargetWebObservation
                 {
-                    GlobalActionKey = key,
+                    LogicalActionKey = key,
                     Exists = true,
                     TargetSiteId = container.ExpectedTargetSiteId,
                     TargetWebId = webId,
@@ -778,7 +1128,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             {
                 return new PathDerivedTargetWebObservation
                 {
-                    GlobalActionKey = container.GlobalActionKey,
+                    LogicalActionKey = container.LogicalActionKey,
                     Exists = false,
                     TargetSiteId = container.ExpectedTargetSiteId,
                     TargetParentWebId = ParentWebId(container),
@@ -791,14 +1141,14 @@ namespace PnP.Framework.Test.EnterpriseWiki
             {
                 return container.IsTargetSiteRoot
                     ? Guid.Empty
-                    : targetWebIds[container.ParentGlobalActionKey];
+                    : targetWebIds[container.ParentLogicalActionKey];
             }
 
             private static PathDerivedTargetWebObservation Clone(PathDerivedTargetWebObservation value)
             {
                 return new PathDerivedTargetWebObservation
                 {
-                    GlobalActionKey = value.GlobalActionKey,
+                    LogicalActionKey = value.LogicalActionKey,
                     HttpStatusCode = value.HttpStatusCode,
                     AuthorizationEvidence = value.AuthorizationEvidence,
                     InspectionFailed = value.InspectionFailed,

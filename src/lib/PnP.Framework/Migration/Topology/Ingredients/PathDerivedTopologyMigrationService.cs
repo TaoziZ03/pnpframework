@@ -136,18 +136,18 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             SharedTopologyGlobalExecutionValidator.ValidateActionPlan(dag, reviewedAnalysis, approvedActionPlan);
             var startedAt = DateTimeOffset.UtcNow;
-            var actionByKey = approvedActionPlan.Actions.ToDictionary(value => value.GlobalActionKey, StringComparer.Ordinal);
+            var actionByKey = approvedActionPlan.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var completed = new Dictionary<string, SharedTopologyGlobalActionReceipt>(StringComparer.Ordinal);
 
             foreach (var container in dag.Actions
                 .OrderBy(value => SharedTopologyPath.Depth(value.TargetServerRelativeUrl))
                 .ThenBy(value => value.TargetSlotKey, StringComparer.Ordinal))
             {
-                var approved = actionByKey[container.GlobalActionKey];
+                var approved = actionByKey[container.LogicalActionKey];
                 Guid? expectedParentWebId = null;
                 if (!container.IsTargetSiteRoot)
                 {
-                    if (!completed.TryGetValue(container.ParentGlobalActionKey, out var parent)
+                    if (!completed.TryGetValue(container.ParentLogicalActionKey, out var parent)
                         || !parent.FreshReadbackPassed)
                     {
                         throw new InvalidOperationException("The signed direct-parent topology checkpoint is unavailable.");
@@ -161,29 +161,33 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 var executionOutcome = SharedTopologyActionExecutionOutcome.AlreadySatisfied;
                 if (fresh.State == TargetWebContainerState.ReuseExplicitApprovedHost)
                 {
-                    recorder.RecordAlreadySatisfied(container.ActionSignature, "Fresh target probe verified the exact external host without writing ownership markers.");
+                    recorder.RecordAlreadySatisfied(approved.ExecutionGrant, "Fresh target probe verified the exact external host without writing ownership markers.");
                     executionOutcome = SharedTopologyActionExecutionOutcome.ReusedExternal;
                 }
                 else if (fresh.State == TargetWebContainerState.ReuseOwned)
                 {
-                    recorder.RecordAlreadySatisfied(container.ActionSignature, "Fresh target probe verified the exact migration-owned Web.");
+                    recorder.RecordAlreadySatisfied(approved.ExecutionGrant, "Fresh target probe verified the exact migration-owned Web.");
                 }
                 else if (fresh.State == TargetWebContainerState.RecoverInterruptedCreate)
                 {
                     mutationAttempted = true;
-                    recorder.Execute(
-                        container.ActionSignature,
+                    var recovery = recorder.Execute(
+                        approved.ExecutionGrant,
                         "Recover the exact interrupted target Web.",
-                        () => runtime.RecoverOwnership(container),
-                        value => MutationOutcome.Applied,
-                        value => "Interrupted target Web ownership was recovered and will be freshly verified.");
-                    executionOutcome = SharedTopologyActionExecutionOutcome.RecoveredInterruptedCreate;
+                        () => ExecuteRecoveryWithConvergence(runtime, container, expectedParentWebId),
+                        value => value.Outcome == SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged
+                            ? MutationOutcome.OutcomeUnknownButConverged
+                            : MutationOutcome.Applied,
+                        value => value.Message);
+                    executionOutcome = recovery.Outcome == SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged
+                        ? recovery.Outcome
+                        : SharedTopologyActionExecutionOutcome.RecoveredInterruptedCreate;
                 }
                 else if (fresh.State == TargetWebContainerState.CreateMissing)
                 {
                     mutationAttempted = true;
                     var attempt = recorder.Execute(
-                        container.ActionSignature,
+                        approved.ExecutionGrant,
                         "Create the migration-owned target Web.",
                         () => ExecuteCreateWithConvergence(runtime, container, expectedParentWebId),
                         value => value.Outcome == SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged
@@ -194,7 +198,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 }
                 else
                 {
-                    throw new InvalidOperationException("Fresh target state is not executable for global action '" + container.GlobalActionKey + "'.");
+                    throw new InvalidOperationException("Fresh target state is not executable for logical action '" + container.LogicalActionKey + "'.");
                 }
 
                 var readback = InspectExactlyOne(runtime, container, expectedParentWebId);
@@ -203,12 +207,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     operationId,
                     approvedActionPlan.ActionPlanDigest,
                     container,
+                    approved.ExecutionGrant,
                     approved.SelectedAction,
                     readback,
                     mutationAttempted,
                     executionOutcome);
                 recorder.RecordVerification(actionReceipt.VerificationCheckpoint);
-                completed.Add(container.GlobalActionKey, actionReceipt);
+                completed.Add(container.LogicalActionKey, actionReceipt);
             }
 
             var receipt = new SharedTopologyGlobalMaterializationReceipt
@@ -276,6 +281,35 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             }
         }
 
+        private static CreateAttemptResult ExecuteRecoveryWithConvergence(
+            IPathDerivedTopologyTargetRuntime runtime,
+            TargetWebContainerIngredientPlan container,
+            Guid? expectedParentWebId)
+        {
+            try
+            {
+                runtime.RecoverOwnership(container);
+                return new CreateAttemptResult
+                {
+                    Outcome = SharedTopologyActionExecutionOutcome.RecoveredInterruptedCreate,
+                    Message = "Interrupted target Web ownership recovery returned; exact fresh readback is still required."
+                };
+            }
+            catch (Exception exception)
+            {
+                var afterFailure = InspectExactlyOne(runtime, container, expectedParentWebId);
+                if (afterFailure.State == TargetWebContainerState.ReuseOwned)
+                {
+                    return new CreateAttemptResult
+                    {
+                        Outcome = SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged,
+                        Message = "Ownership recovery response was lost; exact owned state proves convergence. " + exception.Message
+                    };
+                }
+                throw;
+            }
+        }
+
         private static PathDerivedTargetWebProbe InspectExactlyOne(
             IPathDerivedTopologyTargetRuntime runtime,
             TargetWebContainerIngredientPlan container,
@@ -328,7 +362,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 || !readback.ObservedConfiguration.HasValue
                 || !readback.ObservedLanguage.HasValue
                 || !readback.ObservedHasUniqueRoleAssignments.HasValue
-                || !string.Equals(readback.ObservedStateDigest, container.ActionSignature.SemanticDigest, StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(readback.ObservedStateDigest, SharedTopologyDigest.ComputeObservedSemanticState(container), StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("Fresh target readback did not verify the exact generic action signature and ownership boundary.");
             }
@@ -338,6 +372,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             Guid operationId,
             string actionPlanDigest,
             TargetWebContainerIngredientPlan container,
+            MigrationActionSignature executionGrant,
             SharedTopologyActionKind selectedAction,
             PathDerivedTargetWebProbe readback,
             bool mutationAttempted,
@@ -348,15 +383,15 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 OperationId = operationId,
                 PlanDigest = actionPlanDigest,
-                ActionId = container.ActionSignature.ActionId,
-                ActionSignature = container.ActionSignature.Signature,
+                ActionId = executionGrant.ActionId,
+                ActionSignature = executionGrant.Signature,
                 VerifiedAtUtc = DateTimeOffset.UtcNow,
                 FreshReadbackPassed = true,
                 ObservedStateDigest = readback.ObservedStateDigest,
                 Ownership = ownership == SharedTopologyOwnership.ExternalApprovedHost
                     ? MigrationTargetOwnership.External
                     : MigrationTargetOwnership.MigrationOwned,
-                TargetIdentityDigest = container.ActionSignature.TargetIdentityDigest,
+                TargetIdentityDigest = executionGrant.TargetIdentityDigest,
                 ProvenanceMatched = ownership == SharedTopologyOwnership.ExternalApprovedHost
                     || !string.IsNullOrWhiteSpace(readback.ObservedOriginalIdentifier),
                 Message = "Fresh target Web readback matched the generic action signature."
@@ -364,8 +399,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             var receipt = new SharedTopologyGlobalActionReceipt
             {
                 TargetSlotKey = container.TargetSlotKey,
-                GlobalActionKey = container.GlobalActionKey,
-                ActionSignature = container.ActionSignature.Signature,
+                LogicalActionKey = container.LogicalActionKey,
+                ExecutionGrantSignature = executionGrant.Signature,
                 SelectedAction = selectedAction,
                 FinalState = readback.State,
                 Ownership = ownership,
@@ -407,12 +442,12 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 .OrderBy(value => value.Key, StringComparer.Ordinal))
             {
                 var bindings = group.ToArray();
-                if (bindings.Select(value => value.TargetGlobalActionKey).Distinct(StringComparer.Ordinal).Count() != 1)
+                if (bindings.Select(value => value.TargetLogicalActionKey).Distinct(StringComparer.Ordinal).Count() != 1)
                 {
                     throw new InvalidDataException("One source owner is bound to conflicting global topology actions.");
                 }
                 var binding = bindings[0];
-                var target = completed[binding.TargetGlobalActionKey];
+                var target = completed[binding.TargetLogicalActionKey];
                 var mapping = new SharedTopologySourceWebMaterializationReceipt
                 {
                     SourceOwnerKey = binding.SourceOwnerKey,
@@ -420,7 +455,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     SourceWebId = binding.SourceWebId,
                     SourceWebUrl = binding.SourceWebUrl,
                     SourceServerRelativeUrl = binding.SourceServerRelativeUrl,
-                    TargetGlobalActionKey = binding.TargetGlobalActionKey,
+                    TargetLogicalActionKey = binding.TargetLogicalActionKey,
                     TargetSiteId = target.TargetSiteId,
                     TargetWebId = target.TargetWebId,
                     TargetWebUrl = target.TargetWebUrl,
