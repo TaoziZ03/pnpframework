@@ -1,4 +1,5 @@
 using System;
+using PnP.Framework.Migration.Lists.Items.Protection;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
 {
@@ -86,6 +87,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         public static string ListDocument(Guid sourceWebId, Guid sourceListId, int sourceItemId)
         {
             return "list-document:" + sourceWebId.ToString("D") + "/" + sourceListId.ToString("D") + "/" + sourceItemId;
+        }
+
+        public static string ProtectedAsset(Guid sourceWebId, Guid sourceListId, int sourceItemId)
+        {
+            return ProtectedAssetIngredientIds.Asset(sourceWebId, sourceListId, sourceItemId);
+        }
+
+        public static string DocumentIdentity(Guid sourceWebId, Guid sourceListId, int sourceItemId)
+        {
+            return ProtectedAssetIngredientIds.DocumentIdentity(sourceWebId, sourceListId, sourceItemId);
+        }
+
+        public static string BinaryPayload(Guid sourceWebId, Guid sourceListId, int sourceItemId)
+        {
+            return ProtectedAssetIngredientIds.BinaryPayload(sourceWebId, sourceListId, sourceItemId);
+        }
+
+        public static string InformationProtectionRelationship(Guid sourceWebId, Guid sourceListId, int sourceItemId)
+        {
+            return ProtectedAssetIngredientIds.InformationProtectionRelationship(sourceWebId, sourceListId, sourceItemId);
         }
 
         public static string ListAttachment(Guid sourceWebId, Guid sourceListId, int sourceItemId, string fileName)

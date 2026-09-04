@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Taxonomy;
 using System.Collections.Generic;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
+using PnP.Framework.Migration.Pages.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Planning
 {
@@ -22,5 +23,9 @@ namespace PnP.Framework.Migration.Pages.Planning
         public TopologyPlanningPolicy TopologyPolicy { get; set; } = new TopologyPlanningPolicy();
 
         public IList<ListTargetOverride> ListTargetOverrides { get; set; } = new List<ListTargetOverride>();
+
+        public IList<PageIngredientActionSelectionRequest> IngredientActionSelections { get; set; } = new List<PageIngredientActionSelectionRequest>();
+
+        public PageIngredientSelectionAudit DefaultIngredientSelectionAudit { get; set; }
     }
 }

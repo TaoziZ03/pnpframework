@@ -95,6 +95,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             targetContext.ExecuteQueryRetry();
 
             var snapshot = exportPackage.Snapshot;
+            var protectedAssetPlan = PublishingPageProtectedAssetActionPlanner.Create(
+                snapshot,
+                exportPackage.SnapshotDigest,
+                options.IngredientActionSelections,
+                options.DefaultIngredientSelectionAudit);
             var targetPagePath = PagePath.Normalize(targetWeb.ServerRelativeUrl, options.TargetPageServerRelativeUrl, "Pages");
             var blockers = snapshot.Blockers.ToList();
             var warnings = snapshot.Warnings.ToList();
@@ -157,6 +162,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 targetSite,
                 targetRootWeb,
                 options,
+                protectedAssetPlan,
                 blockers,
                 warnings);
             var taxonomyRelationshipActions = new List<TaxonomyRelationshipAction>();
@@ -208,6 +214,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     expectedContentDigest,
                     targetLifecycle),
                 RuntimeVerification = PublishingPageRuntimeVerificationPolicy.CreateManifest(),
+                ProtectedAssets = protectedAssetPlan,
                 Blockers = blockers.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList(),
                 Warnings = warnings.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList()
             };

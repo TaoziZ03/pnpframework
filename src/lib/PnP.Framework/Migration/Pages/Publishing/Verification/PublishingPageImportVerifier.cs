@@ -10,6 +10,7 @@ using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -170,6 +171,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                         || topologyReceipt.Webs.Count == package.Plan.Topology.SiteCollections.SelectMany(value => value.Webs).Count());
                 var listsMatched = listReceipts.Count == package.Snapshot.ListDependencies.Count
                     && listReceipts.All(value => value.FreshReadbackPassed);
+                var ingredientComparisons = listReceipts
+                    .SelectMany(value => value.IngredientComparisons ?? new List<PageIngredientComparisonResult>())
+                    .ToList();
+                var approvedExclusions = listReceipts
+                    .SelectMany(value => value.ApprovedExclusions ?? new List<PageIngredientActionSelectionReceipt>())
+                    .ToList();
+                var ingredientComparisonPassed = ingredientComparisons.All(value => value.Outcome != IngredientComparisonOutcome.UnexpectedDifference);
                 if (!topologyMatched)
                 {
                     receiptWarnings.Add("Fresh topology readback did not verify every approved Site/Web mapping.");
@@ -196,7 +204,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     && plannedFieldsPassed
                     && taxonomyRelationshipsMatched
                     && topologyMatched
-                    && listsMatched;
+                    && listsMatched
+                    && ingredientComparisonPassed;
                 var runtimeVerificationRequired = package.Plan.RuntimeVerification.Requirements.Any(item => item.Required);
                 return new PublishingPageImportReceipt
                 {
@@ -247,6 +256,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                         : runtimeVerificationRequired
                             ? MigrationAcceptanceStatus.Pending
                             : MigrationAcceptanceStatus.Accepted,
+                    MigrationOutcome = package.Plan.MigrationOutcome,
+                    ReproductionOutcome = PageReproductionOutcomePolicy.Evaluate(
+                        readbackPassed,
+                        package.Plan.MigrationOutcome,
+                        approvedExclusions),
+                    ApprovedExclusions = approvedExclusions,
+                    IngredientComparisons = ingredientComparisons,
                     Warnings = receiptWarnings.Distinct(StringComparer.Ordinal).OrderBy(value => value, StringComparer.Ordinal).ToList(),
                 };
             }

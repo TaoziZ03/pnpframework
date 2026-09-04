@@ -75,6 +75,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
 
         public IList<PageIngredientAction> IngredientActions { get; set; } = new List<PageIngredientAction>();
 
+        public ProtectedAssetActionPlan ProtectedAssets { get; set; } = new ProtectedAssetActionPlan();
+
         public PageMigrationOutcome MigrationOutcome { get; set; }
 
         public IList<MigrationIssue> IngredientIssues { get; set; } = new List<MigrationIssue>();

@@ -6,6 +6,7 @@ namespace PnP.Framework.Migration.Pages.Ingredients
         Exact = 1,
         ExecutableWithTransform = 2,
         ExecutableWithLoss = 3,
-        Blocked = 4
+        Blocked = 4,
+        ExecutableWithApprovedExclusions = 5
     }
 }

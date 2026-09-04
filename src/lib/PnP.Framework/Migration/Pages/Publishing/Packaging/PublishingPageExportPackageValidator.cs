@@ -31,7 +31,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
             if (!string.Equals(package.SchemaVersion, PublishingPagePackageContract.ExportSchemaVersion, StringComparison.Ordinal))
             {
-                throw new InvalidDataException($"Unsupported publishing-page export schema '{package.SchemaVersion}'.");
+                throw new InvalidDataException($"Unsupported publishing-page export schema '{package.SchemaVersion}'. Re-export with '{PublishingPagePackageContract.ExportSchemaVersion}' so protected-asset capture decisions are made before binary access.");
             }
 
             ValidateSelection(package.Selection);
@@ -49,6 +49,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             ValidateRuntime(snapshot.Runtime);
             ValidateProfileSignals(snapshot.ProfileSignals);
             ValidateIngredientGraph(snapshot.IngredientGraph);
+            ValidateProtectedAssetCapture(snapshot);
             ValidateDerivedRuntime(snapshot);
             ValidateDerivedProfileSignals(snapshot);
 
@@ -78,6 +79,30 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
         }
 
+        private static void ValidateProtectedAssetCapture(PublishingPageCaptureBundle snapshot)
+        {
+            foreach (var document in snapshot.ListDependencies
+                         .SelectMany(value => value.Items)
+                         .Where(value => value?.Document?.Kind == Lists.Items.ListDocumentObjectKind.File)
+                         .Select(value => value.Document))
+            {
+                if (document.InformationProtection == null || document.CaptureDecision == null)
+                {
+                    throw new InvalidDataException("Every v3 document snapshot must seal Information Protection metadata and a pre-download capture decision: " + document.ServerRelativeUrl);
+                }
+                var expected = Lists.Items.Protection.ProtectedAssetCaptureGate.Decide(
+                    document.InformationProtection,
+                    snapshot.CapturePolicy.ProtectedAssets);
+                if (!string.Equals(
+                    MigrationContractSerializer.SerializeCanonical(expected),
+                    MigrationContractSerializer.SerializeCanonical(document.CaptureDecision),
+                    StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException("The sealed protected-asset capture decision does not match source metadata and the capture policy: " + document.ServerRelativeUrl);
+                }
+            }
+        }
+
         private static void ValidateSnapshotShape(PublishingPageCaptureBundle snapshot)
         {
             if (snapshot == null)
@@ -95,6 +120,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || snapshot.SourceFence == null)
             {
                 throw new InvalidDataException("The source snapshot is missing identity, page artifact, runtime, ingredient graph, publishing layout, policy, security, lifecycle, or source fence evidence.");
+            }
+            if (snapshot.CapturePolicy.ProtectedAssets == null
+                || !string.Equals(
+                    snapshot.CapturePolicy.ProtectedAssets.SchemaVersion,
+                    Lists.Items.Protection.ProtectedAssetCapturePolicy.ContractVersion,
+                    StringComparison.Ordinal)
+                || string.IsNullOrWhiteSpace(snapshot.CapturePolicy.ProtectedAssets.PolicyId))
+            {
+                throw new InvalidDataException("The source snapshot is missing a supported protected-asset capture policy.");
             }
             if (snapshot.ProfileSignals == null
                 || snapshot.Fields == null
@@ -185,7 +219,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
         private static void ValidateIngredientGraph(CanonicalPageIngredientGraph graph)
         {
-            if (!string.Equals(graph.SchemaVersion, "pnp-page-ingredient-graph/v1", StringComparison.Ordinal)
+            if (!string.Equals(graph.SchemaVersion, "pnp-page-ingredient-graph/v2", StringComparison.Ordinal)
                 || graph.Nodes == null
                 || graph.Edges == null)
             {

@@ -32,7 +32,8 @@ namespace PnP.Framework.Migration.Lists.Execution
             context.ExecuteQueryRetry();
             var existingBySourceId = ReadExisting(context, targetList);
             var targetItems = new Dictionary<int, ListItem>();
-            foreach (var sourceItem in OrderItems(source.Items))
+            var reproducedItems = ListItemMaterializationPolicy.ReproducedItems(source.Items, plan);
+            foreach (var sourceItem in OrderItems(reproducedItems))
             {
                 var expectedDigest = ComputeItemDigest(sourceItem);
                 ListItem targetItem;
@@ -53,7 +54,7 @@ namespace PnP.Framework.Migration.Lists.Execution
                 ListAttachmentMaterializer.Ensure(context, targetItem, sourceItem.Attachments, artifactStore);
             }
 
-            foreach (var sourceItem in source.Items.OrderBy(value => value.SourceItemId))
+            foreach (var sourceItem in reproducedItems.OrderBy(value => value.SourceItemId))
             {
                 var targetItem = targetItems[sourceItem.SourceItemId];
                 ListItemValueWriter.Apply(context, targetList, targetItem, sourceItem, plan, dependencyReceipts, contentTypeIds, true);

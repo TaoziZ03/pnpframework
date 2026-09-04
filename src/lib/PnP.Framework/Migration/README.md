@@ -24,6 +24,7 @@ Start with:
 - [Page classification and ingredient policy](docs/page-classification-and-ingredient-policy.md)
 - [Object lifecycle](docs/object-lifecycle.md)
 - [Execution and verification](docs/execution-and-verification.md)
+- [Protected asset capture and selectable actions](docs/protected-asset-selectable-actions.md)
 - [Performance and concurrency](docs/performance-and-concurrency.md)
 
 ## Design rules
@@ -40,6 +41,7 @@ Every migration area should preserve the following boundaries:
 8. **Profiles compose reusable page capabilities.** Cross-page evidence and mechanics belong in `Pages`; publishing-page contracts and lifecycle behavior belong in `Pages.Publishing`; the Enterprise Wiki namespace remains a thin workflow facade.
 9. **Use existing PnP primitives.** Migration code should compose established PnP Framework operations instead of duplicating CSOM retry, file, folder, page, URL, or Web Part plumbing.
 10. **Optimize round trips without weakening evidence.** Batch compatible target reads, reuse already-loaded properties inside one inspection boundary, and prove that optimization leaves canonical plan digests and typed decisions unchanged.
+11. **Enforce protected-asset policy before byte access.** A metadata-only source policy must decide before opening a binary stream; planning-time exclusion cannot undo an earlier export.
 
 ## Current areas
 

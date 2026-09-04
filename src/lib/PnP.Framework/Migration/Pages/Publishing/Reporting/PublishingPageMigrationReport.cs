@@ -11,5 +11,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
         public IList<string> Blockers { get; set; } = new List<string>();
 
         public IList<string> Warnings { get; set; } = new List<string>();
+
+        public IList<string> ApprovedExclusions { get; set; } = new List<string>();
     }
 }

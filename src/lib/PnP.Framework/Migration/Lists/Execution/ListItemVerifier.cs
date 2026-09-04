@@ -2,6 +2,7 @@ using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Items;
 using PnP.Framework.Migration.Lists.Planning;
+using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -21,17 +22,19 @@ namespace PnP.Framework.Migration.Lists.Execution
             ICollection<string> diagnostics)
         {
             var owned = ReadOwnedItems(context, list, diagnostics);
-            if (list.ItemCount != source.Items.Count)
+            var reproducedItems = ListItemMaterializationPolicy.ReproducedItems(source.Items, plan);
+            if (list.ItemCount != reproducedItems.Count)
             {
-                diagnostics.Add("Target List ItemCount " + list.ItemCount + " differs from captured current item count " + source.Items.Count + ".");
+                diagnostics.Add("Target List ItemCount " + list.ItemCount + " differs from approved reproduced item count " + reproducedItems.Count + ".");
             }
-            if (owned.Count != source.Items.Count || receipt.TargetItemIds.Count != source.Items.Count)
+            if (owned.Count != reproducedItems.Count || receipt.TargetItemIds.Count != reproducedItems.Count)
             {
-                diagnostics.Add("Target source-to-item mapping count differs from the captured current item count.");
+                diagnostics.Add("Target source-to-item mapping count differs from the approved reproduced item count.");
             }
             var allReceipts = new Dictionary<Guid, ListMaterializationReceipt>(dependencyReceipts);
             allReceipts[source.SourceListId] = receipt;
-            foreach (var sourceItem in source.Items.OrderBy(value => value.SourceItemId))
+            var itemDecisions = plan.ItemDecisions.ToDictionary(value => value.SourceItemId);
+            foreach (var sourceItem in reproducedItems.OrderBy(value => value.SourceItemId))
             {
                 int targetId;
                 ListItem target;
@@ -53,7 +56,22 @@ namespace PnP.Framework.Migration.Lists.Execution
                 VerifyValues(sourceItem, target, plan, receipt.TargetContentTypeIds, allReceipts, diagnostics);
                 ListBinaryVerifier.VerifyDocument(context, source, plan, sourceItem, receipt, diagnostics);
                 ListBinaryVerifier.VerifyAttachments(context, sourceItem, target, receipt, diagnostics);
+                ListInformationProtectionVerifier.Verify(sourceItem, target, itemDecisions[sourceItem.SourceItemId], receipt, diagnostics);
                 receipt.VerifiedItemCount++;
+            }
+            foreach (var exclusion in ListItemMaterializationPolicy.ApprovedExclusions(plan))
+            {
+                var targetPresent = ListBinaryVerifier.IsFilePresent(context, exclusion.SourceServerRelativeUrl, source, plan, diagnostics);
+                var comparison = PageIngredientComparisonPolicy.ComparePresence(
+                    exclusion.SelectionReceipt,
+                    true,
+                    targetPresent,
+                    exclusion.SourceServerRelativeUrl);
+                receipt.IngredientComparisons.Add(comparison);
+                if (comparison.Outcome == IngredientComparisonOutcome.UnexpectedDifference)
+                {
+                    diagnostics.Add("Protected asset presence differed unexpectedly: " + exclusion.SourceServerRelativeUrl + ".");
+                }
             }
         }
 

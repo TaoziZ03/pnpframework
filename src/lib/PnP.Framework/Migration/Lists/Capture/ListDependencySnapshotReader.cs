@@ -3,6 +3,7 @@ using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.ContentTypes;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Views;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.ContentTypes;
@@ -20,6 +21,7 @@ namespace PnP.Framework.Migration.Lists.Capture
             Guid sourceListId,
             long maximumBytes,
             IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy,
             ICollection<string> warnings)
         {
             if (context == null)
@@ -110,7 +112,7 @@ namespace PnP.Framework.Migration.Lists.Capture
             }
             context.ExecuteQueryRetry();
 
-            var items = ListItemSnapshotReader.Read(context, list, maximumBytes, artifactStore, warnings);
+            var items = ListItemSnapshotReader.Read(context, list, maximumBytes, artifactStore, protectedAssetPolicy, warnings);
             var contentTypeDiagnostics = new List<string>();
             var listContentTypes = ListContentTypeSnapshotReader.Read(list.ContentTypes, contentTypeDiagnostics);
             var siteContentTypes = ContentTypeClosureSnapshotReader.Read(context, sourceWeb, listContentTypes, contentTypeDiagnostics);

@@ -28,6 +28,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 PolicyId = policyId,
                 PolicyVersion = "1",
                 Reason = reason,
+                TerminalStatus = disposition == IngredientDisposition.Block || disposition == IngredientDisposition.Defer
+                    ? IngredientTerminalStatus.DecisionRequired
+                    : disposition == IngredientDisposition.EvidenceOnly || disposition == IngredientDisposition.Exclude
+                        ? IngredientTerminalStatus.SatisfiedByPolicy
+                        : IngredientTerminalStatus.Executable,
                 VerificationAssertions = (verificationAssertions ?? Array.Empty<string>())
                     .Where(value => !string.IsNullOrWhiteSpace(value))
                     .ToList()

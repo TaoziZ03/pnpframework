@@ -20,6 +20,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             PublishingPageWebPartIngredientActionProjector.Project(plan, actions);
             PublishingPageListIngredientActionProjector.Project(snapshot, plan, actions);
             PublishingPageReferenceIngredientActionProjector.Project(plan, actions);
+            foreach (var action in plan.ProtectedAssets?.Actions ?? new List<PageIngredientAction>())
+            {
+                actions[action.IngredientId] = action;
+            }
 
             foreach (var node in snapshot.IngredientGraph.Nodes.Where(value => value != null && value.HasContent))
             {

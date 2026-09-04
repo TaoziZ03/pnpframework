@@ -1,5 +1,6 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Lists.Planning;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWebParts.Bindings;
 using System;
@@ -25,6 +26,7 @@ namespace PnP.Framework.Migration.Lists.Capture
             IEnumerable<ClassicListWebPartBindingSnapshot> bindings,
             long maximumBytes,
             IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy,
             ICollection<string> blockers,
             ICollection<string> warnings)
         {
@@ -44,7 +46,14 @@ namespace PnP.Framework.Migration.Lists.Capture
                 try
                 {
                     var web = context.Site.OpenWebById(identity.WebId);
-                    var dependency = ListDependencySnapshotReader.Read(context, web, identity.ListId, maximumBytes, artifactStore, warnings);
+                    var dependency = ListDependencySnapshotReader.Read(
+                        context,
+                        web,
+                        identity.ListId,
+                        maximumBytes,
+                        artifactStore,
+                        protectedAssetPolicy,
+                        warnings);
                     result.Dependencies.Add(dependency);
                     result.RequiredSourceWebIds.Add(dependency.SourceWebId);
                     foreach (var field in dependency.Fields.Where(value => value.SourceLookupListId.HasValue))

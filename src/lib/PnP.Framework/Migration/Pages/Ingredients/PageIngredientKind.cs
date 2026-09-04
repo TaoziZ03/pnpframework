@@ -21,6 +21,10 @@ namespace PnP.Framework.Migration.Pages.Ingredients
         Web = 17,
         ListItem = 18,
         Document = 19,
-        Attachment = 20
+        Attachment = 20,
+        ProtectedAsset = 21,
+        DocumentIdentity = 22,
+        BinaryPayload = 23,
+        InformationProtectionRelationship = 24
     }
 }

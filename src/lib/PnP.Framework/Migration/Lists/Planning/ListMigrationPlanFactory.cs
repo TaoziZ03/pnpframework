@@ -3,7 +3,9 @@ using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Schema.Fields;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Taxonomy;
@@ -29,6 +31,17 @@ namespace PnP.Framework.Migration.Lists.Planning
             TopologyPlan topology,
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
             IEnumerable<ListTargetOverride> targetOverrides)
+        {
+            return Create(dependencies, lookupDependencies, topology, taxonomyMappings, targetOverrides, null);
+        }
+
+        public static ListMigrationPlanSet Create(
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            TopologyPlan topology,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
+            IEnumerable<ListTargetOverride> targetOverrides,
+            ProtectedAssetActionPlan protectedAssets)
         {
             if (dependencies == null)
             {
@@ -62,7 +75,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                 }
                 ListTargetOverride[] candidates;
                 var targetOverride = overrides.TryGetValue(source.SourceListId, out candidates) && candidates.Length == 1 ? candidates[0] : null;
-                plans.Add(CreateListPlan(source, owner, topology, taxonomyMappings, targetOverride));
+                plans.Add(CreateListPlan(source, owner, topology, taxonomyMappings, targetOverride, protectedAssets));
             }
 
             var result = new ListMigrationPlanSet
@@ -124,6 +137,7 @@ namespace PnP.Framework.Migration.Lists.Planning
             {
                 list.Disposition = list.TargetProbe == null || !list.TargetProbe.IsAdmitted
                     || list.SiteContentTypes.Any(value => !value.IsExecutable)
+                    || list.ItemDecisions.Any(value => value.Disposition == ListItemMaterializationDisposition.Block)
                     ? ListMaterializationDisposition.Block
                     : list.TargetProbe.Disposition;
             }
@@ -149,9 +163,11 @@ namespace PnP.Framework.Migration.Lists.Planning
             WebMappingPlan owner,
             TopologyPlan topology,
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
-            ListTargetOverride targetOverride)
+            ListTargetOverride targetOverride,
+            ProtectedAssetActionPlan protectedAssets)
         {
             var issues = new List<MigrationIssue>();
+            var itemDecisions = CreateItemDecisions(source, protectedAssets, issues);
             if (source.Availability == EvidenceAvailability.Unavailable || source.Availability == EvidenceAvailability.Conflict)
             {
                 issues.Add(Issue("ListEvidenceUnavailable", "list:" + source.SourceListId.ToString("D"), "Source List evidence is unavailable or conflicting."));
@@ -164,15 +180,23 @@ namespace PnP.Framework.Migration.Lists.Planning
             {
                 issues.Add(Issue("ListItemCaptureIncomplete", "list:" + source.SourceListId.ToString("D"), "Source ItemCount is " + source.SourceItemCount + ", but " + source.Items.Count + " item snapshots were captured."));
             }
-            foreach (var attachment in source.Items.SelectMany(value => value.Attachments))
+            var decisionsByItem = itemDecisions.ToDictionary(value => value.SourceItemId);
+            foreach (var attachment in source.Items
+                         .Where(value => decisionsByItem[value.SourceItemId].Disposition != ListItemMaterializationDisposition.ExcludeProtectedAsset)
+                         .SelectMany(value => value.Attachments))
             {
                 if (attachment.Content == null || attachment.Content.Availability != EvidenceAvailability.Captured || attachment.Content.Artifact == null)
                 {
                     issues.Add(Issue("ListBinaryEvidenceUnavailable", "attachment:" + attachment.ServerRelativeUrl, "Exact attachment bytes are required before materialization."));
                 }
             }
-            foreach (var document in source.Items.Where(value => value.Document != null && value.Document.Kind == ListDocumentObjectKind.File).Select(value => value.Document))
+            foreach (var item in source.Items.Where(value => value.Document != null && value.Document.Kind == ListDocumentObjectKind.File))
             {
+                var document = item.Document;
+                if (decisionsByItem[item.SourceItemId].Disposition == ListItemMaterializationDisposition.ExcludeProtectedAsset)
+                {
+                    continue;
+                }
                 if (document.Content == null || document.Content.Availability != EvidenceAvailability.Captured || document.Content.Artifact == null)
                 {
                     issues.Add(Issue("ListBinaryEvidenceUnavailable", "document:" + document.ServerRelativeUrl, "Exact document bytes are required before materialization."));
@@ -245,11 +269,95 @@ namespace PnP.Framework.Migration.Lists.Planning
                 Disposition = issues.Any(value => value.Severity == MigrationIssueSeverity.Blocker) ? ListMaterializationDisposition.Block : ListMaterializationDisposition.CreateOwned,
                 Fields = fieldPlans,
                 Views = viewPlans,
+                ItemDecisions = itemDecisions,
                 SiteContentTypes = contentTypeClosure.Nodes,
                 Issues = issues.OrderBy(value => value.Code, StringComparer.Ordinal).ThenBy(value => value.Subject, StringComparer.Ordinal).ToList()
             };
             plan.PlanDigest = ComputePlanDigest(plan);
             return plan;
+        }
+
+        private static IList<ListItemMaterializationDecision> CreateItemDecisions(
+            ListDependencySnapshot source,
+            ProtectedAssetActionPlan protectedAssets,
+            ICollection<MigrationIssue> issues)
+        {
+            var actions = (protectedAssets?.Actions ?? new List<PageIngredientAction>())
+                .Where(value => value != null)
+                .ToDictionary(value => value.IngredientId, StringComparer.Ordinal);
+            var result = new List<ListItemMaterializationDecision>();
+            foreach (var item in source.Items.Where(value => value != null).OrderBy(value => value.SourceItemId))
+            {
+                if (!ProtectedAssetCaptureGate.IsControlledAsset(item.Document))
+                {
+                    result.Add(new ListItemMaterializationDecision
+                    {
+                        SourceItemId = item.SourceItemId,
+                        SourceServerRelativeUrl = item.Document?.ServerRelativeUrl,
+                        Disposition = ListItemMaterializationDisposition.Reproduce,
+                        Reason = "The item is not governed by a protected-asset exclusion."
+                    });
+                    continue;
+                }
+
+                var ingredientId = ProtectedAssetIngredientIds.BinaryPayload(source.SourceWebId, source.SourceListId, item.SourceItemId);
+                var hasProtectionRelationship = item.Document.InformationProtection?.State == ProtectedAssetProtectionState.Protected;
+                var protectionIngredientId = hasProtectionRelationship
+                    ? ProtectedAssetIngredientIds.InformationProtectionRelationship(source.SourceWebId, source.SourceListId, item.SourceItemId)
+                    : null;
+                PageIngredientAction action;
+                if (!actions.TryGetValue(ingredientId, out action))
+                {
+                    issues.Add(Issue(
+                        "ProtectedAssetSelectionMissing",
+                        ingredientId,
+                        "A protected document requires a sealed BinaryPayload action before the List plan can execute."));
+                    result.Add(new ListItemMaterializationDecision
+                    {
+                        SourceItemId = item.SourceItemId,
+                        BinaryPayloadIngredientId = ingredientId,
+                        SourceServerRelativeUrl = item.Document.ServerRelativeUrl,
+                        Disposition = ListItemMaterializationDisposition.Block,
+                        Reason = "No protected-asset selection was supplied."
+                    });
+                    continue;
+                }
+                PageIngredientAction protectionAction = null;
+                if (hasProtectionRelationship && !actions.TryGetValue(protectionIngredientId, out protectionAction))
+                {
+                    issues.Add(Issue(
+                        "InformationProtectionSelectionMissing",
+                        protectionIngredientId,
+                        "A protected document requires a sealed InformationProtectionRelationship action before the List plan can execute."));
+                }
+
+                var exclude = action.SelectedAction?.Action == IngredientSelectableAction.Exclude
+                    || action.SelectedAction?.Action == IngredientSelectableAction.EvidenceOnly;
+                var reproduce = action.SelectedAction?.Action == IngredientSelectableAction.Reproduce;
+                if (!exclude && !reproduce)
+                {
+                    issues.Add(Issue(
+                        "ProtectedAssetSelectionDeferred",
+                        ingredientId,
+                        "The protected BinaryPayload action is deferred or unsupported; select Reproduce, EvidenceOnly, or Exclude."));
+                }
+                result.Add(new ListItemMaterializationDecision
+                {
+                    SourceItemId = item.SourceItemId,
+                    BinaryPayloadIngredientId = ingredientId,
+                    InformationProtectionIngredientId = protectionIngredientId,
+                    SourceServerRelativeUrl = item.Document.ServerRelativeUrl,
+                    Disposition = exclude
+                        ? ListItemMaterializationDisposition.ExcludeProtectedAsset
+                        : reproduce
+                            ? ListItemMaterializationDisposition.Reproduce
+                            : ListItemMaterializationDisposition.Block,
+                    SelectionReceipt = action.SelectionReceipt,
+                    InformationProtectionSelectionReceipt = protectionAction?.SelectionReceipt,
+                    Reason = action.Reason
+                });
+            }
+            return result;
         }
 
         private static ListFieldMaterializationPlan CreateFieldPlan(

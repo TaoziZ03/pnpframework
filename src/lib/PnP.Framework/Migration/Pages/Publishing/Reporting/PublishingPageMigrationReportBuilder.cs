@@ -73,6 +73,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
                 Row("capturePolicy.sourcePageServerRelativeUrl", snapshot.CapturePolicy.SourcePageServerRelativeUrl, "Normalized source page requested at export."),
                 Row("capturePolicy.includeWebParts", snapshot.CapturePolicy.IncludeWebParts, "Whether shared Web Parts were inventoried and exported."),
                 Row("capturePolicy.maximumDependencyBytes", snapshot.CapturePolicy.MaximumDependencyBytes, "Maximum bytes captured for each restorable dependency."),
+                Row("capturePolicy.protectedAssets.profile", snapshot.CapturePolicy.ProtectedAssets.Profile, "MicrosoftTenantMetadataOnly evaluates metadata before any binary request and fails closed on uncertain protection."),
+                Row("capturePolicy.protectedAssets.policyId", snapshot.CapturePolicy.ProtectedAssets.PolicyId, "Policy that governed the pre-download protected-asset decision."),
+                Row("capturePolicy.protectedAssets.failClosedOnUnknown", snapshot.CapturePolicy.ProtectedAssets.FailClosedOnUnknown, "True prevents binary fetch when protection metadata is inconclusive."),
                 Row("sourceFence.fileUniqueId", snapshot.SourceFence.FileUniqueId, "Identity checked before and after export."),
                 Row("sourceFence.versionLabel", snapshot.SourceFence.VersionLabel, "Version checked before and after export."),
                 Row("sourceFence.length", snapshot.SourceFence.Length, "File length checked before and after export."),
@@ -120,11 +123,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
             writer.List("Snapshot warnings", snapshot.Warnings);
             writer.List("Report blockers", report.Blockers);
             writer.List("Report warnings", report.Warnings);
+            writer.List("Approved exclusions", report.ApprovedExclusions);
             writer.List("Captured ingredients", report.CapturedIngredients);
             writer.Heading(2, "Field-action legend");
             writer.Paragraph("`Apply` writes a supported scalar value. `ApplyTaxonomyRelationships` executes the separately reviewed relationship actions and never creates or substitutes a Term. A taxonomy relationship action of `RetainEvidenceOnly` preserves its sealed source proof without asserting target capability. `AlreadyHandled` is handled by page creation/content/layout logic. `EvidenceOnly` remains available for future recovery. `RequiresMapping` needs an explicit cross-site identity mapping. `Skip*`, `Target*`, and `CaptureUnavailable` are retained but not written. An ingredient with no source material may be dropped without degrading the aggregate outcome; `Block` on a nonempty ingredient makes the plan non-executable.");
             writer.Heading(2, "Ingredient-action legend");
-            writer.Paragraph("`Preserve` retains the ingredient's semantics, `Transform` deliberately changes representation, `Substitute` lets the target runtime supply an equivalent, `Drop` records reviewed loss, `Delegate` keeps evidence for another workflow, and `Block` prevents import. A retained ingredient may only drop a required dependency when its transform explicitly releases that dependency.");
+            writer.Paragraph("`Preserve` retains the ingredient's semantics, `Transform` deliberately changes representation, `Substitute` lets the target runtime supply an equivalent, `EvidenceOnly` retains source facts without target mutation, `Exclude` is an approved ExpectedAbsent difference, `Defer` awaits a decision, `Drop` records legacy reviewed loss, `Delegate` keeps evidence for another workflow, and `Block` prevents that branch. SatisfiedByPolicy never means reproduced.");
             return writer.ToString();
         }
 
@@ -213,12 +217,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
 
             writer.Table(
                 $"Ingredient actions ({plan.IngredientActions.Count})",
-                new[] { "Action ID", "Ingredient", "Capability", "Disposition", "Realization", "Target identity", "Policy", "Reason", "Released dependencies", "Verification assertions" },
+                new[] { "Action ID", "Ingredient", "Capability", "Disposition", "Terminal status", "Authorization HTTP", "Candidates", "Selected action", "Selection receipt", "Realization", "Target identity", "Policy", "Reason", "Released dependencies", "Verification assertions" },
                 plan.IngredientActions.Select(action => Row(
                     action.ActionId,
                     action.IngredientId,
                     action.Capability,
                     action.Disposition,
+                    action.TerminalStatus,
+                    action.AuthorizationStatusCode,
+                    Join(action.CandidateActions.Select(value => value.CandidateActionId + "=" + value.Action + "/" + value.Scope)),
+                    action.SelectedAction == null ? null : action.SelectedAction.CandidateActionId + "=" + action.SelectedAction.Action + "/" + action.SelectedAction.Scope,
+                    action.SelectionReceipt == null ? null : action.SelectionReceipt.ReceiptDigest + "; comparison=" + action.SelectionReceipt.ComparisonRule + "; reason=" + action.SelectionReceipt.ReasonCode + "; approval=" + Format(action.SelectionReceipt.ApprovalReference),
                     action.Realization,
                     action.TargetIdentity,
                     $"{Format(action.PolicyId)}@{Format(action.PolicyVersion)}",

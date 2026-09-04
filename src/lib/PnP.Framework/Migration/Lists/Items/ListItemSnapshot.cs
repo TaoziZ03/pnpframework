@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Packaging;
 using System;
 using System.Collections.Generic;
@@ -44,6 +45,10 @@ namespace PnP.Framework.Migration.Lists.Items
         public int MajorVersion { get; set; }
 
         public int MinorVersion { get; set; }
+
+        public ListDocumentInformationProtectionSnapshot InformationProtection { get; set; }
+
+        public ProtectedAssetCaptureDecision CaptureDecision { get; set; }
 
         public ListBinaryArtifactSnapshot Content { get; set; }
     }

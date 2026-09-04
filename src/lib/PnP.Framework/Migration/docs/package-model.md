@@ -2,7 +2,7 @@
 
 > Status: Draft
 > Implementation status: Implemented contracts with explicit extension points
-> Applies to: Publishing Page package contracts v2
+> Applies to: Publishing Page package contracts v3
 
 ## Purpose
 
@@ -27,12 +27,12 @@ The migration package embeds the source snapshot, so Import does not need to rec
 
 | CLR contract | Schema |
 | --- | --- |
-| `PublishingPageExportPackage` | `pnp-publishing-page-export/v2` |
-| `PublishingPageMigrationPackage` | `pnp-publishing-page-migration-package/v2` |
-| `PublishingPageImportReceipt` | `pnp-publishing-page-import-receipt/v2` |
+| `PublishingPageExportPackage` | `pnp-publishing-page-export/v3` |
+| `PublishingPageMigrationPackage` | `pnp-publishing-page-migration-package/v3` |
+| `PublishingPageImportReceipt` | `pnp-publishing-page-import-receipt/v3` |
 | `PageArtifactSnapshot` | `pnp-page-artifact/v1` |
 | `PageRuntimeSnapshot` | `pnp-page-runtime/v1` |
-| `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1` |
+| `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v2` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
 | `TaxonomyValueRelationshipSnapshot` | `pnp-taxonomy-value-relationship/v1` |
@@ -174,8 +174,9 @@ The bundle is not a list of writes. A value may be captured even when its later 
 | `expectedPublishingPageContentSha256` | Expected post-replacement publishing-content digest. |
 | `storageAssertions` | Required storage-level expectations. |
 | `runtimeVerification` | Typed requirements for an external verifier. Presence does not imply execution. |
-| `ingredientActions` | Exactly one semantic capability/disposition, target, policy, dependency-release list, and verification list for every non-empty canonical ingredient. Releases are valid only on a `Transform` and must name a real required dependency edge. |
-| `migrationOutcome` | Evaluated aggregate: `Exact`, `ExecutableWithTransform`, `ExecutableWithLoss`, `Blocked`, or `Unknown`. |
+| `protectedAssets` | Policy-filtered candidate actions, selected action, and digest-bound selection receipt for each protected asset, document identity, binary payload, and Information Protection relationship. |
+| `ingredientActions` | Exactly one semantic capability/disposition, target, policy, dependency-release list, and verification list for every non-empty canonical ingredient. Selectable actions also retain candidate sets, selection, terminal status, and receipt. Releases are valid only on a `Transform` and must name a real required dependency edge. |
+| `migrationOutcome` | Evaluated aggregate: `Exact`, `ExecutableWithTransform`, `ExecutableWithLoss`, `ExecutableWithApprovedExclusions`, `Blocked`, or `Unknown`. |
 | `ingredientIssues` | Recomputed dependency-closure and action-coverage issues. |
 | `blockers` / `warnings` | Plan-wide findings. `IsExecutable` requires both an empty blocker list and an executable ingredient outcome. |
 
@@ -216,6 +217,7 @@ The package stores planning probes because they are review evidence. Import must
 | `taxonomyRelationshipsMatched` / `taxonomyRelationshipResults` | Aggregate and per-executed-value fresh readback of field binding, page value, live/absent Term state, hidden-list identity, and `TaxCatchAll`. Evidence-only relationships are not target assertions. |
 | `freshReadbackPassed` | Aggregate required readback result. |
 | Storage/runtime/acceptance statuses | Distinguish library-owned verification from external runtime work and final acceptance. |
+| `approvedExclusions`, `ingredientComparisons`, `reproductionOutcome` | Auditable SatisfiedByPolicy decisions, ExpectedAbsent comparison results, and the non-exact `ReproducedWithApprovedExclusions` outcome. |
 | `warnings` | Non-fatal execution or verification findings. |
 
 The receipt describes one attempt. A later retry has a new `operationId` and may observe `AlreadySatisfied`, `ReuseOwned`, or recovery dispositions for work created by an earlier attempt.

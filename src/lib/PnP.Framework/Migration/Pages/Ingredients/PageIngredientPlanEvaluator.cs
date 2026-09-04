@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Diagnostics;
+using PnP.Framework.Migration.Evidence;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,13 +39,30 @@ namespace PnP.Framework.Migration.Pages.Ingredients
 
                 if (action.Disposition == IngredientDisposition.Block)
                 {
-                    issues.Add(Issue("IngredientBlocked", node.Id, action.Reason ?? "The ingredient is blocked."));
+                    if (action.TerminalStatus == IngredientTerminalStatus.AuthorizationBlocked
+                        && !LiteralHttpAuthorizationPolicy.IsAuthorizationBlocked(action.AuthorizationStatusCode))
+                    {
+                        issues.Add(Issue("AuthorizationEvidenceInvalid", node.Id, "AuthorizationBlocked requires retained literal HTTP 401 or 403 evidence."));
+                    }
+                    else if (action.TerminalStatus != IngredientTerminalStatus.AuthorizationBlocked)
+                    {
+                        issues.Add(Issue("IngredientBlocked", node.Id, action.Reason ?? "The ingredient is blocked."));
+                    }
+                }
+
+                if (action.Disposition == IngredientDisposition.Defer
+                    || action.TerminalStatus == IngredientTerminalStatus.DecisionRequired)
+                {
+                    issues.Add(Issue("IngredientDecisionDeferred", node.Id, action.Reason ?? "The ingredient requires an explicit action selection."));
                 }
 
                 if (action.Capability == IngredientCapability.Unknown
                     && action.Disposition != IngredientDisposition.Drop
                     && action.Disposition != IngredientDisposition.Delegate
-                    && action.Disposition != IngredientDisposition.Block)
+                    && action.Disposition != IngredientDisposition.Block
+                    && action.Disposition != IngredientDisposition.EvidenceOnly
+                    && action.Disposition != IngredientDisposition.Exclude
+                    && action.Disposition != IngredientDisposition.Defer)
                 {
                     issues.Add(Issue("IngredientCapabilityUnknown", node.Id, "A retained ingredient has unknown target capability."));
                 }
@@ -60,6 +78,14 @@ namespace PnP.Framework.Migration.Pages.Ingredients
 
             ValidateDependencyReleases(graph.Edges, nodeById, actionByIngredient, issues);
             ValidateRequiredEdges(graph.Edges, nodeById, actionByIngredient, issues);
+            var frontier = PageIngredientExecutionFrontier.Create(actionList);
+            if (frontier.ShouldStopWholeItem)
+            {
+                issues.Add(Issue(
+                    "IngredientExecutionFrontierEmpty",
+                    "ingredient-graph",
+                    "Every executable ingredient branch is authorization-blocked or awaiting a decision."));
+            }
             if (issues.Any(value => value.Severity == MigrationIssueSeverity.Blocker || value.Severity == MigrationIssueSeverity.Error))
             {
                 return Result(PageMigrationOutcome.Blocked, issues);
@@ -68,7 +94,19 @@ namespace PnP.Framework.Migration.Pages.Ingredients
             var materialActions = actionList.Where(value => value != null
                 && nodeById.TryGetValue(value.IngredientId ?? string.Empty, out var node)
                 && node.HasContent).ToList();
+            if (materialActions.Any(value => value.Disposition == IngredientDisposition.Exclude
+                || value.Disposition == IngredientDisposition.EvidenceOnly
+                || value.TerminalStatus == IngredientTerminalStatus.SatisfiedByPolicy))
+            {
+                return Result(PageMigrationOutcome.ExecutableWithApprovedExclusions, issues);
+            }
+
             if (materialActions.Any(value => value.Disposition == IngredientDisposition.Drop || value.Disposition == IngredientDisposition.Delegate))
+            {
+                return Result(PageMigrationOutcome.ExecutableWithLoss, issues);
+            }
+
+            if (materialActions.Any(value => value.TerminalStatus == IngredientTerminalStatus.AuthorizationBlocked))
             {
                 return Result(PageMigrationOutcome.ExecutableWithLoss, issues);
             }
@@ -137,7 +175,7 @@ namespace PnP.Framework.Migration.Pages.Ingredients
                 var explicitlyReleased = consumer?.Disposition == IngredientDisposition.Transform
                     && consumer.ReleasedDependencyIngredientIds != null
                     && consumer.ReleasedDependencyIngredientIds.Contains(edge.ToIngredientId, StringComparer.Ordinal);
-                if (edge.Requirement != PageIngredientRequirement.Required
+                if (!RequiresDependency(edge.Requirement)
                     || consumer == null
                     || !IsRetained(consumer.Disposition)
                     || !nodes[edge.ToIngredientId].HasContent
@@ -146,12 +184,13 @@ namespace PnP.Framework.Migration.Pages.Ingredients
                     continue;
                 }
 
-                if (!actions.TryGetValue(edge.ToIngredientId, out var dependency) || !IsRetained(dependency.Disposition))
+                if (!actions.TryGetValue(edge.ToIngredientId, out var dependency)
+                    || !Satisfies(edge.Requirement, dependency))
                 {
                     issues.Add(Issue(
                         "RequiredIngredientDependencyUnsatisfied",
                         edge.FromIngredientId,
-                        $"Retained ingredient '{edge.FromIngredientId}' requires '{edge.ToIngredientId}', but the dependency is not retained or explicitly released by a transform."));
+                        $"Retained ingredient '{edge.FromIngredientId}' requires '{edge.ToIngredientId}' as {edge.Requirement}, but the dependency action does not satisfy that contract."));
                 }
             }
         }
@@ -164,7 +203,7 @@ namespace PnP.Framework.Migration.Pages.Ingredients
         {
             var requiredEdges = new HashSet<string>(
                 (edges ?? Array.Empty<PageIngredientEdge>())
-                    .Where(value => value != null && value.Requirement == PageIngredientRequirement.Required)
+                    .Where(value => value != null && RequiresDependency(value.Requirement))
                     .Select(value => EdgeIdentity(value.FromIngredientId, value.ToIngredientId)),
                 StringComparer.Ordinal);
             foreach (var action in actions.Values.Where(value => value != null))
@@ -206,6 +245,32 @@ namespace PnP.Framework.Migration.Pages.Ingredients
             return disposition == IngredientDisposition.Preserve
                 || disposition == IngredientDisposition.Transform
                 || disposition == IngredientDisposition.Substitute;
+        }
+
+        private static bool RequiresDependency(PageIngredientRequirement requirement)
+        {
+            return requirement == PageIngredientRequirement.Required
+                || requirement == PageIngredientRequirement.IdentityRequired
+                || requirement == PageIngredientRequirement.PayloadRequired
+                || requirement == PageIngredientRequirement.HardRequired;
+        }
+
+        private static bool Satisfies(PageIngredientRequirement requirement, PageIngredientAction dependency)
+        {
+            if (dependency == null)
+            {
+                return false;
+            }
+            if (IsRetained(dependency.Disposition))
+            {
+                return true;
+            }
+            if (requirement == PageIngredientRequirement.IdentityRequired)
+            {
+                return dependency.Disposition == IngredientDisposition.EvidenceOnly
+                    || dependency.SelectedAction?.Action == IngredientSelectableAction.Reference;
+            }
+            return false;
         }
 
         private static string EdgeIdentity(string from, string to)

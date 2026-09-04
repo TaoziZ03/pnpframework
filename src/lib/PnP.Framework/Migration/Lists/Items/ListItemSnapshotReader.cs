@@ -1,9 +1,11 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Packaging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
 
 namespace PnP.Framework.Migration.Lists.Items
 {
@@ -14,6 +16,7 @@ namespace PnP.Framework.Migration.Lists.Items
             List list,
             long maximumBytes,
             IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy,
             ICollection<string> warnings)
         {
             var result = new List<ListItemSnapshot>();
@@ -22,7 +25,7 @@ namespace PnP.Framework.Migration.Lists.Items
             {
                 var page = list.GetItems(new CamlQuery
                 {
-                    ViewXml = "<View Scope='RecursiveAll'><RowLimit Paged='TRUE'>5000</RowLimit></View>",
+                    ViewXml = BuildViewXml(list),
                     ListItemCollectionPosition = position
                 });
                 context.Load(page);
@@ -61,11 +64,12 @@ namespace PnP.Framework.Migration.Lists.Items
                             .Select(value => ListItemValueSerializer.Serialize(value.Key, value.Value)).ToList(),
                         Attachments = CaptureAttachments(context, item, maximumBytes, artifactStore),
                         Document = list.BaseType == BaseType.DocumentLibrary
-                            ? CaptureDocument(context, item, maximumBytes, artifactStore)
+                            ? CaptureDocument(context, item, maximumBytes, artifactStore, protectedAssetPolicy)
                             : null
                     };
                     var unavailableBinary = snapshot.Attachments.Any(value => value.Content == null || value.Content.Availability != EvidenceAvailability.Captured)
                         || (snapshot.Document != null && snapshot.Document.Kind == ListDocumentObjectKind.File
+                            && snapshot.Document.CaptureDecision?.IsMetadataOnly != true
                             && (snapshot.Document.Content == null || snapshot.Document.Content.Availability != EvidenceAvailability.Captured));
                     if (unavailableBinary || snapshot.Values.Any(value => value.Availability != EvidenceAvailability.Captured))
                     {
@@ -74,6 +78,11 @@ namespace PnP.Framework.Migration.Lists.Items
                     if (unavailableBinary)
                     {
                         warnings.Add("List item " + item.Id + " has document or attachment bytes that could not be captured exactly.");
+                    }
+                    if (snapshot.Document?.CaptureDecision?.IsMetadataOnly == true)
+                    {
+                        warnings.Add("List item " + item.Id + " retained document metadata only under protected-asset policy '"
+                            + snapshot.Document.CaptureDecision.PolicyId + "'; no binary request was made.");
                     }
                     result.Add(snapshot);
                 }
@@ -102,7 +111,12 @@ namespace PnP.Framework.Migration.Lists.Items
             }).ToList();
         }
 
-        private static ListDocumentSnapshot CaptureDocument(ClientContext context, ListItem item, long maximumBytes, IMigrationArtifactStore artifactStore)
+        private static ListDocumentSnapshot CaptureDocument(
+            ClientContext context,
+            ListItem item,
+            long maximumBytes,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy)
         {
             if (item.FileSystemObjectType == FileSystemObjectType.Folder)
             {
@@ -113,13 +127,19 @@ namespace PnP.Framework.Migration.Lists.Items
                     ServerRelativeUrl = item.Folder.ServerRelativeUrl
                 };
             }
-            var content = ListBinaryArtifactReader.Read(
-                context,
-                item.File,
-                maximumBytes,
-                artifactStore,
-                ListBinaryArtifactReader.MediaType(item.File.Name),
-                item.File.Name);
+            var informationProtection = ListDocumentInformationProtectionSnapshotReader.Read(item.FieldValues);
+            ProtectedAssetCaptureDecision captureDecision;
+            var content = ProtectedAssetCaptureGate.Capture(
+                informationProtection,
+                protectedAssetPolicy,
+                () => ListBinaryArtifactReader.Read(
+                    context,
+                    item.File,
+                    maximumBytes,
+                    artifactStore,
+                    ListBinaryArtifactReader.MediaType(item.File.Name),
+                    item.File.Name),
+                out captureDecision);
             if (content?.Artifact != null && item.File.Length != content.Artifact.Length)
             {
                 content.Availability = EvidenceAvailability.Partial;
@@ -134,6 +154,8 @@ namespace PnP.Framework.Migration.Lists.Items
                 Length = item.File.Length,
                 MajorVersion = item.File.MajorVersion,
                 MinorVersion = item.File.MinorVersion,
+                InformationProtection = informationProtection,
+                CaptureDecision = captureDecision,
                 Content = content
             };
         }
@@ -142,6 +164,19 @@ namespace PnP.Framework.Migration.Lists.Items
         {
             object value;
             return item.FieldValues.TryGetValue("Attachments", out value) && value is bool && (bool)value;
+        }
+
+        private static string BuildViewXml(List list)
+        {
+            var fields = list.Fields.AsEnumerable()
+                .Where(value => value != null && !string.IsNullOrWhiteSpace(value.InternalName))
+                .Select(value => value.InternalName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .Select(value => "<FieldRef Name='" + SecurityElement.Escape(value) + "'/>");
+            return "<View Scope='RecursiveAll'><ViewFields>"
+                + string.Join(string.Empty, fields)
+                + "</ViewFields><RowLimit Paged='TRUE'>5000</RowLimit></View>";
         }
 
         private static Guid? ReadUniqueId(ListItem item)
