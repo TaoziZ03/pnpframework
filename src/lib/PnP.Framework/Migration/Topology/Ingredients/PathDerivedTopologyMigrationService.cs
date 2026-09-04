@@ -262,11 +262,12 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 var afterFailure = InspectExactlyOne(runtime, container, expectedParentWebId);
                 if (afterFailure.State == TargetWebContainerState.RecoverInterruptedCreate)
                 {
-                    runtime.RecoverOwnership(container);
+                    var recovery = ExecuteRecoveryWithConvergence(runtime, container, expectedParentWebId);
                     return new CreateAttemptResult
                     {
                         Outcome = SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged,
-                        Message = "Create response was lost or failed after mutation; exact interrupted state was recovered and converged. " + exception.Message
+                        Message = "Create response was lost or failed after mutation; exact interrupted state was recovered and converged. "
+                            + recovery.Message + " " + exception.Message
                     };
                 }
                 if (afterFailure.State == TargetWebContainerState.ReuseOwned)
