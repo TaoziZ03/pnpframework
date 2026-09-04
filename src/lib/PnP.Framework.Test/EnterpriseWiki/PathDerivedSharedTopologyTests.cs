@@ -505,6 +505,37 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void CreateAndRecoveryResponseLossesConvergeThroughFreshProbe()
+        {
+            var plan = BuildPlan("guides");
+            var dag = Compile(plan);
+            var child = dag.Actions.Last();
+            var runtime = new FakeRuntime(dag);
+            var analysis = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
+            var actionPlan = SharedTopologyGlobalActionPlanProjector.Project(dag, analysis);
+            Assert.AreEqual(SharedTopologyActionKind.CreateMissing, actionPlan.Actions.Last().SelectedAction);
+            runtime.InterruptOnCreateKey = child.LogicalActionKey;
+            runtime.RaceOnRecoverKey = child.LogicalActionKey;
+            var journal = new InMemoryMigrationExecutionJournal();
+
+            var result = new PathDerivedTopologyMigrationService().Ensure(
+                runtime,
+                dag,
+                analysis,
+                actionPlan,
+                new[] { plan },
+                journal);
+            var recovered = result.Receipt.Actions.Single(value => value.LogicalActionKey == child.LogicalActionKey);
+            Assert.AreEqual(1, runtime.CreateCalls);
+            Assert.AreEqual(1, runtime.RecoverCalls);
+            Assert.IsTrue(recovered.MutationAttempted);
+            Assert.AreEqual(SharedTopologyActionExecutionOutcome.OutcomeUnknownButConverged, recovered.ExecutionOutcome);
+            Assert.AreEqual(MutationOutcome.OutcomeUnknownButConverged,
+                journal.Receipts.Single(value => value.ActionSignature == recovered.ExecutionGrantSignature).Outcome);
+            SharedTopologyGlobalExecutionValidator.ValidateReceipt(new[] { plan }, dag, actionPlan, result.Receipt);
+        }
+
+        [TestMethod]
         public void PageReferencePinsPlanDagActionPlanAndEveryRequiredAction()
         {
             var context = Execute(BuildPlan("groups/engineering/guides"));
@@ -1008,6 +1039,8 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             public string RaceOnCreateKey { get; set; }
 
+            public string InterruptOnCreateKey { get; set; }
+
             public string RaceOnRecoverKey { get; set; }
 
             public IList<PathDerivedTargetWebObservation> Inspect(IEnumerable<TargetWebContainerIngredientPlan> requested)
@@ -1026,6 +1059,12 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     throw new InvalidOperationException("root create is not allowed");
                 }
                 CreateCalls++;
+                if (string.Equals(InterruptOnCreateKey, container.LogicalActionKey, StringComparison.Ordinal))
+                {
+                    InterruptOnCreateKey = null;
+                    SetInterrupted(container.LogicalActionKey);
+                    throw new InvalidOperationException("simulated lost create response before ownership markers");
+                }
                 SetOwned(container.LogicalActionKey);
                 if (string.Equals(RaceOnCreateKey, container.LogicalActionKey, StringComparison.Ordinal))
                 {
