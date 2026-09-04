@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Linq;
 using static PnP.Framework.Migration.Pages.Publishing.Reporting.Sections.MigrationReportSectionFormatter;
@@ -15,7 +16,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
             writer.Paragraph("Topology preserves SharePoint ownership level: a source site collection maps to a target site collection, each source Web maps to one target Web under the mapped parent, and Web-owned Lists/files/pages remain under that mapped Web. Source GUIDs are evidence; target GUIDs are runtime-generated and recorded in the import receipt.");
             if (snapshot.SourceTopology == null)
             {
-                writer.Paragraph("No source topology closure was required by this package.");
+                if (snapshot.PathDerivedTopologyEvidence == null)
+                {
+                    writer.Paragraph("No source topology closure was required by this package.");
+                    return;
+                }
+                AppendPathDerived(writer, snapshot.PathDerivedTopologyEvidence, plan);
                 return;
             }
 
@@ -102,6 +108,42 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                         value.IsAdmitted,
                         IssueSummary(value.Issues))));
             AppendIssues(writer, "Topology target-analysis issues", analysis.Issues);
+        }
+
+        private static void AppendPathDerived(
+            MarkdownReportWriter writer,
+            PathDerivedSourceTopologyEvidence evidence,
+            PublishingPageMigrationPlan plan)
+        {
+            writer.Paragraph("Source ancestor-Web fidelity and target path provisioning are independent. Literal authorization evidence remains reported, while the target hierarchy is supplied by one separately approved bundle/shared topology plan.");
+            writer.Table("Source Web fidelity evidence", new[] { "Ingredient", "Source identity", "Path", "State", "Literal HTTP evidence", "Evidence SHA-256" }, new[]
+            {
+                Row(
+                    SharedTopologyIdentity.SourceWebFidelity(evidence.SourceSiteId, evidence.SourceLeafWebId),
+                    $"site={evidence.SourceSiteId:D}; web={evidence.SourceLeafWebId:D}",
+                    evidence.SourceLeafWebServerRelativeUrl,
+                    evidence.FidelityState,
+                    evidence.AuthorizationEvidence == null
+                        ? "none"
+                        : $"operation={evidence.AuthorizationEvidence.Operation}; status={evidence.AuthorizationEvidence.HttpStatusCode}; request={evidence.AuthorizationEvidence.RequestUri}",
+                    evidence.EvidenceSha256)
+            });
+            if (plan.SharedTopologyReference == null)
+            {
+                writer.Paragraph("No shared topology reference was sealed for this page. Target Web provisioning remains blocked.");
+                return;
+            }
+            var reference = plan.SharedTopologyReference;
+            writer.Table("Shared target topology reference", new[] { "Property", "Value", "How to read it" }, new[]
+            {
+                Row("sharedTopologyPlanDigest", reference.SharedTopologyPlanDigest, "One bundle-scoped plan owns target inspection, actions, materialization, receipt, and verification."),
+                Row("targetAnalysisDigest", reference.TargetAnalysisDigest, "Fresh target observations used to select Reuse or CreateMissing."),
+                Row("actionPlanDigest", reference.ActionPlanDigest, "The separately approved shared topology action set."),
+                Row("sourceWebFidelityIngredientId", reference.SourceWebFidelityIngredientId, "Authorization-limited source fidelity; not a hard target-provisioning dependency."),
+                Row("targetLeafContainerIngredientId", reference.TargetLeafContainerIngredientId, "The exact-path Web container that owns this page and its Lists."),
+                Row("targetWeb", $"url={reference.TargetWebUrl}; path={reference.TargetServerRelativeUrl}", "No suffix is present unless the shared plan records an explicit collision decision."),
+                Row("requiredTargetContainerIngredientIds", string.Join(", ", reference.RequiredTargetContainerIngredientIds), "Ordered shared ancestors verified once before page execution.")
+            });
         }
     }
 }

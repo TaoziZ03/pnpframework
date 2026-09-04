@@ -3,6 +3,7 @@ using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,7 +28,17 @@ namespace PnP.Framework.Migration.Lists.Planning
             ListMigrationPlanSet planSet,
             TopologyTargetAnalysis topologyAnalysis)
         {
-            return Analyze(targetContext, snapshots, planSet, topologyAnalysis, true);
+            return Analyze(targetContext, snapshots, planSet, TopologyProbes(topologyAnalysis), true);
+        }
+
+        public static ListMigrationTargetAnalysisResult PopulateAndSeal(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyPlan topology,
+            SharedTopologyTargetAnalysis topologyAnalysis)
+        {
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.Create(topology, topologyAnalysis), true);
         }
 
         public static ListMigrationTargetAnalysisResult InspectFresh(
@@ -36,14 +47,24 @@ namespace PnP.Framework.Migration.Lists.Planning
             ListMigrationPlanSet planSet,
             TopologyTargetAnalysis topologyAnalysis)
         {
-            return Analyze(targetContext, snapshots, planSet, topologyAnalysis, false);
+            return Analyze(targetContext, snapshots, planSet, TopologyProbes(topologyAnalysis), false);
+        }
+
+        public static ListMigrationTargetAnalysisResult InspectFresh(
+            ClientContext targetContext,
+            IEnumerable<ListDependencySnapshot> snapshots,
+            ListMigrationPlanSet planSet,
+            SharedTopologyPlan topology,
+            SharedTopologyTargetAnalysis topologyAnalysis)
+        {
+            return Analyze(targetContext, snapshots, planSet, SharedTopologyTargetProbeCatalog.Create(topology, topologyAnalysis), false);
         }
 
         private static ListMigrationTargetAnalysisResult Analyze(
             ClientContext targetContext,
             IEnumerable<ListDependencySnapshot> snapshots,
             ListMigrationPlanSet planSet,
-            TopologyTargetAnalysis topologyAnalysis,
+            IDictionary<Guid, TopologyWebTargetProbe> topologyProbes,
             bool populatePlan)
         {
             var result = new ListMigrationTargetAnalysisResult();
@@ -52,15 +73,13 @@ namespace PnP.Framework.Migration.Lists.Planning
             {
                 return result;
             }
-            if (targetContext == null || planSet == null || topologyAnalysis == null)
+            if (targetContext == null || planSet == null || topologyProbes == null)
             {
                 result.Issues.Add(Issue("ListTargetAnalysisUnavailable", "target-lists",
                     "List target analysis requires a target connection, List plan set, and topology target analysis."));
                 return result;
             }
 
-            var topologyProbes = topologyAnalysis.SiteCollections.SelectMany(value => value.Webs)
-                .ToDictionary(value => value.SourceWebId);
             foreach (var issue in planSet.Issues)
             {
                 result.Issues.Add(issue);
@@ -144,6 +163,12 @@ namespace PnP.Framework.Migration.Lists.Planning
                 ListMigrationPlanFactory.SealTargetAnalysis(planSet);
             }
             return result;
+        }
+
+        private static IDictionary<Guid, TopologyWebTargetProbe> TopologyProbes(TopologyTargetAnalysis topologyAnalysis)
+        {
+            return topologyAnalysis?.SiteCollections.SelectMany(value => value.Webs)
+                .ToDictionary(value => value.SourceWebId);
         }
 
         private static void AnalyzeContentType(

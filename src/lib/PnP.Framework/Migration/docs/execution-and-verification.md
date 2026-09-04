@@ -264,6 +264,14 @@ Acceptance is derived from evidence; it must not be used to erase lower-level di
 
 The migration package remains the approved intent. The import receipt is the observed outcome. Neither should be overwritten to make the other appear successful.
 
+Path-derived Web containers are a bundle/shared prerequisite. They are executed
+once through `SharedTopologyMaterializer`, using the existing injectable
+`IMigrationExecutionJournal`, and produce one digest-bound receipt. Every page
+that references the shared hierarchy must present that receipt during admission;
+the page importer does not rerun or duplicate shared Web actions. Source Web
+fidelity authorization evidence remains reportable but is not a hard dependency
+of target path provisioning. See [Shared path-derived Web topology](shared-path-derived-topology.md).
+
 ## External runtime verification
 
 The plan may seal typed runtime requirements such as page load or Web Part behavior. An external verifier must return results bound to the same plan digest and target identity.

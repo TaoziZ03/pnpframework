@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Ingredients
 {
@@ -9,5 +10,8 @@ namespace PnP.Framework.Migration.Pages.Ingredients
         public IList<PageIngredientNode> Nodes { get; set; } = new List<PageIngredientNode>();
 
         public IList<PageIngredientEdge> Edges { get; set; } = new List<PageIngredientEdge>();
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<PageIngredientExternalReference> ExternalReferences { get; set; }
     }
 }

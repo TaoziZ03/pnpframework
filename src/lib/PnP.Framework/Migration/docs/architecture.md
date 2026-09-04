@@ -205,6 +205,11 @@ The execution journal is an audit and recovery primitive. It is not a rollback l
 
 See [Execution and verification](execution-and-verification.md) for detailed state semantics.
 
+When source ancestor-Web capture is authorization-blocked but exact Site/leaf
+paths remain known, the library uses a separate bundle/shared path-derived
+topology plane. Page-local graphs reference those ingredients instead of copying
+them. See [Shared path-derived Web topology](shared-path-derived-topology.md).
+
 ## Verification architecture
 
 Verification is layered:

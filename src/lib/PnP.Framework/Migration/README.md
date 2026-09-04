@@ -24,6 +24,7 @@ Start with:
 - [Page classification and ingredient policy](docs/page-classification-and-ingredient-policy.md)
 - [Object lifecycle](docs/object-lifecycle.md)
 - [Execution and verification](docs/execution-and-verification.md)
+- [Shared path-derived Web topology](docs/shared-path-derived-topology.md)
 - [Performance and concurrency](docs/performance-and-concurrency.md)
 
 ## Design rules
@@ -89,6 +90,7 @@ The object model deliberately does not place these capabilities under an `Enterp
 | Proven behavior | PnP Framework expression |
 | --- | --- |
 | Preserve SPSite versus SPWeb identity level and child-Web ancestry. | `SourceSiteCollectionSnapshot`, `TopologyPlan`, `TopologyTargetAnalysis`, and `TopologyMaterializationReceipt`. |
+| Preserve an exact target Web path when source ancestor-Web metadata is authorization-blocked. | Bundle-scoped `SharedTopologyPlan`, independent target-Web container actions/receipts, and page-local external ingredient references. |
 | Refuse unowned collisions and resume only exact owned work. | Per-Web and per-List original-identifier plus semantic-digest properties; create/reuse/recover/block dispositions. |
 | Capture the complete List/lookup closure required by a page. | `ListDependencySnapshot`, `ListLookupDependency`, and deterministic DAG ordering with cycle blocking. |
 | Preserve unknown item values for future recovery while writing only understood fields. | Every returned `ListItemValueSnapshot` keeps typed and raw evidence; `ListFieldMaterializationDisposition` controls replay. |

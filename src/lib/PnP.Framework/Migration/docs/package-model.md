@@ -33,6 +33,11 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `PageArtifactSnapshot` | `pnp-page-artifact/v1` |
 | `PageRuntimeSnapshot` | `pnp-page-runtime/v1` |
 | `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1` |
+| Path-derived page plan graph with shared references | `pnp-page-ingredient-graph/v2` |
+| Shared path-derived topology plan | `pnp-shared-topology-plan/v1` |
+| Shared topology target analysis | `pnp-shared-topology-target-analysis/v1` |
+| Shared topology action plan | `pnp-shared-topology-action-plan/v1` |
+| Shared topology receipt | `pnp-shared-topology-receipt/v1` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
 | `TaxonomyValueRelationshipSnapshot` | `pnp-taxonomy-value-relationship/v1` |
@@ -325,3 +330,10 @@ receipt.webPartResults
 ```
 
 The source List/View IDs remain evidence and correlation keys. The target IDs are execution outputs; downstream XML rewriting uses those target values instead of attempting to preserve source runtime identities.
+
+For an authorization-limited source ancestor closure, `pathDerivedTopologyEvidence`
+retains the source Site/leaf-Web facts and literal HTTP evidence. The page plan
+contains a `sharedTopologyReference` and a v2 plan-specific ingredient graph;
+the full shared plan/action/receipt remains bundle-scoped. Null optional shared
+fields are omitted so legacy v1 topology and page-graph canonical payloads retain
+their prior digests. See [Shared path-derived Web topology](shared-path-derived-topology.md).

@@ -1,5 +1,6 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,9 +8,30 @@ using System.Linq;
 
 namespace PnP.Framework.Migration.Topology
 {
+    public sealed class SourceTopologyCaptureResult
+    {
+        public SourceSiteCollectionSnapshot SourceTopology { get; set; }
+
+        public PathDerivedSourceTopologyEvidence PathDerivedEvidence { get; set; }
+    }
+
     public static class SourceTopologySnapshotReader
     {
         public static SourceSiteCollectionSnapshot CaptureRequiredWebClosure(ClientContext context, IEnumerable<Guid> requiredWebIds)
+        {
+            var required = requiredWebIds?.Where(value => value != Guid.Empty).Distinct().ToArray();
+            var result = CaptureRequiredWebClosureWithEvidence(context, required, required?.FirstOrDefault() ?? Guid.Empty);
+            if (result.SourceTopology == null)
+            {
+                throw new InvalidDataException("Source topology closure could not be captured; path-derived evidence must be consumed by the shared topology planner.");
+            }
+            return result.SourceTopology;
+        }
+
+        public static SourceTopologyCaptureResult CaptureRequiredWebClosureWithEvidence(
+            ClientContext context,
+            IEnumerable<Guid> requiredWebIds,
+            Guid primaryLeafWebId)
         {
             if (context == null)
             {
@@ -29,6 +51,14 @@ namespace PnP.Framework.Migration.Topology
             if (!requested.Contains(root.Id))
             {
                 requested.Add(root.Id);
+            }
+            if (primaryLeafWebId == Guid.Empty)
+            {
+                primaryLeafWebId = root.Id;
+            }
+            if (!requested.Contains(primaryLeafWebId))
+            {
+                throw new ArgumentException("The primary leaf Web must be one of the required source Web IDs.", nameof(primaryLeafWebId));
             }
 
             var captured = new Dictionary<Guid, SourceWebSnapshot>();
@@ -58,7 +88,34 @@ namespace PnP.Framework.Migration.Topology
                     context.Load(parent, value => value.Id, value => value.ServerRelativeUrl, value => value.Title, value => value.WebTemplate, value => value.Configuration);
                     parents[child.WebId] = parent;
                 }
-                context.ExecuteQueryRetry();
+                try
+                {
+                    context.ExecuteQueryRetry();
+                }
+                catch (Exception exception) when (TopologyHttpStatusExtractor.TryGetLiteralStatus(exception, out var status)
+                    && PathDerivedSourceTopologyEvidenceFactory.IsLiteralAuthorizationStatus(status))
+                {
+                    if (!captured.TryGetValue(primaryLeafWebId, out var leaf))
+                    {
+                        throw new InvalidDataException("The primary source leaf Web was not captured before ancestor lookup failed.", exception);
+                    }
+                    var requestUri = context.Url.TrimEnd('/') + "/_vti_bin/client.svc/ProcessQuery";
+                    return new SourceTopologyCaptureResult
+                    {
+                        PathDerivedEvidence = PathDerivedSourceTopologyEvidenceFactory.CreateAuthorizationBlocked(
+                            site.Id,
+                            root.Url,
+                            site.ServerRelativeUrl,
+                            leaf.WebId,
+                            leaf.WebUrl,
+                            leaf.ServerRelativeUrl,
+                            "ReadSourceParentWeb",
+                            requestUri,
+                            status,
+                            DateTimeOffset.UtcNow,
+                            new[] { "Ancestor Web identity, title, template, and configuration were not captured." })
+                    };
+                }
                 foreach (var child in unresolved)
                 {
                     var parent = parents[child.WebId];
@@ -91,14 +148,17 @@ namespace PnP.Framework.Migration.Topology
                 }
             }
 
-            return new SourceSiteCollectionSnapshot
+            return new SourceTopologyCaptureResult
             {
-                SiteId = site.Id,
-                SiteCollectionUrl = root.Url.TrimEnd('/'),
-                ServerRelativeUrl = site.ServerRelativeUrl,
-                RootWebId = root.Id,
-                Webs = captured.Values.OrderBy(value => PathDepth(value.ServerRelativeUrl)).ThenBy(value => value.ServerRelativeUrl, StringComparer.OrdinalIgnoreCase).ToList(),
-                Availability = EvidenceAvailability.Captured
+                SourceTopology = new SourceSiteCollectionSnapshot
+                {
+                    SiteId = site.Id,
+                    SiteCollectionUrl = root.Url.TrimEnd('/'),
+                    ServerRelativeUrl = site.ServerRelativeUrl,
+                    RootWebId = root.Id,
+                    Webs = captured.Values.OrderBy(value => PathDepth(value.ServerRelativeUrl)).ThenBy(value => value.ServerRelativeUrl, StringComparer.OrdinalIgnoreCase).ToList(),
+                    Availability = EvidenceAvailability.Captured
+                }
             };
         }
 

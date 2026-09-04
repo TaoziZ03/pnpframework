@@ -7,8 +7,10 @@ using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Taxonomy;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 {
@@ -71,6 +73,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
         public int MaterializedDependencyCount { get; set; }
 
         public TopologyMaterializationReceipt TopologyMaterialization { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyMaterializationReceipt SharedTopologyMaterialization { get; set; }
 
         public bool TopologyMatched { get; set; }
 
