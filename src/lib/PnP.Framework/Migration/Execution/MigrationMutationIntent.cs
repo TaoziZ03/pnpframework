@@ -15,5 +15,7 @@ namespace PnP.Framework.Migration.Execution
         public DateTimeOffset WrittenAtUtc { get; set; }
 
         public string Description { get; set; }
+
+        public string ActionSignature { get; set; }
     }
 }

@@ -4,6 +4,14 @@ using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
 {
+    public enum TaxonomyAssetReceiptDisposition
+    {
+        CreatedOwned = 1,
+        ReuseOwned = 2,
+        ReconciledOwned = 3,
+        ReuseExternal = 4
+    }
+
     public sealed class TaxonomyAssetActionReceipt
     {
         public string ActionId { get; set; }
@@ -36,12 +44,26 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
 
         public bool FreshReadbackPassed { get; set; }
 
+        public MigrationTargetOwnership Ownership { get; set; }
+
+        public TaxonomyAssetReceiptDisposition ExecutionDisposition { get; set; }
+
+        public string SourceIdentity { get; set; }
+
+        public string TargetIdentity { get; set; }
+
+        public string SemanticMappingDigest { get; set; }
+
+        public string ActionSignature { get; set; }
+
+        public string ObservedStateDigest { get; set; }
+
         public string Diagnostic { get; set; }
     }
 
     public sealed class TaxonomyAssetMaterializationReceipt
     {
-        public string SchemaVersion { get; set; } = "pnp-taxonomy-asset-materialization-receipt/v1";
+        public string SchemaVersion { get; set; } = "pnp-taxonomy-asset-materialization-receipt/v2";
 
         public Guid OperationId { get; set; }
 

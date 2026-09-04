@@ -35,15 +35,20 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
+| `MigrationActionSignature` | `pnp-migration-action-signature/v1` |
+| `MigrationExecutionJournalRecord` | `pnp-migration-execution-journal-record/v1` |
+| `MigrationMutationVerificationReceipt` | `pnp-migration-mutation-verification/v1` |
+| `MigrationExecutionArtifactReference` | `pnp-migration-execution-artifact-reference/v1` |
 | `TaxonomyValueRelationshipSnapshot` | `pnp-taxonomy-value-relationship/v1` |
 | `TaxonomyAssetSourceSnapshot` | `pnp-taxonomy-asset-source/v1` |
 | `TaxonomyTermGroupMaterializationPlan` | `pnp-taxonomy-termgroup-plan/v1` |
-| `TaxonomyTermSetMaterializationPlan` | `pnp-taxonomy-termset-plan/v1` |
-| `TaxonomyTermMaterializationPlan` | `pnp-taxonomy-term-plan/v1` |
+| `TaxonomyTermSetMaterializationPlan` | `pnp-taxonomy-termset-plan/v2` |
+| `TaxonomyTermMaterializationPlan` | `pnp-taxonomy-term-plan/v3` |
 | `TaxonomyAssetReviewPlan` | `pnp-taxonomy-asset-review-plan/v1` |
 | `TaxonomyAssetApprovalManifest` | `pnp-taxonomy-asset-approval/v1` |
 | `TaxonomyAssetExecutionAdmission` | `pnp-taxonomy-asset-execution-admission/v1` |
-| `TaxonomyAssetMaterializationReceipt` | `pnp-taxonomy-asset-materialization-receipt/v1` |
+| `TaxonomyAssetMaterializationReceipt` | `pnp-taxonomy-asset-materialization-receipt/v2` |
+| `TaxonomyAssetMappingCatalog` | `pnp-taxonomy-asset-mapping-catalog/v2` |
 
 Nested snapshots and plans have their own schema identifiers where independent evolution or validation is required.
 
@@ -294,6 +299,10 @@ The boundaries are deliberately narrower than the envelopes:
 Some nested domains also carry semantic ownership digests. For example, a List's semantic digest normalizes execution-time target observation state so an approved `CreateOwned` intent can later be recognized as the same owned object and recorded as `ReuseOwned`. This does not mutate or weaken the top-level `planDigest`, which still covers the complete planning-time plan.
 
 Execution-time runtime IDs do not belong in `planDigest` because SharePoint may allocate them only after mutation. They belong in receipts and are correlated by source identity and plan digest.
+
+Completed work can additionally carry an action-scoped digest signature. The signature binds one stable action ID and kind to SHA-256 source-evidence and selection-receipt digests, exact target identity, expected semantic state, and direct dependency signatures. Missing evidence or selection uses an explicit versioned empty digest, never `null`. It deliberately does not bind the complete page plan. A changed sibling action therefore does not invalidate unrelated completed evidence, while a changed target, selection, dependency, or semantic contract produces a new signature. Journal records with old and new signatures may coexist; only the exact current signature is evidence for a resume decision. The digest chain detects corruption/tampering inside the local trust boundary but does not authenticate the writer cryptographically.
+
+The local durable journal is a strict, canonical JSON Lines record chain. It persists only allowlisted execution state, mutation intent/receipt, fresh verification receipt, or content-addressed artifact reference contracts. Artifact bytes and arbitrary JSON are not embedded in the journal. A crash-partial final line is retained and hashed as interrupted-tail evidence; the next single writer continues in a digest-chained segment rather than truncating the damaged bytes.
 
 ## Package validation invariants
 

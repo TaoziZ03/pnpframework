@@ -167,6 +167,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                     ?? plan.MappingCandidates.Single(value => value.SourceTermStoreId == sourceTermPlan.Source.TermStoreId
                         && value.SourceTermSetId == sourceTermPlan.Source.TermSetId).TargetTermSetId;
                 sourceTermPlan.TargetTermSetId = targetSetId;
+                sourceTermPlan.MappingDigest = TaxonomyAssetIdentity.ComputeMappingDigest(sourceTermPlan);
                 sourceTermPlan.PlanDigest = TaxonomyAssetIdentity.ComputePlanDigest(sourceTermPlan);
 
                 TaxonomyTermTargetProbe termProbe;
@@ -337,9 +338,23 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 var match = matches.Single(value => value.Id == ids[0]);
                 PopulateSet(result, match);
                 result.ResolvedTargetTermSetId = match.Id;
+                var provenanceState = TaxonomyOwnedProvenance.Evaluate(
+                    result.ExistingOriginalIdentifier,
+                    plan.OriginalIdentifier,
+                    result.ExistingMappingDigest,
+                    plan.MappingDigest);
+                if (provenanceState == TaxonomyOwnedProvenanceState.MappingDigestConflict)
+                {
+                    result.Disposition = TaxonomyAssetTargetDisposition.ResolveCollision;
+                    result.Issues.Add(Issue(
+                        "OwnedTaxonomyTermSetMappingDigestConflict",
+                        "The provenance-matched TermSet carries a different semantic mapping digest; do not overwrite or adopt it."));
+                    return result;
+                }
                 result.Disposition = ExactSetShape(match, plan)
-                    ? TaxonomyAssetTargetDisposition.ReuseOwned
-                    : TaxonomyAssetTargetDisposition.ReconcileOwnedPlanDrift;
+                    && provenanceState == TaxonomyOwnedProvenanceState.Exact
+                        ? TaxonomyAssetTargetDisposition.ReuseOwned
+                        : TaxonomyAssetTargetDisposition.ReconcileOwnedPlanDrift;
                 if (result.Disposition == TaxonomyAssetTargetDisposition.ReconcileOwnedPlanDrift)
                 {
                     result.Issues.Add(Issue(
@@ -357,7 +372,8 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
             PopulateSet(result, preferred);
             result.ResolvedTargetTermSetId = preferred.Id;
             if (ExactExternalSetShape(preferred, plan)
-                && string.IsNullOrWhiteSpace(Property(preferred.CustomProperties, plan.OriginalIdentifierPropertyName)))
+                && string.IsNullOrWhiteSpace(Property(preferred.CustomProperties, plan.OriginalIdentifierPropertyName))
+                && string.IsNullOrWhiteSpace(Property(preferred.CustomProperties, plan.MappingDigestPropertyName)))
             {
                 result.Disposition = TaxonomyAssetTargetDisposition.ReviewExternalReuse;
                 result.Issues.Add(Issue(
@@ -475,12 +491,25 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 var match = ownershipMatches.Single(value => value.Id == ids[0]);
                 PopulateTerm(result, match);
                 result.ResolvedTargetTermId = match.Id;
-                if (match.TermSet.Id != plan.TargetTermSetId)
+                var provenanceState = TaxonomyOwnedProvenance.Evaluate(
+                    result.ExistingOriginalIdentifier,
+                    plan.OriginalIdentifier,
+                    result.ExistingMappingDigest,
+                    plan.MappingDigest);
+                if (provenanceState == TaxonomyOwnedProvenanceState.MappingDigestConflict)
+                {
+                    result.Disposition = TaxonomyAssetTargetDisposition.ResolveCollision;
+                    result.Issues.Add(Issue(
+                        "OwnedTaxonomyTermMappingDigestConflict",
+                        "The provenance-matched Term carries a different semantic mapping digest; do not overwrite or adopt it."));
+                }
+                else if (match.TermSet.Id != plan.TargetTermSetId)
                 {
                     result.Disposition = TaxonomyAssetTargetDisposition.ResolveCollision;
                     result.Issues.Add(Issue("OwnedTaxonomyTermInWrongSet", "The provenance-matched Term exists outside the reviewed target TermSet."));
                 }
                 else if (ExactTermShape(match, plan)
+                    && provenanceState == TaxonomyOwnedProvenanceState.Exact
                     && TaxonomyTermRelationshipFidelity.Matches(
                         plan,
                         result,
@@ -509,6 +538,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 PopulateTerm(result, preferred);
                 result.ResolvedTargetTermId = preferred.Id;
                 var existingIdentity = Property(preferred.CustomProperties, plan.OriginalIdentifierPropertyName);
+                var existingMappingDigest = Property(preferred.CustomProperties, plan.MappingDigestPropertyName);
                 var relationshipMatches = TaxonomyTermRelationshipFidelity.Matches(
                     plan,
                     result,
@@ -516,7 +546,8 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                     out var relationshipDiagnostic);
                 if (ExactTermShape(preferred, plan)
                     && relationshipMatches
-                    && string.IsNullOrWhiteSpace(existingIdentity))
+                    && string.IsNullOrWhiteSpace(existingIdentity)
+                    && string.IsNullOrWhiteSpace(existingMappingDigest))
                 {
                     result.Disposition = TaxonomyAssetTargetDisposition.ReviewExternalReuse;
                     result.Issues.Add(Issue("ExternalTaxonomyTermReviewRequired", "The exact Term exists without migration provenance; explicit external reuse approval is required."));
@@ -710,6 +741,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
 
             var candidate = exact[0].TermSet;
             var identity = Property(candidate.CustomProperties, setPlan.OriginalIdentifierPropertyName);
+            var mappingDigest = Property(candidate.CustomProperties, setPlan.MappingDigestPropertyName);
             var equivalent = string.Equals(candidate.Name, setPlan.SourceTermSetName, StringComparison.Ordinal)
                 && candidate.IsOpenForTermCreation == setPlan.IsOpenForTermCreation
                 && candidate.IsAvailableForTagging == setPlan.IsAvailableForTagging;
@@ -722,7 +754,9 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 .Except(existing.Select(value => value.Id))
                 .OrderBy(value => value)
                 .ToList();
-            if (equivalent && string.IsNullOrWhiteSpace(identity))
+            if (equivalent
+                && string.IsNullOrWhiteSpace(identity)
+                && string.IsNullOrWhiteSpace(mappingDigest))
             {
                 probe.Disposition = TaxonomyAssetTargetDisposition.ReviewExternalReuse;
                 probe.Issues.Add(Issue(
@@ -791,6 +825,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
         {
             target.ExistingName = source.Name;
             target.ExistingOriginalIdentifier = Property(source.CustomProperties, TaxonomyAssetIdentity.OriginalIdentifierPropertyName);
+            target.ExistingMappingDigest = Property(source.CustomProperties, TaxonomyAssetIdentity.MappingDigestPropertyName);
             target.ExistingIsOpenForTermCreation = source.IsOpenForTermCreation;
             target.ExistingIsAvailableForTagging = source.IsAvailableForTagging;
         }
@@ -800,6 +835,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
             target.ExistingName = source.Name;
             target.ExistingPath = source.PathOfTerm;
             target.ExistingOriginalIdentifier = Property(source.CustomProperties, TaxonomyAssetIdentity.OriginalIdentifierPropertyName);
+            target.ExistingMappingDigest = Property(source.CustomProperties, TaxonomyAssetIdentity.MappingDigestPropertyName);
             target.ExistingIsAvailableForTagging = source.IsAvailableForTagging;
             target.ExistingTermSetId = source.TermSet.Id;
             target.ExistingIsReused = source.IsReused;
