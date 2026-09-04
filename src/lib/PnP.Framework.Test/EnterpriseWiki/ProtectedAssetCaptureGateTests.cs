@@ -171,6 +171,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsNull(content);
             Assert.AreEqual(0, calls);
             Assert.IsTrue(decision.SourceListIrmEnabled);
+            Assert.IsTrue(decision.SourceListIrmStateObserved);
             Assert.AreEqual(ProtectedAssetProtectionState.Protected, decision.ProtectionState);
             Assert.IsTrue(decision.IsMetadataOnly);
         }
@@ -181,11 +182,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var calls = 0;
             var expected = CapturedBinary();
             var content = ListItemSnapshotReader.CaptureDocumentContent(
-                new Dictionary<string, object>
-                {
-                    ["_IpLabelId"] = string.Empty,
-                    ["_HasUserDefinedProtection"] = "0"
-                },
+                CompleteNegativeProtectionFields(),
                 false,
                 ProtectedAssetCapturePolicy.MetadataOnly("policy.test.safe"),
                 () =>
@@ -200,7 +197,11 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(1, calls);
             Assert.IsTrue(protection.LabelFieldObserved);
             Assert.IsTrue(protection.UserDefinedProtectionFieldObserved);
+            Assert.IsTrue(protection.DecryptSkipReasonObserved);
+            Assert.IsTrue(protection.HasEncryptedContentFieldObserved);
+            Assert.IsTrue(protection.RmsTemplateIdFieldObserved);
             Assert.AreEqual(ProtectedAssetProtectionState.Unprotected, decision.ProtectionState);
+            Assert.IsTrue(decision.SourceListIrmStateObserved);
             Assert.AreEqual(ProtectedAssetCaptureDisposition.SafeToCapture, decision.Disposition);
             Assert.IsTrue(decision.IsSafeToCapture);
             ProtectedAssetCaptureGate.ValidateDecision(protection, false, ProtectedAssetCapturePolicy.MetadataOnly("policy.test.safe"), decision);
@@ -226,6 +227,147 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(0, calls);
             Assert.AreEqual(ProtectedAssetProtectionState.Unknown, decision.ProtectionState);
             Assert.IsTrue(decision.IsMetadataOnly);
+        }
+
+        [DataTestMethod]
+        [DataRow("decrypt")]
+        [DataRow("encrypted")]
+        [DataRow("rms")]
+        public void ReaderPathDoesNotFetchWhenExtendedProtectionEvidenceIsPositive(string evidence)
+        {
+            var fields = CompleteNegativeProtectionFields();
+            if (evidence == "decrypt")
+            {
+                fields["MetaInfo"] = "vti_decryptskipreason:SW|1";
+            }
+            else if (evidence == "encrypted")
+            {
+                fields["_HasEncryptedContent"] = "1";
+            }
+            else
+            {
+                fields["_RmsTemplateId"] = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+            }
+            var calls = 0;
+
+            var content = ListItemSnapshotReader.CaptureDocumentContent(
+                fields,
+                false,
+                ProtectedAssetCapturePolicy.MetadataOnly("policy.test.extended-positive." + evidence),
+                () =>
+                {
+                    calls++;
+                    return CapturedBinary();
+                },
+                out _,
+                out var decision);
+
+            Assert.IsNull(content);
+            Assert.AreEqual(0, calls);
+            Assert.AreEqual(ProtectedAssetProtectionState.Protected, decision.ProtectionState);
+        }
+
+        [DataTestMethod]
+        [DataRow("_IpLabelId")]
+        [DataRow("_HasUserDefinedProtection")]
+        [DataRow("_HasEncryptedContent")]
+        [DataRow("_RmsTemplateId")]
+        [DataRow("MetaInfo")]
+        public void ReaderPathDoesNotFetchWhenAnyNegativeProtectionEvidenceIsMissing(string missingField)
+        {
+            var fields = CompleteNegativeProtectionFields();
+            fields.Remove(missingField);
+            var calls = 0;
+
+            var content = ListItemSnapshotReader.CaptureDocumentContent(
+                fields,
+                false,
+                ProtectedAssetCapturePolicy.MetadataOnly("policy.test.extended-missing." + missingField),
+                () =>
+                {
+                    calls++;
+                    return CapturedBinary();
+                },
+                out _,
+                out var decision);
+
+            Assert.IsNull(content);
+            Assert.AreEqual(0, calls);
+            Assert.AreEqual(ProtectedAssetProtectionState.Unknown, decision.ProtectionState);
+        }
+
+        [TestMethod]
+        public void ExplicitPolicyDoesNotFetchWhenListIrmStateWasNotObserved()
+        {
+            var protection = ListDocumentInformationProtectionSnapshotReader.Read(
+                CompleteNegativeProtectionFields(),
+                true);
+            var calls = 0;
+
+            var content = ProtectedAssetCaptureGate.Capture(
+                protection,
+                false,
+                false,
+                ProtectedAssetCapturePolicy.MetadataOnly("policy.test.missing-list-irm"),
+                () =>
+                {
+                    calls++;
+                    return CapturedBinary();
+                },
+                out var decision);
+
+            Assert.IsNull(content);
+            Assert.AreEqual(0, calls);
+            Assert.IsFalse(decision.SourceListIrmStateObserved);
+            Assert.AreEqual(ProtectedAssetProtectionState.Unknown, decision.ProtectionState);
+            Assert.IsTrue(decision.IsMetadataOnly);
+        }
+
+        [TestMethod]
+        public void NullPolicyPreservesLegacyReaderSnapshotAndGraphDigest()
+        {
+            var fields = CompleteNegativeProtectionFields();
+            fields["_HasUserDefinedProtection"] = "1";
+            fields["_HasEncryptedContent"] = "1";
+            fields["_RmsTemplateId"] = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+            fields["MetaInfo"] = "vti_decryptskipreason:SW|1";
+            var calls = 0;
+
+            var content = ListItemSnapshotReader.CaptureDocumentContent(
+                fields,
+                false,
+                null,
+                () =>
+                {
+                    calls++;
+                    return CapturedBinary();
+                },
+                out var protection,
+                out var decision);
+            var source = LegacyDocumentList(content);
+            var snapshot = new PublishingPageCaptureBundle
+            {
+                ListDependencies = new List<ListDependencySnapshot> { source }
+            };
+            var graph = new CanonicalPageIngredientGraph
+            {
+                ProjectionVersion = PublishingPageIngredientGraphProjector.CurrentProjectionVersion
+            };
+            PublishingPageListIngredientGraphProjector.Project(
+                snapshot,
+                graph,
+                PublishingPageIngredientGraphProjectionRevision.CurrentV7);
+            var graphDigest = MigrationDigest.ComputeSha256(
+                PublishingPagePackageSerializer.SerializeCanonical(graph));
+
+            Assert.AreEqual(1, calls);
+            Assert.AreSame(content, source.Items.Single().Document.Content);
+            Assert.IsNull(protection);
+            Assert.IsNull(decision);
+            Assert.IsFalse(PublishingPagePackageSerializer.SerializeCanonical(source.Items.Single().Document)
+                .Contains("informationProtection", StringComparison.Ordinal));
+            Assert.IsFalse(graph.Nodes.Any(value => value.Kind == PageIngredientKind.Policy));
+            Assert.AreEqual("af3cb4d7ba414782ae0e1d8f567d0df4941fa6dda5bd2975dc5b20f68ef8fc41", graphDigest);
         }
 
         [TestMethod]
@@ -437,8 +579,8 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             Assert.IsFalse(scenario.PlanSet.IsExecutable);
             Assert.AreEqual(
-                DroppedLookupValueDisposition.NeedsPolicyDecision,
-                consumerPlan.DroppedLookupValueDependencies.Single().Disposition);
+                DroppedItemDependencyDisposition.NeedsPolicyDecision,
+                consumerPlan.DroppedItemDependencies.Single().Disposition);
             Assert.IsTrue(scenario.Graph.Edges.Any(value =>
                 value.FromIngredientId == dependentItemId
                 && value.ToIngredientId == providerItemId
@@ -452,7 +594,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         [TestMethod]
         public void ClearLookupPolicyReleasesOnlyExcludedProviderValueDependency()
         {
-            var scenario = CreateLookupScenario(DroppedLookupValuePolicy.Clear("policy.test.lookup.clear"));
+            var scenario = CreateLookupScenario(DroppedItemDependencyDisposition.ClearValue);
             var dependentItemId = PublishingPageIngredientIds.ListItem(
                 scenario.Consumer.SourceWebId,
                 scenario.Consumer.SourceListId,
@@ -476,10 +618,76 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsFalse(evaluation.Issues.Any(value => value.Code == "RequiredIngredientDependencyUnsatisfied"));
         }
 
+        [DataTestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void RequiredSingleAndMultiLookupRejectClearValue(bool multi)
+        {
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                CreateLookupScenario(
+                    DroppedItemDependencyDisposition.ClearValue,
+                    required: true,
+                    multi: multi));
+
+            StringAssert.Contains(exception.Message, "Required lookup field");
+        }
+
+        [DataTestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void RequiredSingleAndMultiLookupAllowDropDependentItem(bool multi)
+        {
+            var scenario = CreateLookupScenario(
+                DroppedItemDependencyDisposition.DropDependentItem,
+                required: true,
+                multi: multi);
+            var dependency = scenario.PlanSet.Lists
+                .Single(value => value.SourceListId == scenario.Consumer.SourceListId)
+                .DroppedItemDependencies.Single();
+
+            Assert.IsTrue(dependency.ConsumerFieldRequired);
+            Assert.AreEqual(DroppedItemDependencyDisposition.DropDependentItem, dependency.Disposition);
+        }
+
+        [TestMethod]
+        public void PlanValidatorRecomputesRequiredLookupAndRejectsTamperedClearDecision()
+        {
+            var scenario = CreateLookupScenario(
+                DroppedItemDependencyDisposition.DropDependentItem,
+                required: true);
+            var consumerPlan = scenario.PlanSet.Lists
+                .Single(value => value.SourceListId == scenario.Consumer.SourceListId);
+            consumerPlan.DroppedItemDependencies.Single().Disposition = DroppedItemDependencyDisposition.ClearValue;
+            consumerPlan.DroppedItemDependencies.Single().PolicyId = "policy.test.required.tampered-clear";
+            foreach (var plan in scenario.PlanSet.Lists)
+            {
+                plan.Disposition = ListMaterializationDisposition.Block;
+                plan.PlanDigest = ListMigrationPlanFactory.ComputePlanDigest(plan);
+            }
+            scenario.PlanSet.PlanDigest = ListMigrationPlanFactory.ComputeSetDigest(scenario.PlanSet);
+            var clearDecision = DroppedLookupValueDecision.Create(
+                scenario.Consumer.SourceListId,
+                11,
+                "ProtectedDocument",
+                scenario.Provider.SourceListId,
+                7,
+                DroppedItemDependencyDisposition.ClearValue,
+                "policy.test.required.tampered-clear");
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ListMigrationPlanValidator.Validate(
+                    new[] { scenario.Provider, scenario.Consumer },
+                    scenario.LookupDependencies,
+                    scenario.PlanSet,
+                    new[] { clearDecision }));
+
+            StringAssert.Contains(exception.Message, "Required lookup field");
+        }
+
         [TestMethod]
         public void DropDependentLookupPolicyExcludesDependentButNotIndependentSibling()
         {
-            var scenario = CreateLookupScenario(DroppedLookupValuePolicy.DropDependent("policy.test.lookup.drop"));
+            var scenario = CreateLookupScenario(DroppedItemDependencyDisposition.DropDependentItem);
             var dependentItemId = PublishingPageIngredientIds.ListItem(
                 scenario.Consumer.SourceWebId,
                 scenario.Consumer.SourceListId,
@@ -494,6 +702,184 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(IngredientDisposition.Drop, scenario.Actions[dependentItemId].Disposition);
             Assert.AreEqual(PageIngredientExecutionState.ExcludedByApprovedDisposition, evaluation.ExecutionFrontier.GetState(dependentItemId));
             Assert.AreEqual(PageIngredientExecutionState.Executable, evaluation.ExecutionFrontier.GetState(independentItemId));
+        }
+
+        [TestMethod]
+        public void DroppedLookupClosurePropagatesAcrossAtoBtoC()
+        {
+            var scenario = CreateLookupChainScenario(
+                DroppedItemDependencyDisposition.DropDependentItem,
+                DroppedItemDependencyDisposition.DropDependentItem);
+            var middle = scenario.Consumer;
+            var tail = scenario.Lists.Single(value => value.SourceListId != scenario.Provider.SourceListId
+                && value.SourceListId != middle.SourceListId);
+            var middleItemId = PublishingPageIngredientIds.ListItem(middle.SourceWebId, middle.SourceListId, 11);
+            var tailItemId = PublishingPageIngredientIds.ListItem(tail.SourceWebId, tail.SourceListId, 21);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(scenario.Graph, scenario.Actions.Values);
+
+            Assert.AreEqual(
+                DroppedItemDependencyDisposition.DropDependentItem,
+                scenario.PlanSet.Lists.Single(value => value.SourceListId == middle.SourceListId)
+                    .DroppedItemDependencies.Single().Disposition);
+            Assert.AreEqual(
+                DroppedItemDependencyDisposition.DropDependentItem,
+                scenario.PlanSet.Lists.Single(value => value.SourceListId == tail.SourceListId)
+                    .DroppedItemDependencies.Single().Disposition);
+            Assert.AreEqual(IngredientDisposition.Drop, scenario.Actions[middleItemId].Disposition);
+            Assert.AreEqual(IngredientDisposition.Drop, scenario.Actions[tailItemId].Disposition);
+            Assert.AreEqual(PageIngredientExecutionState.ExcludedByApprovedDisposition, evaluation.ExecutionFrontier.GetState(tailItemId));
+        }
+
+        [TestMethod]
+        public void ClearValueStopsDroppedLookupClosurePropagation()
+        {
+            var scenario = CreateLookupChainScenario(
+                DroppedItemDependencyDisposition.ClearValue,
+                DroppedItemDependencyDisposition.DropDependentItem);
+            var middle = scenario.Consumer;
+            var tail = scenario.Lists.Single(value => value.SourceListId != scenario.Provider.SourceListId
+                && value.SourceListId != middle.SourceListId);
+            var middleItemId = PublishingPageIngredientIds.ListItem(middle.SourceWebId, middle.SourceListId, 11);
+            var tailItemId = PublishingPageIngredientIds.ListItem(tail.SourceWebId, tail.SourceListId, 21);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(scenario.Graph, scenario.Actions.Values);
+
+            Assert.AreEqual(IngredientDisposition.Transform, scenario.Actions[middleItemId].Disposition);
+            Assert.IsNull(scenario.PlanSet.Lists.Single(value => value.SourceListId == tail.SourceListId).DroppedItemDependencies);
+            Assert.AreEqual(PageIngredientExecutionState.Executable, evaluation.ExecutionFrontier.GetState(tailItemId));
+        }
+
+        [TestMethod]
+        public void NeedsDecisionLeavesBranchPendingAndDescendantSkipped()
+        {
+            var scenario = CreateLookupChainScenario(
+                null,
+                DroppedItemDependencyDisposition.DropDependentItem);
+            var middle = scenario.Consumer;
+            var tail = scenario.Lists.Single(value => value.SourceListId != scenario.Provider.SourceListId
+                && value.SourceListId != middle.SourceListId);
+            var middleItemId = PublishingPageIngredientIds.ListItem(middle.SourceWebId, middle.SourceListId, 11);
+            var tailItemId = PublishingPageIngredientIds.ListItem(tail.SourceWebId, tail.SourceListId, 21);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(scenario.Graph, scenario.Actions.Values);
+
+            Assert.AreEqual(IngredientDisposition.Defer, scenario.Actions[middleItemId].Disposition);
+            Assert.IsNull(scenario.PlanSet.Lists.Single(value => value.SourceListId == tail.SourceListId).DroppedItemDependencies);
+            Assert.AreEqual(PageIngredientExecutionState.SkippedByDeferredDependency, evaluation.ExecutionFrontier.GetState(tailItemId));
+        }
+
+        [TestMethod]
+        public void PerEdgeMixedDecisionsAreSealedIndependently()
+        {
+            var scenario = CreateMixedLookupDecisionScenario();
+            var plan = scenario.PlanSet.Lists.Single(value => value.SourceListId == scenario.Consumer.SourceListId);
+            var clear = plan.DroppedItemDependencies.Single(value => value.ConsumerSourceItemId == 11);
+            var drop = plan.DroppedItemDependencies.Single(value => value.ConsumerSourceItemId == 12);
+            var clearItemId = PublishingPageIngredientIds.ListItem(
+                scenario.Consumer.SourceWebId,
+                scenario.Consumer.SourceListId,
+                11);
+            var dropItemId = PublishingPageIngredientIds.ListItem(
+                scenario.Consumer.SourceWebId,
+                scenario.Consumer.SourceListId,
+                12);
+
+            Assert.AreEqual(DroppedItemDependencyDisposition.ClearValue, clear.Disposition);
+            Assert.AreEqual("policy.test.mixed.clear", clear.PolicyId);
+            Assert.AreEqual(DroppedItemDependencyDisposition.DropDependentItem, drop.Disposition);
+            Assert.AreEqual("policy.test.mixed.drop", drop.PolicyId);
+            Assert.AreEqual(IngredientDisposition.Transform, scenario.Actions[clearItemId].Disposition);
+            Assert.AreEqual(IngredientDisposition.Drop, scenario.Actions[dropItemId].Disposition);
+        }
+
+        [TestMethod]
+        public void ClearValueRemovesOnlyTheExactDroppedLookupFromAMultiValueField()
+        {
+            var providerListId = Guid.Parse("33333333-4444-5555-6666-777777777777");
+            var sourceValue = new ListItemValueSnapshot
+            {
+                InternalName = "RelatedDocuments",
+                Kind = ListItemValueKind.LookupCollection,
+                LookupValues = new List<ListItemLookupValueSnapshot>
+                {
+                    new ListItemLookupValueSnapshot { LookupId = 7 },
+                    new ListItemLookupValueSnapshot { LookupId = 8 }
+                }
+            };
+            var fieldPlan = new ListFieldMaterializationPlan
+            {
+                InternalName = sourceValue.InternalName,
+                SourceLookupListId = providerListId,
+                Disposition = ListFieldMaterializationDisposition.MapLookup
+            };
+            var dependencyPlans = new[]
+            {
+                new ListDroppedItemDependencyPlan
+                {
+                    Kind = ListItemDependencyKind.LookupValue,
+                    ConsumerSourceItemId = 11,
+                    ConsumerFieldInternalName = sourceValue.InternalName,
+                    ProviderSourceListId = providerListId,
+                    ProviderSourceItemId = 7,
+                    Disposition = DroppedItemDependencyDisposition.ClearValue,
+                    PolicyId = "policy.test.multi.exact-clear"
+                }
+            };
+            var clearedIds = DroppedItemDependencyPlanner.ClearedLookupProviderItemIds(
+                dependencyPlans,
+                11,
+                sourceValue.InternalName,
+                providerListId);
+            var receipts = new Dictionary<Guid, ListMaterializationReceipt>
+            {
+                [providerListId] = new ListMaterializationReceipt
+                {
+                    TargetItemIds = new Dictionary<int, int> { [8] = 108 }
+                }
+            };
+
+            var projected = (FieldLookupValue[])ListItemValueWriter.ProjectLookupValue(
+                sourceValue,
+                fieldPlan,
+                receipts,
+                clearedIds);
+            var actual = new ListItemValueSnapshot
+            {
+                InternalName = sourceValue.InternalName,
+                Kind = ListItemValueKind.LookupCollection,
+                LookupValues = projected
+                    .Select(value => new ListItemLookupValueSnapshot { LookupId = value.LookupId })
+                    .ToList()
+            };
+
+            Assert.AreEqual(1, projected.Length);
+            Assert.AreEqual(108, projected[0].LookupId);
+            Assert.IsTrue(ListItemValueComparer.Matches(
+                sourceValue,
+                actual,
+                fieldPlan,
+                receipts,
+                clearedIds,
+                out var mismatch), mismatch);
+        }
+
+        [TestMethod]
+        public void DroppedFolderTransitivelyDropsNestedFoldersAndFiles()
+        {
+            var scenario = CreateFolderClosureScenario();
+            var tree = scenario.Consumer;
+            var plan = scenario.PlanSet.Lists.Single(value => value.SourceListId == tree.SourceListId);
+            var droppedIds = DroppedItemDependencyPlanner.DroppedConsumerItemIds(plan.DroppedItemDependencies);
+
+            CollectionAssert.AreEquivalent(new[] { 20, 21, 22 }, droppedIds.ToArray());
+            Assert.AreEqual(3, plan.DroppedItemDependencies.Count);
+            Assert.AreEqual(2, plan.DroppedItemDependencies.Count(value => value.Kind == ListItemDependencyKind.FolderPath));
+            foreach (var sourceItemId in droppedIds)
+            {
+                var ingredientId = PublishingPageIngredientIds.ListItem(
+                    tree.SourceWebId,
+                    tree.SourceListId,
+                    sourceItemId);
+                Assert.AreEqual(IngredientDisposition.Drop, scenario.Actions[ingredientId].Disposition);
+            }
         }
 
         [TestMethod]
@@ -696,7 +1082,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
         }
 
-        private static LookupScenarioState CreateLookupScenario(DroppedLookupValuePolicy policy)
+        private static LookupScenarioState CreateLookupScenario(
+            DroppedItemDependencyDisposition? disposition,
+            bool required = false,
+            bool multi = false)
         {
             var provider = ProtectedList(ProtectedAssetCapturePolicy.MetadataOnly("policy.test.lookup.provider"));
             var fieldId = Guid.Parse("55555555-5555-5555-5555-555555555555");
@@ -711,15 +1100,11 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 BaseTemplate = 100,
                 BaseType = "GenericList",
                 RootFolderServerRelativeUrl = "/sites/source/Lists/Consumers",
-                InformationRightsManagement = new ListInformationRightsManagementSnapshot
-                {
-                    IrmEnabled = false,
-                    Availability = EvidenceAvailability.Captured
-                },
+                InformationRightsManagement = DisabledIrm(),
                 SourceItemCount = 2,
                 Fields = new List<ListFieldSnapshot>
                 {
-                    LookupField(fieldId, provider)
+                    LookupField(fieldId, provider, required, multi)
                 },
                 Items = new List<ListItemSnapshot>
                 {
@@ -732,7 +1117,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                             new ListItemValueSnapshot
                             {
                                 InternalName = "ProtectedDocument",
-                                Kind = ListItemValueKind.Lookup,
+                                Kind = multi ? ListItemValueKind.LookupCollection : ListItemValueKind.Lookup,
                                 LookupValues = new List<ListItemLookupValueSnapshot>
                                 {
                                     new ListItemLookupValueSnapshot
@@ -757,16 +1142,43 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     FieldInternalName = "ProtectedDocument"
                 }
             };
-            var planSet = ListMigrationPlanFactory.Create(
+            return BuildLookupScenario(
+                provider,
+                consumer,
                 new[] { provider, consumer },
+                lookupDependencies,
+                disposition.HasValue
+                    ? new[]
+                    {
+                        DroppedLookupValueDecision.Create(
+                            consumer.SourceListId,
+                            11,
+                            "ProtectedDocument",
+                            provider.SourceListId,
+                            7,
+                            disposition.Value,
+                            "policy.test.lookup." + disposition.Value)
+                    }
+                    : null);
+        }
+
+        private static LookupScenarioState BuildLookupScenario(
+            ListDependencySnapshot provider,
+            ListDependencySnapshot consumer,
+            IList<ListDependencySnapshot> lists,
+            IList<ListLookupDependency> lookupDependencies,
+            IEnumerable<DroppedLookupValueDecision> decisions)
+        {
+            var planSet = ListMigrationPlanFactory.Create(
+                lists,
                 lookupDependencies,
                 Topology(provider),
                 Array.Empty<PnP.Framework.Migration.Taxonomy.TaxonomyTargetMapping>(),
                 Array.Empty<ListTargetOverride>(),
-                policy);
+                decisions);
             var snapshot = new PublishingPageCaptureBundle
             {
-                ListDependencies = new List<ListDependencySnapshot> { provider, consumer },
+                ListDependencies = lists,
                 ListLookupDependencies = lookupDependencies
             };
             var graph = new CanonicalPageIngredientGraph
@@ -787,29 +1199,352 @@ namespace PnP.Framework.Test.EnterpriseWiki
             {
                 Provider = provider,
                 Consumer = consumer,
+                Lists = lists,
+                LookupDependencies = lookupDependencies,
                 PlanSet = planSet,
                 Graph = graph,
                 Actions = actions
             };
         }
 
-        private static ListFieldSnapshot LookupField(Guid fieldId, ListDependencySnapshot provider)
+        private static LookupScenarioState CreateLookupChainScenario(
+            DroppedItemDependencyDisposition? firstDisposition,
+            DroppedItemDependencyDisposition? secondDisposition)
+        {
+            var provider = ProtectedList(ProtectedAssetCapturePolicy.MetadataOnly("policy.test.chain.provider"));
+            var middle = LookupConsumerList(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Middle",
+                11,
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                "ProviderA",
+                provider,
+                7);
+            var tail = LookupConsumerList(
+                Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                "Tail",
+                21,
+                Guid.Parse("88888888-8888-8888-8888-888888888888"),
+                "ProviderB",
+                middle,
+                11);
+            var lookupDependencies = new List<ListLookupDependency>
+            {
+                LookupDependency(middle, provider, middle.Fields.Single()),
+                LookupDependency(tail, middle, tail.Fields.Single())
+            };
+            var decisions = new List<DroppedLookupValueDecision>();
+            if (firstDisposition.HasValue)
+            {
+                decisions.Add(DroppedLookupValueDecision.Create(
+                    middle.SourceListId,
+                    11,
+                    "ProviderA",
+                    provider.SourceListId,
+                    7,
+                    firstDisposition.Value,
+                    "policy.test.chain.first." + firstDisposition.Value));
+            }
+            if (secondDisposition.HasValue)
+            {
+                decisions.Add(DroppedLookupValueDecision.Create(
+                    tail.SourceListId,
+                    21,
+                    "ProviderB",
+                    middle.SourceListId,
+                    11,
+                    secondDisposition.Value,
+                    "policy.test.chain.second." + secondDisposition.Value));
+            }
+            return BuildLookupScenario(
+                provider,
+                middle,
+                new[] { provider, middle, tail },
+                lookupDependencies,
+                decisions);
+        }
+
+        private static LookupScenarioState CreateMixedLookupDecisionScenario()
+        {
+            var provider = ProtectedList(ProtectedAssetCapturePolicy.MetadataOnly("policy.test.mixed.provider"));
+            var consumer = LookupConsumerList(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Mixed",
+                11,
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                "ProtectedDocument",
+                provider,
+                7);
+            consumer.Items.Add(new ListItemSnapshot
+            {
+                SourceItemId = 12,
+                Values = new List<ListItemValueSnapshot>
+                {
+                    LookupValue("ProtectedDocument", 7)
+                }
+            });
+            consumer.SourceItemCount = consumer.Items.Count;
+            var lookupDependencies = new[]
+            {
+                LookupDependency(consumer, provider, consumer.Fields.Single())
+            };
+            var decisions = new[]
+            {
+                DroppedLookupValueDecision.Create(
+                    consumer.SourceListId,
+                    11,
+                    "ProtectedDocument",
+                    provider.SourceListId,
+                    7,
+                    DroppedItemDependencyDisposition.ClearValue,
+                    "policy.test.mixed.clear"),
+                DroppedLookupValueDecision.Create(
+                    consumer.SourceListId,
+                    12,
+                    "ProtectedDocument",
+                    provider.SourceListId,
+                    7,
+                    DroppedItemDependencyDisposition.DropDependentItem,
+                    "policy.test.mixed.drop")
+            };
+            return BuildLookupScenario(
+                provider,
+                consumer,
+                new[] { provider, consumer },
+                lookupDependencies,
+                decisions);
+        }
+
+        private static LookupScenarioState CreateFolderClosureScenario()
+        {
+            var provider = ProtectedList(ProtectedAssetCapturePolicy.MetadataOnly("policy.test.folder.provider"));
+            var fieldId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+            var tree = new ListDependencySnapshot
+            {
+                SourceSiteId = provider.SourceSiteId,
+                SourceWebId = provider.SourceWebId,
+                SourceWebUrl = provider.SourceWebUrl,
+                SourceListId = Guid.Parse("99999999-9999-9999-9999-999999999999"),
+                Title = "Tree",
+                Description = string.Empty,
+                BaseTemplate = 101,
+                BaseType = "DocumentLibrary",
+                RootFolderServerRelativeUrl = "/sites/source/Tree",
+                InformationRightsManagement = DisabledIrm(),
+                Fields = new List<ListFieldSnapshot>
+                {
+                    LookupField(fieldId, provider, internalName: "ProtectedDocument")
+                },
+                Items = new List<ListItemSnapshot>
+                {
+                    new ListItemSnapshot
+                    {
+                        SourceItemId = 20,
+                        Values = new List<ListItemValueSnapshot> { LookupValue("ProtectedDocument", 7) },
+                        Document = new ListDocumentSnapshot
+                        {
+                            Kind = ListDocumentObjectKind.Folder,
+                            Name = "F",
+                            ServerRelativeUrl = "/sites/source/Tree/F"
+                        }
+                    },
+                    new ListItemSnapshot
+                    {
+                        SourceItemId = 21,
+                        Document = new ListDocumentSnapshot
+                        {
+                            Kind = ListDocumentObjectKind.Folder,
+                            Name = "Sub",
+                            ServerRelativeUrl = "/sites/source/Tree/F/Sub"
+                        }
+                    },
+                    new ListItemSnapshot
+                    {
+                        SourceItemId = 22,
+                        Document = new ListDocumentSnapshot
+                        {
+                            Kind = ListDocumentObjectKind.File,
+                            Name = "file.txt",
+                            ServerRelativeUrl = "/sites/source/Tree/F/Sub/file.txt",
+                            Length = 1,
+                            Content = CapturedBinary()
+                        }
+                    }
+                },
+                Availability = EvidenceAvailability.Captured
+            };
+            tree.SourceItemCount = tree.Items.Count;
+            var lookupDependencies = new[]
+            {
+                LookupDependency(tree, provider, tree.Fields.Single())
+            };
+            var decisions = new[]
+            {
+                DroppedLookupValueDecision.Create(
+                    tree.SourceListId,
+                    20,
+                    "ProtectedDocument",
+                    provider.SourceListId,
+                    7,
+                    DroppedItemDependencyDisposition.DropDependentItem,
+                    "policy.test.folder.drop")
+            };
+            return BuildLookupScenario(
+                provider,
+                tree,
+                new[] { provider, tree },
+                lookupDependencies,
+                decisions);
+        }
+
+        private static ListDependencySnapshot LookupConsumerList(
+            Guid listId,
+            string title,
+            int itemId,
+            Guid fieldId,
+            string fieldInternalName,
+            ListDependencySnapshot provider,
+            int providerItemId)
+        {
+            return new ListDependencySnapshot
+            {
+                SourceSiteId = provider.SourceSiteId,
+                SourceWebId = provider.SourceWebId,
+                SourceWebUrl = provider.SourceWebUrl,
+                SourceListId = listId,
+                Title = title,
+                Description = string.Empty,
+                BaseTemplate = 100,
+                BaseType = "GenericList",
+                RootFolderServerRelativeUrl = "/sites/source/Lists/" + title,
+                InformationRightsManagement = DisabledIrm(),
+                SourceItemCount = 1,
+                Fields = new List<ListFieldSnapshot>
+                {
+                    LookupField(fieldId, provider, internalName: fieldInternalName)
+                },
+                Items = new List<ListItemSnapshot>
+                {
+                    new ListItemSnapshot
+                    {
+                        SourceItemId = itemId,
+                        Values = new List<ListItemValueSnapshot>
+                        {
+                            LookupValue(fieldInternalName, providerItemId)
+                        }
+                    }
+                },
+                Availability = EvidenceAvailability.Captured
+            };
+        }
+
+        private static ListLookupDependency LookupDependency(
+            ListDependencySnapshot consumer,
+            ListDependencySnapshot provider,
+            ListFieldSnapshot field)
+        {
+            return new ListLookupDependency
+            {
+                SourceListId = consumer.SourceListId,
+                LookupListId = provider.SourceListId,
+                FieldId = field.Id,
+                FieldInternalName = field.InternalName
+            };
+        }
+
+        private static ListItemValueSnapshot LookupValue(string fieldInternalName, int lookupId)
+        {
+            return new ListItemValueSnapshot
+            {
+                InternalName = fieldInternalName,
+                Kind = ListItemValueKind.Lookup,
+                LookupValues = new List<ListItemLookupValueSnapshot>
+                {
+                    new ListItemLookupValueSnapshot { LookupId = lookupId }
+                }
+            };
+        }
+
+        private static Dictionary<string, object> CompleteNegativeProtectionFields()
+        {
+            return new Dictionary<string, object>
+            {
+                ["_IpLabelId"] = string.Empty,
+                ["_HasUserDefinedProtection"] = "0",
+                ["_HasEncryptedContent"] = "0",
+                ["_RmsTemplateId"] = string.Empty,
+                ["MetaInfo"] = string.Empty
+            };
+        }
+
+        private static ListInformationRightsManagementSnapshot DisabledIrm()
+        {
+            return new ListInformationRightsManagementSnapshot
+            {
+                IrmEnabled = false,
+                Availability = EvidenceAvailability.Captured
+            };
+        }
+
+        private static ListDependencySnapshot LegacyDocumentList(ListBinaryArtifactSnapshot content)
+        {
+            return new ListDependencySnapshot
+            {
+                SourceSiteId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                SourceWebId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                SourceWebUrl = "https://source.example/sites/source",
+                SourceListId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+                Title = "LegacyDocs",
+                Description = string.Empty,
+                BaseTemplate = 101,
+                BaseType = "DocumentLibrary",
+                RootFolderServerRelativeUrl = "/sites/source/LegacyDocs",
+                InformationRightsManagement = DisabledIrm(),
+                SourceItemCount = 1,
+                Items = new List<ListItemSnapshot>
+                {
+                    new ListItemSnapshot
+                    {
+                        SourceItemId = 1,
+                        Document = new ListDocumentSnapshot
+                        {
+                            Kind = ListDocumentObjectKind.File,
+                            Name = "legacy.bin",
+                            ServerRelativeUrl = "/sites/source/LegacyDocs/legacy.bin",
+                            Length = 1,
+                            Content = content
+                        }
+                    }
+                },
+                Availability = EvidenceAvailability.Captured
+            };
+        }
+
+        private static ListFieldSnapshot LookupField(
+            Guid fieldId,
+            ListDependencySnapshot provider,
+            bool required = false,
+            bool multi = false,
+            string internalName = "ProtectedDocument")
         {
             var schema = "<Field ID=\"{" + fieldId.ToString("D")
-                + "}\" Name=\"ProtectedDocument\" DisplayName=\"Protected document\" Type=\"Lookup\" List=\"{"
-                + provider.SourceListId.ToString("D") + "}\" ShowField=\"Title\" />";
+                + "}\" Name=\"" + internalName + "\" DisplayName=\"Protected document\" Type=\""
+                + (multi ? "LookupMulti" : "Lookup") + "\" List=\"{"
+                + provider.SourceListId.ToString("D") + "}\" ShowField=\"Title\" Required=\""
+                + (required ? "TRUE" : "FALSE") + "\" />";
             return new ListFieldSnapshot
             {
                 Id = fieldId,
-                InternalName = "ProtectedDocument",
+                InternalName = internalName,
                 Title = "Protected document",
-                TypeAsString = "Lookup",
+                TypeAsString = multi ? "LookupMulti" : "Lookup",
                 SchemaXml = schema,
                 SchemaXmlSha256 = MigrationDigest.ComputeSha256(schema),
                 PortableSchemaSha256 = FieldSchemaCanonicalizer.PortableDigest(schema),
                 SourceLookupWebId = provider.SourceWebId,
                 SourceLookupListId = provider.SourceListId,
                 LookupField = "Title",
+                Required = required,
                 Availability = EvidenceAvailability.Captured
             };
         }
@@ -841,11 +1576,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 BaseTemplate = 101,
                 BaseType = "DocumentLibrary",
                 RootFolderServerRelativeUrl = "/sites/source/Docs",
-                InformationRightsManagement = new ListInformationRightsManagementSnapshot
-                {
-                    IrmEnabled = false,
-                    Availability = EvidenceAvailability.Captured
-                },
+                InformationRightsManagement = DisabledIrm(),
                 SourceItemCount = 1,
                 Items = new List<ListItemSnapshot>
                 {
@@ -906,6 +1637,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
             public ListDependencySnapshot Provider { get; set; }
 
             public ListDependencySnapshot Consumer { get; set; }
+
+            public IList<ListDependencySnapshot> Lists { get; set; }
+
+            public IList<ListLookupDependency> LookupDependencies { get; set; }
 
             public ListMigrationPlanSet PlanSet { get; set; }
 

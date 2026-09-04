@@ -26,11 +26,8 @@ namespace PnP.Framework.Migration.Lists.Execution
                 .OrderBy(value => value.SourceItemId)
                 .ToList();
             var excludedItemIds = new HashSet<int>(exclusions.Select(value => value.SourceItemId));
-            var droppedLookupConsumerIds = new HashSet<int>(
-                (plan.DroppedLookupValueDependencies
-                    ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
-                .Where(value => value.Disposition == DroppedLookupValueDisposition.DropDependentItem)
-                .Select(value => value.ConsumerSourceItemId));
+            var droppedLookupConsumerIds = DroppedItemDependencyPlanner
+                .DroppedConsumerItemIds(plan.DroppedItemDependencies);
             excludedItemIds.UnionWith(droppedLookupConsumerIds);
             var reproducedItems = source.Items
                 .Where(value => !excludedItemIds.Contains(value.SourceItemId))
@@ -76,8 +73,8 @@ namespace PnP.Framework.Migration.Lists.Execution
             {
                 if (owned.ContainsKey(droppedConsumerId))
                 {
-                    diagnostics.Add("A migration-owned target item exists for lookup-dependent source item "
-                        + droppedConsumerId + " even though the reviewed policy excludes it.");
+                    diagnostics.Add("A migration-owned target item exists for dropped dependent source item "
+                        + droppedConsumerId + " even though the fixed-point policy excludes it.");
                 }
             }
             var allReceipts = new Dictionary<Guid, ListMaterializationReceipt>(dependencyReceipts);
@@ -131,8 +128,8 @@ namespace PnP.Framework.Migration.Lists.Execution
         {
             return receipt?.TargetItemIds?.Count > 0
                 || (plan?.ApprovedProtectedDocumentExclusions?.Count ?? 0) > 0
-                || (plan?.DroppedLookupValueDependencies ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
-                    .Any(value => value?.Disposition == DroppedLookupValueDisposition.DropDependentItem);
+                || DroppedItemDependencyPlanner.DroppedConsumerItemIds(
+                    plan?.DroppedItemDependencies).Count > 0;
         }
 
         private static IDictionary<int, ListItem> ReadOwnedItems(ClientContext context, List list, ICollection<string> diagnostics)
@@ -181,13 +178,6 @@ namespace PnP.Framework.Migration.Lists.Execution
             ICollection<string> diagnostics)
         {
             var fields = plan.Fields.ToDictionary(value => value.InternalName, StringComparer.OrdinalIgnoreCase);
-            var clearedLookupFields = new HashSet<string>(
-                (plan.DroppedLookupValueDependencies
-                    ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
-                .Where(value => value.ConsumerSourceItemId == sourceItem.SourceItemId
-                    && value.Disposition == DroppedLookupValueDisposition.ClearValue)
-                .Select(value => value.ConsumerFieldInternalName),
-                StringComparer.OrdinalIgnoreCase);
             foreach (var sourceValue in sourceItem.Values.Where(value => value.Kind != ListItemValueKind.Null))
             {
                 if (string.Equals(sourceValue.InternalName, "ContentTypeId", StringComparison.OrdinalIgnoreCase))
@@ -200,26 +190,38 @@ namespace PnP.Framework.Migration.Lists.Execution
                 {
                     continue;
                 }
+                var clearedLookupProviderItemIds = fieldPlan.Disposition == ListFieldMaterializationDisposition.MapLookup
+                    ? DroppedItemDependencyPlanner.ClearedLookupProviderItemIds(
+                        plan.DroppedItemDependencies,
+                        sourceItem.SourceItemId,
+                        sourceValue.InternalName,
+                        fieldPlan.SourceLookupListId)
+                    : null;
                 object actualValue;
-                if (clearedLookupFields.Contains(sourceValue.InternalName))
-                {
-                    if (targetItem.FieldValues.TryGetValue(sourceValue.InternalName, out actualValue)
-                        && actualValue != null
-                        && ListItemValueSerializer.Serialize(sourceValue.InternalName, actualValue).LookupValues.Count != 0)
-                    {
-                        diagnostics.Add("Target lookup value was not cleared for item "
-                            + sourceItem.SourceItemId + ", field '" + sourceValue.InternalName + "'.");
-                    }
-                    continue;
-                }
                 if (!targetItem.FieldValues.TryGetValue(sourceValue.InternalName, out actualValue))
                 {
-                    diagnostics.Add("Target value is missing for item " + sourceItem.SourceItemId + ", field '" + sourceValue.InternalName + "'.");
-                    continue;
+                    if (clearedLookupProviderItemIds?.Count > 0
+                        && sourceValue.Kind == ListItemValueKind.Lookup
+                        && (sourceValue.LookupValues ?? Array.Empty<ListItemLookupValueSnapshot>()).All(value => value != null
+                            && clearedLookupProviderItemIds.Contains(value.LookupId)))
+                    {
+                        actualValue = null;
+                    }
+                    else
+                    {
+                        diagnostics.Add("Target value is missing for item " + sourceItem.SourceItemId + ", field '" + sourceValue.InternalName + "'.");
+                        continue;
+                    }
                 }
                 var actual = ListItemValueSerializer.Serialize(sourceValue.InternalName, actualValue);
                 string mismatch;
-                if (!ListItemValueComparer.Matches(sourceValue, actual, fieldPlan, receipts, out mismatch))
+                if (!ListItemValueComparer.Matches(
+                        sourceValue,
+                        actual,
+                        fieldPlan,
+                        receipts,
+                        clearedLookupProviderItemIds,
+                        out mismatch))
                 {
                     diagnostics.Add("Target value differs for item " + sourceItem.SourceItemId + ", field '" + sourceValue.InternalName + "': " + mismatch);
                 }

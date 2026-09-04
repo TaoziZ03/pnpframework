@@ -60,7 +60,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                         result.Topology,
                         options.TaxonomySchemaMappings,
                         options.ListTargetOverrides,
-                        options.DroppedLookupValues);
+                        options.DroppedLookupValueDecisions);
                     var listTargetAnalysis = ListMigrationTargetAnalyzer.PopulateAndSeal(
                         targetContext,
                         snapshot.ListDependencies,

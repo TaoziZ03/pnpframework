@@ -26,6 +26,12 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
 
         public string DecryptSkipReason { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string HasEncryptedContent { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string RmsTemplateId { get; set; }
+
         /// <summary>
         /// True only when the explicit protected-capture reader observed the
         /// corresponding source field. These optional facts let the classifier
@@ -37,6 +43,15 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public bool UserDefinedProtectionFieldObserved { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool DecryptSkipReasonObserved { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool HasEncryptedContentFieldObserved { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool RmsTemplateIdFieldObserved { get; set; }
 
         public EvidenceAvailability Availability { get; set; } = EvidenceAvailability.Captured;
 

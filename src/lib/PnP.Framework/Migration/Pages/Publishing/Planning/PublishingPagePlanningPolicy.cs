@@ -32,7 +32,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             }
 
             PagePlanningTaxonomyMappingResolver.Normalize(options);
-            DroppedLookupValuePolicy.Validate(options.DroppedLookupValues);
+            DroppedLookupValueDecision.ValidateAndIndex(options.DroppedLookupValueDecisions);
         }
 
         public static void AddSnapshotDecisions(
@@ -113,14 +113,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     TargetTitle = value.TargetTitle,
                     TargetRootFolderServerRelativeUrl = value.TargetRootFolderServerRelativeUrl
                 }).ToList(),
-                DroppedLookupValues = options.DroppedLookupValues == null
+                DroppedLookupValueDecisions = options.DroppedLookupValueDecisions == null
                     ? null
-                    : new DroppedLookupValuePolicy
-                    {
-                        SchemaVersion = options.DroppedLookupValues.SchemaVersion,
-                        PolicyId = options.DroppedLookupValues.PolicyId,
-                        Disposition = options.DroppedLookupValues.Disposition
-                    }
+                    : options.DroppedLookupValueDecisions.Select(value => new DroppedLookupValueDecision
+                      {
+                          SchemaVersion = value.SchemaVersion,
+                          ConsumerSourceListId = value.ConsumerSourceListId,
+                          ConsumerSourceItemId = value.ConsumerSourceItemId,
+                          ConsumerFieldInternalName = value.ConsumerFieldInternalName,
+                          ProviderSourceListId = value.ProviderSourceListId,
+                          ProviderSourceItemId = value.ProviderSourceItemId,
+                          Disposition = value.Disposition,
+                          PolicyId = value.PolicyId
+                      }).ToList()
             };
         }
     }

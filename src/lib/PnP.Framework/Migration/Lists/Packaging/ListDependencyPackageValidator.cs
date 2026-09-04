@@ -290,6 +290,7 @@ namespace PnP.Framework.Migration.Lists.Packaging
                     ProtectedAssetCaptureGate.ValidateDecision(
                         item.Document.InformationProtection,
                         dependency.InformationRightsManagement?.IrmEnabled == true,
+                        dependency.InformationRightsManagement != null,
                         protectedAssetPolicy,
                         item.Document.CaptureDecision);
                     ValidateInformationProtection(item.Document.InformationProtection, dependency.Title, item.SourceItemId);
@@ -349,7 +350,11 @@ namespace PnP.Framework.Migration.Lists.Packaging
             if (string.IsNullOrWhiteSpace(informationProtection.LabelId)
                 && !informationProtection.LabelFieldObserved
                 && !informationProtection.UserDefinedProtectionFieldObserved
-                && !IsTrue(informationProtection.HasUserDefinedProtection))
+                && !informationProtection.DecryptSkipReasonObserved
+                && !informationProtection.HasEncryptedContentFieldObserved
+                && !informationProtection.RmsTemplateIdFieldObserved
+                && !IsTrue(informationProtection.HasUserDefinedProtection)
+                && !IsTrue(informationProtection.HasEncryptedContent))
             {
                 throw new InvalidDataException(
                     "List '" + listTitle + "' item " + sourceItemId

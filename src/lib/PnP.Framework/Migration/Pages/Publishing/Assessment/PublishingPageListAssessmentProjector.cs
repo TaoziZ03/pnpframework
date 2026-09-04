@@ -190,14 +190,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     AddApprovedProtectedDocumentExclusion(source, item, assessments);
                     continue;
                 }
-                var droppedLookupDependencies = (plan?.DroppedLookupValueDependencies
-                        ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+                var droppedLookupDependencies = (plan?.DroppedItemDependencies
+                        ?? Array.Empty<ListDroppedItemDependencyPlan>())
                     .Where(value => value.ConsumerSourceItemId == item.SourceItemId)
                     .ToArray();
                 if (droppedLookupDependencies.Any(value =>
-                        value.Disposition != DroppedLookupValueDisposition.ClearValue))
+                        value.Disposition != DroppedItemDependencyDisposition.ClearValue))
                 {
-                    AddDroppedLookupConsumer(source, item, droppedLookupDependencies, assessments);
+                    AddDroppedItemDependencyConsumer(source, item, droppedLookupDependencies, assessments);
                     continue;
                 }
                 var unavailable = item.Availability is EvidenceAvailability.Unavailable
@@ -286,32 +286,37 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             }
         }
 
-        private static void AddDroppedLookupConsumer(
+        private static void AddDroppedItemDependencyConsumer(
             ListDependencySnapshot source,
             ListItemSnapshot item,
-            IEnumerable<ListDroppedLookupValueDependencyPlan> dependencies,
+            IEnumerable<ListDroppedItemDependencyPlan> dependencies,
             PublishingPageAssessmentAccumulator assessments)
         {
             var values = dependencies.Where(value => value != null).ToArray();
-            var unresolved = values.Any(value =>
-                value.Disposition == DroppedLookupValueDisposition.NeedsPolicyDecision);
-            var disposition = unresolved ? IngredientDisposition.Defer : IngredientDisposition.Drop;
+            var drop = values.Any(value =>
+                value.Disposition == DroppedItemDependencyDisposition.DropDependentItem);
+            var unresolved = !drop && values.Any(value =>
+                value.Disposition == DroppedItemDependencyDisposition.NeedsPolicyDecision);
+            var disposition = drop ? IngredientDisposition.Drop : IngredientDisposition.Defer;
             var state = unresolved
                 ? PageIngredientAssessmentState.KnownGap
                 : PageIngredientAssessmentState.Determined;
             var capability = unresolved ? IngredientCapability.Unknown : IngredientCapability.Available;
-            var policyId = values.Select(value => value.PolicyId)
+            var policyIds = values.Select(value => value.PolicyId)
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.Ordinal)
-                .SingleOrDefault() ?? "policy.list-item.lookup-provider-excluded";
+                .ToArray();
+            var policyId = policyIds.Length == 1
+                ? policyIds[0]
+                : "policy.list-item.dropped-dependency";
             var realization = unresolved
-                ? "select-dropped-lookup-value-policy"
-                : "exclude-lookup-dependent-item";
+                ? "select-dropped-item-dependency-policy"
+                : "exclude-dropped-item-dependent-subtree";
             var reason = unresolved
-                ? "A captured lookup value references an intentionally excluded protected document-backed item; choose an explicit clear-value or drop-dependent-item policy."
-                : "The reviewed dropped-lookup-value policy excludes this dependent object because its captured value references an intentionally excluded protected document-backed item.";
+                ? "An exact item dependency reaches the dropped closure; choose a per-edge ClearValue or DropDependentItem decision."
+                : "The fixed-point dropped-item closure excludes this dependent object because an exact lookup or parent-folder dependency is dropped.";
 
-            AddDroppedLookupConsumerAssessment(
+            AddDroppedItemDependencyAssessment(
                 assessments,
                 PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
                 state,
@@ -322,7 +327,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 reason);
             if (item.Document != null)
             {
-                AddDroppedLookupConsumerAssessment(
+                AddDroppedItemDependencyAssessment(
                     assessments,
                     PublishingPageIngredientIds.ListDocument(source.SourceWebId, source.SourceListId, item.SourceItemId),
                     state,
@@ -333,7 +338,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     reason);
                 if (ProtectedAssetCaptureGate.HasItemProtection(item.Document.InformationProtection))
                 {
-                    AddDroppedLookupConsumerAssessment(
+                    AddDroppedItemDependencyAssessment(
                         assessments,
                         PublishingPageIngredientIds.ListDocumentInformationProtection(source.SourceWebId, source.SourceListId, item.SourceItemId),
                         state,
@@ -346,7 +351,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             }
             foreach (var attachment in item.Attachments.Where(value => value != null))
             {
-                AddDroppedLookupConsumerAssessment(
+                AddDroppedItemDependencyAssessment(
                     assessments,
                     PublishingPageIngredientIds.ListAttachment(
                         source.SourceWebId,
@@ -362,7 +367,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             }
         }
 
-        private static void AddDroppedLookupConsumerAssessment(
+        private static void AddDroppedItemDependencyAssessment(
             PublishingPageAssessmentAccumulator assessments,
             string ingredientId,
             PageIngredientAssessmentState state,
@@ -381,7 +386,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 policyId,
                 reason,
                 mitigationCode: disposition == IngredientDisposition.Defer
-                    ? "DroppedLookupValueNeedsPolicyDecision"
+                    ? "DroppedItemDependencyNeedsPolicyDecision"
                     : null,
                 verificationAssertions: disposition == IngredientDisposition.Drop
                     ? new[] { "Fresh target readback requires no migration-owned target identity for the excluded dependent item." }

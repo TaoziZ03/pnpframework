@@ -56,6 +56,8 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
 
         public bool SourceListIrmEnabled { get; set; }
 
+        public bool SourceListIrmStateObserved { get; set; }
+
         public ProtectedAssetProtectionState ProtectionState { get; set; }
 
         public ProtectedAssetCaptureDisposition Disposition { get; set; }
