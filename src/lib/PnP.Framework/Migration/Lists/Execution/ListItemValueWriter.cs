@@ -23,6 +23,13 @@ namespace PnP.Framework.Migration.Lists.Execution
             bool lookupPhase)
         {
             var plans = plan.Fields.ToDictionary(value => value.InternalName, StringComparer.OrdinalIgnoreCase);
+            var clearedLookupFields = new HashSet<string>(
+                (plan.DroppedLookupValueDependencies
+                    ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+                .Where(value => value.ConsumerSourceItemId == sourceItem.SourceItemId
+                    && value.Disposition == DroppedLookupValueDisposition.ClearValue)
+                .Select(value => value.ConsumerFieldInternalName),
+                StringComparer.OrdinalIgnoreCase);
             var changed = false;
             foreach (var value in sourceItem.Values)
             {
@@ -38,6 +45,12 @@ namespace PnP.Framework.Migration.Lists.Execution
                 var isLookup = fieldPlan.Disposition == ListFieldMaterializationDisposition.MapLookup;
                 if (isLookup != lookupPhase)
                 {
+                    continue;
+                }
+                if (lookupPhase && clearedLookupFields.Contains(value.InternalName))
+                {
+                    targetItem[fieldPlan.InternalName] = null;
+                    changed = true;
                     continue;
                 }
                 if (!WritesValue(fieldPlan.Disposition))

@@ -8,11 +8,12 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
     {
         public static T Capture<T>(
             ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled,
             ProtectedAssetCapturePolicy policy,
             Func<T> binaryFetcher,
             out ProtectedAssetCaptureDecision decision)
         {
-            decision = Decide(protection, policy);
+            decision = Decide(protection, sourceListIrmEnabled, policy);
             if (decision?.IsMetadataOnly == true)
             {
                 return default(T);
@@ -26,6 +27,7 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
 
         public static ProtectedAssetCaptureDecision Decide(
             ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled,
             ProtectedAssetCapturePolicy policy)
         {
             if (policy == null)
@@ -34,27 +36,29 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
             }
             ValidatePolicy(policy);
 
-            var state = ProtectionState(protection);
-            var metadataOnly = state == ProtectedAssetProtectionState.Protected
-                || state == ProtectedAssetProtectionState.Unknown && policy.FailClosedOnUnknown;
+            var state = ProtectionState(protection, sourceListIrmEnabled);
+            var metadataOnly = state != ProtectedAssetProtectionState.Unprotected;
             var decision = new ProtectedAssetCaptureDecision
             {
                 PolicyId = policy.PolicyId,
                 FailClosedOnUnknown = policy.FailClosedOnUnknown,
+                SourceListIrmEnabled = sourceListIrmEnabled,
                 ProtectionState = state,
                 Disposition = metadataOnly
                     ? ProtectedAssetCaptureDisposition.MetadataOnly
-                    : ProtectedAssetCaptureDisposition.CaptureBinary,
+                    : ProtectedAssetCaptureDisposition.SafeToCapture,
                 ReasonCode = metadataOnly
                     ? state == ProtectedAssetProtectionState.Protected
                         ? "ProtectedPayloadExcludedByPolicy"
                         : "ProtectionStateUnknownFailClosed"
-                    : "BinaryCaptureAllowedByPolicy",
+                    : "UnprotectedPayloadSafeToCapture",
                 Reason = metadataOnly
                     ? state == ProtectedAssetProtectionState.Protected
-                        ? "The explicitly selected source-capture policy retains document metadata but does not request protected payload bytes."
+                        ? sourceListIrmEnabled
+                            ? "The explicitly selected source-capture policy retains document metadata but does not request payload bytes from an IRM-enabled source library."
+                            : "The explicitly selected source-capture policy retains document metadata but does not request protected payload bytes."
                         : "The explicitly selected source-capture policy fails closed because item metadata did not prove that the document is unprotected."
-                    : "The explicitly selected source-capture policy allows this document binary request."
+                    : "The source library is not IRM-enabled and captured item metadata explicitly proves that neither a label nor user-defined protection is present, so the binary request is safe to issue."
             };
             decision.DecisionDigest = ComputeDigest(decision);
             return decision;
@@ -67,14 +71,16 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
                 return;
             }
             if (!string.Equals(policy.SchemaVersion, ProtectedAssetCapturePolicy.ContractVersion, StringComparison.Ordinal)
-                || string.IsNullOrWhiteSpace(policy.PolicyId))
+                || string.IsNullOrWhiteSpace(policy.PolicyId)
+                || !policy.FailClosedOnUnknown)
             {
-                throw new InvalidDataException("The protected-asset capture policy has an unsupported schema or missing policy ID.");
+                throw new InvalidDataException("The protected-asset capture policy has an unsupported schema, missing policy ID, or unsafe fail-open mode.");
             }
         }
 
         public static void ValidateDecision(
             ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled,
             ProtectedAssetCapturePolicy policy,
             ProtectedAssetCaptureDecision decision)
         {
@@ -87,7 +93,7 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
                 return;
             }
 
-            var expected = Decide(protection, policy);
+            var expected = Decide(protection, sourceListIrmEnabled, policy);
             if (decision == null
                 || !string.Equals(decision.SchemaVersion, ProtectedAssetCaptureDecision.ContractVersion, StringComparison.Ordinal)
                 || !string.Equals(decision.DecisionDigest, ComputeDigest(decision), StringComparison.OrdinalIgnoreCase)
@@ -113,19 +119,43 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
         }
 
         public static ProtectedAssetProtectionState ProtectionState(
+            ListDocumentInformationProtectionSnapshot protection,
+            bool sourceListIrmEnabled)
+        {
+            if (sourceListIrmEnabled
+                || HasItemProtection(protection))
+            {
+                return ProtectedAssetProtectionState.Protected;
+            }
+            if (protection != null
+                && protection.LabelFieldObserved
+                && protection.UserDefinedProtectionFieldObserved
+                && string.IsNullOrWhiteSpace(protection.LabelId)
+                && IsFalse(protection.HasUserDefinedProtection))
+            {
+                return ProtectedAssetProtectionState.Unprotected;
+            }
+            return ProtectedAssetProtectionState.Unknown;
+        }
+
+        internal static bool HasItemProtection(
             ListDocumentInformationProtectionSnapshot protection)
         {
             return protection != null
                 && (!string.IsNullOrWhiteSpace(protection.LabelId)
-                    || IsTrue(protection.HasUserDefinedProtection))
-                ? ProtectedAssetProtectionState.Protected
-                : ProtectedAssetProtectionState.Unknown;
+                    || IsTrue(protection.HasUserDefinedProtection));
         }
 
         private static bool IsTrue(string value)
         {
             return bool.TryParse(value, out var parsed) && parsed
                 || string.Equals(value, "1", StringComparison.Ordinal);
+        }
+
+        private static bool IsFalse(string value)
+        {
+            return bool.TryParse(value, out var parsed) && !parsed
+                || string.Equals(value, "0", StringComparison.Ordinal);
         }
     }
 }

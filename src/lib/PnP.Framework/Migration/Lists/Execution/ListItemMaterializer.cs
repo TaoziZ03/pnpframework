@@ -81,6 +81,10 @@ namespace PnP.Framework.Migration.Lists.Execution
                 (plan.ApprovedProtectedDocumentExclusions
                     ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
                 .Select(value => value.SourceItemId));
+            excludedItemIds.UnionWith((plan.DroppedLookupValueDependencies
+                    ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+                .Where(value => value.Disposition == DroppedLookupValueDisposition.DropDependentItem)
+                .Select(value => value.ConsumerSourceItemId));
             foreach (var sourceItem in OrderItems(source.Items.Where(value => !excludedItemIds.Contains(value.SourceItemId))))
             {
                 var includeItem = selection.ItemIds.Contains(sourceItem.SourceItemId);

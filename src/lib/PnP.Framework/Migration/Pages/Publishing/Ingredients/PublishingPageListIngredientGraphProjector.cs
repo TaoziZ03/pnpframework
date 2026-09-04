@@ -170,6 +170,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         private static void AddLookupEdges(PublishingPageCaptureBundle snapshot, CanonicalPageIngredientGraph graph)
         {
             var lists = snapshot.ListDependencies.ToDictionary(value => value.SourceListId);
+            var contentNodeIds = new HashSet<string>(
+                graph.Nodes.Where(value => value?.HasContent == true).Select(value => value.Id),
+                StringComparer.Ordinal);
             foreach (var dependency in snapshot.ListLookupDependencies.Where(value => value != null))
             {
                 if (lists.TryGetValue(dependency.SourceListId, out var consumer)
@@ -180,6 +183,46 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                         PublishingPageIngredientIds.List(provider.SourceWebId, provider.SourceListId),
                         PageIngredientRelationship.DependsOn,
                         PageIngredientRequirement.Required));
+
+                    var droppedProviderIds = new HashSet<int>(provider.Items
+                        .Where(value => value?.Document?.CaptureDecision?.IsMetadataOnly == true)
+                        .Select(value => value.SourceItemId));
+                    if (droppedProviderIds.Count == 0)
+                    {
+                        continue;
+                    }
+                    foreach (var item in consumer.Items.Where(value => value != null))
+                    {
+                        var consumerItemId = PublishingPageIngredientIds.ListItem(
+                            consumer.SourceWebId,
+                            consumer.SourceListId,
+                            item.SourceItemId);
+                        foreach (var lookupId in item.Values
+                                     .Where(value => value != null
+                                         && string.Equals(value.InternalName, dependency.FieldInternalName, StringComparison.OrdinalIgnoreCase)
+                                        && (value.Kind == PnP.Framework.Migration.Lists.Items.ListItemValueKind.Lookup
+                                            || value.Kind == PnP.Framework.Migration.Lists.Items.ListItemValueKind.LookupCollection))
+                                     .SelectMany(value => value.LookupValues)
+                                     .Where(value => value != null && droppedProviderIds.Contains(value.LookupId))
+                                     .Select(value => value.LookupId)
+                                     .Distinct()
+                                     .OrderBy(value => value))
+                        {
+                            var providerItemId = PublishingPageIngredientIds.ListItem(
+                                provider.SourceWebId,
+                                provider.SourceListId,
+                                lookupId);
+                            if (contentNodeIds.Contains(consumerItemId)
+                                && contentNodeIds.Contains(providerItemId))
+                            {
+                                graph.Edges.Add(Edge(
+                                    consumerItemId,
+                                    providerItemId,
+                                    PageIngredientRelationship.DependsOn,
+                                    PageIngredientRequirement.Required));
+                            }
+                        }
+                    }
                 }
             }
         }

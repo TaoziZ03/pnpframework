@@ -74,7 +74,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
                 Row("capturePolicy.includeWebParts", snapshot.CapturePolicy.IncludeWebParts, "Whether shared Web Parts were inventoried and exported."),
                 Row("capturePolicy.maximumDependencyBytes", snapshot.CapturePolicy.MaximumDependencyBytes, "Maximum bytes captured for each restorable dependency."),
                 Row("capturePolicy.protectedAssets.policyId", snapshot.CapturePolicy.ProtectedAssets?.PolicyId, "Null preserves historical capture-all behavior; a value identifies the explicit pre-download metadata-only policy."),
-                Row("capturePolicy.protectedAssets.failClosedOnUnknown", snapshot.CapturePolicy.ProtectedAssets?.FailClosedOnUnknown, "When explicitly selected, true omits bytes unless metadata proves the document is safe to capture."),
+                Row("capturePolicy.protectedAssets.failClosedOnUnknown", snapshot.CapturePolicy.ProtectedAssets?.FailClosedOnUnknown, "Explicit protected-asset capture is always fail closed; false is rejected before any binary request."),
                 Row("sourceFence.fileUniqueId", snapshot.SourceFence.FileUniqueId, "Identity checked before and after export."),
                 Row("sourceFence.versionLabel", snapshot.SourceFence.VersionLabel, "Version checked before and after export."),
                 Row("sourceFence.length", snapshot.SourceFence.Length, "File length checked before and after export."),
