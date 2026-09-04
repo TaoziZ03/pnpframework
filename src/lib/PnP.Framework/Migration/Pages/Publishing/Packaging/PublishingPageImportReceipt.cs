@@ -10,6 +10,7 @@ using PnP.Framework.Migration.Taxonomy;
 using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 {
@@ -108,6 +109,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
         public bool TopologyMatched { get; set; }
 
         public IList<ListMaterializationReceipt> ListMaterializations { get; set; } = new List<ListMaterializationReceipt>();
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public int ApprovedProtectedDocumentExclusionCount { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public int DroppedDependentItemAbsentCount { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public int DroppedDependentItemPresentCount { get; set; }
 
         public bool ListsMatched { get; set; }
 

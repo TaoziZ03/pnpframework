@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Lists.Packaging;
+using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Content;
 using PnP.Framework.Migration.Pages.Ingredients;
@@ -49,7 +50,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
 
             ValidateTopology(package, plan);
-            ListMigrationPlanValidator.Validate(package.Snapshot.ListDependencies, plan.ListMigration);
+            ListMigrationPlanValidator.Validate(
+                package.Snapshot.ListDependencies,
+                package.Snapshot.ListLookupDependencies,
+                plan.ListMigration,
+                plan.PlanningPolicy.DroppedLookupValueDecisions);
             ValidateRuntimeVerification(plan);
             ValidatePlanningIngredientGraph(package.Snapshot, plan);
             if (!string.Equals(plan.SourceSnapshotDigest, package.SnapshotDigest, StringComparison.OrdinalIgnoreCase))
@@ -134,6 +139,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 throw new InvalidDataException("The planning policy contains a null taxonomy schema mapping collection.");
             }
             PagePlanningTaxonomyMappingResolver.Normalize(plan.PlanningPolicy);
+            DroppedLookupValueDecision.ValidateCanonicalOrder(
+                plan.PlanningPolicy.DroppedLookupValueDecisions);
 
             var expectedOriginalIdentifier = PublishingPageTargetOwnership.OriginalIdentifier(snapshot.Source);
             if (!string.Equals(plan.OriginalIdentifier, expectedOriginalIdentifier, StringComparison.Ordinal))

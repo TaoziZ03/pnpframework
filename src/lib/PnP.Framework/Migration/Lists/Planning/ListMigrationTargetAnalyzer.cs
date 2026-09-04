@@ -125,6 +125,10 @@ namespace PnP.Framework.Migration.Lists.Planning
                         if (!string.Equals(listPlan.TargetRootFolderServerRelativeUrl, listProbe.TargetRootFolderServerRelativeUrl, StringComparison.Ordinal)
                             || !string.Equals(listPlan.TargetTitle, listProbe.TargetTitle, StringComparison.Ordinal))
                         {
+                            ListMigrationPlanFactory.RetargetProtectedDocumentExclusions(
+                                listPlan,
+                                listPlan.TargetRootFolderServerRelativeUrl,
+                                listProbe.TargetRootFolderServerRelativeUrl);
                             listPlan.TargetRootFolderServerRelativeUrl = listProbe.TargetRootFolderServerRelativeUrl;
                             listPlan.TargetTitle = listProbe.TargetTitle;
                             listPlan.PlanDigest = ListMigrationPlanFactory.ComputePlanDigest(listPlan);

@@ -7,6 +7,7 @@ using System.Linq;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Schema.ContentTypes.Packaging;
 using PnP.Framework.Migration.Features;
+using PnP.Framework.Migration.Lists.Items;
 
 namespace PnP.Framework.Migration.Lists.Packaging
 {
@@ -14,6 +15,16 @@ namespace PnP.Framework.Migration.Lists.Packaging
     {
         public static void Validate(IEnumerable<ListDependencySnapshot> snapshots, ListMigrationPlanSet plan)
         {
+            Validate(snapshots, null, plan, null);
+        }
+
+        public static void Validate(
+            IEnumerable<ListDependencySnapshot> snapshots,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            ListMigrationPlanSet plan,
+            IList<DroppedLookupValueDecision> droppedLookupValueDecisions)
+        {
+            DroppedLookupValueDecision.ValidateCanonicalOrder(droppedLookupValueDecisions);
             var sources = (snapshots ?? Enumerable.Empty<ListDependencySnapshot>()).ToArray();
             if (sources.Length == 0 && plan == null)
             {
@@ -60,7 +71,13 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 }
                 ValidateViewRenderingResources(sourceById[list.SourceListId], list);
                 ValidateFeatures(sourceById[list.SourceListId], list);
+                ValidateProtectedDocumentExclusions(sourceById[list.SourceListId], list);
             }
+            ValidateDroppedItemDependencies(
+                sources,
+                lookupDependencies,
+                plan.Lists,
+                droppedLookupValueDecisions);
             if (!string.Equals(ListMigrationPlanFactory.ComputeSetDigest(plan), plan.PlanDigest, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("The List migration plan-set digest differs from its sealed content.");
@@ -125,6 +142,82 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 {
                     throw new InvalidDataException("An executable platform-feature plan has no admitted target probe: "
                         + pair.Key.ToString("D") + ".");
+                }
+            }
+        }
+
+        private static void ValidateProtectedDocumentExclusions(
+            ListDependencySnapshot source,
+            ListMaterializationPlan list)
+        {
+            var expected = source.Items
+                .Where(value => value?.Document?.Kind == ListDocumentObjectKind.File
+                    && value.Document.CaptureDecision?.IsMetadataOnly == true)
+                .ToDictionary(value => value.SourceItemId);
+            var actual = (list.ApprovedProtectedDocumentExclusions
+                    ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                .GroupBy(value => value == null ? 0 : value.SourceItemId)
+                .ToDictionary(group => group.Key, group => group.ToArray());
+            if (actual.ContainsKey(0)
+                || actual.Any(value => value.Value.Length != 1)
+                || expected.Count != actual.Count
+                || !new HashSet<int>(expected.Keys).SetEquals(actual.Keys))
+            {
+                throw new InvalidDataException(
+                    "The protected-document exclusion plan does not exactly cover the metadata-only source decisions for List "
+                    + list.SourceListId.ToString("D") + ".");
+            }
+
+            foreach (var pair in expected)
+            {
+                var document = pair.Value.Document;
+                var decision = document.CaptureDecision;
+                var planned = actual[pair.Key][0];
+                var expectedTargetPath = list.TargetRootFolderServerRelativeUrl.TrimEnd('/')
+                    + document.ServerRelativeUrl.Substring(source.RootFolderServerRelativeUrl.TrimEnd('/').Length);
+                if (!string.Equals(planned.SourceServerRelativeUrl, document.ServerRelativeUrl, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(planned.TargetServerRelativeUrl, expectedTargetPath, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(planned.PolicyId, decision.PolicyId, StringComparison.Ordinal)
+                    || !string.Equals(planned.CaptureDecisionDigest, decision.DecisionDigest, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(planned.ReasonCode, decision.ReasonCode, StringComparison.Ordinal)
+                    || !string.Equals(planned.Reason, decision.Reason, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        "A protected-document exclusion differs from its sealed source capture decision for item "
+                        + pair.Key + ".");
+                }
+            }
+        }
+
+        private static void ValidateDroppedItemDependencies(
+            IEnumerable<ListDependencySnapshot> sources,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            IEnumerable<ListMaterializationPlan> plans,
+            IList<DroppedLookupValueDecision> decisions)
+        {
+            var planValues = plans.ToArray();
+            var expected = DroppedItemDependencyPlanner.Project(
+                sources,
+                lookupDependencies,
+                planValues,
+                decisions);
+            foreach (var list in planValues)
+            {
+                var expectedValues = expected.PlansByConsumerList.TryGetValue(
+                    list.SourceListId,
+                    out var projected)
+                    ? projected
+                    : Array.Empty<ListDroppedItemDependencyPlan>();
+                var actualValues = list.DroppedItemDependencies
+                    ?? Array.Empty<ListDroppedItemDependencyPlan>();
+                if (!string.Equals(
+                        PnP.Framework.Migration.Packaging.MigrationContractSerializer.SerializeCanonical(expectedValues),
+                        PnP.Framework.Migration.Packaging.MigrationContractSerializer.SerializeCanonical(actualValues),
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        "The dropped-item dependency closure differs from captured lookup/folder edges and exact reviewed decisions for List "
+                        + list.SourceListId.ToString("D") + ".");
                 }
             }
         }

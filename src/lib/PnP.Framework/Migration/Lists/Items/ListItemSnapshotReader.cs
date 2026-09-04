@@ -17,6 +17,17 @@ namespace PnP.Framework.Migration.Lists.Items
             IMigrationArtifactStore artifactStore,
             ICollection<string> warnings)
         {
+            return Read(context, list, maximumBytes, artifactStore, null, warnings);
+        }
+
+        public static IList<ListItemSnapshot> Read(
+            ClientContext context,
+            List list,
+            long maximumBytes,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy,
+            ICollection<string> warnings)
+        {
             var result = new List<ListItemSnapshot>();
             ListItemCollectionPosition position = null;
             do
@@ -54,19 +65,30 @@ namespace PnP.Framework.Migration.Lists.Items
 
                 foreach (var item in page)
                 {
+                    var document = list.BaseType == BaseType.DocumentLibrary
+                        ? CaptureDocument(
+                            context,
+                            item,
+                            list.IrmEnabled,
+                            maximumBytes,
+                            artifactStore,
+                            protectedAssetPolicy)
+                        : null;
+                    var attachments = document?.CaptureDecision?.IsMetadataOnly == true
+                        ? new List<ListAttachmentSnapshot>()
+                        : CaptureAttachments(context, item, maximumBytes, artifactStore);
                     var snapshot = new ListItemSnapshot
                     {
                         SourceItemId = item.Id,
                         SourceUniqueId = ReadUniqueId(item),
                         Values = item.FieldValues.OrderBy(value => value.Key, StringComparer.OrdinalIgnoreCase)
                             .Select(value => ListItemValueSerializer.Serialize(value.Key, value.Value)).ToList(),
-                        Attachments = CaptureAttachments(context, item, maximumBytes, artifactStore),
-                        Document = list.BaseType == BaseType.DocumentLibrary
-                            ? CaptureDocument(context, item, maximumBytes, artifactStore)
-                            : null
+                        Attachments = attachments,
+                        Document = document
                     };
                     var unavailableBinary = snapshot.Attachments.Any(value => value.Content == null || value.Content.Availability != EvidenceAvailability.Captured)
                         || (snapshot.Document != null && snapshot.Document.Kind == ListDocumentObjectKind.File
+                            && snapshot.Document.CaptureDecision?.IsMetadataOnly != true
                             && (snapshot.Document.Content == null || snapshot.Document.Content.Availability != EvidenceAvailability.Captured));
                     if (unavailableBinary || snapshot.Values.Any(value => value.Availability != EvidenceAvailability.Captured))
                     {
@@ -80,6 +102,12 @@ namespace PnP.Framework.Migration.Lists.Items
                         == ListBinaryRepresentationKind.InformationRightsManagedEnvelope)
                     {
                         warnings.Add("List item " + item.Id + " returned an Information Rights Management envelope. The exact response bytes and stable logical-content identity are retained, but cross-site replay and verification remain pending.");
+                    }
+                    if (snapshot.Document?.CaptureDecision?.IsMetadataOnly == true)
+                    {
+                        warnings.Add("List item " + item.Id
+                            + " retained document metadata without requesting payload bytes under explicit protected-asset policy '"
+                            + snapshot.Document.CaptureDecision.PolicyId + "'.");
                     }
                     result.Add(snapshot);
                 }
@@ -108,7 +136,13 @@ namespace PnP.Framework.Migration.Lists.Items
             }).ToList();
         }
 
-        private static ListDocumentSnapshot CaptureDocument(ClientContext context, ListItem item, long maximumBytes, IMigrationArtifactStore artifactStore)
+        private static ListDocumentSnapshot CaptureDocument(
+            ClientContext context,
+            ListItem item,
+            bool sourceListIrmEnabled,
+            long maximumBytes,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy)
         {
             if (item.FileSystemObjectType == FileSystemObjectType.Folder)
             {
@@ -119,15 +153,21 @@ namespace PnP.Framework.Migration.Lists.Items
                     ServerRelativeUrl = item.Folder.ServerRelativeUrl
                 };
             }
-            var content = ListBinaryArtifactReader.Read(
-                context,
-                item.File,
-                maximumBytes,
-                artifactStore,
-                ListBinaryArtifactReader.MediaType(item.File.Name),
-                item.File.Name,
-                item.File.ServerRelativeUrl,
-                ReadArchiveStatus(item));
+            var content = CaptureDocumentContent(
+                item.FieldValues,
+                sourceListIrmEnabled,
+                protectedAssetPolicy,
+                () => ListBinaryArtifactReader.Read(
+                    context,
+                    item.File,
+                    maximumBytes,
+                    artifactStore,
+                    ListBinaryArtifactReader.MediaType(item.File.Name),
+                    item.File.Name,
+                    item.File.ServerRelativeUrl,
+                    ReadArchiveStatus(item)),
+                out var informationProtection,
+                out var captureDecision);
             if (content?.RepresentationKind == ListBinaryRepresentationKind.InformationRightsManagedEnvelope)
             {
                 content.LogicalContentIdentity = ListBinaryContentIdentityReader.Read(item.FieldValues);
@@ -158,9 +198,34 @@ namespace PnP.Framework.Migration.Lists.Items
                 Length = item.File.Length,
                 MajorVersion = item.File.MajorVersion,
                 MinorVersion = item.File.MinorVersion,
-                InformationProtection = ListDocumentInformationProtectionSnapshotReader.Read(item.FieldValues),
+                InformationProtection = informationProtection,
+                CaptureDecision = captureDecision,
                 Content = content
             };
+        }
+
+        /// <summary>
+        /// The single reader-path gate between captured protection metadata and
+        /// the binary reader. Tests exercise this method directly so a future
+        /// refactor cannot accidentally fetch bytes before the policy decision.
+        /// </summary>
+        internal static ListBinaryArtifactSnapshot CaptureDocumentContent(
+            IDictionary<string, object> fieldValues,
+            bool sourceListIrmEnabled,
+            ProtectedAssetCapturePolicy protectedAssetPolicy,
+            Func<ListBinaryArtifactSnapshot> binaryFetcher,
+            out ListDocumentInformationProtectionSnapshot informationProtection,
+            out ProtectedAssetCaptureDecision captureDecision)
+        {
+            informationProtection = ListDocumentInformationProtectionSnapshotReader.Read(
+                fieldValues,
+                protectedAssetPolicy != null);
+            return ProtectedAssetCaptureGate.Capture(
+                informationProtection,
+                sourceListIrmEnabled,
+                protectedAssetPolicy,
+                binaryFetcher,
+                out captureDecision);
         }
 
         private static bool HasAttachments(ListItem item)

@@ -26,6 +26,25 @@ namespace PnP.Framework.Migration.Lists.Packaging
             SourceSiteCollectionSnapshot topology,
             IMigrationArtifactStore artifactStore)
         {
+            Validate(
+                webParts,
+                bindings,
+                dependencies,
+                lookupDependencies,
+                topology,
+                artifactStore,
+                null);
+        }
+
+        public static void Validate(
+            IEnumerable<ClassicWebPartSnapshot> webParts,
+            IEnumerable<ClassicListWebPartBindingSnapshot> bindings,
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            SourceSiteCollectionSnapshot topology,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy)
+        {
             if (bindings == null || dependencies == null || lookupDependencies == null)
             {
                 throw new InvalidDataException("The list dependency snapshot contains a null inventory collection.");
@@ -68,7 +87,7 @@ namespace PnP.Framework.Migration.Lists.Packaging
 
             foreach (var dependency in dependencyValues)
             {
-                ValidateDependency(dependency, artifactStore);
+                ValidateDependency(dependency, artifactStore, protectedAssetPolicy);
             }
             foreach (var edge in lookupDependencies)
             {
@@ -103,7 +122,10 @@ namespace PnP.Framework.Migration.Lists.Packaging
             }
         }
 
-        private static void ValidateDependency(ListDependencySnapshot dependency, IMigrationArtifactStore artifactStore)
+        private static void ValidateDependency(
+            ListDependencySnapshot dependency,
+            IMigrationArtifactStore artifactStore,
+            ProtectedAssetCapturePolicy protectedAssetPolicy)
         {
             if (dependency == null || dependency.SourceSiteId == Guid.Empty || dependency.SourceWebId == Guid.Empty || dependency.SourceListId == Guid.Empty
                 || string.IsNullOrWhiteSpace(dependency.SourceWebUrl) || string.IsNullOrWhiteSpace(dependency.RootFolderServerRelativeUrl)
@@ -114,6 +136,11 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 throw new InvalidDataException("A List dependency snapshot is missing identity, metadata, or an inventory collection.");
             }
             ValidateInformationRightsManagement(dependency);
+            if (protectedAssetPolicy != null && dependency.InformationRightsManagement == null)
+            {
+                throw new InvalidDataException(
+                    "An explicit protected-asset capture policy requires captured source List IRM state before any document decision can be validated.");
+            }
             var duplicateField = dependency.Fields.GroupBy(value => value == null ? Guid.Empty : value.Id).FirstOrDefault(group => group.Key == Guid.Empty || group.Count() > 1);
             if (duplicateField != null || dependency.Fields.Any(value => string.IsNullOrWhiteSpace(value.InternalName)
                 || !string.Equals(MigrationDigest.ComputeSha256(value.SchemaXml ?? string.Empty), value.SchemaXmlSha256, StringComparison.OrdinalIgnoreCase)))
@@ -258,13 +285,28 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 {
                     throw new InvalidDataException("List item " + item.SourceItemId + " contains a null or unnamed field value inventory entry.");
                 }
-                foreach (var attachment in item.Attachments)
-                {
-                    ValidateBinary(attachment == null ? null : attachment.Content, artifactStore, "attachment " + (attachment == null ? "<null>" : attachment.FileName));
-                }
                 if (item.Document != null && item.Document.Kind == ListDocumentObjectKind.File)
                 {
+                    ProtectedAssetCaptureGate.ValidateDecision(
+                        item.Document.InformationProtection,
+                        dependency.InformationRightsManagement?.IrmEnabled == true,
+                        dependency.InformationRightsManagement != null,
+                        protectedAssetPolicy,
+                        item.Document.CaptureDecision);
                     ValidateInformationProtection(item.Document.InformationProtection, dependency.Title, item.SourceItemId);
+                    if (item.Document.CaptureDecision?.IsMetadataOnly == true)
+                    {
+                        if (item.Document.Content != null || item.Attachments.Count != 0)
+                        {
+                            throw new InvalidDataException(
+                                "A metadata-only protected document must not contain captured document or attachment payloads: "
+                                + item.Document.ServerRelativeUrl);
+                        }
+                        // The decision is sealed before this structural branch. Do not
+                        // inspect an artifact descriptor or call artifactStore.OpenRead:
+                        // metadata-only packages must contain no document/attachment payload.
+                        continue;
+                    }
                     ValidateBinary(item.Document.Content, artifactStore, "document " + item.Document.Name);
                     if (item.Document.Content != null && item.Document.Content.Artifact != null && item.Document.Length != item.Document.Content.Artifact.Length)
                     {
@@ -282,6 +324,10 @@ namespace PnP.Framework.Migration.Lists.Packaging
                         }
                     }
                 }
+                foreach (var attachment in item.Attachments)
+                {
+                    ValidateBinary(attachment == null ? null : attachment.Content, artifactStore, "attachment " + (attachment == null ? "<null>" : attachment.FileName));
+                }
             }
         }
 
@@ -294,14 +340,32 @@ namespace PnP.Framework.Migration.Lists.Packaging
             {
                 return;
             }
-            if (string.IsNullOrWhiteSpace(informationProtection.LabelId)
-                || informationProtection.Diagnostics == null
+            if (informationProtection.Diagnostics == null
                 || !Enum.IsDefined(typeof(EvidenceAvailability), informationProtection.Availability))
             {
                 throw new InvalidDataException(
                     "List '" + listTitle + "' item " + sourceItemId
                     + " contains incomplete document information-protection evidence.");
             }
+            if (string.IsNullOrWhiteSpace(informationProtection.LabelId)
+                && !informationProtection.LabelFieldObserved
+                && !informationProtection.UserDefinedProtectionFieldObserved
+                && !informationProtection.DecryptSkipReasonObserved
+                && !informationProtection.HasEncryptedContentFieldObserved
+                && !informationProtection.RmsTemplateIdFieldObserved
+                && !IsTrue(informationProtection.HasUserDefinedProtection)
+                && !IsTrue(informationProtection.HasEncryptedContent))
+            {
+                throw new InvalidDataException(
+                    "List '" + listTitle + "' item " + sourceItemId
+                    + " contains no captured label, user-defined-protection, or negative protection evidence.");
+            }
+        }
+
+        private static bool IsTrue(string value)
+        {
+            return bool.TryParse(value, out var parsed) && parsed
+                || string.Equals(value, "1", StringComparison.Ordinal);
         }
 
         private static void ValidateInformationRightsManagement(ListDependencySnapshot dependency)

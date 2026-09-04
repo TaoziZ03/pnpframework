@@ -337,6 +337,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     TopologyMaterialization = topologyReceipt,
                     TopologyMatched = topologyMatched,
                     ListMaterializations = listReceipts,
+                    ApprovedProtectedDocumentExclusionCount = ApprovedProtectedDocumentExclusionCount(listReceipts),
+                    DroppedDependentItemAbsentCount = DroppedDependentItemCount(
+                        listReceipts,
+                        DroppedDependentTargetIdentityStatus.Absent),
+                    DroppedDependentItemPresentCount = DroppedDependentItemCount(
+                        listReceipts,
+                        DroppedDependentTargetIdentityStatus.Present),
                     ListsMatched = listsMatched,
                     FieldResults = fieldResults,
                     TaxonomyRelationshipsMatched = taxonomyRelationshipsMatched,
@@ -457,6 +464,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 TopologyMaterialization = topologyReceipt,
                 TopologyMatched = topologyMatched,
                 ListMaterializations = listReceipts,
+                ApprovedProtectedDocumentExclusionCount = ApprovedProtectedDocumentExclusionCount(listReceipts),
+                DroppedDependentItemAbsentCount = DroppedDependentItemCount(
+                    listReceipts,
+                    DroppedDependentTargetIdentityStatus.Absent),
+                DroppedDependentItemPresentCount = DroppedDependentItemCount(
+                    listReceipts,
+                    DroppedDependentTargetIdentityStatus.Present),
                 ListsMatched = listsMatched,
                 TaxonomyRelationshipsMatched = true,
                 FreshReadbackPassed = readbackPassed,
@@ -517,6 +531,25 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             return executionScope.Frontier.Decisions.Count(value => value != null
                 && (value.State == PageIngredientExecutionState.AuthorizationBlocked
                     || value.State == PageIngredientExecutionState.SkippedByAuthorizationDependency));
+        }
+
+        private static int ApprovedProtectedDocumentExclusionCount(
+            IEnumerable<ListMaterializationReceipt> listReceipts)
+        {
+            return (listReceipts ?? Array.Empty<ListMaterializationReceipt>())
+                .Where(value => value != null)
+                .Sum(value => value.ProtectedDocumentExclusionVerifications?.Count ?? 0);
+        }
+
+        internal static int DroppedDependentItemCount(
+            IEnumerable<ListMaterializationReceipt> listReceipts,
+            DroppedDependentTargetIdentityStatus status)
+        {
+            return (listReceipts ?? Array.Empty<ListMaterializationReceipt>())
+                .Where(value => value != null)
+                .SelectMany(value => value.DroppedDependentItemVerifications
+                    ?? Array.Empty<ListDroppedDependentItemVerification>())
+                .Count(value => value != null && value.Status == status);
         }
 
         private static void AddFrontierWarnings(

@@ -19,6 +19,7 @@ The documents describe the current implementation and its intended invariants. T
 6. [Page classification and ingredient policy](page-classification-and-ingredient-policy.md) defines CLR runtime selection, non-exclusive profiles, validation cohorts, ingredient actions, dependency release, and aggregate outcomes.
 7. [Taxonomy relationship fidelity](taxonomy-relationship-fidelity.md) defines exact capture and reproduction of valid, outside-bound, and dangling taxonomy relationships without Term repair.
 8. [Performance and concurrency](performance-and-concurrency.md) defines measurement stages, safe read parallelism, write serialization, caching boundaries, and semantic regression requirements.
+9. [Protected document capture exclusions](protected-asset-capture-exclusions.md) defines the explicit pre-download metadata-only policy, existing-frontier exclusion, and typed absence verification.
 
 ## Document roles
 
@@ -50,7 +51,7 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 | --- | --- |
 | Publishing Page source export | `pnp-publishing-page-export/v2` |
 | Publishing Page migration package | `pnp-publishing-page-migration-package/v2` |
-| Publishing Page import receipt | `pnp-publishing-page-import-receipt/v2` |
+| Publishing Page import receipt | `pnp-publishing-page-import-receipt/v4` |
 | Source ASPX artifact | `pnp-page-artifact/v1` |
 | Page runtime resolution | `pnp-page-runtime/v1` |
 | Canonical page ingredient graph | `pnp-page-ingredient-graph/v1` |

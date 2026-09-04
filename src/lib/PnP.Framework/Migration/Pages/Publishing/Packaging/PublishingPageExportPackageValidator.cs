@@ -12,6 +12,7 @@ using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -51,6 +52,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             ValidateIngredientGraph(snapshot.IngredientGraph);
             ValidateDerivedRuntime(snapshot);
             ValidateDerivedProfileSignals(snapshot);
+            ProtectedAssetCaptureGate.ValidatePolicy(snapshot.CapturePolicy.ProtectedAssets);
 
             var contentDigest = PublishingPageDigest.ComputeSha256(snapshot.PublishingPageContent ?? string.Empty);
             if (!string.Equals(contentDigest, snapshot.PublishingPageContentSha256, StringComparison.OrdinalIgnoreCase))
@@ -67,7 +69,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 snapshot.ListDependencies,
                 snapshot.ListLookupDependencies,
                 snapshot.SourceTopology,
-                artifactStore);
+                artifactStore,
+                snapshot.CapturePolicy.ProtectedAssets);
             ValidateDependencies(snapshot);
             ValidateDerivedIngredientGraph(snapshot);
 

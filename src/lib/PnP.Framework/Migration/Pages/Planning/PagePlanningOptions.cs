@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Taxonomy.Assets;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Planning
 {
@@ -25,5 +26,13 @@ namespace PnP.Framework.Migration.Pages.Planning
         public TopologyPlanningPolicy TopologyPolicy { get; set; } = new TopologyPlanningPolicy();
 
         public IList<ListTargetOverride> ListTargetOverrides { get; set; } = new List<ListTargetOverride>();
+
+        /// <summary>
+        /// Optional exact per-edge decisions for lookup values whose provider
+        /// items enter the dropped-item closure. Missing active edges default to
+        /// NeedsPolicyDecision; folder hierarchy decisions are structural.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<DroppedLookupValueDecision> DroppedLookupValueDecisions { get; set; }
     }
 }
