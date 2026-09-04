@@ -32,6 +32,22 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 MaterializationOperationId = receipt.OperationId,
                 TargetTermStoreId = reviewPlan.TargetTermStoreId,
                 GeneratedAtUtc = generatedAtUtc.ToUniversalTime(),
+                AssetMappings = receipt.Actions
+                    .OrderBy(value => value.ActionId, StringComparer.Ordinal)
+                    .Select(value => new TaxonomyAssetMappingCatalogEntry
+                    {
+                        ActionId = value.ActionId,
+                        Kind = value.Kind,
+                        SourceIdentity = value.SourceIdentity,
+                        TargetIdentity = value.TargetIdentity,
+                        Ownership = value.Ownership,
+                        Disposition = value.ExecutionDisposition,
+                        SemanticMappingDigest = value.SemanticMappingDigest,
+                        ActionSignature = value.ActionSignature,
+                        ObservedStateDigest = value.ObservedStateDigest,
+                        FreshReadbackPassed = value.FreshReadbackPassed
+                    })
+                    .ToList(),
                 FieldBindings = approvedSets.Values
                     .OrderBy(value => value.SourceTermStoreId)
                     .ThenBy(value => value.SourceTermSetId)

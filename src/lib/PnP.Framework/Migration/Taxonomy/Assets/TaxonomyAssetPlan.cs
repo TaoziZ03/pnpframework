@@ -36,7 +36,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
 
     public sealed class TaxonomyTermSetMaterializationPlan
     {
-        public string SchemaVersion { get; set; } = "pnp-taxonomy-termset-plan/v1";
+        public string SchemaVersion { get; set; } = "pnp-taxonomy-termset-plan/v2";
 
         public TaxonomyTermSetSourceIdentity Source { get; set; }
 
@@ -62,6 +62,10 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
 
         public string OriginalIdentifier { get; set; }
 
+        public string MappingDigestPropertyName { get; set; }
+
+        public string MappingDigest { get; set; }
+
         public string SourceEvidenceSha256 { get; set; }
 
         public string PlanDigest { get; set; }
@@ -69,7 +73,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
 
     public sealed class TaxonomyTermMaterializationPlan
     {
-        public string SchemaVersion { get; set; } = "pnp-taxonomy-term-plan/v2";
+        public string SchemaVersion { get; set; } = "pnp-taxonomy-term-plan/v3";
 
         public TaxonomyTermSourceIdentity Source { get; set; }
 
@@ -103,6 +107,10 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
 
         public string OriginalIdentifier { get; set; }
 
+        public string MappingDigestPropertyName { get; set; }
+
+        public string MappingDigest { get; set; }
+
         public string SourceEvidenceSha256 { get; set; }
 
         public string PlanDigest { get; set; }
@@ -127,6 +135,8 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
         public string ExistingName { get; set; }
 
         public string ExistingOriginalIdentifier { get; set; }
+
+        public string ExistingMappingDigest { get; set; }
 
         public bool? ExistingIsOpenForTermCreation { get; set; }
 
@@ -189,6 +199,8 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
         public string ExistingPath { get; set; }
 
         public string ExistingOriginalIdentifier { get; set; }
+
+        public string ExistingMappingDigest { get; set; }
 
         public Guid? ExistingParentTermId { get; set; }
 

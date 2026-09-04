@@ -1,4 +1,6 @@
 using PnP.Framework.Migration.Taxonomy;
+using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Taxonomy.Assets.Execution;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,7 +17,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
                 throw new ArgumentNullException(nameof(catalog));
             }
             var errors = new List<string>();
-            if (!string.Equals(catalog.SchemaVersion, "pnp-taxonomy-asset-mapping-catalog/v1", StringComparison.Ordinal))
+            if (!string.Equals(catalog.SchemaVersion, "pnp-taxonomy-asset-mapping-catalog/v2", StringComparison.Ordinal))
             {
                 errors.Add("Unsupported taxonomy asset mapping-catalog schema.");
             }
@@ -45,6 +47,27 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
                     || !keys.Add(key))
                 {
                     errors.Add("A taxonomy mapping catalog entry is null, duplicate, or has an invalid source/target identity.");
+                }
+            }
+            var actionIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var mapping in catalog.AssetMappings ?? new List<TaxonomyAssetMappingCatalogEntry>())
+            {
+                if (mapping == null
+                    || string.IsNullOrWhiteSpace(mapping.ActionId)
+                    || !Enum.IsDefined(typeof(TaxonomyAssetKind), mapping.Kind)
+                    || string.IsNullOrWhiteSpace(mapping.SourceIdentity)
+                    || string.IsNullOrWhiteSpace(mapping.TargetIdentity)
+                    || !Enum.IsDefined(typeof(MigrationTargetOwnership), mapping.Ownership)
+                    || !Enum.IsDefined(typeof(TaxonomyAssetReceiptDisposition), mapping.Disposition)
+                    || !IsSha256(mapping.SemanticMappingDigest)
+                    || !IsSha256(mapping.ActionSignature)
+                    || !IsSha256(mapping.ObservedStateDigest)
+                    || !mapping.FreshReadbackPassed
+                    || mapping.Ownership == MigrationTargetOwnership.External
+                        && mapping.Disposition != TaxonomyAssetReceiptDisposition.ReuseExternal
+                    || !actionIds.Add(mapping.ActionId))
+                {
+                    errors.Add("A taxonomy asset mapping entry is null, duplicate, unverified, or has invalid ownership/signature evidence.");
                 }
             }
             if (requireDigest && (!IsSha256(catalog.CatalogDigest)

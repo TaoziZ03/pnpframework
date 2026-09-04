@@ -435,8 +435,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
             var plan = TaxonomyAssetPlanner.Create(source, TargetStoreId);
             var groupPlan = plan.TermGroups.Single();
-            plan.Terms.Single().TargetTermSetId = targetSetId;
-            plan.Terms.Single().PlanDigest = TaxonomyAssetIdentity.ComputePlanDigest(plan.Terms.Single());
+            var termPlan = plan.Terms.Single();
+            termPlan.TargetTermSetId = targetSetId;
+            termPlan.MappingDigest = TaxonomyAssetIdentity.ComputeMappingDigest(termPlan);
+            termPlan.PlanDigest = TaxonomyAssetIdentity.ComputePlanDigest(termPlan);
             plan.TermGroupProbes.Add(new TaxonomyTermGroupTargetProbe
             {
                 SourceTenantId = TenantId,
@@ -510,6 +512,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             TaxonomyAssetApprovalManifest approval)
         {
             var started = DateTimeOffset.UtcNow.AddSeconds(-1);
+            var signatures = TaxonomyAssetReceiptIdentity.CreateActionSignatures(plan, approval);
             var receipt = new TaxonomyAssetMaterializationReceipt
             {
                 OperationId = Guid.NewGuid(),
@@ -530,23 +533,33 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     .ToList(),
                 Actions = approval.Actions
                     .Where(value => value.Decision == TaxonomyAssetApprovalDecision.Approve)
-                    .Select(value => new TaxonomyAssetActionReceipt
+                    .Select(value =>
                     {
-                        ActionId = value.ActionId,
-                        Kind = value.Kind,
-                        SourceTenantId = value.SourceTenantId,
-                        SourceTermStoreId = value.SourceTermStoreId,
-                        SourceTermSetId = value.SourceTermSetId,
-                        SourceTermId = value.SourceTermId,
-                        TargetTermStoreId = value.TargetTermStoreId,
-                        TargetTermGroupId = value.TargetTermGroupId,
-                        TargetTermSetId = value.TargetTermSetId,
-                        TargetTermId = value.TargetTermId,
-                        ReviewedDisposition = value.ReviewedDisposition,
-                        PreflightDisposition = value.ReviewedDisposition,
-                        FinalDisposition = TaxonomyAssetVerifier.ExpectedFinalDisposition(value.ReviewedDisposition),
-                        ChangedTarget = false,
-                        FreshReadbackPassed = true
+                        var actionReceipt = new TaxonomyAssetActionReceipt
+                        {
+                            ActionId = value.ActionId,
+                            Kind = value.Kind,
+                            SourceTenantId = value.SourceTenantId,
+                            SourceTermStoreId = value.SourceTermStoreId,
+                            SourceTermSetId = value.SourceTermSetId,
+                            SourceTermId = value.SourceTermId,
+                            TargetTermStoreId = value.TargetTermStoreId,
+                            TargetTermGroupId = value.TargetTermGroupId,
+                            TargetTermSetId = value.TargetTermSetId,
+                            TargetTermId = value.TargetTermId,
+                            ReviewedDisposition = value.ReviewedDisposition,
+                            PreflightDisposition = value.ReviewedDisposition,
+                            FinalDisposition = TaxonomyAssetVerifier.ExpectedFinalDisposition(value.ReviewedDisposition),
+                            ChangedTarget = false,
+                            FreshReadbackPassed = true
+                        };
+                        var signature = signatures[value.ActionId];
+                        TaxonomyAssetReceiptIdentity.Populate(
+                            actionReceipt,
+                            value,
+                            signature,
+                            signature.SemanticDigest);
+                        return actionReceipt;
                     })
                     .ToList()
             };
