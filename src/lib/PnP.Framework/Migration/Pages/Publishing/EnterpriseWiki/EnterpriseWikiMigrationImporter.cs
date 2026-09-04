@@ -5,6 +5,7 @@ using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Packaging;
 using System;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
+using PnP.Framework.Migration.Topology.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
 {
@@ -15,7 +16,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
             PublishingPageMigrationPackage package,
             string approvedPlanDigest)
         {
-            return Import(targetContext, package, approvedPlanDigest, null, null);
+            return ImportCore(targetContext, package, approvedPlanDigest, null, null, null);
         }
 
         public PublishingPageImportReceipt Import(
@@ -24,7 +25,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
             string approvedPlanDigest,
             IMigrationExecutionJournal journal)
         {
-            return Import(targetContext, package, approvedPlanDigest, journal, null);
+            return ImportCore(targetContext, package, approvedPlanDigest, journal, null, null);
         }
 
         public PublishingPageImportReceipt Import(
@@ -33,6 +34,34 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
             string approvedPlanDigest,
             IMigrationExecutionJournal journal,
             IMigrationArtifactStore artifactStore)
+        {
+            return ImportCore(targetContext, package, approvedPlanDigest, journal, artifactStore, null);
+        }
+
+        public PublishingPageImportReceipt ImportWithSharedTopology(
+            ClientContext targetContext,
+            PublishingPageMigrationPackage package,
+            string approvedPlanDigest,
+            SharedTopologyExecutionProof sharedTopologyProof,
+            IMigrationExecutionJournal journal = null,
+            IMigrationArtifactStore artifactStore = null)
+        {
+            return ImportCore(
+                targetContext,
+                package,
+                approvedPlanDigest,
+                journal,
+                artifactStore,
+                sharedTopologyProof);
+        }
+
+        private static PublishingPageImportReceipt ImportCore(
+            ClientContext targetContext,
+            PublishingPageMigrationPackage package,
+            string approvedPlanDigest,
+            IMigrationExecutionJournal journal,
+            IMigrationArtifactStore artifactStore,
+            SharedTopologyExecutionProof sharedTopologyProof)
         {
             if (targetContext == null)
             {
@@ -52,7 +81,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
                 approvedPlanDigest,
                 operationId,
                 startedAt,
-                recorder);
+                recorder,
+                sharedTopologyProof);
             if (admissionFailure != null)
             {
                 return admissionFailure;
@@ -70,7 +100,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
                     startedAt,
                     recorder,
                     artifactStore,
-                    package.Plan.TargetProbe?.PageContentTypeId);
+                    package.Plan.TargetProbe?.PageContentTypeId,
+                    sharedTopologyProof);
             }
             catch (Exception exception)
             {

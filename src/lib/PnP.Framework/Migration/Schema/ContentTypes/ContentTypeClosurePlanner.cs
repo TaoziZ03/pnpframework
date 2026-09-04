@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Taxonomy;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,8 +16,23 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             TopologyPlan topology,
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings)
         {
+            if (topology == null)
+            {
+                throw new ArgumentNullException(nameof(topology));
+            }
+            return CreateFromOwnerMappings(
+                snapshots,
+                TopologyWebOwnerMappingCatalog.FromLegacy(topology),
+                taxonomyMappings);
+        }
+
+        internal static ContentTypeClosurePlanBuildResult CreateFromOwnerMappings(
+            IEnumerable<ContentTypeSchemaSnapshot> snapshots,
+            IEnumerable<TopologyWebOwnerMapping> ownerMappings,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings)
+        {
             var result = new ContentTypeClosurePlanBuildResult();
-            var mappings = topology.SiteCollections.SelectMany(value => value.Webs).ToArray();
+            var mappings = (ownerMappings ?? Enumerable.Empty<TopologyWebOwnerMapping>()).ToArray();
             foreach (var snapshot in (snapshots ?? Enumerable.Empty<ContentTypeSchemaSnapshot>())
                          .OrderBy(value => value.ContentTypeId == null ? 0 : value.ContentTypeId.Length)
                          .ThenBy(value => value.ContentTypeId, StringComparer.OrdinalIgnoreCase))
@@ -52,9 +68,11 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                 }
                 var node = new ContentTypeClosureNodePlan
                 {
+                    SourceOwnerKey = owner.SourceOwnerKey,
                     SourceOwnerWebId = owner.SourceWebId,
                     SourceOwnerWebUrl = owner.SourceWebUrl,
                     TargetOwnerWebUrl = owner.TargetWebUrl,
+                    ExpectedTargetSiteId = owner.ExpectedTargetSiteId,
                     Schema = schema
                 };
                 node.PlanDigest = ComputeDigest(node);

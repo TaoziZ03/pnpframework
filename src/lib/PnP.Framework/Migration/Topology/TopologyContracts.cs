@@ -206,6 +206,8 @@ namespace PnP.Framework.Migration.Topology
 
     public sealed class TopologyWebTargetProbe
     {
+        public string SourceOwnerKey { get; set; }
+
         public Guid SourceSiteId { get; set; }
 
         public Guid SourceWebId { get; set; }

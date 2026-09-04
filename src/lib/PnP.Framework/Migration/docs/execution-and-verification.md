@@ -54,6 +54,8 @@ Objects below a missing but approved Site/Web are reported as a topology prerequ
 
 Topology planning requires a captured direct-parent chain for every executable source Web. It must not invent an intermediate Web from a multi-segment URL. A source Web whose parent chain cannot be read remains non-executable together with only its dependent descendants; unrelated topology branches continue. The workflow may classify that branch as authorization-blocked only when retained wire evidence contains a literal HTTP `401` or `403`. Other incomplete or semantic-access-denied evidence remains a mitigation/RCA result.
 
+Path-derived shared topology is the narrow exception to requiring denied ancestor metadata: when Site/leaf IDs and the exact relative path were already captured, each relative segment may be planned as an independent target-only container using explicit target policy. The denied source-fidelity ingredient remains authorization-limited and optional to target provisioning. It is never converted into invented source title, template, configuration, permission, or parent identity. A page must present a digest-valid global-action receipt for its required chain before mutation.
+
 Target mapping preserves the complete path relative to the source Site Collection. Run isolation may add the reviewed suffix to the target Site Collection leaf, and a proven collision may add a deterministic suffix only to the colliding Site/Web/List/Page node. Missing nodes use an explicit create action; absence is not a reason to flatten or rename the remaining hierarchy.
 
 ### Admission failure
@@ -123,6 +125,8 @@ The durable extension accepts only typed fresh-verification receipts and content
 
 `MigrationResumeCoordinator` is read-only admission support, not a replay engine. Its public boundary accepts a journal path or stream and performs the strict read internally; callers cannot supply a mutable, unvalidated read-result object. It always invokes a fresh target probe after journal validation. A journal entry alone never proves success and never authorizes mutation. Exact current-signature history plus an exact fresh identity/semantic/ownership/provenance probe may yield `AlreadySatisfied`; absent state remains pending normal admission, drift or foreign ownership requires replan/reapproval, and an unavailable probe stops resume. There is no page-wide checkpoint projector, distributed writer coordination, exactly-once claim, or blind replay in this layer.
 
+For a shared target-Web action, the stable logical action key identifies the producer while one exact per-capture `MigrationActionSignature` is selected as its execution grant. That grant is written on the intent and receipt, followed by a matching `MigrationMutationVerificationReceipt`. The domain receipt binds logical action, target slot, runtime Site/Web/parent IDs, ownership, observed semantic state, and a nested receipt digest. A lost create or ownership-recovery response that later proves exact state is recorded as `MutationAttempted` plus `OutcomeUnknownButConverged`, not as an ordinary known-success response. These records help locate prior work but never authorize replay without a new exact target probe.
+
 ## Dependency-ordered execution
 
 The current Publishing Page execution follows the approved dependency graph. At a high level:
@@ -176,6 +180,8 @@ A plan may select `CreateOwned` because the target was free. Before execution, a
 Receipts record the actual execution-time disposition. Semantic ownership digests exclude mutable observation state where required so this safe create-to-reuse transition does not invalidate the approved intent.
 
 An external topology approval binds the exact plan digest, runner and library binaries, target Site URL, preflight timestamp, and expected action. Execution accepts only safe forward transitions: `CreateMissing` may become interrupted-create recovery, owned reuse, or owned-plan reconciliation; recovery may become owned reuse or reconciliation; reconciliation may become exact owned reuse; exact reuse may remain exact reuse only. A transition to a foreign collision, authorization failure, retryable failure, or a newly required create action is rejected for fresh review before mutation.
+
+Path-derived logical actions use the same trust rule at every node rather than only at transaction admission. The executor probes the exact authority/Site/path slot before each action and reads it back afterward. `CreateMissing` may advance to exact `RecoverInterruptedCreate` or `ReuseOwned`; `RecoverInterruptedCreate` may advance to `ReuseOwned`; an external-host reuse must remain the same explicitly approved Web ID. A same-slot/incompatible-logical-semantics plan never reaches execution. An external host is not stamped with migration ownership. Page import treats the complete source-plan + DAG + action-plan + receipt proof as prior evidence, then batch fresh-probes every referenced root/intermediate/leaf action before page mutation.
 
 ## Failure and rollback semantics
 
@@ -266,6 +272,7 @@ The current storage importer emits only `NotRequired` or `Pending` on a successf
 
 - `Pending`: required evidence is incomplete, commonly because runtime verification is pending;
 - `Accepted`: all required storage and runtime evidence passed;
+- `PartiallyAccepted`: required target storage passed, but a retained limitation such as authorization-blocked source Web fidelity prevents a claim of full migration parity;
 - `Rejected`: required storage or runtime evidence failed.
 
 Acceptance is derived from evidence; it must not be used to erase lower-level diagnostics.

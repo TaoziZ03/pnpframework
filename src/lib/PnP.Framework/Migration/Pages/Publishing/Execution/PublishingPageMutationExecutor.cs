@@ -10,6 +10,7 @@ using PnP.Framework.Migration.Lists.Execution;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Topology.Execution;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
 using PnP.Framework.Migration.Schema.Fields;
 using System;
 using System.Collections.Generic;
@@ -28,14 +29,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             DateTimeOffset startedAt,
             MigrationExecutionRecorder recorder,
             IMigrationArtifactStore artifactStore,
-            string expectedContentTypeId)
+            string expectedContentTypeId,
+            SharedTopologyExecutionProof sharedTopologyProof = null)
         {
             var warnings = new List<string>();
-            var topologyReceipt = TopologyMaterializationCoordinator.Ensure(
-                targetContext,
-                package.Plan.Topology,
-                executionScope.TopologyPlan,
-                recorder);
+            var topologyReceipt = package.Plan.SharedTopologyReference == null
+                ? TopologyMaterializationCoordinator.Ensure(
+                    targetContext,
+                    package.Plan.Topology,
+                    executionScope.TopologyPlan,
+                    recorder)
+                : ProjectSharedTopologyReceipt(package, sharedTopologyProof, recorder);
             MaterializeLayout(targetContext, package, executionScope, recorder, artifactStore);
             var materializedDependencies = MaterializeDependencies(
                 targetContext,
@@ -102,11 +106,53 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 writeResult?.FieldResults ?? Array.Empty<PnP.Framework.Migration.Pages.Fields.PageFieldImportResult>(),
                 recorder.Steps,
                 warnings,
-                expectedContentTypeId);
+                expectedContentTypeId,
+                sharedTopologyProof);
             recorder.RecordState(receipt.ExecutionStatus, receipt.FreshReadbackPassed
                 ? "Mutation and fresh storage verification completed."
                 : "Mutation completed, but fresh storage verification failed.");
             return receipt;
+        }
+
+        private static TopologyMaterializationReceipt ProjectSharedTopologyReceipt(
+            PublishingPageMigrationPackage package,
+            SharedTopologyExecutionProof proof,
+            MigrationExecutionRecorder recorder)
+        {
+            SharedTopologyPageReferenceFactory.ValidateReceipt(
+                package.Plan.SharedTopologyReference,
+                proof?.SourcePlans,
+                proof?.GlobalActionDag,
+                proof?.ActionPlan,
+                proof?.Receipt);
+            var requiredActions = new HashSet<string>(
+                package.Plan.SharedTopologyReference.RequiredActions.Select(value => value.LogicalActionKey),
+                StringComparer.Ordinal);
+            recorder.RecordAlreadySatisfied(
+                "topology.shared.global-actions",
+                "A separately executed global topology DAG supplied freshly verified target-Web receipts.");
+            return new TopologyMaterializationReceipt
+            {
+                FreshReadbackPassed = true,
+                Diagnostics = new List<string>
+                {
+                    "Projected shared global-action receipts for dependency owner resolution; no page-local topology mutation was performed."
+                },
+                Webs = proof.Receipt.Actions
+                    .Where(value => requiredActions.Contains(value.LogicalActionKey))
+                    .Select(value => new TopologyWebMaterializationReceipt
+                {
+                    SourceSiteId = Guid.Empty,
+                    SourceWebId = Guid.Empty,
+                    TargetSiteId = value.TargetSiteId,
+                    TargetWebId = value.TargetWebId,
+                    TargetWebUrl = value.TargetWebUrl,
+                    Disposition = value.Ownership == SharedTopologyOwnership.ExternalApprovedHost
+                        ? TopologyMaterializationDisposition.ReuseApprovedHost
+                        : TopologyMaterializationDisposition.ReuseOwned,
+                    MappingDigest = value.ExecutionGrantSignature
+                }).ToList()
+            };
         }
 
         private static void MaterializeLayout(

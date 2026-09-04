@@ -13,7 +13,9 @@ using PnP.Framework.Migration.Pages.Markup;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Profiles;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Capture
 {
@@ -48,6 +50,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
         public IList<ListLookupDependency> ListLookupDependencies { get; set; } = new List<ListLookupDependency>();
 
         public SourceSiteCollectionSnapshot SourceTopology { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public PathDerivedSourceTopologyEvidence PathDerivedTopologyEvidence { get; set; }
 
         public IList<PageReferenceSnapshot> Dependencies { get; set; } = new List<PageReferenceSnapshot>();
 
