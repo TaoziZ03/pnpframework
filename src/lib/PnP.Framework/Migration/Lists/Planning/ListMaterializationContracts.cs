@@ -8,6 +8,7 @@ using PnP.Framework.Migration.Packaging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Lists.Planning
 {
@@ -44,6 +45,54 @@ namespace PnP.Framework.Migration.Lists.Planning
         CreateOrReuseExact = 1,
         Block = 2,
         PreserveReferenceOnly = 3
+    }
+
+    public sealed class ListProtectedDocumentExclusionPlan
+    {
+        public int SourceItemId { get; set; }
+
+        public string SourceServerRelativeUrl { get; set; }
+
+        public string TargetServerRelativeUrl { get; set; }
+
+        public string PolicyId { get; set; }
+
+        public string CaptureDecisionDigest { get; set; }
+
+        public string ReasonCode { get; set; }
+
+        public string Reason { get; set; }
+    }
+
+    public enum ProtectedDocumentTargetAbsenceStatus
+    {
+        Absent = 1,
+        Present = 2,
+        AuthorizationBlocked = 3,
+        RetryableFailure = 4,
+        Failed = 5
+    }
+
+    public sealed class ListProtectedDocumentExclusionVerification
+    {
+        public int SourceItemId { get; set; }
+
+        public string SourceServerRelativeUrl { get; set; }
+
+        public string TargetServerRelativeUrl { get; set; }
+
+        public string PolicyId { get; set; }
+
+        public string CaptureDecisionDigest { get; set; }
+
+        public ProtectedDocumentTargetAbsenceStatus Status { get; set; }
+
+        public int? HttpStatusCode { get; set; }
+
+        public string Diagnostic { get; set; }
+
+        [JsonIgnore]
+        public bool Passed => Status == ProtectedDocumentTargetAbsenceStatus.Absent;
     }
 
     public sealed class ListTargetOverride
@@ -206,6 +255,9 @@ namespace PnP.Framework.Migration.Lists.Planning
 
         public IList<PlatformFeatureMaterializationPlan> RequiredFeatures { get; set; } = new List<PlatformFeatureMaterializationPlan>();
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<ListProtectedDocumentExclusionPlan> ApprovedProtectedDocumentExclusions { get; set; }
+
         public IList<MigrationIssue> Issues { get; set; } = new List<MigrationIssue>();
 
         public ListTargetProbe TargetProbe { get; set; }
@@ -273,6 +325,9 @@ namespace PnP.Framework.Migration.Lists.Planning
         public int VerifiedDocumentCount { get; set; }
 
         public int VerifiedAttachmentCount { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<ListProtectedDocumentExclusionVerification> ProtectedDocumentExclusionVerifications { get; set; }
 
         public IList<string> Diagnostics { get; set; } = new List<string>();
     }

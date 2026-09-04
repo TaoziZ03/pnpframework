@@ -116,8 +116,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting.Sections
                 Row("collisionResolutionReason", plan.TargetProbe?.CollisionResolutionReason, "Retained evidence for the path/title decision."),
                 Row("disposition", plan.Disposition, "CreateOwned creates; ReuseOwned requires exact provenance and semantic digest; local Block records a capability gap and becomes final ingredient Defer."),
                 Row("planDigest", plan.PlanDigest, "Semantic identity written with provenance and used for resume."),
+                Row("approvedProtectedDocumentExclusions.count", plan.ApprovedProtectedDocumentExclusions?.Count ?? 0, "Document-backed items whose payload was not requested under an explicit source policy and whose target path must remain absent."),
                 Row("isExecutable", plan.IsExecutable, "Includes List issues, custom site-content-type closure, and target admission.")
             });
+            writer.Table(
+                "Approved protected document exclusions",
+                new[] { "Source item", "Source path", "Target path", "Policy", "Decision digest", "Reason" },
+                (plan.ApprovedProtectedDocumentExclusions ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                    .OrderBy(value => value.SourceItemId)
+                    .Select(value => Row(
+                        value.SourceItemId,
+                        value.SourceServerRelativeUrl,
+                        value.TargetServerRelativeUrl,
+                        value.PolicyId,
+                        value.CaptureDecisionDigest,
+                        value.ReasonCode + ": " + value.Reason)));
             var probe = plan.TargetProbe;
             if (probe != null)
             {

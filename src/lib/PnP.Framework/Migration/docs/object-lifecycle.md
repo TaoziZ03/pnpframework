@@ -133,6 +133,8 @@ For each returned List-item `FieldValues` entry, capture creates a `ListItemValu
 
 Binary capture distinguishes an ordinary file payload from an Information Rights Management envelope. In both cases the artifact SHA-256 seals the exact bytes SharePoint returned. For an IRM envelope, capture additionally retains the SharePoint `cTag` and `QuickXorHash` logical-content identity when present in `MetaInfo`. The envelope can be larger than the logical file and can receive a different byte SHA on every CSOM or REST read even when source identity, version, modified time, length, `cTag`, and `QuickXorHash` are unchanged. That difference is recorded as `RightsManagedEnvelopeLengthMismatch`, not as incomplete byte capture.
 
+The default remains capture-all. A caller may explicitly opt into a protected-asset metadata-only policy. That policy evaluates the existing Information Protection item metadata before the binary reader is invoked and seals its decision with a policy ID and SHA-256. A `MetadataOnly` decision proves that neither document bytes nor attachments owned by that document-backed item were requested. Optional fail-closed handling of unknown protection state applies only when the caller selected that policy.
+
 An immutable export written before this classifier existed deserializes as `Unclassified`; the canonical serializer omits that default value so the historical snapshot digest remains valid. The exact historical bytes stay sealed, but the loader does not invent ordinary-file semantics. Its binary ingredient is `Defer` with `ListBinaryRepresentationUnclassified` until a fresh source capture records an explicit classification.
 
 ### Planning
@@ -145,11 +147,15 @@ View dispositions distinguish public Views, deterministic page-bound Views, pers
 
 An IRM-envelope document currently receives ingredient `Defer` with mitigation code `ListRightsManagedBinaryReplayUnverified`. The exact response artifact remains in the snapshot, but it is not sent through the ordinary exact-byte document materializer until cross-site usability and a semantic target verifier are proven. This is nonterminal mitigation work and is not an authorization block.
 
+A document captured under an explicit `MetadataOnly` decision instead produces a sealed document-backed-item exclusion. Existing item, document, policy, and attachment ingredient nodes use `Drop`; the owning List and sibling branches remain executable through the existing frontier. This does not enable protected-payload or label replay.
+
 ### Execution and verification
 
 Lists execute in lookup topological order. Before site content-type membership or List creation, the importer activates required conditional platform features in dependency order and verifies their promised runtime content types. It then materializes site CT closure, List identity/settings, fields, List CTs and order, folders/items/files/attachments, and Views. It records target List, item, View, and List-local CT IDs for downstream lookup values and Web Part rebinding.
 
 Fresh verification checks the supported List closure and exact current file/attachment bytes. Rights-managed documents require a future semantic verifier over logical content identity because a fresh download envelope is not byte-stable. A List mismatch makes `listsMatched=false` even when the page was created.
+
+For a metadata-only exclusion, fresh verification requires the migration-owned item identity and exact mapped document path to remain absent. HTTP 401/403, 404, retryable statuses, and unexpected failures retain distinct receipt states; only confirmed absence passes.
 
 ## Page field lifecycle
 

@@ -81,6 +81,9 @@ namespace PnP.Framework.Migration.Lists.Items
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public ListDocumentInformationProtectionSnapshot InformationProtection { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ProtectedAssetCaptureDecision CaptureDecision { get; set; }
+
         public ListBinaryArtifactSnapshot Content { get; set; }
     }
 

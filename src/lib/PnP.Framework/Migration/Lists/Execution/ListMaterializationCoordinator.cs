@@ -146,6 +146,15 @@ namespace PnP.Framework.Migration.Lists.Execution
                         selection,
                         recorder,
                         prefix);
+                    foreach (var exclusion in plan.ApprovedProtectedDocumentExclusions
+                                 ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                    {
+                        recorder.RecordAlreadySatisfied(
+                            prefix + ".items.protected-exclusion." + exclusion.SourceItemId,
+                            "Protected document-backed item '" + exclusion.SourceServerRelativeUrl
+                                + "' is an approved metadata-only exclusion under policy '"
+                                + exclusion.PolicyId + "'; no target item or payload mutation is performed.");
+                    }
                     var itemIds = EnsureItems(
                         context,
                         targetList,

@@ -77,7 +77,11 @@ namespace PnP.Framework.Migration.Lists.Execution
             context.ExecuteQueryRetry();
             var existingBySourceId = ReadExisting(context, targetList);
             var targetItems = new Dictionary<int, ListItem>();
-            foreach (var sourceItem in OrderItems(source.Items))
+            var excludedItemIds = new HashSet<int>(
+                (plan.ApprovedProtectedDocumentExclusions
+                    ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                .Select(value => value.SourceItemId));
+            foreach (var sourceItem in OrderItems(source.Items.Where(value => !excludedItemIds.Contains(value.SourceItemId))))
             {
                 var includeItem = selection.ItemIds.Contains(sourceItem.SourceItemId);
                 var expectedDigest = includeItem ? ComputeItemDigest(sourceItem) : null;
@@ -117,7 +121,8 @@ namespace PnP.Framework.Migration.Lists.Execution
             }
 
             foreach (var sourceItem in source.Items
-                         .Where(value => selection.ItemIds.Contains(value.SourceItemId))
+                         .Where(value => selection.ItemIds.Contains(value.SourceItemId)
+                             && !excludedItemIds.Contains(value.SourceItemId))
                          .OrderBy(value => value.SourceItemId))
             {
                 var targetItem = targetItems[sourceItem.SourceItemId];

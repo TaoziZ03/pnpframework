@@ -21,18 +21,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             var fieldPlans = listPlan.Fields.ToDictionary(value => value.InternalName, StringComparer.OrdinalIgnoreCase);
             foreach (var item in source.Items.Where(value => value != null))
             {
-                AddItem(source, listPlan, item, fieldPlans, listBlocked, actions, transactionDependencyProjection);
+                var exclusion = (listPlan.ApprovedProtectedDocumentExclusions
+                        ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                    .SingleOrDefault(value => value.SourceItemId == item.SourceItemId);
+                AddItem(source, listPlan, item, fieldPlans, listBlocked, actions, transactionDependencyProjection, exclusion);
                 if (item.Document != null)
                 {
-                    AddDocument(source, listPlan, item, listBlocked, actions, transactionDependencyProjection);
+                    AddDocument(source, listPlan, item, listBlocked, actions, transactionDependencyProjection, exclusion);
                     if (item.Document.InformationProtection != null)
                     {
-                        AddInformationProtection(source, item, actions);
+                        AddInformationProtection(source, item, actions, exclusion);
                     }
                 }
                 foreach (var attachment in item.Attachments.Where(value => value != null))
                 {
-                    AddAttachment(source, listPlan, item, attachment, listBlocked, actions, transactionDependencyProjection);
+                    AddAttachment(source, listPlan, item, attachment, listBlocked, actions, transactionDependencyProjection, exclusion);
                 }
             }
         }
@@ -44,8 +47,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             IDictionary<string, ListFieldMaterializationPlan> fieldPlans,
             bool listBlocked,
             IDictionary<string, PageIngredientAction> actions,
-            bool transactionDependencyProjection)
+            bool transactionDependencyProjection,
+            ListProtectedDocumentExclusionPlan exclusion)
         {
+            if (exclusion != null)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, ExclusionAction(
+                    PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                    exclusion,
+                    "document-backed List item"));
+                return;
+            }
             var mapping = MapItem(item, fieldPlans, listBlocked, transactionDependencyProjection);
             var targetIdentity = listPlan.TargetRootFolderServerRelativeUrl + "#source-item:" + item.SourceItemId;
             PublishingPageIngredientActionFactory.Add(actions, PublishingPageIngredientActionFactory.Create(
@@ -70,9 +82,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             ListItemSnapshot item,
             bool listBlocked,
             IDictionary<string, PageIngredientAction> actions,
-            bool transactionDependencyProjection)
+            bool transactionDependencyProjection,
+            ListProtectedDocumentExclusionPlan exclusion)
         {
             var document = item.Document;
+            if (exclusion != null)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, ExclusionAction(
+                    PublishingPageIngredientIds.ListDocument(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                    exclusion,
+                    "protected document payload"));
+                return;
+            }
             var binaryUnavailable = document.Kind == ListDocumentObjectKind.File
                 && (document.Content == null
                     || document.Content.Availability != EvidenceAvailability.Captured
@@ -118,9 +139,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         private static void AddInformationProtection(
             ListDependencySnapshot source,
             ListItemSnapshot item,
-            IDictionary<string, PageIngredientAction> actions)
+            IDictionary<string, PageIngredientAction> actions,
+            ListProtectedDocumentExclusionPlan exclusion)
         {
             var informationProtection = item.Document.InformationProtection;
+            if (exclusion != null)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, ExclusionAction(
+                    PublishingPageIngredientIds.ListDocumentInformationProtection(
+                        source.SourceWebId,
+                        source.SourceListId,
+                        item.SourceItemId),
+                    exclusion,
+                    "target Information Protection relationship"));
+                return;
+            }
             var libraryIrmState = source.InformationRightsManagement == null
                 ? "not captured"
                 : source.InformationRightsManagement.IrmEnabled ? "enabled" : "disabled";
@@ -147,8 +180,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             ListAttachmentSnapshot attachment,
             bool listBlocked,
             IDictionary<string, PageIngredientAction> actions,
-            bool transactionDependencyProjection)
+            bool transactionDependencyProjection,
+            ListProtectedDocumentExclusionPlan exclusion)
         {
+            if (exclusion != null)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, ExclusionAction(
+                    PublishingPageIngredientIds.ListAttachment(
+                        source.SourceWebId,
+                        source.SourceListId,
+                        item.SourceItemId,
+                        attachment.FileName),
+                    exclusion,
+                    "attachment owned by the excluded document-backed item"));
+                return;
+            }
             var blocked = (!transactionDependencyProjection && listBlocked)
                 || attachment.Content == null
                 || attachment.Content.Availability != EvidenceAvailability.Captured
@@ -176,6 +222,24 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     : "Copy the exact captured attachment bytes to the materialized target item.",
                 blocked ? null : listPlan.TargetRootFolderServerRelativeUrl + "#source-item:" + item.SourceItemId + "/attachment:" + attachment.FileName,
                 blocked ? null : $"Fresh readback verifies attachment bytes with SHA-256 '{attachment.Content?.Artifact?.Sha256}'."));
+        }
+
+        private static PageIngredientAction ExclusionAction(
+            string ingredientId,
+            ListProtectedDocumentExclusionPlan exclusion,
+            string subject)
+        {
+            return PublishingPageIngredientActionFactory.Create(
+                ingredientId,
+                IngredientCapability.Available,
+                IngredientDisposition.Drop,
+                "exclude-protected-document-backed-item",
+                exclusion.PolicyId,
+                "The explicit protected-asset capture decision retains source metadata but excludes the "
+                    + subject + " from target materialization. " + exclusion.Reason,
+                null,
+                "No target mutation is performed for this approved protected-asset exclusion.",
+                "Fresh target readback requires the excluded document path to remain absent.");
         }
 
         private static (IngredientCapability Capability, IngredientDisposition Disposition, string Realization, string Reason) MapItem(

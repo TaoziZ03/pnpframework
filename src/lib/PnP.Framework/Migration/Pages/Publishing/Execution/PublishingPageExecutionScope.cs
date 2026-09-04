@@ -231,8 +231,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 }
                 selection.ExactContentTypeInventory = source.ContentTypes.All(value => value != null
                     && selection.ContentTypeIds.Contains(value.Id));
+                var approvedExcludedItemIds = new HashSet<int>(
+                    (listPlan?.ApprovedProtectedDocumentExclusions
+                        ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                    .Select(value => value.SourceItemId));
                 selection.ExactItemInventory = source.Items.All(value => value != null
-                    && selection.ItemIds.Contains(value.SourceItemId));
+                    && (selection.ItemIds.Contains(value.SourceItemId)
+                        || approvedExcludedItemIds.Contains(value.SourceItemId)));
                 if (selection.HasListScopedWork || selection.ViewRenderingResourceIds.Count > 0)
                 {
                     if (listPlan == null)
