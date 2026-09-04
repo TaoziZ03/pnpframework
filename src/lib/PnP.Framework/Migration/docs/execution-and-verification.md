@@ -95,6 +95,7 @@ Before each mutating category, the importer writes `MigrationMutationIntent`:
 | `operationId` | Import attempt identity. |
 | `planDigest` | Approved plan being executed. |
 | `actionId` | Stable step/category identity within the operation. |
+| `actionSignature` | Optional digest identity of one executable action node. Legacy unsigned entries remain readable but cannot satisfy signed resume admission. |
 | `sequence` | Ordered mutation sequence. |
 | `writtenAtUtc` | Time intent was recorded. |
 | `description` | Human-readable intended mutation. |
@@ -104,12 +105,23 @@ After the operation returns or is proven already satisfied, the importer writes 
 | Field | Meaning |
 | --- | --- |
 | `operationId`, `planDigest`, `actionId`, `sequence` | Correlate with the intent. |
+| `actionSignature` | Matches the signed intent or signed already-satisfied action. |
 | `completedAtUtc` | Completion time. |
 | `outcome` | `Applied`, `AlreadySatisfied`, or `Failed`. |
 | `exchangeIds` | Contract slot for runtime identities made available to later steps. |
 | `message` | Outcome details. |
 
 The current recorder leaves `exchangeIds` empty; concrete runtime identity maps are carried by topology and List domain receipts. An intent without a corresponding receipt indicates an interrupted or unobserved completion. The next attempt must freshly inspect the target; it must not assume either success or failure.
+
+### Local durable journal and resume evidence
+
+`JsonLinesMigrationExecutionJournal` is an optional single-machine, single-writer implementation. It appends canonical UTF-8 JSON Lines with a sequence number, previous-record digest, payload digest, and record digest. The strict reader rejects unknown/noncanonical records, broken chains, invalid typed payloads, receipt/intent relationship violations, and verification records that do not follow the matching action receipt.
+
+The durable extension accepts only typed fresh-verification receipts and content-addressed references to allowlisted receipt, mapping, verification, or comparison artifacts. It does not embed page packages, arbitrary JSON, or binary payloads. If a process stops midway through the last line, the reader preserves the complete earlier records and returns a digest of the interrupted tail. A later writer starts a numbered continuation segment chained from the last valid record; it never truncates the interrupted bytes.
+
+`MigrationActionSignature` is the retry identity. It binds one action's source evidence, reviewed selection, target identity, expected semantic state, and direct dependency signatures. It is intentionally narrower than `planDigest`, so multiple historical signatures for one action ID may coexist. Legacy unsigned records remain readable history but provide no authority for a signed action.
+
+`MigrationResumeCoordinator` is read-only admission support, not a replay engine. It always invokes a fresh target probe. A journal entry alone never proves success and never authorizes mutation. Exact current-signature history plus an exact fresh identity/semantic/ownership/provenance probe may yield `AlreadySatisfied`; absent state remains pending normal admission, drift or foreign ownership requires replan/reapproval, and an unavailable probe stops resume. There is no page-wide checkpoint projector, distributed writer coordination, exactly-once claim, or blind replay in this layer.
 
 ## Dependency-ordered execution
 

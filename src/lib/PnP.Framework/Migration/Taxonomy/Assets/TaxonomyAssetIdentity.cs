@@ -14,6 +14,8 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
     {
         public const string OriginalIdentifierPropertyName = "pnp_reserved_term_original_identifier";
 
+        public const string MappingDigestPropertyName = "pnp_reserved_term_mapping_digest";
+
         public const string TargetGroupName = "PnP Repro4 Migrated Taxonomy";
 
         private static readonly Guid GroupNamespace = new Guid("31ba6754-7f98-4df7-8383-b377c8d70c87");
@@ -124,8 +126,10 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 IsAvailableForTagging = source.IsAvailableForTagging,
                 OriginalIdentifierPropertyName = OriginalIdentifierPropertyName,
                 OriginalIdentifier = TermSet(identity),
+                MappingDigestPropertyName = MappingDigestPropertyName,
                 SourceEvidenceSha256 = source.EvidenceSha256
             };
+            plan.MappingDigest = ComputeMappingDigest(plan);
             plan.PlanDigest = ComputePlanDigest(plan);
             return plan;
         }
@@ -180,8 +184,10 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 SourcePinSourceTermSetId = source.PinSourceTermSetId,
                 OriginalIdentifierPropertyName = OriginalIdentifierPropertyName,
                 OriginalIdentifier = Term(identity),
+                MappingDigestPropertyName = MappingDigestPropertyName,
                 SourceEvidenceSha256 = source.EvidenceSha256
             };
+            plan.MappingDigest = ComputeMappingDigest(plan);
             plan.PlanDigest = ComputePlanDigest(plan);
             return plan;
         }
@@ -223,6 +229,44 @@ namespace PnP.Framework.Migration.Taxonomy.Assets
                 MigrationContractSerializer.SerializeCanonicalWithNullRootProperty(
                     plan,
                     nameof(TaxonomyTermMaterializationPlan.PlanDigest)));
+        }
+
+        public static string ComputeMappingDigest(TaxonomyTermSetMaterializationPlan plan)
+        {
+            if (plan?.Source == null)
+            {
+                throw new ArgumentNullException(nameof(plan));
+            }
+            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(new
+            {
+                schemaVersion = "pnp-taxonomy-termset-semantic-mapping/v1",
+                sourceTenantId = plan.Source.TenantId,
+                sourceTermStoreId = plan.Source.TermStoreId,
+                sourceTermSetId = plan.Source.TermSetId,
+                targetTermStoreId = plan.TargetTermStoreId,
+                targetTermSetId = plan.PreferredTargetTermSetId,
+                originalIdentifier = plan.OriginalIdentifier
+            }));
+        }
+
+        public static string ComputeMappingDigest(TaxonomyTermMaterializationPlan plan)
+        {
+            if (plan?.Source == null)
+            {
+                throw new ArgumentNullException(nameof(plan));
+            }
+            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(new
+            {
+                schemaVersion = "pnp-taxonomy-term-semantic-mapping/v1",
+                sourceTenantId = plan.Source.TenantId,
+                sourceTermStoreId = plan.Source.TermStoreId,
+                sourceTermSetId = plan.Source.TermSetId,
+                sourceTermId = plan.Source.TermId,
+                targetTermStoreId = plan.TargetTermStoreId,
+                targetTermSetId = plan.TargetTermSetId,
+                targetTermId = plan.PreferredTargetTermId,
+                originalIdentifier = plan.OriginalIdentifier
+            }));
         }
 
         private static Guid DeterministicGuid(string value)

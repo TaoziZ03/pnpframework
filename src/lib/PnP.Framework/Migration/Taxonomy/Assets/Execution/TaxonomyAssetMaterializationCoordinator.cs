@@ -1,6 +1,7 @@
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Taxonomy;
 using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Taxonomy.Assets.Packaging;
 using PnP.Framework.Migration.Taxonomy.Assets.Verification;
 using System;
@@ -42,15 +43,46 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
             var approved = approval.Actions
                 .Where(value => value.Decision == TaxonomyAssetApprovalDecision.Approve)
                 .ToDictionary(value => value.ActionId, StringComparer.Ordinal);
+            var signatures = TaxonomyAssetReceiptIdentity.CreateActionSignatures(reviewedPlan, approval);
             var store = TaxonomyAssetCsomMaterializer.GetStore(context, reviewedPlan.TargetTermStoreId);
-            EnsureTermGroups(context, store, reviewedPlan, freshPreflight, approved, recorder, receipt);
-            EnsureTermSets(context, store, reviewedPlan, freshPreflight, approved, recorder, receipt);
-            EnsureTerms(context, store, reviewedPlan, freshPreflight, approved, recorder, receipt);
+            EnsureTermGroups(context, store, reviewedPlan, freshPreflight, approved, signatures, recorder, receipt);
+            EnsureTermSets(context, store, reviewedPlan, freshPreflight, approved, signatures, recorder, receipt);
+            EnsureTerms(context, store, reviewedPlan, freshPreflight, approved, signatures, recorder, receipt);
 
             var finalInspection = InspectClone(context, reviewedPlan);
             TaxonomyAssetVerifier.Verify(reviewedPlan, approval, finalInspection, receipt);
             receipt.CompletedAtUtc = DateTimeOffset.UtcNow;
+            foreach (var actionReceipt in receipt.Actions)
+            {
+                var action = approved[actionReceipt.ActionId];
+                var signature = signatures[actionReceipt.ActionId];
+                var observedStateDigest = TaxonomyAssetReceiptIdentity.ObservedStateDigest(action, finalInspection);
+                if (!string.Equals(signature.SemanticDigest, observedStateDigest, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "Fresh taxonomy state digest differs from action signature for '" + action.ActionId + "'.");
+                }
+                TaxonomyAssetReceiptIdentity.Populate(actionReceipt, action, signature, observedStateDigest);
+            }
             TaxonomyAssetMaterializationReceiptValidator.Seal(reviewedPlan, approval, receipt);
+            foreach (var actionReceipt in receipt.Actions)
+            {
+                recorder.RecordVerification(new MigrationMutationVerificationReceipt
+                {
+                    OperationId = receipt.OperationId,
+                    PlanDigest = reviewedPlan.PlanDigest,
+                    ActionId = actionReceipt.ActionId,
+                    ActionSignature = actionReceipt.ActionSignature,
+                    VerifiedAtUtc = receipt.CompletedAtUtc,
+                    FreshReadbackPassed = actionReceipt.FreshReadbackPassed,
+                    ObservedStateDigest = actionReceipt.ObservedStateDigest,
+                    Ownership = actionReceipt.Ownership,
+                    TargetIdentityDigest = MigrationDigest.ComputeSha256(actionReceipt.TargetIdentity),
+                    ProvenanceMatched = actionReceipt.Ownership == MigrationTargetOwnership.External
+                        || !string.IsNullOrWhiteSpace(actionReceipt.SemanticMappingDigest),
+                    Message = actionReceipt.Diagnostic
+                });
+            }
             return new TaxonomyAssetMigrationExecutionResult
             {
                 OperationId = recorder.OperationId,
@@ -66,6 +98,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
             TaxonomyAssetReviewPlan reviewedPlan,
             TaxonomyAssetReviewPlan freshPreflight,
             IDictionary<string, TaxonomyAssetActionApproval> approved,
+            IReadOnlyDictionary<string, MigrationActionSignature> signatures,
             MigrationExecutionRecorder recorder,
             TaxonomyAssetMaterializationReceipt receipt)
         {
@@ -89,12 +122,12 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                 var changed = false;
                 if (probe.Disposition == TaxonomyAssetTargetDisposition.ReuseOwned)
                 {
-                    recorder.RecordAlreadySatisfied(actionId, "Fresh preflight approved reusable taxonomy TermGroup '" + plan.TargetGroupName + "'.");
+                    recorder.RecordAlreadySatisfied(signatures[actionId], "Fresh preflight approved reusable taxonomy TermGroup '" + plan.TargetGroupName + "'.");
                 }
                 else
                 {
                     changed = recorder.Execute(
-                        actionId,
+                        signatures[actionId],
                         "Ensure taxonomy TermGroup '" + plan.TargetGroupName + "'.",
                         () => TaxonomyAssetCsomMaterializer.EnsureOwnedGroup(
                             context,
@@ -114,6 +147,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
             TaxonomyAssetReviewPlan reviewedPlan,
             TaxonomyAssetReviewPlan freshPreflight,
             IDictionary<string, TaxonomyAssetActionApproval> approved,
+            IReadOnlyDictionary<string, MigrationActionSignature> signatures,
             MigrationExecutionRecorder recorder,
             TaxonomyAssetMaterializationReceipt receipt)
         {
@@ -138,12 +172,12 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                 if (probe.Disposition == TaxonomyAssetTargetDisposition.ReuseOwned
                     || probe.Disposition == TaxonomyAssetTargetDisposition.ReviewExternalReuse)
                 {
-                    recorder.RecordAlreadySatisfied(actionId, "Fresh preflight approved reusable TermSet '" + plan.SourceTermSetName + "'.");
+                    recorder.RecordAlreadySatisfied(signatures[actionId], "Fresh preflight approved reusable TermSet '" + plan.SourceTermSetName + "'.");
                 }
                 else
                 {
                     changed = recorder.Execute(
-                        actionId,
+                        signatures[actionId],
                         "Ensure TermSet '" + plan.SourceTermSetName + "'.",
                         () => TaxonomyAssetCsomMaterializer.EnsureTermSet(context, store, plan, probe),
                         value => value ? MutationOutcome.Applied : MutationOutcome.AlreadySatisfied,
@@ -159,6 +193,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
             TaxonomyAssetReviewPlan reviewedPlan,
             TaxonomyAssetReviewPlan freshPreflight,
             IDictionary<string, TaxonomyAssetActionApproval> approved,
+            IReadOnlyDictionary<string, MigrationActionSignature> signatures,
             MigrationExecutionRecorder recorder,
             TaxonomyAssetMaterializationReceipt receipt)
         {
@@ -186,12 +221,12 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Execution
                 if (probe.Disposition == TaxonomyAssetTargetDisposition.ReuseOwned
                     || probe.Disposition == TaxonomyAssetTargetDisposition.ReviewExternalReuse)
                 {
-                    recorder.RecordAlreadySatisfied(actionId, "Fresh preflight approved reusable Term '" + plan.Name + "'.");
+                    recorder.RecordAlreadySatisfied(signatures[actionId], "Fresh preflight approved reusable Term '" + plan.Name + "'.");
                 }
                 else
                 {
                     changed = recorder.Execute(
-                        actionId,
+                        signatures[actionId],
                         "Ensure Term '" + plan.Name + "'.",
                         () => TaxonomyAssetCsomMaterializer.EnsureTerm(context, store, plan, probe),
                         value => value ? MutationOutcome.Applied : MutationOutcome.AlreadySatisfied,

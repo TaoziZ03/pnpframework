@@ -123,7 +123,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
             var groupKey = plan.Source == null
                 ? string.Empty
                 : TaxonomyAssetApprovalFactory.GroupKey(plan.Source.TenantId, plan.Source.TermStoreId);
-            if (!string.Equals(plan.SchemaVersion, "pnp-taxonomy-termset-plan/v1", StringComparison.Ordinal)
+            if (!string.Equals(plan.SchemaVersion, "pnp-taxonomy-termset-plan/v2", StringComparison.Ordinal)
                 || plan.Source == null
                 || plan.Source.TenantId == Guid.Empty
                 || plan.Source.TermStoreId == Guid.Empty
@@ -138,6 +138,9 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
                 || plan.Language <= 0
                 || !string.Equals(plan.OriginalIdentifierPropertyName, TaxonomyAssetIdentity.OriginalIdentifierPropertyName, StringComparison.Ordinal)
                 || !string.Equals(plan.OriginalIdentifier, TaxonomyAssetIdentity.TermSet(plan.Source), StringComparison.Ordinal)
+                || !string.Equals(plan.MappingDigestPropertyName, TaxonomyAssetIdentity.MappingDigestPropertyName, StringComparison.Ordinal)
+                || !IsSha256(plan.MappingDigest)
+                || !string.Equals(plan.MappingDigest, TaxonomyAssetIdentity.ComputeMappingDigest(plan), StringComparison.OrdinalIgnoreCase)
                 || !IsSha256(plan.SourceEvidenceSha256)
                 || !IsSha256(plan.PlanDigest)
                 || !string.Equals(plan.PlanDigest, TaxonomyAssetIdentity.ComputePlanDigest(plan), StringComparison.OrdinalIgnoreCase))
@@ -198,7 +201,7 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
             var setKey = plan.Source == null
                 ? string.Empty
                 : TaxonomyAssetApprovalFactory.SetKey(plan.Source.TermStoreId, plan.Source.TermSetId);
-            if (!string.Equals(plan.SchemaVersion, "pnp-taxonomy-term-plan/v2", StringComparison.Ordinal)
+            if (!string.Equals(plan.SchemaVersion, "pnp-taxonomy-term-plan/v3", StringComparison.Ordinal)
                 || plan.Source == null
                 || plan.Source.TenantId == Guid.Empty
                 || plan.Source.TermStoreId == Guid.Empty
@@ -212,6 +215,9 @@ namespace PnP.Framework.Migration.Taxonomy.Assets.Packaging
                 || plan.Language <= 0
                 || !string.Equals(plan.OriginalIdentifierPropertyName, TaxonomyAssetIdentity.OriginalIdentifierPropertyName, StringComparison.Ordinal)
                 || !string.Equals(plan.OriginalIdentifier, TaxonomyAssetIdentity.Term(plan.Source), StringComparison.Ordinal)
+                || !string.Equals(plan.MappingDigestPropertyName, TaxonomyAssetIdentity.MappingDigestPropertyName, StringComparison.Ordinal)
+                || !IsSha256(plan.MappingDigest)
+                || !string.Equals(plan.MappingDigest, TaxonomyAssetIdentity.ComputeMappingDigest(plan), StringComparison.OrdinalIgnoreCase)
                 || (plan.SourceReuseSourceTermId.HasValue && plan.SourceReuseSourceTermId.Value == Guid.Empty)
                 || (plan.SourcePinSourceTermSetId.HasValue && plan.SourcePinSourceTermSetId.Value == Guid.Empty)
                 || (plan.SourceTermSetIds ?? new List<Guid>()).Any(value => value == Guid.Empty)

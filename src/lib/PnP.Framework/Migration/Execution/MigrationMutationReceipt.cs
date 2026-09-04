@@ -20,5 +20,7 @@ namespace PnP.Framework.Migration.Execution
         public IList<string> ExchangeIds { get; set; } = new List<string>();
 
         public string Message { get; set; }
+
+        public string ActionSignature { get; set; }
     }
 }
