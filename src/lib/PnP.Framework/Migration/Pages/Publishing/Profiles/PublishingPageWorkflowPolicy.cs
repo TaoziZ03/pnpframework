@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 {
-    internal sealed class PublishingPageWorkflowPolicy
+    public sealed class PublishingPageWorkflowPolicy
     {
         public string WorkflowId { get; set; }
 
@@ -32,3 +32,4 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         }
     }
 }
+

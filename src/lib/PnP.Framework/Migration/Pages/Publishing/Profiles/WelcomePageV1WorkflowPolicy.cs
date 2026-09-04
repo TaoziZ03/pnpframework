@@ -3,12 +3,12 @@ using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 {
-    public static class EnterpriseWikiV1WorkflowPolicy
+    public static class WelcomePageV1WorkflowPolicy
     {
         public static readonly PublishingPageWorkflowPolicy Instance = new PublishingPageWorkflowPolicy
         {
-            WorkflowId = EnterpriseWikiV1CohortPolicy.CohortId,
-            PreferredTargetPageLayoutFileName = "EnterpriseWiki.aspx",
+            WorkflowId = WelcomePageV1CohortPolicy.CohortId,
+            PreferredTargetPageLayoutFileName = "BlankWebPartPage.aspx",
             FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "ContentTypeId",
@@ -19,17 +19,25 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             },
             RecognizedPageFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "ArticleByLine",
+                "SummaryLinks",
+                "SummaryLinks2",
                 "PublishingContact",
+                "PublishingContactName",
+                "PublishingContactEmail",
+                "PublishingContactPicture",
                 "PublishingPageDescription",
                 "PublishingPageImage",
                 "PublishingRollupImage",
+                "PublishingStartDate",
+                "PublishingExpirationDate",
                 "SeoBrowserTitle",
                 "SeoKeywords",
                 "SeoMetaDescription",
-                "Wiki_x0020_Page_x0020_Categories"
+                "SeoRobotsNoIndex",
+                "HeaderStyle",
+                "HidePhysicalUrlsFromSearch"
             },
-            AssessValidationCohort = EnterpriseWikiV1CohortPolicy.Assess
+            AssessValidationCohort = WelcomePageV1CohortPolicy.Assess
         };
     }
 }

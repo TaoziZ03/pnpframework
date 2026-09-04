@@ -27,6 +27,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             }
 
             if (!string.IsNullOrWhiteSpace(contentTypeId)
+                && contentTypeId.StartsWith(BuiltInContentTypeId.ArticlePage, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(Signal(
+                    PageProfileIds.ArticlePage,
+                    PageProfileSignalKind.ContentTypeLineage,
+                    contentTypeId,
+                    "The source Content Type descends from Article Page."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(contentTypeId)
+                && contentTypeId.StartsWith(BuiltInContentTypeId.WelcomePage, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(Signal(
+                    PageProfileIds.WelcomePage,
+                    PageProfileSignalKind.ContentTypeLineage,
+                    contentTypeId,
+                    "The source Content Type descends from Welcome Page."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(contentTypeId)
                 && contentTypeId.StartsWith(BuiltInContentTypeId.ProjectPage, StringComparison.OrdinalIgnoreCase))
             {
                 result.Add(Signal(
@@ -49,6 +69,30 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                     PageProfileSignalKind.Field,
                     "Wiki_x0020_Page_x0020_Categories",
                     "The Pages item exposes the Enterprise Wiki Category field."));
+            }
+
+            foreach (var articleField in new[] { "ArticleByLine", "ArticleStartDate", "PublishingPageImage" })
+            {
+                if (fieldNames.Contains(articleField))
+                {
+                    result.Add(Signal(
+                        PageProfileIds.ArticlePage,
+                        PageProfileSignalKind.Field,
+                        articleField,
+                        "The Pages item exposes an Article Page profile field."));
+                }
+            }
+
+            foreach (var welcomeField in new[] { "SummaryLinks", "SummaryLinks2", "HeaderStyle" })
+            {
+                if (fieldNames.Contains(welcomeField))
+                {
+                    result.Add(Signal(
+                        PageProfileIds.WelcomePage,
+                        PageProfileSignalKind.Field,
+                        welcomeField,
+                        "The Pages item exposes a Welcome Page profile field."));
+                }
             }
 
             foreach (var projectField in new[] { "TaskStatus", "WebPage", "PublishingContact" })
@@ -81,6 +125,29 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                     "The selected Page Layout is EnterpriseWiki.aspx."));
             }
 
+            if (string.Equals(fileName, "ArticleLeft.aspx", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fileName, "ArticleRight.aspx", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fileName, "ArticleLinks.aspx", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fileName, "PageFromDocPack.aspx", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(Signal(
+                    PageProfileIds.ArticlePage,
+                    PageProfileSignalKind.Layout,
+                    fileName,
+                    $"The selected Page Layout is {fileName}."));
+            }
+
+            if (string.Equals(fileName, "BlankWebPartPage.aspx", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fileName, "WelcomeSplash.aspx", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fileName, "WelcomeLinks.aspx", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(Signal(
+                    PageProfileIds.WelcomePage,
+                    PageProfileSignalKind.Layout,
+                    fileName,
+                    $"The selected Page Layout is {fileName}."));
+            }
+
             if (string.Equals(fileName, "ProjectPage.aspx", StringComparison.OrdinalIgnoreCase))
             {
                 result.Add(Signal(
@@ -107,3 +174,4 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         }
     }
 }
+
