@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Evidence;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Lists.Items.Protection
 {
@@ -24,6 +25,18 @@ namespace PnP.Framework.Migration.Lists.Items.Protection
         public string PromotionCtagVersion { get; set; }
 
         public string DecryptSkipReason { get; set; }
+
+        /// <summary>
+        /// True only when the explicit protected-capture reader observed the
+        /// corresponding source field. These optional facts let the classifier
+        /// distinguish proven absence from missing evidence without changing
+        /// legacy snapshot JSON when no protected-capture policy is selected.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool LabelFieldObserved { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool UserDefinedProtectionFieldObserved { get; set; }
 
         public EvidenceAvailability Availability { get; set; } = EvidenceAvailability.Captured;
 

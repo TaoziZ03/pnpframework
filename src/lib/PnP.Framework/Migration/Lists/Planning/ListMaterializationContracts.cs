@@ -64,6 +64,25 @@ namespace PnP.Framework.Migration.Lists.Planning
         public string Reason { get; set; }
     }
 
+    public sealed class ListDroppedLookupValueDependencyPlan
+    {
+        public int ConsumerSourceItemId { get; set; }
+
+        public string ConsumerFieldInternalName { get; set; }
+
+        public Guid LookupSourceWebId { get; set; }
+
+        public Guid LookupSourceListId { get; set; }
+
+        public int DroppedLookupSourceItemId { get; set; }
+
+        public DroppedLookupValueDisposition Disposition { get; set; }
+
+        public string PolicyId { get; set; }
+
+        public string Reason { get; set; }
+    }
+
     public enum ProtectedDocumentTargetAbsenceStatus
     {
         Absent = 1,
@@ -258,6 +277,9 @@ namespace PnP.Framework.Migration.Lists.Planning
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public IList<ListProtectedDocumentExclusionPlan> ApprovedProtectedDocumentExclusions { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<ListDroppedLookupValueDependencyPlan> DroppedLookupValueDependencies { get; set; }
+
         public IList<MigrationIssue> Issues { get; set; } = new List<MigrationIssue>();
 
         public ListTargetProbe TargetProbe { get; set; }
@@ -269,6 +291,9 @@ namespace PnP.Framework.Migration.Lists.Planning
             && SiteContentTypes.All(value => value.IsExecutable)
             && RequiredFeatures.All(value => value.IsExecutable)
             && ViewRenderingResources.All(value => value.IsExecutable)
+            && (DroppedLookupValueDependencies == null
+                || DroppedLookupValueDependencies.All(value =>
+                    value.Disposition != DroppedLookupValueDisposition.NeedsPolicyDecision))
             && (TargetProbe == null || TargetProbe.IsAdmitted);
     }
 

@@ -199,6 +199,9 @@ namespace PnP.Framework.Migration.Lists.Execution
                 ApprovedProtectedDocumentExclusions = plan.ApprovedProtectedDocumentExclusions == null
                     ? null
                     : plan.ApprovedProtectedDocumentExclusions.ToList(),
+                DroppedLookupValueDependencies = plan.DroppedLookupValueDependencies == null
+                    ? null
+                    : plan.DroppedLookupValueDependencies.ToList(),
                 Issues = new List<PnP.Framework.Migration.Diagnostics.MigrationIssue>(),
                 TargetProbe = null,
                 PlanDigest = plan.PlanDigest

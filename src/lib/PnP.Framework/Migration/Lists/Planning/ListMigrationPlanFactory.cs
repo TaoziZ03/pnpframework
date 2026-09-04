@@ -32,6 +32,23 @@ namespace PnP.Framework.Migration.Lists.Planning
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
             IEnumerable<ListTargetOverride> targetOverrides)
         {
+            return Create(
+                dependencies,
+                lookupDependencies,
+                topology,
+                taxonomyMappings,
+                targetOverrides,
+                null);
+        }
+
+        public static ListMigrationPlanSet Create(
+            IEnumerable<ListDependencySnapshot> dependencies,
+            IEnumerable<ListLookupDependency> lookupDependencies,
+            TopologyPlan topology,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
+            IEnumerable<ListTargetOverride> targetOverrides,
+            DroppedLookupValuePolicy droppedLookupValuePolicy)
+        {
             if (dependencies == null)
             {
                 throw new ArgumentNullException(nameof(dependencies));
@@ -40,6 +57,7 @@ namespace PnP.Framework.Migration.Lists.Planning
             {
                 throw new ArgumentNullException(nameof(topology));
             }
+            DroppedLookupValuePolicy.Validate(droppedLookupValuePolicy);
 
             var sources = dependencies.ToArray();
             var edges = (lookupDependencies ?? Enumerable.Empty<ListLookupDependency>()).ToArray();
@@ -67,6 +85,12 @@ namespace PnP.Framework.Migration.Lists.Planning
                 plans.Add(CreateListPlan(source, owner, topology, taxonomyMappings, targetOverride));
             }
 
+            ProjectDroppedLookupValueDependencies(sources, plans, droppedLookupValuePolicy);
+            foreach (var plan in plans)
+            {
+                plan.PlanDigest = ComputePlanDigest(plan);
+            }
+
             var result = new ListMigrationPlanSet
             {
                 OrderedSourceListIds = order.OrderedSourceListIds.ToList(),
@@ -75,6 +99,80 @@ namespace PnP.Framework.Migration.Lists.Planning
             };
             result.PlanDigest = ComputeSetDigest(result);
             return result;
+        }
+
+        private static void ProjectDroppedLookupValueDependencies(
+            IEnumerable<ListDependencySnapshot> sources,
+            IEnumerable<ListMaterializationPlan> plans,
+            DroppedLookupValuePolicy policy)
+        {
+            var sourceByList = sources
+                .Where(value => value != null)
+                .ToDictionary(value => value.SourceListId);
+            var planByList = plans
+                .Where(value => value != null)
+                .ToDictionary(value => value.SourceListId);
+            var excludedByList = planByList.ToDictionary(
+                value => value.Key,
+                value => new HashSet<int>((value.Value.ApprovedProtectedDocumentExclusions
+                    ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
+                    .Where(exclusion => exclusion != null)
+                    .Select(exclusion => exclusion.SourceItemId)));
+
+            foreach (var pair in sourceByList)
+            {
+                if (!planByList.TryGetValue(pair.Key, out var consumerPlan))
+                {
+                    continue;
+                }
+                var source = pair.Value;
+                var lookupFields = source.Fields
+                    .Where(value => value?.SourceLookupListId.HasValue == true)
+                    .GroupBy(value => value.InternalName, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+                var dependencies = new List<ListDroppedLookupValueDependencyPlan>();
+                foreach (var item in source.Items.Where(value => value != null))
+                {
+                    foreach (var value in item.Values.Where(value => value != null
+                                 && (value.Kind == ListItemValueKind.Lookup
+                                     || value.Kind == ListItemValueKind.LookupCollection)))
+                    {
+                        if (!lookupFields.TryGetValue(value.InternalName, out var field)
+                            || !sourceByList.TryGetValue(field.SourceLookupListId.Value, out var provider)
+                            || !excludedByList.TryGetValue(field.SourceLookupListId.Value, out var excludedProviderItems))
+                        {
+                            continue;
+                        }
+                        foreach (var droppedId in value.LookupValues
+                                     .Where(lookup => lookup != null && excludedProviderItems.Contains(lookup.LookupId))
+                                     .Select(lookup => lookup.LookupId)
+                                     .Distinct()
+                                     .OrderBy(lookupId => lookupId))
+                        {
+                            var disposition = policy?.Disposition
+                                ?? DroppedLookupValueDisposition.NeedsPolicyDecision;
+                            dependencies.Add(new ListDroppedLookupValueDependencyPlan
+                            {
+                                ConsumerSourceItemId = item.SourceItemId,
+                                ConsumerFieldInternalName = value.InternalName,
+                                LookupSourceWebId = provider.SourceWebId,
+                                LookupSourceListId = provider.SourceListId,
+                                DroppedLookupSourceItemId = droppedId,
+                                Disposition = disposition,
+                                PolicyId = policy?.PolicyId,
+                                Reason = disposition == DroppedLookupValueDisposition.ClearValue
+                                    ? "A reviewed policy clears the entire lookup field because one captured value references an intentionally excluded protected document-backed item."
+                                    : disposition == DroppedLookupValueDisposition.DropDependentItem
+                                        ? "A reviewed policy excludes the dependent item because its captured lookup value references an intentionally excluded protected document-backed item."
+                                        : "The lookup value references an intentionally excluded protected document-backed item; choose a reviewed clear-value or drop-dependent-item policy before this consumer can execute."
+                            });
+                        }
+                    }
+                }
+                consumerPlan.DroppedLookupValueDependencies = dependencies.Count == 0
+                    ? null
+                    : dependencies;
+            }
         }
 
         public static string ComputePlanDigest(ListMaterializationPlan plan)

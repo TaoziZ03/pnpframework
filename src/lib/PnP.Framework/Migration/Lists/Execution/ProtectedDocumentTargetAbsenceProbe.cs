@@ -43,7 +43,7 @@ namespace PnP.Framework.Migration.Lists.Execution
                 || exception is WebException
                 || exception is TimeoutException)
             {
-                var statusCode = HttpStatusCode(exception);
+                var statusCode = ExtractHttpStatusCode(exception);
                 var status = Classify(exception, statusCode);
                 return Result(exclusion, status, statusCode, exception.Message);
             }
@@ -68,6 +68,15 @@ namespace PnP.Framework.Migration.Lists.Execution
                 return ProtectedDocumentTargetAbsenceStatus.RetryableFailure;
             }
             return ProtectedDocumentTargetAbsenceStatus.Failed;
+        }
+
+        internal static ProtectedDocumentTargetAbsenceStatus ClassifyException(Exception exception)
+        {
+            if (exception == null)
+            {
+                throw new ArgumentNullException(nameof(exception));
+            }
+            return Classify(exception, ExtractHttpStatusCode(exception));
         }
 
         private static ProtectedDocumentTargetAbsenceStatus Classify(
@@ -129,13 +138,30 @@ namespace PnP.Framework.Migration.Lists.Execution
             return false;
         }
 
-        private static int? HttpStatusCode(Exception exception)
+        internal static int? ExtractHttpStatusCode(Exception exception)
         {
             for (var current = exception; current != null; current = current.InnerException)
             {
-                if (current is WebException web && web.Response is HttpWebResponse response)
+                if (!(current is WebException web) || web.Response == null)
+                {
+                    continue;
+                }
+                if (web.Response is HttpWebResponse response)
                 {
                     return (int)response.StatusCode;
+                }
+                // WebException.Response is typed as WebResponse. Supporting a
+                // StatusCode property keeps nested HTTP evidence testable while
+                // preserving the ordinary HttpWebResponse path in production.
+                var property = web.Response.GetType().GetProperty("StatusCode");
+                var value = property?.GetValue(web.Response);
+                if (value is HttpStatusCode status)
+                {
+                    return (int)status;
+                }
+                if (value is int numeric)
+                {
+                    return numeric;
                 }
             }
             return null;

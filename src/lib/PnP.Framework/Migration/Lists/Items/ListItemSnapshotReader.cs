@@ -66,7 +66,13 @@ namespace PnP.Framework.Migration.Lists.Items
                 foreach (var item in page)
                 {
                     var document = list.BaseType == BaseType.DocumentLibrary
-                        ? CaptureDocument(context, item, maximumBytes, artifactStore, protectedAssetPolicy)
+                        ? CaptureDocument(
+                            context,
+                            item,
+                            list.IrmEnabled,
+                            maximumBytes,
+                            artifactStore,
+                            protectedAssetPolicy)
                         : null;
                     var attachments = document?.CaptureDecision?.IsMetadataOnly == true
                         ? new List<ListAttachmentSnapshot>()
@@ -133,6 +139,7 @@ namespace PnP.Framework.Migration.Lists.Items
         private static ListDocumentSnapshot CaptureDocument(
             ClientContext context,
             ListItem item,
+            bool sourceListIrmEnabled,
             long maximumBytes,
             IMigrationArtifactStore artifactStore,
             ProtectedAssetCapturePolicy protectedAssetPolicy)
@@ -146,10 +153,9 @@ namespace PnP.Framework.Migration.Lists.Items
                     ServerRelativeUrl = item.Folder.ServerRelativeUrl
                 };
             }
-            var informationProtection = ListDocumentInformationProtectionSnapshotReader.Read(item.FieldValues);
-            ProtectedAssetCaptureDecision captureDecision;
-            var content = ProtectedAssetCaptureGate.Capture(
-                informationProtection,
+            var content = CaptureDocumentContent(
+                item.FieldValues,
+                sourceListIrmEnabled,
                 protectedAssetPolicy,
                 () => ListBinaryArtifactReader.Read(
                     context,
@@ -160,7 +166,8 @@ namespace PnP.Framework.Migration.Lists.Items
                     item.File.Name,
                     item.File.ServerRelativeUrl,
                     ReadArchiveStatus(item)),
-                out captureDecision);
+                out var informationProtection,
+                out var captureDecision);
             if (content?.RepresentationKind == ListBinaryRepresentationKind.InformationRightsManagedEnvelope)
             {
                 content.LogicalContentIdentity = ListBinaryContentIdentityReader.Read(item.FieldValues);
@@ -195,6 +202,30 @@ namespace PnP.Framework.Migration.Lists.Items
                 CaptureDecision = captureDecision,
                 Content = content
             };
+        }
+
+        /// <summary>
+        /// The single reader-path gate between captured protection metadata and
+        /// the binary reader. Tests exercise this method directly so a future
+        /// refactor cannot accidentally fetch bytes before the policy decision.
+        /// </summary>
+        internal static ListBinaryArtifactSnapshot CaptureDocumentContent(
+            IDictionary<string, object> fieldValues,
+            bool sourceListIrmEnabled,
+            ProtectedAssetCapturePolicy protectedAssetPolicy,
+            Func<ListBinaryArtifactSnapshot> binaryFetcher,
+            out ListDocumentInformationProtectionSnapshot informationProtection,
+            out ProtectedAssetCaptureDecision captureDecision)
+        {
+            informationProtection = ListDocumentInformationProtectionSnapshotReader.Read(
+                fieldValues,
+                protectedAssetPolicy != null);
+            return ProtectedAssetCaptureGate.Capture(
+                informationProtection,
+                sourceListIrmEnabled,
+                protectedAssetPolicy,
+                binaryFetcher,
+                out captureDecision);
         }
 
         private static bool HasAttachments(ListItem item)

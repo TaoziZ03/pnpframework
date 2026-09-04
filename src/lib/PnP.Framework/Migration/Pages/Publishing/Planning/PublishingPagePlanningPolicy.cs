@@ -32,6 +32,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             }
 
             PagePlanningTaxonomyMappingResolver.Normalize(options);
+            DroppedLookupValuePolicy.Validate(options.DroppedLookupValues);
         }
 
         public static void AddSnapshotDecisions(
@@ -111,7 +112,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                     SourceListId = value.SourceListId,
                     TargetTitle = value.TargetTitle,
                     TargetRootFolderServerRelativeUrl = value.TargetRootFolderServerRelativeUrl
-                }).ToList()
+                }).ToList(),
+                DroppedLookupValues = options.DroppedLookupValues == null
+                    ? null
+                    : new DroppedLookupValuePolicy
+                    {
+                        SchemaVersion = options.DroppedLookupValues.SchemaVersion,
+                        PolicyId = options.DroppedLookupValues.PolicyId,
+                        Disposition = options.DroppedLookupValues.Disposition
+                    }
             };
         }
     }

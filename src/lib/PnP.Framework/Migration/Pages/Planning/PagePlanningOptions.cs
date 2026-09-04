@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Taxonomy.Assets;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Planning
 {
@@ -25,5 +26,13 @@ namespace PnP.Framework.Migration.Pages.Planning
         public TopologyPlanningPolicy TopologyPolicy { get; set; } = new TopologyPlanningPolicy();
 
         public IList<ListTargetOverride> ListTargetOverrides { get; set; } = new List<ListTargetOverride>();
+
+        /// <summary>
+        /// Optional reviewed handling for lookup values that reference source
+        /// items excluded by an approved protected-document capture decision.
+        /// Null leaves only the affected consumer items pending a policy decision.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public DroppedLookupValuePolicy DroppedLookupValues { get; set; }
     }
 }

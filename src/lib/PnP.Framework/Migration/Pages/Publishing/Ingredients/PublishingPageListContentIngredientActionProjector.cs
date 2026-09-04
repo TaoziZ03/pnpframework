@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Ingredients;
 using System;
@@ -24,18 +25,22 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 var exclusion = (listPlan.ApprovedProtectedDocumentExclusions
                         ?? Array.Empty<ListProtectedDocumentExclusionPlan>())
                     .SingleOrDefault(value => value.SourceItemId == item.SourceItemId);
-                AddItem(source, listPlan, item, fieldPlans, listBlocked, actions, transactionDependencyProjection, exclusion);
+                var droppedLookupDependencies = (listPlan.DroppedLookupValueDependencies
+                        ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+                    .Where(value => value.ConsumerSourceItemId == item.SourceItemId)
+                    .ToArray();
+                AddItem(source, listPlan, item, fieldPlans, listBlocked, actions, transactionDependencyProjection, exclusion, droppedLookupDependencies);
                 if (item.Document != null)
                 {
-                    AddDocument(source, listPlan, item, listBlocked, actions, transactionDependencyProjection, exclusion);
-                    if (item.Document.InformationProtection != null)
+                    AddDocument(source, listPlan, item, listBlocked, actions, transactionDependencyProjection, exclusion, droppedLookupDependencies);
+                    if (ProtectedAssetCaptureGate.HasItemProtection(item.Document.InformationProtection))
                     {
-                        AddInformationProtection(source, item, actions, exclusion);
+                        AddInformationProtection(source, item, actions, exclusion, droppedLookupDependencies);
                     }
                 }
                 foreach (var attachment in item.Attachments.Where(value => value != null))
                 {
-                    AddAttachment(source, listPlan, item, attachment, listBlocked, actions, transactionDependencyProjection, exclusion);
+                    AddAttachment(source, listPlan, item, attachment, listBlocked, actions, transactionDependencyProjection, exclusion, droppedLookupDependencies);
                 }
             }
         }
@@ -48,7 +53,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             bool listBlocked,
             IDictionary<string, PageIngredientAction> actions,
             bool transactionDependencyProjection,
-            ListProtectedDocumentExclusionPlan exclusion)
+            ListProtectedDocumentExclusionPlan exclusion,
+            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
         {
             if (exclusion != null)
             {
@@ -58,22 +64,39 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     "document-backed List item"));
                 return;
             }
+            var lookupAction = LookupConsumerAction(
+                PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                droppedLookupDependencies,
+                "dependent List item");
+            if (lookupAction != null
+                && lookupAction.Disposition != IngredientDisposition.Transform)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, lookupAction);
+                return;
+            }
             var mapping = MapItem(item, fieldPlans, listBlocked, transactionDependencyProjection);
             var targetIdentity = listPlan.TargetRootFolderServerRelativeUrl + "#source-item:" + item.SourceItemId;
-            PublishingPageIngredientActionFactory.Add(actions, PublishingPageIngredientActionFactory.Create(
+            var action = PublishingPageIngredientActionFactory.Create(
                 PublishingPageIngredientIds.ListItem(source.SourceWebId, source.SourceListId, item.SourceItemId),
                 mapping.Capability,
-                mapping.Disposition,
-                mapping.Realization,
-                "policy.list-item.current-state",
-                mapping.Reason,
+                lookupAction?.Disposition ?? mapping.Disposition,
+                lookupAction?.Realization ?? mapping.Realization,
+                lookupAction?.PolicyId ?? "policy.list-item.current-state",
+                lookupAction?.Reason ?? mapping.Reason,
                 mapping.Disposition == IngredientDisposition.Block ? null : targetIdentity,
                 mapping.Disposition == IngredientDisposition.Block
                     ? null
                     : $"The List receipt contains a source-to-target item ID mapping for source item '{item.SourceItemId}'.",
                 mapping.Disposition == IngredientDisposition.Block
                     ? null
-                    : "Fresh readback verifies every approved value and the item provenance digest."));
+                    : lookupAction == null
+                        ? "Fresh readback verifies every approved value and the item provenance digest."
+                        : "Fresh readback verifies the cleared lookup field, every other approved value, and the item provenance digest.");
+            if (lookupAction != null)
+            {
+                action.ReleasedDependencyIngredientIds = lookupAction.ReleasedDependencyIngredientIds;
+            }
+            PublishingPageIngredientActionFactory.Add(actions, action);
         }
 
         private static void AddDocument(
@@ -83,7 +106,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             bool listBlocked,
             IDictionary<string, PageIngredientAction> actions,
             bool transactionDependencyProjection,
-            ListProtectedDocumentExclusionPlan exclusion)
+            ListProtectedDocumentExclusionPlan exclusion,
+            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
         {
             var document = item.Document;
             if (exclusion != null)
@@ -92,6 +116,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     PublishingPageIngredientIds.ListDocument(source.SourceWebId, source.SourceListId, item.SourceItemId),
                     exclusion,
                     "protected document payload"));
+                return;
+            }
+            var lookupAction = LookupConsumerAction(
+                PublishingPageIngredientIds.ListDocument(source.SourceWebId, source.SourceListId, item.SourceItemId),
+                droppedLookupDependencies,
+                "document owned by the lookup-dependent item");
+            if (lookupAction != null && lookupAction.Disposition != IngredientDisposition.Transform)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, lookupAction);
                 return;
             }
             var binaryUnavailable = document.Kind == ListDocumentObjectKind.File
@@ -140,7 +173,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             ListDependencySnapshot source,
             ListItemSnapshot item,
             IDictionary<string, PageIngredientAction> actions,
-            ListProtectedDocumentExclusionPlan exclusion)
+            ListProtectedDocumentExclusionPlan exclusion,
+            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
         {
             var informationProtection = item.Document.InformationProtection;
             if (exclusion != null)
@@ -152,6 +186,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                         item.SourceItemId),
                     exclusion,
                     "target Information Protection relationship"));
+                return;
+            }
+            var lookupAction = LookupConsumerAction(
+                PublishingPageIngredientIds.ListDocumentInformationProtection(
+                    source.SourceWebId,
+                    source.SourceListId,
+                    item.SourceItemId),
+                droppedLookupDependencies,
+                "Information Protection relationship owned by the lookup-dependent item");
+            if (lookupAction != null && lookupAction.Disposition != IngredientDisposition.Transform)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, lookupAction);
                 return;
             }
             var libraryIrmState = source.InformationRightsManagement == null
@@ -181,7 +227,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             bool listBlocked,
             IDictionary<string, PageIngredientAction> actions,
             bool transactionDependencyProjection,
-            ListProtectedDocumentExclusionPlan exclusion)
+            ListProtectedDocumentExclusionPlan exclusion,
+            IList<ListDroppedLookupValueDependencyPlan> droppedLookupDependencies)
         {
             if (exclusion != null)
             {
@@ -193,6 +240,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                         attachment.FileName),
                     exclusion,
                     "attachment owned by the excluded document-backed item"));
+                return;
+            }
+            var lookupAction = LookupConsumerAction(
+                PublishingPageIngredientIds.ListAttachment(
+                    source.SourceWebId,
+                    source.SourceListId,
+                    item.SourceItemId,
+                    attachment.FileName),
+                droppedLookupDependencies,
+                "attachment owned by the lookup-dependent item");
+            if (lookupAction != null && lookupAction.Disposition != IngredientDisposition.Transform)
+            {
+                PublishingPageIngredientActionFactory.Add(actions, lookupAction);
                 return;
             }
             var blocked = (!transactionDependencyProjection && listBlocked)
@@ -240,6 +300,57 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 null,
                 "No target mutation is performed for this approved protected-asset exclusion.",
                 "Fresh target readback requires the excluded document path to remain absent.");
+        }
+
+        private static PageIngredientAction LookupConsumerAction(
+            string ingredientId,
+            IEnumerable<ListDroppedLookupValueDependencyPlan> dependencies,
+            string subject)
+        {
+            var values = (dependencies ?? Array.Empty<ListDroppedLookupValueDependencyPlan>())
+                .Where(value => value != null)
+                .ToArray();
+            if (values.Length == 0)
+            {
+                return null;
+            }
+
+            var unresolved = values.Any(value =>
+                value.Disposition == DroppedLookupValueDisposition.NeedsPolicyDecision);
+            var drop = !unresolved && values.Any(value =>
+                value.Disposition == DroppedLookupValueDisposition.DropDependentItem);
+            var disposition = unresolved
+                ? IngredientDisposition.Defer
+                : drop ? IngredientDisposition.Drop : IngredientDisposition.Transform;
+            var policyIds = values.Select(value => value.PolicyId)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var action = PublishingPageIngredientActionFactory.Create(
+                ingredientId,
+                unresolved ? IngredientCapability.Unknown : IngredientCapability.Available,
+                disposition,
+                unresolved
+                    ? "select-dropped-lookup-value-policy"
+                    : drop ? "exclude-lookup-dependent-item" : "clear-lookup-value-with-excluded-provider",
+                policyIds.Length == 1 ? policyIds[0] : "policy.list-item.lookup-provider-excluded",
+                unresolved
+                    ? "The " + subject + " references an intentionally excluded protected document-backed item and requires an explicit clear-value or drop-dependent-item policy before execution."
+                    : drop
+                        ? "The reviewed dropped-lookup-value policy excludes the " + subject + " because its captured value depends on an intentionally excluded protected document-backed item."
+                        : "The reviewed dropped-lookup-value policy keeps the " + subject + " but clears each lookup field that references an intentionally excluded protected document-backed item.");
+            if (disposition == IngredientDisposition.Transform)
+            {
+                action.ReleasedDependencyIngredientIds = values
+                    .Select(value => PublishingPageIngredientIds.ListItem(
+                        value.LookupSourceWebId,
+                        value.LookupSourceListId,
+                        value.DroppedLookupSourceItemId))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(value => value, StringComparer.Ordinal)
+                    .ToList();
+            }
+            return action;
         }
 
         private static (IngredientCapability Capability, IngredientDisposition Disposition, string Realization, string Reason) MapItem(
