@@ -95,7 +95,7 @@ Before each mutating category, the importer writes `MigrationMutationIntent`:
 | `operationId` | Import attempt identity. |
 | `planDigest` | Approved plan being executed. |
 | `actionId` | Stable step/category identity within the operation. |
-| `actionSignature` | Optional digest identity of one executable action node. Legacy unsigned entries remain readable but cannot satisfy signed resume admission. |
+| `actionSignature` | Optional digest identity of one executable action node. Legacy entries with `actionSignature = null` remain readable but cannot satisfy digest-sealed resume admission. |
 | `sequence` | Ordered mutation sequence. |
 | `writtenAtUtc` | Time intent was recorded. |
 | `description` | Human-readable intended mutation. |
@@ -105,7 +105,7 @@ After the operation returns or is proven already satisfied, the importer writes 
 | Field | Meaning |
 | --- | --- |
 | `operationId`, `planDigest`, `actionId`, `sequence` | Correlate with the intent. |
-| `actionSignature` | Matches the signed intent or signed already-satisfied action. |
+| `actionSignature` | Matches the digest-sealed intent or digest-sealed already-satisfied action. |
 | `completedAtUtc` | Completion time. |
 | `outcome` | `Applied`, `AlreadySatisfied`, or `Failed`. |
 | `exchangeIds` | Contract slot for runtime identities made available to later steps. |
@@ -119,9 +119,9 @@ The current recorder leaves `exchangeIds` empty; concrete runtime identity maps 
 
 The durable extension accepts only typed fresh-verification receipts and content-addressed references to allowlisted receipt, mapping, verification, or comparison artifacts. It does not embed page packages, arbitrary JSON, or binary payloads. If a process stops midway through the last line, the reader preserves the complete earlier records and returns a digest of the interrupted tail. A later writer starts a numbered continuation segment chained from the last valid record; it never truncates the interrupted bytes.
 
-`MigrationActionSignature` is the retry identity. It binds one action's source evidence, reviewed selection, target identity, expected semantic state, and direct dependency signatures. It is intentionally narrower than `planDigest`, so multiple historical signatures for one action ID may coexist. Legacy unsigned records remain readable history but provide no authority for a signed action.
+`MigrationActionSignature` is the retry identity. It binds one action's source evidence, reviewed selection, target identity, expected semantic state, and direct dependency signatures. Source evidence and selection always have SHA-256 values; an absent input maps to the explicit versioned empty-evidence or empty-selection digest rather than `null`. It is intentionally narrower than `planDigest`, so multiple historical signatures for one action ID may coexist. Legacy records with `actionSignature = null` remain readable history but provide no authority for a digest-sealed action. These hashes provide integrity/corruption detection within the local trust boundary; they are not signatures, MACs, or cryptographic authentication of the writer.
 
-`MigrationResumeCoordinator` is read-only admission support, not a replay engine. It always invokes a fresh target probe. A journal entry alone never proves success and never authorizes mutation. Exact current-signature history plus an exact fresh identity/semantic/ownership/provenance probe may yield `AlreadySatisfied`; absent state remains pending normal admission, drift or foreign ownership requires replan/reapproval, and an unavailable probe stops resume. There is no page-wide checkpoint projector, distributed writer coordination, exactly-once claim, or blind replay in this layer.
+`MigrationResumeCoordinator` is read-only admission support, not a replay engine. Its public boundary accepts a journal path or stream and performs the strict read internally; callers cannot supply a mutable, unvalidated read-result object. It always invokes a fresh target probe after journal validation. A journal entry alone never proves success and never authorizes mutation. Exact current-signature history plus an exact fresh identity/semantic/ownership/provenance probe may yield `AlreadySatisfied`; absent state remains pending normal admission, drift or foreign ownership requires replan/reapproval, and an unavailable probe stops resume. There is no page-wide checkpoint projector, distributed writer coordination, exactly-once claim, or blind replay in this layer.
 
 ## Dependency-ordered execution
 

@@ -6,21 +6,41 @@ using System.Linq;
 namespace PnP.Framework.Migration.Execution.Resume
 {
     /// <summary>
-    /// Uses a validated local journal only as prior-attempt evidence. Every call
-    /// performs a fresh target probe. It never invokes mutation and never treats
-    /// a journal record as target truth.
+    /// Strictly reads a local journal and uses its digest-sealed records only as
+    /// prior-attempt evidence. The digest seals detect accidental corruption and
+    /// tampering but are not cryptographic authentication. Every call performs a
+    /// fresh target probe, never invokes mutation, and never treats a journal
+    /// record as target truth.
     /// </summary>
     public static class MigrationResumeCoordinator
     {
         public static MigrationResumeDecision Evaluate(
+            string journalPath,
+            MigrationResumeRequest request,
+            Func<MigrationFreshProbeResult> freshProbe)
+        {
+            return EvaluateValidated(
+                MigrationExecutionJournalReader.Read(journalPath),
+                request,
+                freshProbe);
+        }
+
+        public static MigrationResumeDecision Evaluate(
+            Stream journalStream,
+            MigrationResumeRequest request,
+            Func<MigrationFreshProbeResult> freshProbe)
+        {
+            return EvaluateValidated(
+                MigrationExecutionJournalReader.Read(journalStream),
+                request,
+                freshProbe);
+        }
+
+        private static MigrationResumeDecision EvaluateValidated(
             MigrationExecutionJournalReadResult journal,
             MigrationResumeRequest request,
             Func<MigrationFreshProbeResult> freshProbe)
         {
-            if (journal == null)
-            {
-                throw new ArgumentNullException(nameof(journal));
-            }
             if (request?.Action == null)
             {
                 throw new ArgumentNullException(nameof(request));
@@ -83,7 +103,7 @@ namespace PnP.Framework.Migration.Execution.Resume
                 if (prior.Length > 0)
                 {
                     return Decision(MigrationResumeDisposition.AlreadySatisfied, true, signature, probe,
-                        "Prior signed attempt evidence plus fresh target inspection prove the action is already satisfied.");
+                        "Prior digest-sealed attempt evidence plus fresh target inspection prove the action is already satisfied.");
                 }
                 return Decision(MigrationResumeDisposition.Pending, false, signature, probe,
                     "The target is exact, but no prior record carries this action signature; normal admission must decide reuse.");
@@ -106,7 +126,7 @@ namespace PnP.Framework.Migration.Execution.Resume
             {
                 Disposition = disposition,
                 FreshProbePerformed = true,
-                PriorSignedEvidenceFound = prior,
+                PriorSealedEvidenceFound = prior,
                 ActionSignature = signature,
                 Probe = probe,
                 Diagnostic = diagnostic

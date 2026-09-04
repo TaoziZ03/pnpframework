@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace PnP.Framework.Test.EnterpriseWiki
 {
@@ -54,6 +55,32 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreNotEqual(action.Signature, downstreamChanged.Signature);
             Assert.AreNotEqual(action.Signature, selectionChanged.Signature);
             Assert.AreEqual(dependency.Signature, Signature("dependency", '1').Signature);
+        }
+
+        [TestMethod]
+        public void ActionSignatureUsesVersionedEmptyDigestsAndRejectsNullContractFields()
+        {
+            var empty = MigrationActionSignature.Create(
+                "empty",
+                "Test.Action",
+                null,
+                null,
+                "urn:target:empty",
+                Hex('a'));
+
+            Assert.AreEqual(MigrationActionSignature.EmptySourceEvidenceDigest, empty.SourceEvidenceDigest);
+            Assert.AreEqual(MigrationActionSignature.EmptySelectionReceiptDigest, empty.SelectionReceiptDigest);
+            Assert.AreEqual(64, empty.SourceEvidenceDigest.Length);
+            Assert.AreEqual(64, empty.SelectionReceiptDigest.Length);
+
+            empty.SourceEvidenceDigest = null;
+            empty.Signature = MigrationActionSignature.ComputeSignature(empty);
+            Assert.ThrowsException<InvalidDataException>(() => MigrationActionSignature.Validate(empty));
+
+            var missingSelection = Signature("missing-selection", 'b');
+            missingSelection.SelectionReceiptDigest = null;
+            missingSelection.Signature = MigrationActionSignature.ComputeSignature(missingSelection);
+            Assert.ThrowsException<InvalidDataException>(() => MigrationActionSignature.Validate(missingSelection));
         }
 
         [TestMethod]
@@ -121,6 +148,29 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void ExtensionlessInterruptedTailDiscoversContinuationSegment()
+        {
+            var path = JournalPath("journal");
+            using (var journal = new JsonLinesMigrationExecutionJournal(path))
+            {
+                journal.WriteExecutionState(State(Guid.NewGuid()));
+            }
+            File.AppendAllText(path, "{\"partial\":");
+            var signature = Signature("extensionless-action", 'c');
+            using (var recovered = new JsonLinesMigrationExecutionJournal(path))
+            {
+                Assert.AreEqual(path + ".segment-000001", recovered.ActiveSegmentPath);
+                recovered.WriteIntent(Intent(Guid.NewGuid(), signature, 0));
+            }
+
+            var read = MigrationExecutionJournalReader.Read(path);
+
+            Assert.AreEqual(2, read.Records.Count);
+            Assert.AreEqual(1, read.InterruptedTails.Count);
+            Assert.AreEqual(read.Records[0].RecordDigest, read.Records[1].PreviousRecordDigest);
+        }
+
+        [TestMethod]
         public void ReaderRejectsDigestTamperingAndSecondWriter()
         {
             var path = JournalPath();
@@ -173,6 +223,26 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void LegacyJournalRequiresNullRatherThanBlankActionSignature()
+        {
+            var path = JournalPath();
+            var intent = new MigrationMutationIntent
+            {
+                OperationId = Guid.NewGuid(),
+                PlanDigest = PlanDigest,
+                ActionId = "legacy",
+                ActionSignature = string.Empty,
+                Sequence = 0,
+                WrittenAtUtc = DateTimeOffset.UtcNow,
+                Description = "invalid blank legacy signature"
+            };
+            using (var journal = new JsonLinesMigrationExecutionJournal(path))
+            {
+                Assert.ThrowsException<InvalidDataException>(() => journal.WriteIntent(intent));
+            }
+        }
+
+        [TestMethod]
         public void ResumeAlwaysFreshProbesAndNeverUsesOldSignatureAsAuthority()
         {
             var path = JournalPath();
@@ -188,7 +258,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     ActionId = "action",
                     Sequence = 0,
                     WrittenAtUtc = DateTimeOffset.UtcNow,
-                    Description = "legacy unsigned intent"
+                    Description = "legacy null-signature intent"
                 });
                 journal.WriteReceipt(new MigrationMutationReceipt
                 {
@@ -198,7 +268,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     Sequence = 0,
                     CompletedAtUtc = DateTimeOffset.UtcNow,
                     Outcome = MutationOutcome.Applied,
-                    Message = "legacy unsigned receipt"
+                    Message = "legacy null-signature receipt"
                 });
                 journal.WriteIntent(Intent(Guid.NewGuid(), oldSignature, 0));
                 journal.WriteIntent(Intent(Guid.NewGuid(), currentSignature, 0));
@@ -206,7 +276,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var calls = 0;
 
             var decision = MigrationResumeCoordinator.Evaluate(
-                MigrationExecutionJournalReader.Read(path),
+                path,
                 Request(currentSignature),
                 () =>
                 {
@@ -216,15 +286,15 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             Assert.AreEqual(1, calls);
             Assert.AreEqual(MigrationResumeDisposition.AlreadySatisfied, decision.Disposition);
-            Assert.IsTrue(decision.PriorSignedEvidenceFound);
+            Assert.IsTrue(decision.PriorSealedEvidenceFound);
 
             var unseen = Signature("unseen", '8');
             var noPrior = MigrationResumeCoordinator.Evaluate(
-                MigrationExecutionJournalReader.Read(path),
+                path,
                 Request(unseen),
                 () => ExactProbe(unseen));
             Assert.AreEqual(MigrationResumeDisposition.Pending, noPrior.Disposition);
-            Assert.IsFalse(noPrior.PriorSignedEvidenceFound);
+            Assert.IsFalse(noPrior.PriorSealedEvidenceFound);
         }
 
         [TestMethod]
@@ -236,26 +306,73 @@ namespace PnP.Framework.Test.EnterpriseWiki
             {
                 journal.WriteIntent(Intent(Guid.NewGuid(), signature, 0));
             }
-            var read = MigrationExecutionJournalReader.Read(path);
-
             Assert.AreEqual(
                 MigrationResumeDisposition.Pending,
-                MigrationResumeCoordinator.Evaluate(read, Request(signature), () => new MigrationFreshProbeResult
+                MigrationResumeCoordinator.Evaluate(path, Request(signature), () => new MigrationFreshProbeResult
                 {
                     State = MigrationFreshProbeState.Absent
                 }).Disposition);
             Assert.AreEqual(
                 MigrationResumeDisposition.ReplanAndReapprove,
-                MigrationResumeCoordinator.Evaluate(read, Request(signature), () => new MigrationFreshProbeResult
+                MigrationResumeCoordinator.Evaluate(path, Request(signature), () => new MigrationFreshProbeResult
                 {
                     State = MigrationFreshProbeState.Drifted
                 }).Disposition);
             Assert.AreEqual(
                 MigrationResumeDisposition.TargetProbeUnavailable,
-                MigrationResumeCoordinator.Evaluate(read, Request(signature), () => new MigrationFreshProbeResult
+                MigrationResumeCoordinator.Evaluate(path, Request(signature), () => new MigrationFreshProbeResult
                 {
                     State = MigrationFreshProbeState.Unavailable
                 }).Disposition);
+        }
+
+        [TestMethod]
+        public void ResumeRejectsMutatedJournalBeforeFreshProbe()
+        {
+            var path = JournalPath();
+            var signature = Signature("action", 'd');
+            using (var journal = new JsonLinesMigrationExecutionJournal(path))
+            {
+                journal.WriteIntent(Intent(Guid.NewGuid(), signature, 0));
+            }
+            File.WriteAllText(
+                path,
+                File.ReadAllText(path).Replace("\"description\":\"intent\"", "\"description\":\"mutated\""));
+            var calls = 0;
+
+            Assert.ThrowsException<InvalidDataException>(() => MigrationResumeCoordinator.Evaluate(
+                path,
+                Request(signature),
+                () =>
+                {
+                    calls++;
+                    return ExactProbe(signature);
+                }));
+            Assert.AreEqual(0, calls);
+        }
+
+        [TestMethod]
+        public void ResumeRejectsForgedStreamAndHasNoUnvalidatedResultOverload()
+        {
+            var signature = Signature("action", 'e');
+            var calls = 0;
+            using (var forged = new MemoryStream(Encoding.UTF8.GetBytes("{}\n")))
+            {
+                Assert.ThrowsException<InvalidDataException>(() => MigrationResumeCoordinator.Evaluate(
+                    forged,
+                    Request(signature),
+                    () =>
+                    {
+                        calls++;
+                        return ExactProbe(signature);
+                    }));
+            }
+
+            Assert.AreEqual(0, calls);
+            Assert.IsFalse(typeof(MigrationResumeCoordinator)
+                .GetMethods()
+                .Any(method => method.GetParameters().Any(parameter =>
+                    parameter.ParameterType == typeof(MigrationExecutionJournalReadResult))));
         }
 
         [TestMethod]
@@ -386,12 +503,12 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsFalse(request.RequiredTermIds.Contains(danglingTermId));
         }
 
-        private string JournalPath()
+        private string JournalPath(string fileName = "journal.jsonl")
         {
             var directory = Path.Combine(Path.GetTempPath(), "pnp-action-journal-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             temporaryDirectories.Add(directory);
-            return Path.Combine(directory, "journal.jsonl");
+            return Path.Combine(directory, fileName);
         }
 
         private static MigrationActionSignature Signature(string actionId, char semantic, params string[] dependencies)
