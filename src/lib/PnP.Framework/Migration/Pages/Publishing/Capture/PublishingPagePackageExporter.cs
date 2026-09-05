@@ -44,11 +44,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
             }
 
             ValidateOptions(options);
-            var sourceWeb = sourceContext.Web;
-            sourceContext.Load(sourceWeb, web => web.Url, web => web.ServerRelativeUrl, web => web.Title);
-            sourceContext.ExecuteQueryRetry();
-
-            var sourcePagePath = PagePath.Normalize(sourceWeb.ServerRelativeUrl, options.SourcePageServerRelativeUrl, "Pages");
+            var sourcePagePath = PagePath.Normalize(
+                GetContextWebServerRelativeUrl(sourceContext.Url),
+                options.SourcePageServerRelativeUrl,
+                "Pages");
             var blockers = new List<string>();
             var warnings = new List<string>();
             var sourceCapture = PublishingPageCaptureReader.Read(
@@ -191,6 +190,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 Snapshot = snapshot,
                 SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot)
             };
+        }
+
+        internal static string GetContextWebServerRelativeUrl(string contextUrl)
+        {
+            if (!Uri.TryCreate(contextUrl, UriKind.Absolute, out var absolute)
+                || absolute.Scheme != Uri.UriSchemeHttp && absolute.Scheme != Uri.UriSchemeHttps)
+            {
+                throw new ArgumentException("A canonical HTTP(S) ClientContext URL is required.", nameof(contextUrl));
+            }
+
+            var path = Uri.UnescapeDataString(absolute.AbsolutePath).TrimEnd('/');
+            return path.Length == 0 ? "/" : path;
         }
 
         private static void ValidateOptions(PageCaptureOptions options)

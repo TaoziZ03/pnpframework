@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.ContentTypes;
 using PnP.Framework.Migration.Lists.Items;
 using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
@@ -170,10 +171,16 @@ namespace PnP.Framework.Migration.Lists.Packaging
             {
                 throw new InvalidDataException("List '" + dependency.Title + "' contains a missing or duplicate List content type ID '" + duplicateListContentType.Key + "'.");
             }
+            if (dependency.ContentTypes.Any(value => value.Availability.HasValue
+                && !Enum.IsDefined(typeof(EvidenceAvailability), value.Availability.Value)))
+            {
+                throw new InvalidDataException("List '" + dependency.Title + "' contains an invalid List content type evidence availability value.");
+            }
             var incompleteListContentType = dependency.ContentTypes.FirstOrDefault(value =>
                 string.IsNullOrWhiteSpace(value.Name)
-                || string.IsNullOrWhiteSpace(value.ParentId)
-                || value.FieldLinks == null);
+                || value.FieldLinks == null
+                || (ListContentTypeEvidence.IsCaptured(value)
+                    && string.IsNullOrWhiteSpace(value.ParentId)));
             if (incompleteListContentType != null)
             {
                 throw new InvalidDataException("List content type '" + incompleteListContentType.Id + "' in List '" + dependency.Title + "' is missing its name, parent ID, or field-link collection.");
@@ -201,7 +208,8 @@ namespace PnP.Framework.Migration.Lists.Packaging
             }
             foreach (var contentType in dependency.ContentTypes)
             {
-                if (!string.IsNullOrWhiteSpace(contentType.ParentId)
+                if (ListContentTypeEvidence.IsCaptured(contentType)
+                    && !string.IsNullOrWhiteSpace(contentType.ParentId)
                     && !ContentTypeRuntimeCatalog.IsTargetRuntime(contentType.ParentId)
                     && !capturedSiteContentTypeIds.Contains(contentType.ParentId))
                 {
@@ -210,7 +218,8 @@ namespace PnP.Framework.Migration.Lists.Packaging
             }
             foreach (var contentType in dependency.SiteContentTypes)
             {
-                if (!ContentTypeRuntimeCatalog.IsTargetRuntime(contentType.ParentContentTypeId)
+                if (!string.IsNullOrWhiteSpace(contentType.ParentContentTypeId)
+                    && !ContentTypeRuntimeCatalog.IsTargetRuntime(contentType.ParentContentTypeId)
                     && !capturedSiteContentTypeIds.Contains(contentType.ParentContentTypeId))
                 {
                     throw new InvalidDataException("Site content type '" + contentType.ContentTypeId + "' has an uncaptured custom parent.");

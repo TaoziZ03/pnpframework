@@ -1,7 +1,9 @@
 using Microsoft.SharePoint.Client;
+using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Planning;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace PnP.Framework.Migration.Lists.Execution
@@ -10,6 +12,16 @@ namespace PnP.Framework.Migration.Lists.Execution
     {
         public static IDictionary<Guid, Guid> Ensure(ClientContext context, List list, ListMaterializationPlan plan)
         {
+            var executableViews = plan.Views.Where(value =>
+                    value.Disposition == ListViewMaterializationDisposition.CreateOrReuseOwnedPublicView
+                    || value.Disposition == ListViewMaterializationDisposition.CreateOrReuseWebPartView)
+                .ToArray();
+            if (executableViews.Any(value => value.Source == null
+                || value.Source.Availability != EvidenceAvailability.Captured))
+            {
+                throw new InvalidDataException(
+                    "List View materialization requires completely captured View schema evidence.");
+            }
             context.Load(list.Views, values => values.Include(
                 value => value.Id,
                 value => value.Title,
@@ -33,8 +45,7 @@ namespace PnP.Framework.Migration.Lists.Execution
                     value => value.ToList(),
                     StringComparer.Ordinal);
             var result = new Dictionary<Guid, Guid>();
-            foreach (var viewPlan in plan.Views.Where(value => value.Disposition == ListViewMaterializationDisposition.CreateOrReuseOwnedPublicView
-                || value.Disposition == ListViewMaterializationDisposition.CreateOrReuseWebPartView)
+            foreach (var viewPlan in executableViews
                 .OrderByDescending(value => value.Source.DefaultView)
                 .ThenBy(value => value.Source.Title, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(value => value.SourceViewId))

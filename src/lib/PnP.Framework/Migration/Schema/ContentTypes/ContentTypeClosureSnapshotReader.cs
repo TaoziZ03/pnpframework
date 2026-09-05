@@ -1,21 +1,57 @@
 using Microsoft.SharePoint.Client;
+using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.ContentTypes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 
 namespace PnP.Framework.Migration.Schema.ContentTypes
 {
     internal static class ContentTypeClosureSnapshotReader
     {
+        private const int MaximumMemberCaptureAttempts = 3;
+
         public static IList<ContentTypeSchemaSnapshot> Read(
             ClientContext context,
             Web sourceWeb,
             IEnumerable<ListContentTypeSnapshot> listContentTypes,
             ICollection<string> diagnostics)
         {
-            var pending = new Queue<string>((listContentTypes ?? Enumerable.Empty<ListContentTypeSnapshot>())
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (sourceWeb == null)
+            {
+                throw new ArgumentNullException(nameof(sourceWeb));
+            }
+
+            var roots = (listContentTypes ?? Enumerable.Empty<ListContentTypeSnapshot>())
                 .Select(value => value.ParentId)
+                .Where(value => !string.IsNullOrWhiteSpace(value) && !ContentTypeRuntimeCatalog.IsTargetRuntime(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            return Read(
+                roots,
+                sourceWeb.Url,
+                contentTypeId => CaptureMember(context, sourceWeb.Url, contentTypeId),
+                diagnostics);
+        }
+
+        internal static IList<ContentTypeSchemaSnapshot> Read(
+            IEnumerable<string> roots,
+            string sourceWebUrl,
+            Func<string, ContentTypeSchemaSnapshot> captureMember,
+            ICollection<string> diagnostics)
+        {
+            if (captureMember == null)
+            {
+                throw new ArgumentNullException(nameof(captureMember));
+            }
+
+            var pending = new Queue<string>((roots ?? Enumerable.Empty<string>())
                 .Where(value => !string.IsNullOrWhiteSpace(value) && !ContentTypeRuntimeCatalog.IsTargetRuntime(value))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
@@ -29,34 +65,22 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     continue;
                 }
 
-                var contentType = sourceWeb.AvailableContentTypes.GetById(contentTypeId);
-                context.Load(contentType, value => value.Id, value => value.Scope);
-                context.Load(contentType.Parent, value => value.Id);
-                context.Load(contentType.FieldLinks, values => values.Include(value => value.Name));
-                context.ExecuteQueryRetry();
-                if (contentType.ServerObjectIsNull.GetValueOrDefault(true))
+                ContentTypeSchemaSnapshot snapshot;
+                try
                 {
-                    throw new InvalidOperationException("Source site content type is unavailable: " + contentTypeId + ".");
+                    snapshot = captureMember(contentTypeId);
                 }
-
-                var localDiagnostics = new List<string>();
-                var snapshot = ContentTypeSchemaSnapshotReader.Read(
-                    context,
-                    sourceWeb,
-                    contentTypeId,
-                    contentType.FieldLinks.Select(value => value.Name),
-                    localDiagnostics);
-                snapshot.SourceScope = contentType.Scope;
-                snapshot.SourceWebUrl = ScopeOwnerUrl(contentType.Scope, sourceWeb.Url);
+                catch (Exception exception) when (IsMemberCaptureFailure(exception))
+                {
+                    snapshot = Partial(contentTypeId, sourceWebUrl, exception);
+                }
                 result.Add(snapshot);
-                foreach (var diagnostic in localDiagnostics)
+                foreach (var diagnostic in snapshot.Diagnostics ?? Enumerable.Empty<string>())
                 {
                     diagnostics?.Add("Site content type '" + contentTypeId + "': " + diagnostic);
                 }
 
-                var parentId = contentType.Parent == null || contentType.Parent.ServerObjectIsNull.GetValueOrDefault(true)
-                    ? null
-                    : contentType.Parent.Id.StringValue;
+                var parentId = snapshot.ParentContentTypeId;
                 if (!string.IsNullOrWhiteSpace(parentId)
                     && !ContentTypeRuntimeCatalog.IsTargetRuntime(parentId)
                     && !observed.Contains(parentId))
@@ -66,6 +90,72 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             }
             return result.OrderBy(value => value.ContentTypeId.Length)
                 .ThenBy(value => value.ContentTypeId, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private static ContentTypeSchemaSnapshot CaptureMember(
+            ClientContext context,
+            string sourceWebUrl,
+            string contentTypeId)
+        {
+            Exception lastFailure = null;
+            for (var attempt = 1; attempt <= MaximumMemberCaptureAttempts; attempt++)
+            {
+                try
+                {
+                    using (var isolatedContext = context.Clone(sourceWebUrl))
+                    {
+                        var localDiagnostics = new List<string>();
+                        var snapshot = ContentTypeSchemaSnapshotReader.ReadAllFieldLinks(
+                            isolatedContext,
+                            isolatedContext.Web,
+                            contentTypeId,
+                            localDiagnostics);
+                        if (snapshot == null
+                            || snapshot.EvidenceState == ContentTypeSchemaEvidenceState.Missing
+                            || string.IsNullOrWhiteSpace(snapshot.ContentTypeId))
+                        {
+                            throw new InvalidOperationException(
+                                "The isolated site content type capture did not return identity evidence.");
+                        }
+                        snapshot.Diagnostics = localDiagnostics;
+                        snapshot.SourceWebUrl = ScopeOwnerUrl(snapshot.SourceScope, sourceWebUrl);
+                        return snapshot;
+                    }
+                }
+                catch (Exception exception) when (IsMemberCaptureFailure(exception))
+                {
+                    lastFailure = exception;
+                }
+            }
+
+            throw lastFailure ?? new InvalidOperationException(
+                "The isolated site content type capture failed without an exception.");
+        }
+
+        private static bool IsMemberCaptureFailure(Exception exception)
+        {
+            return exception is ServerException
+                || exception is InvalidOperationException && !(exception is WebException);
+        }
+
+        private static ContentTypeSchemaSnapshot Partial(
+            string contentTypeId,
+            string sourceWebUrl,
+            Exception exception)
+        {
+            var diagnostic = "ContentTypeClosureMemberCapturePartial: contentTypeId=" + contentTypeId
+                + "; exceptionType=" + exception.GetType().FullName
+                + "; attempts=" + MaximumMemberCaptureAttempts + ".";
+            var sourceScope = Uri.UnescapeDataString(new Uri(sourceWebUrl).AbsolutePath).TrimEnd('/');
+            return new ContentTypeSchemaSnapshot
+            {
+                EvidenceState = ContentTypeSchemaEvidenceState.Partial,
+                SourceWebUrl = sourceWebUrl.TrimEnd('/'),
+                SourceScope = sourceScope.Length == 0 ? "/" : sourceScope,
+                ContentTypeId = contentTypeId,
+                Availability = EvidenceAvailability.Partial,
+                Diagnostics = new List<string> { diagnostic }
+            };
         }
 
         private static string ScopeOwnerUrl(string scope, string fallbackWebUrl)
