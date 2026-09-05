@@ -1,0 +1,97 @@
+using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Pages.References;
+using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+
+namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
+{
+    public sealed class ClassicWikiWebPartPlacementPlan
+    {
+        public Guid SourceId { get; set; }
+
+        public string Title { get; set; }
+
+        public string TypeName { get; set; }
+
+        public string ZoneId { get; set; } = "Bottom";
+
+        public int SourceZoneIndex { get; set; }
+
+        public int TargetZoneIndex { get; set; }
+
+        public bool Hidden { get; set; }
+
+        public string Xml { get; set; }
+    }
+
+    public sealed class ClassicWikiDependencyPlan
+    {
+        public string SourceId { get; set; }
+
+        public string Consumer { get; set; }
+
+        public PageReferenceKind Kind { get; set; }
+
+        public string SourceOriginalValue { get; set; }
+
+        public string SourceOriginalUrl { get; set; }
+
+        public string TargetOriginalValue { get; set; }
+
+        public string TargetAbsoluteUrl { get; set; }
+
+        public string TargetServerRelativeUrl { get; set; }
+
+        public string Disposition { get; set; } = "Rewrite";
+    }
+
+    public sealed class ClassicWikiFieldPlan
+    {
+        public string Title { get; set; }
+
+        public IList<string> DeferredFieldNames { get; set; } = new List<string>();
+    }
+
+    public sealed class ClassicWikiSecurityPlan
+    {
+        public bool HasUniqueRoleAssignments { get; set; }
+
+        public string Disposition { get; set; } = "Inherit";
+
+        public string Reason { get; set; }
+    }
+
+    public sealed class ClassicWikiMigrationPlan
+    {
+        public string OriginalIdentifier { get; set; }
+
+        public string SourceSnapshotDigest { get; set; }
+
+        public string TargetPageServerRelativeUrl { get; set; }
+
+        public ClassicWikiTargetLocationPlan TargetLocation { get; set; }
+
+        public WikiFieldWritePlan WikiFieldPlan { get; set; }
+
+        public ClassicWikiFieldPlan FieldPlan { get; set; } = new ClassicWikiFieldPlan();
+
+        public ClassicWikiSecurityPlan SecurityPlan { get; set; } = new ClassicWikiSecurityPlan();
+
+        public IList<ClassicWikiWebPartPlacementPlan> WebParts { get; set; } = new List<ClassicWikiWebPartPlacementPlan>();
+
+        public IList<ClassicWikiDependencyPlan> Dependencies { get; set; } = new List<ClassicWikiDependencyPlan>();
+
+        public TopologyPlan Topology { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public SharedTopologyPageReference SharedTopologyReference { get; set; }
+
+        public ClassicWikiLifecyclePolicy LifecyclePolicy { get; set; } = ClassicWikiLifecyclePolicy.Publish;
+
+        public IList<string> Warnings { get; set; } = new List<string>();
+
+        public IList<string> Blockers { get; set; } = new List<string>();
+    }
+}
