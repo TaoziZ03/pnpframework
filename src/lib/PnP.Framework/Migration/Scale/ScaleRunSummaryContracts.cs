@@ -12,7 +12,8 @@ namespace PnP.Framework.Migration.Scale
         NeedsRca = 5,
         NeedsPolicyDecision = 6,
         Quarantined = 7,
-        FailedUnexpectedly = 8
+        FailedUnexpectedly = 8,
+        AuthorizationLimited = 9
     }
 
     public sealed class ScaleStageRunSummary
@@ -50,6 +51,8 @@ namespace PnP.Framework.Migration.Scale
         public string ArtifactSetDigest { get; set; }
 
         public string DiagnosticCode { get; set; }
+
+        public IList<ScaleIngredientRunResult> Ingredients { get; set; } = new List<ScaleIngredientRunResult>();
     }
 
     public sealed class ScalePageRunSummary
@@ -59,6 +62,8 @@ namespace PnP.Framework.Migration.Scale
         public int Ordinal { get; set; }
 
         public string PageFamily { get; set; }
+
+        public string TargetReferenceKey { get; set; }
 
         public string SupportCohortSignature { get; set; }
 
@@ -104,7 +109,7 @@ namespace PnP.Framework.Migration.Scale
 
     public sealed class ScaleLoopCatalogProjection
     {
-        public const string CurrentSchemaVersion = "pnp-scale-loop-catalog-update/v1";
+        public const string CurrentSchemaVersion = "pnp-scale-loop-catalog-update/v2";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -118,6 +123,12 @@ namespace PnP.Framework.Migration.Scale
 
         public int PagesUnresolved { get; set; }
 
+        public int PagesAuthorizationLimited { get; set; }
+
+        public int IngredientsAuthorizationBlocked { get; set; }
+
+        public int IngredientsSkippedByDependency { get; set; }
+
         public int NewIssueCount { get; set; }
 
         public string Improvements { get; set; }
@@ -129,7 +140,7 @@ namespace PnP.Framework.Migration.Scale
 
     public sealed class ScaleRunSummary
     {
-        public const string CurrentSchemaVersion = "pnp-scale-run-summary/v1";
+        public const string CurrentSchemaVersion = "pnp-scale-run-summary/v2";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -156,6 +167,12 @@ namespace PnP.Framework.Migration.Scale
         public int AcceptedCount { get; set; }
 
         public int AuthorizationBlockedCount { get; set; }
+
+        public int AuthorizationLimitedCount { get; set; }
+
+        public int IngredientAuthorizationBlockedCount { get; set; }
+
+        public int IngredientSkippedByDependencyCount { get; set; }
 
         public int RetryableCount { get; set; }
 

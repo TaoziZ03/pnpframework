@@ -19,10 +19,11 @@ namespace PnP.Framework.Migration.Scale
             {
                 PageKey = value.Page.PageKey,
                 Ordinal = value.Page.Ordinal,
-                PageFamily = value.Page.PageFamily,
-                SupportCohortSignature = value.Page.SupportCohortSignature,
-                ExecutionCohortSignature = value.Page.ExecutionCohortSignature,
-                LoadBucket = value.Page.LoadBucket,
+                PageFamily = value.EffectiveProfile?.PageFamily ?? value.Page.PageFamily,
+                TargetReferenceKey = value.EffectiveProfile?.TargetReferenceKey ?? value.Page.TargetReferenceKey,
+                SupportCohortSignature = value.EffectiveProfile?.SupportCohortSignature ?? value.Page.SupportCohortSignature,
+                ExecutionCohortSignature = value.EffectiveProfile?.ExecutionCohortSignature ?? value.Page.ExecutionCohortSignature,
+                LoadBucket = value.EffectiveProfile?.LoadBucket ?? value.Page.LoadBucket,
                 Disposition = value.Disposition,
                 NextAction = value.NextAction,
                 Stages = value.Stages.ToList()
@@ -68,6 +69,13 @@ namespace PnP.Framework.Migration.Scale
                 PageCount = pages.Count,
                 AcceptedCount = pages.Count(value => value.Disposition == ScalePageDisposition.Accepted),
                 AuthorizationBlockedCount = pages.Count(value => value.Disposition == ScalePageDisposition.AuthorizationBlocked),
+                AuthorizationLimitedCount = pages.Count(value => value.Disposition == ScalePageDisposition.AuthorizationLimited),
+                IngredientAuthorizationBlockedCount = pages.SelectMany(value => value.Stages)
+                    .SelectMany(value => value.Ingredients)
+                    .Count(value => value.Outcome == ScaleIngredientOutcome.AuthorizationBlocked),
+                IngredientSkippedByDependencyCount = pages.SelectMany(value => value.Stages)
+                    .SelectMany(value => value.Ingredients)
+                    .Count(value => value.Outcome == ScaleIngredientOutcome.SkippedByDependency),
                 RetryableCount = pages.Count(value => value.Disposition == ScalePageDisposition.Retryable),
                 NeedsRcaCount = pages.Count(value => value.Disposition == ScalePageDisposition.NeedsRca),
                 NeedsPolicyDecisionCount = pages.Count(value => value.Disposition == ScalePageDisposition.NeedsPolicyDecision),
@@ -82,7 +90,10 @@ namespace PnP.Framework.Migration.Scale
                 StageSummaries = stageSummaries,
                 Pages = pages
             };
-            var unresolved = summary.PageCount - summary.AcceptedCount;
+            var unresolved = summary.PageCount
+                - summary.AcceptedCount
+                - summary.AuthorizationBlockedCount
+                - summary.AuthorizationLimitedCount;
             summary.CatalogProjection = new ScaleLoopCatalogProjection
             {
                 LoopId = manifest.LoopId,
@@ -94,6 +105,9 @@ namespace PnP.Framework.Migration.Scale
                     : manifest.MutationMode == ScaleRunMutationMode.Simulation ? "Simulation" : "Approved",
                 PagesAccepted = summary.AcceptedCount,
                 PagesUnresolved = unresolved,
+                PagesAuthorizationLimited = summary.AuthorizationLimitedCount + summary.AuthorizationBlockedCount,
+                IngredientsAuthorizationBlocked = summary.IngredientAuthorizationBlockedCount,
+                IngredientsSkippedByDependency = summary.IngredientSkippedByDependencyCount,
                 NewIssueCount = summary.NeedsRcaCount + summary.QuarantinedCount + summary.FailedUnexpectedlyCount,
                 Improvements = string.IsNullOrWhiteSpace(options.ImprovementReference)
                     ? "none-recorded"

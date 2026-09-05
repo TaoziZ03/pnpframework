@@ -37,6 +37,14 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     nameof(SharedTopologyGlobalActionReceipt.ReceiptDigest)));
         }
 
+        public static string ComputeTerminalActionReceipt(SharedTopologyGlobalTerminalActionReceipt receipt)
+        {
+            return MigrationDigest.ComputeSha256(
+                MigrationContractSerializer.SerializeCanonicalWithNullRootProperty(
+                    receipt ?? throw new ArgumentNullException(nameof(receipt)),
+                    nameof(SharedTopologyGlobalTerminalActionReceipt.ReceiptDigest)));
+        }
+
         public static string ComputeSourceMappingReceipt(SharedTopologySourceWebMaterializationReceipt receipt)
         {
             return MigrationDigest.ComputeSha256(

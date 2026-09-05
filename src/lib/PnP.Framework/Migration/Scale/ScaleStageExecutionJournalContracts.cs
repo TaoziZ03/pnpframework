@@ -12,7 +12,7 @@ namespace PnP.Framework.Migration.Scale
 
     internal sealed class ScaleStageExecutionJournalRecord
     {
-        public const string CurrentSchemaVersion = "pnp-scale-stage-journal-record/v1";
+        public const string CurrentSchemaVersion = "pnp-scale-stage-journal-record/v2";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -56,7 +56,11 @@ namespace PnP.Framework.Migration.Scale
 
         public IList<ScaleRequestMetric> Requests { get; set; } = new List<ScaleRequestMetric>();
 
+        public IList<ScaleIngredientRunResult> Ingredients { get; set; } = new List<ScaleIngredientRunResult>();
+
         public string DiagnosticCode { get; set; }
+
+        public ScalePageProfile DiscoveredProfile { get; set; }
 
         public string RecordDigest { get; set; }
 

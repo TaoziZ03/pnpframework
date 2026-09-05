@@ -27,7 +27,8 @@ namespace PnP.Framework.Migration.Scale
                 UnexpectedDifferenceCount = result.UnexpectedDifferenceCount,
                 SharedReceiptReuseCount = result.SharedReceiptReuseCount,
                 ArtifactSetDigest = ScaleRunIdentity.ComputeArtifactSetDigest(result.Artifacts),
-                DiagnosticCode = result.DiagnosticCode
+                DiagnosticCode = result.DiagnosticCode,
+                Ingredients = result.Ingredients.ToList()
             };
         }
 

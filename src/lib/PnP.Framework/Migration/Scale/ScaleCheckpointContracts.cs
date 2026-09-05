@@ -44,11 +44,13 @@ namespace PnP.Framework.Migration.Scale
     /// </summary>
     public sealed class ScaleHttpAuthorizationEvidence
     {
-        public const string CurrentSchemaVersion = "pnp-scale-http-authorization-evidence/v1";
+        public const string CurrentSchemaVersion = "pnp-scale-http-authorization-evidence/v2";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
         public string ActionSignature { get; set; }
+
+        public string IngredientId { get; set; }
 
         public string TargetIdentityDigest { get; set; }
 
@@ -61,7 +63,7 @@ namespace PnP.Framework.Migration.Scale
 
     public sealed class ScaleStageCheckpoint
     {
-        public const string CurrentSchemaVersion = "pnp-scale-stage-checkpoint/v1";
+        public const string CurrentSchemaVersion = "pnp-scale-stage-checkpoint/v2";
 
         public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -90,6 +92,10 @@ namespace PnP.Framework.Migration.Scale
         public IList<ScaleStageArtifact> Artifacts { get; set; } = new List<ScaleStageArtifact>();
 
         public IList<ScaleRequestMetric> Requests { get; set; } = new List<ScaleRequestMetric>();
+
+        public IList<ScaleIngredientRunResult> Ingredients { get; set; } = new List<ScaleIngredientRunResult>();
+
+        public ScalePageProfile DiscoveredProfile { get; set; }
 
         public string CheckpointDigest { get; set; }
     }

@@ -1,4 +1,6 @@
+using PnP.Framework.Migration.Execution;
 using System;
+using System.IO;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,30 +11,6 @@ using System.Threading.Tasks;
 
 namespace PnP.Framework.Migration.Scale
 {
-    internal sealed class ScalePageWorkItem
-    {
-        public ScalePageWorkItem(ScaleRunPage page)
-        {
-            Page = page ?? throw new ArgumentNullException(nameof(page));
-        }
-
-        public ScaleRunPage Page { get; }
-
-        public ScalePageDisposition Disposition { get; set; } = ScalePageDisposition.Pending;
-
-        public string NextAction { get; set; } = "Continue";
-
-        public IList<ScaleStageRunSummary> Stages { get; } = new List<ScaleStageRunSummary>();
-
-        public IList<ScaleStageArtifact> InputArtifacts { get; set; } = new List<ScaleStageArtifact>();
-
-        public string DependencySignature { get; set; }
-
-        public bool UnverifiedSlotHeld { get; set; }
-
-        public double PendingBackpressureWaitMilliseconds { get; set; }
-    }
-
     internal sealed class ScalePipelineScheduler
     {
         private readonly ScaleRunManifest manifest;
@@ -114,10 +92,14 @@ namespace PnP.Framework.Migration.Scale
                         // Inspect all workers below so cancellation does not hide
                         // the storage/journal/validation fault that triggered it.
                     }
-                    var firstFault = tasks
+                    var allExceptions = tasks
                         .Where(value => value.IsFaulted && value.Exception != null)
                         .SelectMany(value => value.Exception.Flatten().InnerExceptions)
-                        .FirstOrDefault(value => !(value is OperationCanceledException));
+                        .Where(value => !(value is OperationCanceledException))
+                        .ToList();
+                    var firstFault = allExceptions
+                        .FirstOrDefault(value => !(value is InvalidOperationException ioe && ioe.Message.Contains("complete for adding")))
+                        ?? allExceptions.FirstOrDefault();
                     if (firstFault != null)
                     {
                         ExceptionDispatchInfo.Capture(firstFault).Throw();
@@ -153,37 +135,53 @@ namespace PnP.Framework.Migration.Scale
                             ReleaseUnverified(item, unverified);
                             continue;
                         }
-                        if (stage == ScaleRunStage.Repro && !item.UnverifiedSlotHeld)
+                        try
                         {
-                            var wait = Stopwatch.StartNew();
-                            await unverified.WaitAsync(cancellationToken).ConfigureAwait(false);
-                            wait.Stop();
-                            item.UnverifiedSlotHeld = true;
-                            telemetry.EnterUnverified();
-                            item.PendingBackpressureWaitMilliseconds = wait.Elapsed.TotalMilliseconds;
-                        }
-
-                        var summary = await executeStage(item, stage, cancellationToken).ConfigureAwait(false);
-                        summary.BackpressureWaitMilliseconds += item.PendingBackpressureWaitMilliseconds;
-                        item.PendingBackpressureWaitMilliseconds = 0;
-                        item.Stages.Add(summary);
-                        if (ScaleStageOutcomeRules.IsSuccessful(summary.Outcome))
-                        {
-                            if (output != null)
+                            if (stage == ScaleRunStage.Repro && !item.UnverifiedSlotHeld)
                             {
-                                output.Add(item, cancellationToken);
+                                var wait = Stopwatch.StartNew();
+                                await unverified.WaitAsync(cancellationToken).ConfigureAwait(false);
+                                wait.Stop();
+                                item.UnverifiedSlotHeld = true;
+                                telemetry.EnterUnverified();
+                                item.PendingBackpressureWaitMilliseconds = wait.Elapsed.TotalMilliseconds;
+                            }
+
+                            var summary = await executeStage(item, stage, cancellationToken).ConfigureAwait(false);
+                            summary.BackpressureWaitMilliseconds += item.PendingBackpressureWaitMilliseconds;
+                            item.PendingBackpressureWaitMilliseconds = 0;
+                            item.Stages.Add(summary);
+                            if (ScaleStageOutcomeRules.IsSuccessful(summary.Outcome))
+                            {
+                                if (output != null)
+                                {
+                                    try
+                                    {
+                                        output.Add(item, cancellationToken);
+                                    }
+                                    catch (InvalidOperationException) when (output.IsAddingCompleted)
+                                    {
+                                        ReleaseUnverified(item, unverified);
+                                        cancellationToken.ThrowIfCancellationRequested();
+                                        return;
+                                    }
+                                }
+                                else
+                                {
+                                    ScaleIngredientOutcomeRules.SetCompletedPageDisposition(item);
+                                    ReleaseUnverified(item, unverified);
+                                }
                             }
                             else
                             {
-                                item.Disposition = ScalePageDisposition.Accepted;
-                                item.NextAction = "AdvanceNextWave";
+                                ScaleStageOutcomeRules.SetTerminalDisposition(item, summary.Outcome);
                                 ReleaseUnverified(item, unverified);
                             }
                         }
-                        else
+                        catch
                         {
-                            ScaleStageOutcomeRules.SetTerminalDisposition(item, summary.Outcome);
                             ReleaseUnverified(item, unverified);
+                            throw;
                         }
                     }
                 }))
@@ -229,47 +227,6 @@ namespace PnP.Framework.Migration.Scale
             }
             catch (ObjectDisposedException)
             {
-            }
-        }
-    }
-
-    internal static class ScaleStageOutcomeRules
-    {
-        public static bool IsSuccessful(ScaleStageOutcome outcome)
-        {
-            return outcome == ScaleStageOutcome.Succeeded
-                || outcome == ScaleStageOutcome.AlreadySatisfied
-                || outcome == ScaleStageOutcome.OutcomeUnknownButConverged;
-        }
-
-        public static void SetTerminalDisposition(ScalePageWorkItem item, ScaleStageOutcome outcome)
-        {
-            switch (outcome)
-            {
-                case ScaleStageOutcome.RetryableTransient:
-                    item.Disposition = ScalePageDisposition.Retryable;
-                    item.NextAction = "RetryWithBackoff";
-                    break;
-                case ScaleStageOutcome.AuthorizationBlocked:
-                    item.Disposition = ScalePageDisposition.AuthorizationBlocked;
-                    item.NextAction = "AwaitAuthorizationChange";
-                    break;
-                case ScaleStageOutcome.NeedsPolicyDecision:
-                    item.Disposition = ScalePageDisposition.NeedsPolicyDecision;
-                    item.NextAction = "AwaitPolicyDecision";
-                    break;
-                case ScaleStageOutcome.QuarantinedUnexpectedDifference:
-                    item.Disposition = ScalePageDisposition.Quarantined;
-                    item.NextAction = "QuarantineAndRca";
-                    break;
-                case ScaleStageOutcome.NeedsRca:
-                    item.Disposition = ScalePageDisposition.NeedsRca;
-                    item.NextAction = "CollectEvidenceAndRca";
-                    break;
-                default:
-                    item.Disposition = ScalePageDisposition.FailedUnexpectedly;
-                    item.NextAction = "CollectEvidenceAndRca";
-                    break;
             }
         }
     }

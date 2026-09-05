@@ -7,19 +7,6 @@ using System.Linq;
 
 namespace PnP.Framework.Migration.Scale
 {
-    public static class ScaleRunContractSerializer
-    {
-        public static string SerializeCanonical<T>(T value)
-        {
-            return MigrationContractSerializer.SerializeCanonical(value);
-        }
-
-        public static T Deserialize<T>(string value)
-        {
-            return MigrationContractSerializer.Deserialize<T>(value);
-        }
-    }
-
     public static class ScaleRunManifestValidator
     {
         private static readonly ScaleRunStage[] OrderedStages =
@@ -84,15 +71,18 @@ namespace PnP.Framework.Migration.Scale
                     || !ordinals.Add(page.Ordinal)
                     || string.IsNullOrWhiteSpace(page.PageFamily)
                     || string.IsNullOrWhiteSpace(page.LoadBucket)
-                    || !MigrationActionSignature.IsSha256(page.SupportCohortSignature)
-                    || !MigrationActionSignature.IsSha256(page.ExecutionCohortSignature))
+                    || (!string.IsNullOrWhiteSpace(page.SupportCohortSignature) && !MigrationActionSignature.IsSha256(page.SupportCohortSignature))
+                    || (!string.IsNullOrWhiteSpace(page.ExecutionCohortSignature) && !MigrationActionSignature.IsSha256(page.ExecutionCohortSignature)))
                 {
                     throw new InvalidDataException("Every scale-run page requires unique identity/order and valid cohort signatures.");
                 }
                 ValidateOpaqueKey(page.PageKey, nameof(page.PageKey));
                 ValidateOpaqueKey(page.PageFamily, nameof(page.PageFamily));
                 ValidateOpaqueKey(page.SourceReferenceKey, nameof(page.SourceReferenceKey));
-                ValidateOpaqueKey(page.TargetReferenceKey, nameof(page.TargetReferenceKey));
+                if (!string.IsNullOrWhiteSpace(page.TargetReferenceKey))
+                {
+                    ValidateOpaqueKey(page.TargetReferenceKey, nameof(page.TargetReferenceKey));
+                }
                 ValidateOpaqueKey(page.LoadBucket, nameof(page.LoadBucket));
                 if (previous != null
                     && (page.Ordinal < previous.Ordinal
@@ -161,69 +151,4 @@ namespace PnP.Framework.Migration.Scale
         }
     }
 
-    internal static class ScaleRunIdentity
-    {
-        public static MigrationActionSignature CreateAction(
-            ScaleRunManifest manifest,
-            ScaleRunPage page,
-            ScaleRunStage stage,
-            IScaleRunStageExecutor executor,
-            IEnumerable<ScaleStageArtifact> inputArtifacts,
-            string dependencySignature)
-        {
-            var inputDigest = ComputeArtifactSetDigest(inputArtifacts);
-            var pageSelectionDigest = MigrationDigest.ComputeSha256(
-                MigrationContractSerializer.SerializeCanonical(new
-                {
-                    schemaVersion = "pnp-scale-page-selection/v1",
-                    campaignKey = manifest.RunKey,
-                    page.PageKey,
-                    page.SourceReferenceKey,
-                    page.TargetReferenceKey
-                }));
-            var actionId = "scale." + MigrationDigest.ComputeSha256(page.PageKey).Substring(0, 16)
-                + "." + stage.ToString().ToLowerInvariant();
-            var targetIdentity = "scale-slot/v1/" + page.TargetReferenceKey
-                + "/" + stage.ToString().ToLowerInvariant();
-            var semanticDigest = MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(new
-            {
-                schemaVersion = "pnp-scale-stage-semantic/v1",
-                stage,
-                executor.ContractDigest,
-                executor.AllowsLiveMutation,
-                page.PageFamily,
-                page.SupportCohortSignature,
-                page.ExecutionCohortSignature,
-                inputDigest
-            }));
-            return MigrationActionSignature.Create(
-                actionId,
-                "Scale." + stage,
-                inputDigest,
-                pageSelectionDigest,
-                targetIdentity,
-                semanticDigest,
-                string.IsNullOrWhiteSpace(dependencySignature) ? null : new[] { dependencySignature });
-        }
-
-        public static string ComputeArtifactSetDigest(IEnumerable<ScaleStageArtifact> artifacts)
-        {
-            var canonical = (artifacts ?? Enumerable.Empty<ScaleStageArtifact>())
-                .OrderBy(value => value.RelativePath, StringComparer.Ordinal)
-                .Select(value => new
-                {
-                    value.Kind,
-                    value.Sha256,
-                    value.Length,
-                    value.MediaType,
-                    value.SchemaVersion
-                })
-                .ToArray();
-            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(new
-            {
-                schemaVersion = "pnp-scale-artifact-set/v1",
-                artifacts = canonical
-            }));
-        }
-    }
 }

@@ -51,6 +51,8 @@ namespace PnP.Framework.Migration.Scale
         public IList<ScaleStageArtifact> Artifacts { get; set; } = new List<ScaleStageArtifact>();
 
         public IList<ScaleRequestMetric> Requests { get; set; } = new List<ScaleRequestMetric>();
+
+        public ScalePageProfile DiscoveredProfile { get; set; }
     }
 
     public sealed class ScaleStageExecutionResult
@@ -78,6 +80,10 @@ namespace PnP.Framework.Migration.Scale
         public IList<ScaleStageArtifact> Artifacts { get; set; } = new List<ScaleStageArtifact>();
 
         public IList<ScaleRequestMetric> Requests { get; set; } = new List<ScaleRequestMetric>();
+
+        public IList<ScaleIngredientRunResult> Ingredients { get; set; } = new List<ScaleIngredientRunResult>();
+
+        public ScalePageProfile DiscoveredProfile { get; set; }
     }
 
     public sealed class ScaleRunStageContext
@@ -93,6 +99,8 @@ namespace PnP.Framework.Migration.Scale
         public ScaleRunMutationMode MutationMode { get; set; }
 
         public ScaleRunPage Page { get; set; }
+
+        public ScalePageProfile EffectiveProfile { get; set; }
 
         public ScaleRunStage Stage { get; set; }
 

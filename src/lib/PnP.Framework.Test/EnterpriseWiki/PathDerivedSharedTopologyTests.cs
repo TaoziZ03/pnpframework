@@ -204,6 +204,127 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 execution.Receipt);
         }
 
+        [DataTestMethod]
+        [DataRow(401)]
+        [DataRow(403)]
+        public void LiteralAuthorizationStopsOnlyItsIngredientAndHardDependentsWhileIndependentBranchesContinue(int statusCode)
+        {
+            var engineering = BuildPlan("groups/engineering/guides");
+            var hrSourceWebId = Guid.Parse("23232323-2323-2323-2323-232323232323");
+            var hr = BuildPlan("groups/hr", sourceLeafWebId: hrSourceWebId);
+            var compiled = SharedTopologyGlobalActionDagCompiler.Compile(new[] { engineering, hr });
+            var dag = compiled.Dag;
+            var runtime = new FakeRuntime(dag);
+            var engineeringAction = dag.Actions.Single(value =>
+                SharedTopologyPath.EqualsPath(value.TargetServerRelativeUrl, "/sites/target/groups/engineering"));
+            var engineeringLeaf = dag.Actions.Single(value =>
+                SharedTopologyPath.EqualsPath(value.TargetServerRelativeUrl, "/sites/target/groups/engineering/guides"));
+            var hrLeaf = dag.Actions.Single(value =>
+                SharedTopologyPath.EqualsPath(value.TargetServerRelativeUrl, "/sites/target/groups/hr"));
+            runtime.SetAuthorizationBlocked(engineeringAction.LogicalActionKey, statusCode);
+
+            var analysis = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
+            Assert.IsTrue(analysis.IsExecutable);
+            Assert.AreEqual(
+                TargetWebContainerState.AuthorizationBlocked,
+                analysis.Probes.Single(value => value.LogicalActionKey == engineeringAction.LogicalActionKey).State);
+            Assert.AreEqual(
+                TargetWebContainerState.SkippedByDependency,
+                analysis.Probes.Single(value => value.LogicalActionKey == engineeringLeaf.LogicalActionKey).State);
+            Assert.AreEqual(
+                TargetWebContainerState.CreateMissing,
+                analysis.Probes.Single(value => value.LogicalActionKey == hrLeaf.LogicalActionKey).State);
+
+            var actionPlan = SharedTopologyGlobalActionPlanProjector.Project(dag, analysis);
+            Assert.IsTrue(actionPlan.IsExecutable);
+            Assert.AreEqual(
+                SharedTopologyActionKind.AuthorizationBlocked,
+                actionPlan.Actions.Single(value => value.LogicalActionKey == engineeringAction.LogicalActionKey).SelectedAction);
+            Assert.AreEqual(
+                SharedTopologyActionKind.SkipByDependency,
+                actionPlan.Actions.Single(value => value.LogicalActionKey == engineeringLeaf.LogicalActionKey).SelectedAction);
+
+            runtime.ResetCounters();
+            var journal = new InMemoryMigrationExecutionJournal();
+            var result = new PathDerivedTopologyMigrationService().Ensure(
+                runtime,
+                dag,
+                analysis,
+                actionPlan,
+                new[] { engineering, hr },
+                journal);
+
+            Assert.IsTrue(result.Receipt.FreshReadbackPassed);
+            Assert.AreEqual(3, result.Receipt.Actions.Count);
+            Assert.AreEqual(2, result.Receipt.TerminalActions.Count);
+            Assert.AreEqual(2, runtime.CreateCalls);
+            var blocked = result.Receipt.TerminalActions.Single(value =>
+                value.LogicalActionKey == engineeringAction.LogicalActionKey);
+            Assert.AreEqual(SharedTopologyActionExecutionOutcome.AuthorizationBlocked, blocked.ExecutionOutcome);
+            Assert.AreEqual(statusCode, blocked.AuthorizationEvidence.LiteralEvidence.HttpStatusCode);
+            var dependent = result.Receipt.TerminalActions.Single(value =>
+                value.LogicalActionKey == engineeringLeaf.LogicalActionKey);
+            Assert.AreEqual(SharedTopologyActionExecutionOutcome.SkippedByDependency, dependent.ExecutionOutcome);
+            Assert.IsTrue(dependent.CauseLogicalActionKeys.Contains(engineeringAction.LogicalActionKey));
+            Assert.IsTrue(result.Receipt.SourceWebMappings.Any(value => value.SourceWebId == hrSourceWebId));
+            Assert.IsFalse(result.Receipt.SourceWebMappings.Any(value => value.SourceWebId == SourceLeafWebId));
+            Assert.AreEqual(result.Receipt.Actions.Count, journal.Verifications.Count);
+            SharedTopologyGlobalExecutionValidator.ValidateReceipt(
+                new[] { engineering, hr }, dag, actionPlan, result.Receipt);
+
+            var hrReference = SharedTopologyPageReferenceFactory.Create(
+                hr, dag, actionPlan, SourceSiteId, hrSourceWebId);
+            SharedTopologyPageReferenceFactory.ValidateReceipt(
+                hrReference, new[] { engineering, hr }, dag, actionPlan, result.Receipt);
+
+            var engineeringReference = SharedTopologyPageReferenceFactory.Create(
+                engineering, dag, actionPlan, SourceSiteId, SourceLeafWebId);
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                SharedTopologyPageReferenceFactory.ValidateReceipt(
+                    engineeringReference, new[] { engineering, hr }, dag, actionPlan, result.Receipt));
+            StringAssert.Contains(exception.Message, "authorization-blocked topology ingredient");
+        }
+
+        [TestMethod]
+        public void ExecutionTimeLiteral403DowngradesApprovedActionAndContinuesIndependentBranches()
+        {
+            var engineering = BuildPlan("groups/engineering/guides");
+            var hrSourceWebId = Guid.Parse("23232323-2323-2323-2323-232323232323");
+            var hr = BuildPlan("groups/hr", sourceLeafWebId: hrSourceWebId);
+            var dag = SharedTopologyGlobalActionDagCompiler.Compile(new[] { engineering, hr }).Dag;
+            var runtime = new FakeRuntime(dag);
+            var engineeringAction = dag.Actions.Single(value =>
+                SharedTopologyPath.EqualsPath(value.TargetServerRelativeUrl, "/sites/target/groups/engineering"));
+            var engineeringLeaf = dag.Actions.Single(value =>
+                SharedTopologyPath.EqualsPath(value.TargetServerRelativeUrl, "/sites/target/groups/engineering/guides"));
+            var hrLeaf = dag.Actions.Single(value =>
+                SharedTopologyPath.EqualsPath(value.TargetServerRelativeUrl, "/sites/target/groups/hr"));
+            var analysis = PathDerivedTopologyTargetAnalyzer.Analyze(dag, runtime.Inspect(dag.Actions));
+            var actionPlan = SharedTopologyGlobalActionPlanProjector.Project(dag, analysis);
+            Assert.AreEqual(
+                SharedTopologyActionKind.CreateMissing,
+                actionPlan.Actions.Single(value => value.LogicalActionKey == engineeringAction.LogicalActionKey).SelectedAction);
+            runtime.SetAuthorizationBlocked(engineeringAction.LogicalActionKey, 403);
+            runtime.ResetCounters();
+
+            var result = new PathDerivedTopologyMigrationService().Ensure(
+                runtime, dag, analysis, actionPlan, new[] { engineering, hr });
+
+            var blocked = result.Receipt.TerminalActions.Single(value =>
+                value.LogicalActionKey == engineeringAction.LogicalActionKey);
+            Assert.AreEqual(SharedTopologyActionKind.CreateMissing, blocked.SelectedAction);
+            Assert.AreEqual(SharedTopologyActionExecutionOutcome.AuthorizationBlocked, blocked.ExecutionOutcome);
+            var skipped = result.Receipt.TerminalActions.Single(value =>
+                value.LogicalActionKey == engineeringLeaf.LogicalActionKey);
+            Assert.AreEqual(SharedTopologyActionKind.CreateMissing, skipped.SelectedAction);
+            Assert.AreEqual(SharedTopologyActionExecutionOutcome.SkippedByDependency, skipped.ExecutionOutcome);
+            Assert.IsTrue(result.Receipt.Actions.Any(value => value.LogicalActionKey == hrLeaf.LogicalActionKey));
+            Assert.IsTrue(result.Receipt.SourceWebMappings.Any(value => value.SourceWebId == hrSourceWebId));
+            Assert.IsFalse(result.Receipt.SourceWebMappings.Any(value => value.SourceWebId == SourceLeafWebId));
+            SharedTopologyGlobalExecutionValidator.ValidateReceipt(
+                new[] { engineering, hr }, dag, actionPlan, result.Receipt);
+        }
+
         [TestMethod]
         public void PartialTopologyRetainsCapturedRootAndLeafWithIndependentUnknownAncestors()
         {
@@ -1186,6 +1307,26 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     null,
                     null,
                     PathDerivedTopologyTargetAnalyzer.InterruptedCreateDescription(container));
+            }
+
+            public void SetAuthorizationBlocked(string key, int statusCode)
+            {
+                var container = containers[key];
+                var requestUri = PathDerivedTopologyTargetAnalyzer.ExpectedInspectionRequestUri(container);
+                observations[key] = new PathDerivedTargetWebObservation
+                {
+                    LogicalActionKey = key,
+                    HttpStatusCode = statusCode,
+                    AuthorizationEvidence = BoundLiteralHttpAuthorizationEvidence.Create(
+                        key,
+                        PathDerivedTopologyTargetAnalyzer.TargetInspectionOperation,
+                        requestUri,
+                        LiteralHttpAuthorizationEvidence.Create(
+                            PathDerivedTopologyTargetAnalyzer.TargetInspectionOperation,
+                            requestUri,
+                            statusCode,
+                            DateTimeOffset.Parse("2026-09-05T00:00:00Z")))
+                };
             }
 
             public PathDerivedTargetWebObservation Current(string key)

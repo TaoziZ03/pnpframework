@@ -28,7 +28,7 @@ namespace PnP.Framework.Migration.Scale
             previousDigest = read.Records.LastOrDefault()?.RecordDigest;
             foreach (var record in read.Records)
             {
-                ScaleStageExecutionJournalReader.ValidateRelationship(record, started);
+                ScaleStageJournalRecordValidator.ValidateRelationship(record, started);
             }
             var segments = MigrationExecutionJournalReader.GetSegments(fullPath);
             var segmentIndex = segments.Count == 0 ? 0 : segments[segments.Count - 1].Index;
@@ -55,9 +55,9 @@ namespace PnP.Framework.Migration.Scale
                 record.JournalSequence = nextSequence;
                 record.PreviousRecordDigest = previousDigest;
                 record.RecordDigest = ScaleStageExecutionJournalRecord.ComputeRecordDigest(record);
-                ScaleStageExecutionJournalReader.Validate(record, nextSequence, previousDigest);
+                ScaleStageJournalRecordValidator.Validate(record, nextSequence, previousDigest);
                 var nextStarted = new Dictionary<Guid, ScaleStageExecutionJournalRecord>(started);
-                ScaleStageExecutionJournalReader.ValidateRelationship(record, nextStarted);
+                ScaleStageJournalRecordValidator.ValidateRelationship(record, nextStarted);
                 var bytes = Utf8.GetBytes(MigrationContractSerializer.SerializeCanonical(record) + "\n");
                 stream.Write(bytes, 0, bytes.Length);
                 stream.Flush(true);

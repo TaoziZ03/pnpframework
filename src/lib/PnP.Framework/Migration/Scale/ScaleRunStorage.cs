@@ -10,6 +10,7 @@ namespace PnP.Framework.Migration.Scale
 {
     internal static class ScaleRunStorage
     {
+        private const string ContractNamespace = "contracts-v2";
         private static readonly UTF8Encoding Utf8 = new UTF8Encoding(false, true);
 
         public static string JournalPath(string outputRoot)
@@ -19,13 +20,14 @@ namespace PnP.Framework.Migration.Scale
 
         public static string StageJournalPath(string outputRoot)
         {
-            return Path.Combine(FullRoot(outputRoot), "scale-stage-journal.jsonl");
+            return Path.Combine(FullRoot(outputRoot), ContractNamespace, "scale-stage-journal.jsonl");
         }
 
         public static string StageRoot(string outputRoot, ScaleRunPage page, ScaleRunStage stage)
         {
             return Path.Combine(
                 FullRoot(outputRoot),
+                ContractNamespace,
                 "items",
                 MigrationDigest.ComputeSha256(page.PageKey).Substring(0, 24),
                 "stages",
@@ -66,8 +68,16 @@ namespace PnP.Framework.Migration.Scale
             {
                 return false;
             }
-            var value = MigrationContractSerializer.Deserialize<ScaleStageCheckpoint>(File.ReadAllText(path, Utf8));
-            ValidateCheckpoint(outputRoot, page, stage, action, journal, value);
+            var raw = File.ReadAllText(path, Utf8).TrimEnd('\r', '\n');
+            var value = MigrationContractSerializer.Deserialize<ScaleStageCheckpoint>(raw);
+            if (!string.Equals(
+                raw,
+                MigrationContractSerializer.SerializeCanonical(value),
+                StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("A scale stage checkpoint is not canonical typed JSON.");
+            }
+            ScaleCheckpointValidator.ValidateCheckpoint(outputRoot, page, stage, action, journal, value);
             checkpoint = value;
             return true;
         }
@@ -188,88 +198,6 @@ namespace PnP.Framework.Migration.Scale
             return resolved.Substring(prefix.Length).Replace('\\', '/');
         }
 
-        private static void ValidateCheckpoint(
-            string outputRoot,
-            ScaleRunPage page,
-            ScaleRunStage stage,
-            MigrationActionSignature action,
-            ScaleStageExecutionJournalReadResult journal,
-            ScaleStageCheckpoint checkpoint)
-        {
-            if (checkpoint == null
-                || !string.Equals(checkpoint.SchemaVersion, ScaleStageCheckpoint.CurrentSchemaVersion, StringComparison.Ordinal)
-                || !string.Equals(checkpoint.PageKey, page.PageKey, StringComparison.Ordinal)
-                || checkpoint.Stage != stage
-                || !string.Equals(checkpoint.ActionSignature, action.Signature, StringComparison.OrdinalIgnoreCase)
-                || !MigrationActionSignature.IsSha256(checkpoint.ArtifactSetDigest)
-                || !MigrationActionSignature.IsSha256(checkpoint.CheckpointDigest)
-                || !string.Equals(checkpoint.CheckpointDigest, ComputeCheckpointDigest(checkpoint), StringComparison.OrdinalIgnoreCase)
-                || !checkpoint.Verified
-                || checkpoint.Artifacts == null
-                || checkpoint.Artifacts.Count == 0
-                || !string.Equals(
-                    checkpoint.ArtifactSetDigest,
-                    ComputeArtifactReferenceSetDigest(checkpoint.Artifacts),
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException("A scale stage checkpoint is incomplete, stale, or not verified.");
-            }
-            foreach (var artifact in checkpoint.Artifacts)
-            {
-                ValidateArtifact(outputRoot, artifact);
-            }
-            var receipts = journal.Records.Where(value =>
-                    value.RecordKind == ScaleStageExecutionJournalRecordKind.AttemptCompleted
-                    && string.Equals(value.ActionId, action.ActionId, StringComparison.Ordinal)
-                    && string.Equals(value.ActionSignature, action.Signature, StringComparison.OrdinalIgnoreCase)
-                    && (value.Outcome == ScaleStageOutcome.Succeeded
-                        || value.Outcome == ScaleStageOutcome.AlreadySatisfied
-                        || value.Outcome == ScaleStageOutcome.OutcomeUnknownButConverged)
-                    && value.Verified
-                    && value.ProvenanceMatched
-                    && value.Outcome == checkpoint.Outcome
-                    && value.MutationAttempted == checkpoint.MutationAttempted
-                    && string.Equals(value.DiagnosticCode, checkpoint.DiagnosticCode, StringComparison.Ordinal)
-                    && string.Equals(value.ArtifactSetDigest, checkpoint.ArtifactSetDigest, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(
-                        ComputeRequestMetricsDigest(value.Requests),
-                        ComputeRequestMetricsDigest(checkpoint.Requests),
-                        StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(value.ObservedStateDigest, checkpoint.ObservedStateDigest, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(value.TargetIdentityDigest, checkpoint.TargetIdentityDigest, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-            if (receipts.Length == 0)
-            {
-                throw new InvalidDataException("A scale stage checkpoint has no matching digest-sealed stage completion record.");
-            }
-        }
-
-        private static void ValidateArtifact(string outputRoot, ScaleStageArtifact artifact)
-        {
-            if (artifact == null
-                || !Enum.IsDefined(typeof(ScaleStageArtifactKind), artifact.Kind)
-                || !MigrationActionSignature.IsSha256(artifact.Sha256)
-                || artifact.Length < 0
-                || string.IsNullOrWhiteSpace(artifact.MediaType)
-                || string.IsNullOrWhiteSpace(artifact.SchemaVersion))
-            {
-                throw new InvalidDataException("A scale stage artifact reference is incomplete.");
-            }
-            var path = ResolveArtifactPath(outputRoot, artifact.RelativePath);
-            var info = new FileInfo(path);
-            if (!info.Exists
-                || info.Length != artifact.Length
-                || !string.Equals(ComputeFileSha256(path), artifact.Sha256, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException("A scale stage artifact is missing or differs from its content-addressed checkpoint.");
-            }
-        }
-
-        private static string ComputeRequestMetricsDigest(IEnumerable<ScaleRequestMetric> requests)
-        {
-            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(
-                (requests ?? Enumerable.Empty<ScaleRequestMetric>()).ToArray()));
-        }
 
         private static string FullRoot(string outputRoot)
         {

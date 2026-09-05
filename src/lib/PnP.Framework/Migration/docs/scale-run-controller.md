@@ -50,7 +50,7 @@ append-only facts:
 
 | File | Purpose |
 | --- | --- |
-| `scale-stage-journal.jsonl` | Digest-chained start/completion records for every stage, including artifacts, request metrics, outcome, and verification identity. |
+| `contracts-v2/scale-stage-journal.jsonl` | Digest-chained start/completion records for every stage, including artifacts, request metrics, ingredient outcomes, and verification identity. |
 | `scale-run-journal.jsonl` | Existing migration mutation intents, receipts, evidence references, and fresh verification for the target-writing Repro stage only. |
 
 Both journals flush every appended record. A truncated final JSONL record is
@@ -59,6 +59,11 @@ segment; malformed complete records or broken chains fail closed. Per-stage
 `stage-checkpoint.json` files are atomic projections. A checkpoint is reusable
 only when its digest, artifacts, and a matching completed stage-journal record
 all validate. The append-only journal is the fact source.
+
+The v2 stage journal, checkpoints, and stage artifacts live below the explicit
+`contracts-v2` namespace. Pre-v2 files remain untouched and are not silently
+interpreted as the new schema; a fresh/no-resume v2 run can coexist with them
+while operators retain the old evidence for audit.
 
 The controller never treats a journal as mutation authority. An intent without
 a receipt, or a mutation attempt whose response was lost, forces a fresh target
@@ -87,14 +92,21 @@ sanitized evidence record containing only stage, attempt, action signature,
 exception type, and time; exception messages and stacks are not persisted by the
 library.
 
-`AuthorizationBlocked` is accepted only when both are present:
+Page- or stage-level `AuthorizationBlocked` is accepted only when both are present:
 
 - request telemetry containing literal HTTP status 401 or 403; and
-- canonical `pnp-scale-http-authorization-evidence/v1` content bound to the
+- canonical `pnp-scale-http-authorization-evidence/v2` content bound to the
   action signature, target identity digest, operation name, and same status.
 
 The evidence contract stores no URI, headers, response body, cookie, or token.
 A 401/403 classification in summary text alone is rejected.
+
+An executor may instead complete a stage with typed ingredient outcomes. Each
+authorization-blocked ingredient binds its own ID and retained evidence SHA-256;
+only hard-dependent ingredients may be skipped. Independent ingredients and
+later stages continue. A page completing all stages with such a terminal is
+`AuthorizationLimited`, not `Accepted`. A skipped dependency whose recorded
+cause chain does not reach a literal-authorization ingredient remains RCA work.
 
 ## Scheduling and backpressure
 
@@ -110,8 +122,11 @@ the summary path itself remains writable.
 Per-stage summaries report wall time, request count, p50/p95 request duration,
 retries, 429/503 counts, `Retry-After` wait, resume skips, shared receipt reuse,
 and observed concurrency. `run-summary.json` is atomically replaced and includes
-a compact `pnp-scale-loop-catalog-update/v1` projection. The projection is data
+ingredient outcomes plus a compact `pnp-scale-loop-catalog-update/v2` projection. The projection is data
 for a host to review and apply; the library does not edit a loop catalog.
+Its gate may advance when every page is either accepted or terminally limited by
+literal HTTP 401/403. Retryable, RCA, capability, policy, quarantine, and
+unexpected outcomes continue to hold the gate.
 
 ## Host boundary
 

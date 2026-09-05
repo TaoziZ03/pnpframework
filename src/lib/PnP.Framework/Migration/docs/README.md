@@ -64,9 +64,10 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 | Path-derived source topology evidence | `pnp-path-derived-source-topology-evidence/v3` |
 | Shared topology plan | `pnp-shared-topology-plan/v3` |
 | Shared topology global action DAG | `pnp-shared-topology-global-action-dag/v3` |
-| Shared topology target analysis | `pnp-shared-topology-global-target-analysis/v3` |
-| Shared topology action plan | `pnp-shared-topology-global-action-plan/v3` |
-| Shared topology materialization receipt | `pnp-shared-topology-global-receipt/v3` |
+| Shared topology target analysis | `pnp-shared-topology-global-target-analysis/v4` |
+| Shared topology action plan | `pnp-shared-topology-global-action-plan/v4` |
+| Shared topology materialization receipt | `pnp-shared-topology-global-receipt/v4` |
+| Shared topology terminal action receipt | `pnp-shared-topology-global-terminal-action-receipt/v1` |
 | Shared topology page reference | `pnp-shared-topology-page-reference/v4` |
 | List dependency snapshot | `pnp-list-dependency/v1` |
 | List migration plan | `pnp-list-migration-plan/v1` |
@@ -77,11 +78,11 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 | Runtime verification receipt | `pnp-migration-runtime-verification-receipt/v1` |
 | Taxonomy value relationship | `pnp-taxonomy-value-relationship/v1` |
 | Scale-run manifest | `pnp-scale-run-manifest/v1` |
-| Scale stage checkpoint | `pnp-scale-stage-checkpoint/v1` |
-| Scale stage execution journal | `pnp-scale-stage-journal-record/v1` |
-| Scale HTTP authorization evidence | `pnp-scale-http-authorization-evidence/v1` |
-| Scale run summary | `pnp-scale-run-summary/v1` |
-| Scale loop catalog projection | `pnp-scale-loop-catalog-update/v1` |
+| Scale stage checkpoint | `pnp-scale-stage-checkpoint/v2` |
+| Scale stage execution journal | `pnp-scale-stage-journal-record/v2` |
+| Scale HTTP authorization evidence | `pnp-scale-http-authorization-evidence/v2` |
+| Scale run summary | `pnp-scale-run-summary/v2` |
+| Scale loop catalog projection | `pnp-scale-loop-catalog-update/v2` |
 
 These contracts are under development. A CLR type being public does not by itself declare the contract stable or released.
 

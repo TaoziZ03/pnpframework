@@ -53,16 +53,22 @@ namespace PnP.Framework.Migration.Scale
                 || !Enum.IsDefined(typeof(ScaleStageOutcome), result.Outcome)
                 || result.Artifacts == null
                 || result.Requests == null
+                || result.Ingredients == null
                 || result.Artifacts.Count == 0
                 || !IsSafeDiagnosticCode(result.DiagnosticCode))
             {
                 throw new InvalidDataException("A scale stage result requires an outcome and content-addressed output or failure evidence.");
             }
             ValidateRequests(result.Requests);
+            if (result.DiscoveredProfile != null)
+            {
+                ScalePageProfile.Validate(result.DiscoveredProfile);
+            }
             foreach (var artifact in result.Artifacts)
             {
                 ValidateArtifact(outputRoot, artifact);
             }
+            ScaleIngredientResultValidator.Validate(outputRoot, action, result);
             if (result.MutationAttempted && (!executor.MutatesTarget || !executor.AllowsLiveMutation))
             {
                 throw new InvalidDataException("Only a live-capable mutating executor may report that a target mutation was attempted.");
@@ -165,6 +171,7 @@ namespace PnP.Framework.Migration.Scale
                     || !string.Equals(evidence.SchemaVersion, ScaleHttpAuthorizationEvidence.CurrentSchemaVersion, StringComparison.Ordinal)
                     || !string.Equals(raw, MigrationContractSerializer.SerializeCanonical(evidence), StringComparison.Ordinal)
                     || !string.Equals(evidence.ActionSignature, action.Signature, StringComparison.OrdinalIgnoreCase)
+                    || !string.IsNullOrWhiteSpace(evidence.IngredientId)
                     || !string.Equals(evidence.TargetIdentityDigest, action.TargetIdentityDigest, StringComparison.OrdinalIgnoreCase)
                     || evidence.CapturedAtUtc == default(DateTimeOffset)
                     || !statuses.Any(value => value.Status == evidence.HttpStatusCode
@@ -217,7 +224,7 @@ namespace PnP.Framework.Migration.Scale
             }
         }
 
-        private static bool IsSafeDiagnosticCode(string value)
+        internal static bool IsSafeDiagnosticCode(string value)
         {
             return !string.IsNullOrWhiteSpace(value)
                 && value.Length <= 256
@@ -228,21 +235,5 @@ namespace PnP.Framework.Migration.Scale
                     || character == '/');
         }
 
-        private sealed class ScaleControllerFailureEvidence
-        {
-            public const string CurrentSchemaVersion = "pnp-scale-controller-failure-evidence/v1";
-
-            public string SchemaVersion { get; set; } = CurrentSchemaVersion;
-
-            public ScaleRunStage Stage { get; set; }
-
-            public int Attempt { get; set; }
-
-            public string ActionSignature { get; set; }
-
-            public string ExceptionType { get; set; }
-
-            public DateTimeOffset CapturedAtUtc { get; set; }
-        }
     }
 }

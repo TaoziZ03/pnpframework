@@ -139,7 +139,13 @@ namespace PnP.Framework.Test.Migration.Scale
         public bool ReturnInvalidArtifact { get; set; }
         public bool AllowLiveMutation { get; set; }
         public int? AuthorizationStatusCode { get; set; }
+        public string AuthorizationLimitedPageKey { get; set; }
+        public string AuthorizationLimitedIngredientId { get; set; }
+        public string AuthorizationLimitedDependentIngredientId { get; set; }
+        public string AuthorizationLimitedDependentCauseIngredientId { get; set; }
+        public int AuthorizationLimitedStatusCode { get; set; } = 403;
         public ScaleStageProbeState? ProbeStateOverride { get; set; }
+        public Action<ScaleRunStageContext> OnExecute { get; set; }
 
         public int ExecuteCount(string pageKey) => executes.TryGetValue(pageKey, out var value) ? value : 0;
         public int ProbeCount(string pageKey) => probes.TryGetValue(pageKey, out var value) ? value : 0;
@@ -204,6 +210,7 @@ namespace PnP.Framework.Test.Migration.Scale
             ScaleRunStageContext context,
             CancellationToken cancellationToken)
         {
+            OnExecute?.Invoke(context);
             var count = executes.AddOrUpdate(context.Page.PageKey, 1, (_, current) => current + 1);
             if (DelayMilliseconds > 0)
             {
@@ -223,6 +230,10 @@ namespace PnP.Framework.Test.Migration.Scale
             if (AuthorizationStatusCode.HasValue)
             {
                 return AuthorizationFailure(context, AuthorizationStatusCode.Value);
+            }
+            if (string.Equals(AuthorizationLimitedPageKey, context.Page.PageKey, StringComparison.Ordinal))
+            {
+                return AuthorizationLimitedSuccess(context);
             }
             if (RetryFirstAttempt && count == 1)
             {
@@ -280,6 +291,73 @@ namespace PnP.Framework.Test.Migration.Scale
                         Operation = operation,
                         DurationMilliseconds = 3,
                         HttpStatusCode = status
+                    }
+                }
+            };
+        }
+
+        private ScaleStageExecutionResult AuthorizationLimitedSuccess(ScaleRunStageContext context)
+        {
+            var ingredientId = AuthorizationLimitedIngredientId ?? "ingredient.protected-payload";
+            var dependentId = AuthorizationLimitedDependentIngredientId ?? "ingredient.protected-payload-consumer";
+            var operation = Stage.ToString().ToLowerInvariant() + ".ingredient-request";
+            var evidence = new ScaleHttpAuthorizationEvidence
+            {
+                ActionSignature = context.Action.Signature,
+                IngredientId = ingredientId,
+                TargetIdentityDigest = context.Action.TargetIdentityDigest,
+                Operation = operation,
+                HttpStatusCode = AuthorizationLimitedStatusCode,
+                CapturedAtUtc = DateTimeOffset.Parse("2026-09-05T00:00:00Z")
+            };
+            var output = WriteArtifact(
+                context,
+                "artifact.json",
+                context.Page.PageKey + "|" + Stage + "|" + context.Action.Signature,
+                ScaleStageArtifactKind.Output,
+                "fake-stage-artifact/v1");
+            var authorization = WriteArtifact(
+                context,
+                "ingredient-http-authorization.json",
+                ScaleRunContractSerializer.SerializeCanonical(evidence),
+                ScaleStageArtifactKind.HttpAuthorizationEvidence,
+                ScaleHttpAuthorizationEvidence.CurrentSchemaVersion);
+            return new ScaleStageExecutionResult
+            {
+                Outcome = ScaleStageOutcome.Succeeded,
+                Verified = true,
+                ProvenanceMatched = true,
+                ObservedStateDigest = context.Action.SemanticDigest,
+                TargetIdentityDigest = context.Action.TargetIdentityDigest,
+                DiagnosticCode = "VerifiedWithAuthorizationLimitedIngredient",
+                Artifacts = new List<ScaleStageArtifact> { output, authorization },
+                Requests = new List<ScaleRequestMetric>
+                {
+                    new ScaleRequestMetric
+                    {
+                        Operation = operation,
+                        DurationMilliseconds = 3,
+                        HttpStatusCode = AuthorizationLimitedStatusCode
+                    }
+                },
+                Ingredients = new List<ScaleIngredientRunResult>
+                {
+                    new ScaleIngredientRunResult
+                    {
+                        IngredientId = ingredientId,
+                        Outcome = ScaleIngredientOutcome.AuthorizationBlocked,
+                        AuthorizationEvidenceArtifactSha256 = authorization.Sha256,
+                        DiagnosticCode = "LiteralHttp" + AuthorizationLimitedStatusCode
+                    },
+                    new ScaleIngredientRunResult
+                    {
+                        IngredientId = dependentId,
+                        Outcome = ScaleIngredientOutcome.SkippedByDependency,
+                        DependencyIngredientIds = new List<string>
+                        {
+                            AuthorizationLimitedDependentCauseIngredientId ?? ingredientId
+                        },
+                        DiagnosticCode = "HardDependencyAuthorizationBlocked"
                     }
                 }
             };

@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Execution.Journaling;
 using System;
+using System.Linq;
 
 namespace PnP.Framework.Migration.Scale
 {
@@ -140,7 +141,9 @@ namespace PnP.Framework.Migration.Scale
                     ? MigrationExecutionStatus.Succeeded
                     : MigrationExecutionStatus.FailedUnexpectedly,
                 ScaleStageOutcomeRules.IsSuccessful(result.Outcome)
-                    ? "Scale mutation action converged and was verified."
+                    ? result.Ingredients.Any(value => value.Outcome == ScaleIngredientOutcome.AuthorizationBlocked)
+                        ? "Scale mutation action converged; literal-authorization ingredient terminals remain recorded for page-level acceptance."
+                        : "Scale mutation action converged and was verified."
                     : "Scale mutation action did not converge; evidence was retained.");
         }
 
@@ -172,7 +175,9 @@ namespace PnP.Framework.Migration.Scale
                 ArtifactSetDigest = ScaleRunStorage.ComputeArtifactReferenceSetDigest(result.Artifacts),
                 Artifacts = new System.Collections.Generic.List<ScaleStageArtifact>(result.Artifacts),
                 Requests = new System.Collections.Generic.List<ScaleRequestMetric>(result.Requests),
-                DiagnosticCode = result.DiagnosticCode
+                Ingredients = new System.Collections.Generic.List<ScaleIngredientRunResult>(result.Ingredients),
+                DiagnosticCode = result.DiagnosticCode,
+                DiscoveredProfile = result.DiscoveredProfile
             });
         }
 

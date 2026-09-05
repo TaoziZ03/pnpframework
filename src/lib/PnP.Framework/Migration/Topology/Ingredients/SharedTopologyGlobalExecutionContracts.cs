@@ -13,7 +13,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         AlreadySatisfied = 2,
         RecoveredInterruptedCreate = 3,
         ReusedExternal = 4,
-        OutcomeUnknownButConverged = 5
+        OutcomeUnknownButConverged = 5,
+        AuthorizationBlocked = 6,
+        SkippedByDependency = 7
     }
 
     public sealed class PathDerivedTargetWebObservation
@@ -109,7 +111,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class SharedTopologyGlobalTargetAnalysis
     {
-        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-target-analysis/v3";
+        public const string CurrentSchemaVersion = "pnp-shared-topology-global-target-analysis/v4";
+
+        public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
         public string GlobalActionDagDigest { get; set; }
 
@@ -119,9 +123,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string AnalysisDigest { get; set; }
 
-        public bool IsExecutable => Probes.All(value => value.IsExecutable)
-            && Issues.All(value => value.Severity != MigrationIssueSeverity.Blocker
-                && value.Severity != MigrationIssueSeverity.Error);
+        public bool IsExecutable => Probes.All(value => value.IsExecutable
+                || value.State == TargetWebContainerState.AuthorizationBlocked
+                || value.State == TargetWebContainerState.SkippedByDependency)
+            && Issues.All(value => value.Severity != MigrationIssueSeverity.Error
+                && (value.Severity != MigrationIssueSeverity.Blocker
+                    || string.Equals(value.Code, "PathDerivedTargetAuthorizationBlocked", StringComparison.Ordinal)
+                    || string.Equals(value.Code, "PathDerivedTargetParentBlocked", StringComparison.Ordinal)));
     }
 
     public sealed class SharedTopologyGlobalAction
@@ -147,7 +155,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
     public sealed class SharedTopologyGlobalActionPlan
     {
-        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-action-plan/v3";
+        public const string CurrentSchemaVersion = "pnp-shared-topology-global-action-plan/v4";
+
+        public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
         public string GlobalActionDagDigest { get; set; }
 
@@ -157,8 +167,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
         public string ActionPlanDigest { get; set; }
 
-        public bool IsExecutable => Actions.All(value => value.SelectedAction != SharedTopologyActionKind.Block
-            && value.SelectedAction != SharedTopologyActionKind.SkipByDependency);
+        public bool IsExecutable => Actions.All(value => value.SelectedAction != SharedTopologyActionKind.Block);
     }
 
     public sealed class SharedTopologyGlobalActionReceipt
@@ -216,9 +225,38 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         public string ReceiptDigest { get; set; }
     }
 
+    public sealed class SharedTopologyGlobalTerminalActionReceipt
+    {
+        public const string CurrentSchemaVersion = "pnp-shared-topology-global-terminal-action-receipt/v1";
+
+        public string SchemaVersion { get; set; } = CurrentSchemaVersion;
+
+        public string TargetSlotKey { get; set; }
+
+        public string LogicalActionKey { get; set; }
+
+        public string ExecutionGrantSignature { get; set; }
+
+        public SharedTopologyActionKind SelectedAction { get; set; }
+
+        public TargetWebContainerState FinalState { get; set; }
+
+        public SharedTopologyActionExecutionOutcome ExecutionOutcome { get; set; }
+
+        public BoundLiteralHttpAuthorizationEvidence AuthorizationEvidence { get; set; }
+
+        public IList<string> CauseLogicalActionKeys { get; set; } = new List<string>();
+
+        public string Diagnostic { get; set; }
+
+        public string ReceiptDigest { get; set; }
+    }
+
     public sealed class SharedTopologyGlobalMaterializationReceipt
     {
-        public string SchemaVersion { get; set; } = "pnp-shared-topology-global-receipt/v3";
+        public const string CurrentSchemaVersion = "pnp-shared-topology-global-receipt/v4";
+
+        public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
         public Guid OperationId { get; set; }
 
@@ -237,6 +275,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         public IList<string> SupportCohortDigests { get; set; } = new List<string>();
 
         public IList<SharedTopologyGlobalActionReceipt> Actions { get; set; } = new List<SharedTopologyGlobalActionReceipt>();
+
+        public IList<SharedTopologyGlobalTerminalActionReceipt> TerminalActions { get; set; } = new List<SharedTopologyGlobalTerminalActionReceipt>();
 
         public IList<SharedTopologySourceWebMaterializationReceipt> SourceWebMappings { get; set; } = new List<SharedTopologySourceWebMaterializationReceipt>();
 
