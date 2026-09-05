@@ -27,6 +27,8 @@ namespace PnP.Framework.Migration.Pages.Runtime
 
             if (!string.IsNullOrWhiteSpace(contentTypeId)
                 && (contentTypeId.StartsWith(BuiltInContentTypeId.EnterpriseWikiPage, StringComparison.OrdinalIgnoreCase)
+                    || contentTypeId.StartsWith(BuiltInContentTypeId.ArticlePage, StringComparison.OrdinalIgnoreCase)
+                    || contentTypeId.StartsWith(BuiltInContentTypeId.WelcomePage, StringComparison.OrdinalIgnoreCase)
                     || contentTypeId.StartsWith(BuiltInContentTypeId.ProjectPage, StringComparison.OrdinalIgnoreCase)))
             {
                 return Result(

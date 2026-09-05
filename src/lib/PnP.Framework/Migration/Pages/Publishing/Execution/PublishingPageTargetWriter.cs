@@ -20,8 +20,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             PublishingPageExecutionScope executionScope,
             IDictionary<Guid, ListMaterializationReceipt> listReceipts,
             MigrationExecutionRecorder recorder,
-            ICollection<string> warnings)
+            ICollection<string> warnings,
+            PublishingPageImportExecutionSeam executionSeam = null)
         {
+            if (executionSeam != null)
+            {
+                return ResumeFromControlledStorage(package, recorder, executionSeam);
+            }
+
             var targetWeb = targetContext.Web;
             var targetLocation = PublishingPageTargetLocationMaterializer.Ensure(
                 targetContext,
@@ -126,6 +132,43 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 TargetFile = targetFile,
                 TargetItem = targetItem,
                 FieldResults = fieldResults
+            };
+        }
+
+        private static PublishingPageWriteResult ResumeFromControlledStorage(
+            PublishingPageMigrationPackage package,
+            MigrationExecutionRecorder recorder,
+            PublishingPageImportExecutionSeam executionSeam)
+        {
+            var state = executionSeam.ReadTargetPage();
+            if (state == null || !state.Exists)
+            {
+                throw new InvalidOperationException(
+                    $"The controlled target storage session could not find '{package.Plan.TargetPageServerRelativeUrl}'.");
+            }
+            if (!Verification.PublishingPageTargetOwnership.MatchesApprovedPlan(
+                state.Properties,
+                package.Plan.OriginalIdentifier,
+                package.SnapshotDigest,
+                package.PlanDigest))
+            {
+                throw new InvalidOperationException(
+                    $"The approved exact page path is occupied by a target that is not owned by this sealed plan: '{package.Plan.TargetPageServerRelativeUrl}'.");
+            }
+
+            recorder.RecordAlreadySatisfied(
+                "page.create",
+                $"Resume the exact migration-owned publishing page '{package.Plan.TargetPageServerRelativeUrl}' under the same sealed plan; mutable ingredients will be verified in place rather than replayed.");
+            recorder.RecordAlreadySatisfied("page.checkout", "The exact migration-owned page will be verified in place without opening another edit transaction.");
+            recorder.RecordAlreadySatisfied("page.content", "PublishingPageContent on the exact migration-owned page will be checked by fresh storage readback.");
+            recorder.RecordAlreadySatisfied("page.fields", "Approved page field actions on the resumed page will be checked by fresh storage readback rather than replayed.");
+            recorder.RecordAlreadySatisfied("page.webparts", "Approved shared Web Part actions on the resumed page will be checked by fresh storage readback rather than replayed.");
+            recorder.RecordAlreadySatisfied("page.ownership", "The exact target page carries matching source identity, snapshot digest, and plan digest provenance.");
+            recorder.RecordAlreadySatisfied("page.security", "Fresh readback will verify the resumed page security policy.");
+            return new PublishingPageWriteResult
+            {
+                ResumedExistingOwnedPage = true,
+                FieldResults = new List<PageFieldImportResult>()
             };
         }
 

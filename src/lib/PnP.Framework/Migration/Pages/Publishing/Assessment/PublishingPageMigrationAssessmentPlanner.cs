@@ -196,7 +196,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     new Uri(context.Snapshot.Source.WebUrl),
                     new Uri(context.TargetWeb.TargetWebUrl),
                     new Uri(context.TargetSite.TargetSiteCollectionUrl),
-                    context.WorkflowPolicy.PreferredTargetPageLayoutFileName,
+                    context.WorkflowPolicy,
                     context.Options.TaxonomySchemaMappings,
                     artifactStore,
                     context.Options.AllowExternalResourceReferences);

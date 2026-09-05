@@ -2,16 +2,19 @@ using PnP.Framework.Migration.Evidence;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 {
-    public static class EnterpriseWikiV1WorkflowPolicy
+    public static class ArticlePageV1WorkflowPolicy
     {
         public static PublishingPageWorkflowPolicy Instance { get; } = new PublishingPageWorkflowPolicy(
-            EnterpriseWikiV1CohortPolicy.CohortId,
-            "Enterprise Wiki Page",
-            BuiltInContentTypeId.EnterpriseWikiPage,
-            "EnterpriseWiki.aspx",
+            ArticlePageV1CohortPolicy.CohortId,
+            "Article Page",
+            BuiltInContentTypeId.ArticlePage,
+            "ArticleLeft.aspx",
             new[]
             {
-                "EnterpriseWiki.aspx"
+                "ArticleLeft.aspx",
+                "ArticleRight.aspx",
+                "ArticleLinks.aspx",
+                "PageFromDocLayout.aspx"
             },
             new[]
             {
@@ -23,7 +26,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             },
             new[]
             {
-                "OOCLReference",
+                "ArticleByLine",
+                "ArticleStartDate",
                 "PublishingContact",
                 "PublishingContactName",
                 "PublishingContactEmail",
@@ -31,14 +35,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "PublishingPageDescription",
                 "PublishingPageImage",
                 "PublishingRollupImage",
+                "SummaryLinks",
                 "PublishingStartDate",
                 "PublishingExpirationDate",
-                "Wiki_x0020_Page_x0020_Categories",
                 "SeoBrowserTitle",
                 "SeoKeywords",
                 "SeoMetaDescription",
-                "SeoRobotsNoIndex"
+                "SeoRobotsNoIndex",
+                "Comments"
             },
-            EnterpriseWikiV1CohortPolicy.Assess);
+            ArticlePageV1CohortPolicy.Assess);
     }
 }

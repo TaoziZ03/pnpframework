@@ -25,7 +25,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             Guid operationId,
             DateTimeOffset startedAt,
             MigrationExecutionRecorder recorder,
-            SharedTopologyExecutionProof sharedTopologyProof = null)
+            SharedTopologyExecutionProof sharedTopologyProof = null,
+            PublishingPageImportExecutionSeam executionSeam = null)
         {
             if (package.State != PublishingPagePackageState.ApprovalReady || !package.Plan.IsExecutable)
             {
@@ -38,6 +39,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             {
                 return Failure(package, operationId, startedAt, "PlanDigestNotApproved", package.Plan.TargetPageServerRelativeUrl,
                     "The approved plan digest does not match the sealed publishing-page package.", recorder);
+            }
+
+            if (executionSeam != null)
+            {
+                if (string.IsNullOrWhiteSpace(executionSeam.TargetWebUrl)
+                    || !PagePath.UriEquals(executionSeam.TargetWebUrl, package.Plan.TargetWebUrl))
+                {
+                    return Failure(package, operationId, startedAt, "TargetIdentityMismatch", executionSeam.TargetWebUrl,
+                        "The injected target storage session does not match the approved target Web URL.", recorder);
+                }
+                if (executionSeam.ReadTargetPage == null)
+                {
+                    return Failure(package, operationId, startedAt, "TargetReadbackUnavailable", package.Plan.TargetPageServerRelativeUrl,
+                        "The injected target storage session has no fresh page readback provider.", recorder);
+                }
+
+                recorder.RecordAlreadySatisfied(
+                    "admission.target-storage-session",
+                    "The controlled target storage session matches the approved target identity; production mutation and verification paths remain active.");
+                return null;
             }
 
             var targetWeb = targetContext.Web;

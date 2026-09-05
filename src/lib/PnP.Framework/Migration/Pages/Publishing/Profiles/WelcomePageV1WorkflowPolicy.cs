@@ -2,16 +2,18 @@ using PnP.Framework.Migration.Evidence;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 {
-    public static class EnterpriseWikiV1WorkflowPolicy
+    public static class WelcomePageV1WorkflowPolicy
     {
         public static PublishingPageWorkflowPolicy Instance { get; } = new PublishingPageWorkflowPolicy(
-            EnterpriseWikiV1CohortPolicy.CohortId,
-            "Enterprise Wiki Page",
-            BuiltInContentTypeId.EnterpriseWikiPage,
-            "EnterpriseWiki.aspx",
+            WelcomePageV1CohortPolicy.CohortId,
+            "Welcome Page",
+            BuiltInContentTypeId.WelcomePage,
+            "BlankWebPartPage.aspx",
             new[]
             {
-                "EnterpriseWiki.aspx"
+                "BlankWebPartPage.aspx",
+                "WelcomeSplash.aspx",
+                "WelcomeLinks.aspx"
             },
             new[]
             {
@@ -23,7 +25,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             },
             new[]
             {
-                "OOCLReference",
+                "SummaryLinks",
+                "SummaryLinks2",
                 "PublishingContact",
                 "PublishingContactName",
                 "PublishingContactEmail",
@@ -33,12 +36,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "PublishingRollupImage",
                 "PublishingStartDate",
                 "PublishingExpirationDate",
-                "Wiki_x0020_Page_x0020_Categories",
                 "SeoBrowserTitle",
                 "SeoKeywords",
                 "SeoMetaDescription",
-                "SeoRobotsNoIndex"
+                "SeoRobotsNoIndex",
+                "HeaderStyle",
+                "HidePhysicalUrlsFromSearch"
             },
-            EnterpriseWikiV1CohortPolicy.Assess);
+            WelcomePageV1CohortPolicy.Assess);
     }
 }
