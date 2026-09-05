@@ -98,6 +98,11 @@ namespace PnP.Framework.Migration.Schema.ContentTypes.Packaging
             {
                 throw new InvalidDataException("The content type materialization plan contains a null, missing-ID, or duplicate field entry.");
             }
+            if (schema.Fields.Any(value => TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(value.TypeAsString)
+                && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)))
+            {
+                throw new InvalidDataException("A content type field plan uses an unsupported taxonomy field type.");
+            }
 
             var fieldIds = new HashSet<Guid>(schema.Fields.Select(value => value.FieldId));
             if (schema.RequiredFieldLinks.Any(value => !fieldIds.Contains(value.FieldId)))

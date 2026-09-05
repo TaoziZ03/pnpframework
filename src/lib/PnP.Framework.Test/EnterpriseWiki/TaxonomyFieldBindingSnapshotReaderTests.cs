@@ -3,13 +3,16 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Fields;
+using PnP.Framework.Migration.Lists.Packaging;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.ContentTypes;
+using PnP.Framework.Migration.Schema.ContentTypes.Packaging;
 using PnP.Framework.Migration.Schema.Fields;
 using PnP.Framework.Migration.Topology;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -296,6 +299,29 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(
                 ListFieldMaterializationDisposition.Block,
                 listPlan.Fields.Single(value => value.SourceFieldId == FieldId).Disposition);
+
+            var forgedContentType = RuntimeContentTypePlan("TaxonomyFieldTypeBogus");
+            var forgedProbe = ExactRuntimeProbe(forgedContentType);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                ContentTypeSchemaContractValidator.ValidatePlan(forgedContentType));
+            var rejectedAdmission = ContentTypeTargetAdmissionEvaluator.Evaluate(forgedContentType, forgedProbe);
+            Assert.IsFalse(rejectedAdmission.IsEligible);
+            Assert.IsTrue(rejectedAdmission.Issues.Any(value => value.Code == "TaxonomyFieldTypeUnsupported"));
+
+            foreach (var validType in new[] { "TaxonomyFieldType", "TaxonomyFieldTypeMulti" })
+            {
+                var validPlan = RuntimeContentTypePlan(validType);
+                ContentTypeSchemaContractValidator.ValidatePlan(validPlan);
+                Assert.IsTrue(ContentTypeTargetAdmissionEvaluator.Evaluate(validPlan, ExactRuntimeProbe(validPlan)).IsEligible);
+            }
+
+            var forgedListPlan = ForgedListPlan(list);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                ListMigrationPlanValidator.Validate(new[] { list }, forgedListPlan));
+            var listAdmissionIssues = ListMigrationTargetAnalyzer.GetUnsupportedTaxonomyFieldIssues(
+                forgedListPlan.Lists.Single().Fields);
+            Assert.AreEqual(1, listAdmissionIssues.Count);
+            Assert.AreEqual("TaxonomyFieldTypeUnsupported", listAdmissionIssues[0].Code);
         }
 
         [TestMethod]
@@ -464,6 +490,113 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
             topology.PlanDigest = TopologyPlanner.ComputeDigest(topology);
             return topology;
+        }
+
+        private static ContentTypeMaterializationPlan RuntimeContentTypePlan(string taxonomyType)
+        {
+            var companionId = TextFieldId;
+            return new ContentTypeMaterializationPlan
+            {
+                Disposition = ContentTypeMaterializationDisposition.ReuseOwned,
+                ContentTypeId = "0x010100AABB",
+                Name = "Documents",
+                ParentContentTypeId = "0x0101",
+                ParentContentTypeName = "Document",
+                RequiredFieldLinks = new List<ContentTypeFieldLinkSnapshot>
+                {
+                    new ContentTypeFieldLinkSnapshot { FieldId = FieldId, Name = "Categories" }
+                },
+                Fields = new List<FieldSchemaMaterializationPlan>
+                {
+                    new FieldSchemaMaterializationPlan
+                    {
+                        FieldId = companionId,
+                        InternalName = "CategoriesTaxHTField0",
+                        TypeAsString = "Note",
+                        Hidden = true,
+                        Role = FieldSchemaRole.Dependency,
+                        Disposition = FieldSchemaMaterializationDisposition.RequireTargetRuntime
+                    },
+                    new FieldSchemaMaterializationPlan
+                    {
+                        FieldId = FieldId,
+                        InternalName = "Categories",
+                        TypeAsString = taxonomyType,
+                        Role = FieldSchemaRole.DirectBinding,
+                        Disposition = FieldSchemaMaterializationDisposition.RequireTargetRuntime,
+                        HiddenTextFieldId = companionId
+                    }
+                }
+            };
+        }
+
+        private static ContentTypeTargetProbe ExactRuntimeProbe(ContentTypeMaterializationPlan plan)
+        {
+            return new ContentTypeTargetProbe
+            {
+                Availability = EvidenceAvailability.Captured,
+                ParentContentTypeAvailable = true,
+                ResolvedParentContentTypeId = plan.ParentContentTypeId,
+                ContentTypeExists = true,
+                ExistingName = plan.Name,
+                ExistingDescription = plan.Description,
+                ExistingGroup = plan.Group,
+                ExistingReadOnly = plan.ReadOnly,
+                ExistingSealed = plan.Sealed,
+                ExistingHidden = plan.Hidden,
+                ExistingParentContentTypeId = plan.ParentContentTypeId,
+                ExistingFieldLinks = plan.RequiredFieldLinks.Select(value => new ContentTypeFieldLinkTargetProbe
+                {
+                    FieldId = value.FieldId,
+                    Required = value.Required,
+                    Hidden = value.Hidden
+                }).ToList(),
+                Fields = plan.Fields.Select(value => new FieldSchemaTargetProbe
+                {
+                    FieldId = value.FieldId,
+                    Exists = true,
+                    InternalName = value.InternalName,
+                    TypeAsString = value.TypeAsString
+                }).ToList()
+            };
+        }
+
+        private static ListMigrationPlanSet ForgedListPlan(ListDependencySnapshot source)
+        {
+            var list = new ListMaterializationPlan
+            {
+                SourceSiteId = source.SourceSiteId,
+                SourceWebId = source.SourceWebId,
+                SourceListId = source.SourceListId,
+                TargetWebUrl = "https://target.sharepoint.com/sites/target",
+                TargetSiteCollectionUrl = "https://target.sharepoint.com/sites/target",
+                TargetWebServerRelativeUrl = "/sites/target",
+                PreferredTargetRootFolderServerRelativeUrl = "/sites/target/Lists/BogusTaxonomy",
+                TargetRootFolderServerRelativeUrl = "/sites/target/Lists/BogusTaxonomy",
+                PreferredTargetTitle = source.Title,
+                TargetTitle = source.Title,
+                OriginalIdentifier = source.SourceListId.ToString("D"),
+                Disposition = ListMaterializationDisposition.ReuseOwned,
+                TargetProbe = new ListTargetProbe { Disposition = ListMaterializationDisposition.ReuseOwned },
+                Fields = new List<ListFieldMaterializationPlan>
+                {
+                    new ListFieldMaterializationPlan
+                    {
+                        SourceFieldId = FieldId,
+                        InternalName = "Categories",
+                        TypeAsString = "TaxonomyFieldTypeBogus",
+                        Disposition = ListFieldMaterializationDisposition.RequireTargetRuntime
+                    }
+                }
+            };
+            list.PlanDigest = ListMigrationPlanFactory.ComputePlanDigest(list);
+            var result = new ListMigrationPlanSet
+            {
+                OrderedSourceListIds = new List<Guid> { source.SourceListId },
+                Lists = new List<ListMaterializationPlan> { list }
+            };
+            result.PlanDigest = ListMigrationPlanFactory.ComputeSetDigest(result);
+            return result;
         }
 
         private static string ValidSchemaXml()

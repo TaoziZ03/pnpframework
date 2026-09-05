@@ -3,6 +3,7 @@ using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Features;
 using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Schema.ContentTypes;
+using PnP.Framework.Migration.Schema.Fields;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Topology.Ingredients;
 using System;
@@ -113,6 +114,15 @@ namespace PnP.Framework.Migration.Lists.Planning
                 foreach (var issue in listPlan.Issues)
                 {
                     result.Issues.Add(issue);
+                }
+                var invalidTaxonomyIssues = GetUnsupportedTaxonomyFieldIssues(listPlan.Fields);
+                foreach (var issue in invalidTaxonomyIssues)
+                {
+                    result.Issues.Add(issue);
+                }
+                if (invalidTaxonomyIssues.Count > 0)
+                {
+                    continue;
                 }
                 ListDependencySnapshot source;
                 if (!sources.TryGetValue(listPlan.SourceListId, out source))
@@ -371,6 +381,20 @@ namespace PnP.Framework.Migration.Lists.Planning
                 result.Warnings.Add(warning);
             }
             return admission;
+        }
+
+        internal static IList<MigrationIssue> GetUnsupportedTaxonomyFieldIssues(
+            IEnumerable<ListFieldMaterializationPlan> fields)
+        {
+            return (fields ?? Array.Empty<ListFieldMaterializationPlan>())
+                .Where(value => value != null
+                    && TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(value.TypeAsString)
+                    && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString))
+                .Select(field => Issue(
+                    "TaxonomyFieldTypeUnsupported",
+                    "list-field:" + field.SourceFieldId.ToString("D"),
+                    "Only TaxonomyFieldType and TaxonomyFieldTypeMulti are admissible taxonomy field types."))
+                .ToList();
         }
 
         private static MigrationIssue Issue(string code, string subject, string message)

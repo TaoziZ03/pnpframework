@@ -31,6 +31,21 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                 return Result(issues, warnings, ContentTypeMaterializationDisposition.Block);
             }
 
+            foreach (var field in (plan.Fields ?? Array.Empty<FieldSchemaMaterializationPlan>())
+                .Where(value => value != null
+                    && TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(value.TypeAsString)
+                    && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)))
+            {
+                issues.Add(Issue(
+                    "TaxonomyFieldTypeUnsupported",
+                    $"field-schema:{field.InternalName}:{field.FieldId:D}",
+                    "Only TaxonomyFieldType and TaxonomyFieldTypeMulti are admissible taxonomy field types."));
+            }
+            if (issues.Count > 0)
+            {
+                return Result(issues, warnings, ContentTypeMaterializationDisposition.Block);
+            }
+
             if (probe == null || probe.Availability == EvidenceAvailability.Unavailable || probe.Availability == EvidenceAvailability.Conflict)
             {
                 issues.Add(Issue("TargetContentTypeProbeUnavailable", "target-content-type-schema-probe",
