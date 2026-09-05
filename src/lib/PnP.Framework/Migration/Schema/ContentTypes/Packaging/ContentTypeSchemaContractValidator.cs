@@ -105,7 +105,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes.Packaging
                 throw new InvalidDataException("A required content type field link is absent from the materialization field closure.");
             }
             if (schema.Fields.Any(value => value.TaxonomyMappingMode == TaxonomyTargetMappingMode.PreserveUnresolvedSourceReference
-                && (!value.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
+                && (!TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)
                     || !value.SourceTermSetId.HasValue
                     || !value.TargetTermSetId.HasValue
                     || !value.UnresolvedReferenceTargetVerifiedAbsent

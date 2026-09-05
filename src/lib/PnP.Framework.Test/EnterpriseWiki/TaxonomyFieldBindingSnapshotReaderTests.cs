@@ -1,10 +1,13 @@
 using Microsoft.SharePoint.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Lists.Capture;
 using PnP.Framework.Migration.Lists.Fields;
+using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Schema.Fields;
+using PnP.Framework.Migration.Topology;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -270,6 +273,29 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var visibleNote = PartialRuntimeSchema(ValidBinding());
             visibleNote.RequiredFieldClosure.Add(Companion(TextFieldId, "Note", false));
             Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(visibleNote, out _));
+
+            var readableBogus = PartialRuntimeSchema(ValidBinding());
+            readableBogus.EvidenceState = ContentTypeSchemaEvidenceState.Readable;
+            readableBogus.Availability = EvidenceAvailability.Captured;
+            readableBogus.RequiredFieldClosure[0].TypeAsString = "TaxonomyFieldTypeBogus";
+            readableBogus.RequiredFieldClosure.Add(Companion(TextFieldId, "Note", true));
+            var contentTypePlan = ContentTypeSchemaPlanner.CreateRequiredClosure(readableBogus);
+            Assert.AreEqual(ContentTypeMaterializationDisposition.Block, contentTypePlan.Disposition);
+            Assert.AreEqual(
+                FieldSchemaMaterializationDisposition.Block,
+                contentTypePlan.Fields.Single(value => value.FieldId == FieldId).Disposition);
+
+            var list = BogusTaxonomyList();
+            var listPlan = ListMigrationPlanFactory.Create(
+                new[] { list },
+                null,
+                Topology(list.SourceSiteId, list.SourceWebId),
+                null,
+                null).Lists.Single();
+            Assert.AreEqual(ListMaterializationDisposition.Block, listPlan.Disposition);
+            Assert.AreEqual(
+                ListFieldMaterializationDisposition.Block,
+                listPlan.Fields.Single(value => value.SourceFieldId == FieldId).Disposition);
         }
 
         [TestMethod]
@@ -368,6 +394,76 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 Role = FieldSchemaRole.Dependency,
                 Ownership = FieldOwnership.TargetRuntime
             };
+        }
+
+        private static ListDependencySnapshot BogusTaxonomyList()
+        {
+            var siteId = new Guid("66666666-6666-6666-6666-666666666666");
+            var webId = new Guid("77777777-7777-7777-7777-777777777777");
+            return new ListDependencySnapshot
+            {
+                SourceSiteId = siteId,
+                SourceWebId = webId,
+                SourceWebUrl = "https://source.sharepoint.com/sites/source",
+                SourceListId = new Guid("88888888-8888-8888-8888-888888888888"),
+                Title = "Bogus taxonomy",
+                BaseTemplate = 100,
+                BaseType = "GenericList",
+                RootFolderServerRelativeUrl = "/sites/source/Lists/BogusTaxonomy",
+                Availability = EvidenceAvailability.Captured,
+                Fields = new List<ListFieldSnapshot>
+                {
+                    new ListFieldSnapshot
+                    {
+                        Id = FieldId,
+                        InternalName = "Categories",
+                        Title = "Categories",
+                        TypeAsString = "TaxonomyFieldTypeBogus",
+                        SchemaXml = ValidSchemaXml().Replace("TaxonomyFieldType", "TaxonomyFieldTypeBogus"),
+                        Taxonomy = ValidBinding(),
+                        Availability = EvidenceAvailability.Captured
+                    },
+                    new ListFieldSnapshot
+                    {
+                        Id = TextFieldId,
+                        InternalName = "CategoriesTaxHTField0",
+                        Title = "CategoriesTaxHTField0",
+                        TypeAsString = "Note",
+                        Hidden = true,
+                        SchemaXml = "<Field Type=\"Note\" Name=\"CategoriesTaxHTField0\" />",
+                        Availability = EvidenceAvailability.Captured
+                    }
+                }
+            };
+        }
+
+        private static TopologyPlan Topology(Guid siteId, Guid webId)
+        {
+            var topology = new TopologyPlan
+            {
+                SiteCollections = new List<SiteCollectionMappingPlan>
+                {
+                    new SiteCollectionMappingPlan
+                    {
+                        SourceSiteId = siteId,
+                        TargetSiteCollectionUrl = "https://target.sharepoint.com/sites/target",
+                        Webs = new List<WebMappingPlan>
+                        {
+                            new WebMappingPlan
+                            {
+                                Kind = TopologyNodeKind.SiteCollectionRoot,
+                                SourceSiteId = siteId,
+                                SourceWebId = webId,
+                                SourceServerRelativeUrl = "/sites/source",
+                                TargetWebUrl = "https://target.sharepoint.com/sites/target",
+                                TargetServerRelativeUrl = "/sites/target"
+                            }
+                        }
+                    }
+                }
+            };
+            topology.PlanDigest = TopologyPlanner.ComputeDigest(topology);
+            return topology;
         }
 
         private static string ValidSchemaXml()

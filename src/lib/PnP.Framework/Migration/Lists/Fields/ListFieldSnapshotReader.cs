@@ -17,7 +17,7 @@ namespace PnP.Framework.Migration.Lists.Fields
             FieldCollection fields)
         {
             var taxonomyFields = TaxonomyFieldBindingSnapshotReader.ReadAll(
-                fields.Where(value => value.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)),
+                fields.Where(value => TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)),
                 field => field.Id,
                 field => field.InternalName,
                 field => field.SchemaXml,
@@ -167,7 +167,19 @@ namespace PnP.Framework.Migration.Lists.Fields
                 snapshot.Diagnostics.Add(
                     "FieldSchemaCanonicalizationFailed: exceptionType=" + exception.GetType().FullName + ".");
             }
-            if (taxonomy != null)
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(field.TypeAsString)
+                && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
+            {
+                snapshot.Availability = PnP.Framework.Migration.Evidence.EvidenceAvailability.Partial;
+                snapshot.Diagnostics.Add("TaxonomyFieldTypeUnsupported: type=" + field.TypeAsString + ".");
+            }
+            else if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString)
+                && taxonomy == null)
+            {
+                snapshot.Availability = PnP.Framework.Migration.Evidence.EvidenceAvailability.Partial;
+                snapshot.Diagnostics.Add("TaxonomyBindingCaptureMissing: no binding capture result was produced.");
+            }
+            else if (taxonomy != null)
             {
                 snapshot.Sources = taxonomy.Sources.Count == 0 ? null : taxonomy.Sources.ToList();
                 snapshot.Diagnostics = snapshot.Diagnostics.Concat(taxonomy.Diagnostics).ToList();

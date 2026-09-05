@@ -148,7 +148,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             var taxonomyFields = requiredLinks
                 .Where(link => fieldsById.ContainsKey(link.FieldId))
                 .Select(link => fieldsById[link.FieldId])
-                .Where(field => field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase))
+                .Where(field => TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
                 .GroupBy(field => field.Id)
                 .Select(group => group.First())
                 .ToArray();
@@ -269,7 +269,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                 snapshot.Diagnostics.Add(
                     "FieldSchemaCanonicalizationFailed: exceptionType=" + exception.GetType().FullName + ".");
             }
-            if (field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase))
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
             {
                 if (!taxonomyCaptures.TryGetValue(field.Id, out var capture))
                 {
@@ -283,6 +283,11 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                 snapshot.Sources = capture.Sources.ToList();
                 snapshot.Diagnostics = snapshot.Diagnostics.Concat(capture.Diagnostics).ToList();
                 complete &= capture.IsComplete;
+            }
+            else if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(field.TypeAsString))
+            {
+                complete = false;
+                snapshot.Diagnostics.Add("TaxonomyFieldTypeUnsupported: type=" + field.TypeAsString + ".");
             }
 
             return snapshot;

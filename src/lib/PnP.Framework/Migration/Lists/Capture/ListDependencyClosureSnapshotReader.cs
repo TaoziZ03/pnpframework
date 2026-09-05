@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWebParts.Bindings;
+using PnP.Framework.Migration.Schema.Fields;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -114,7 +115,7 @@ namespace PnP.Framework.Migration.Lists.Capture
             // SharePoint allocates target WssIds when taxonomy values are set.
             // The field binding and source term identifiers remain fully
             // captured by TaxonomyFieldBindingSnapshot.
-            return !field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
+            return !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(field.TypeAsString)
                 && !ReviewedListRuntimeFieldCatalog.IsSnapshotOnly(field);
         }
 

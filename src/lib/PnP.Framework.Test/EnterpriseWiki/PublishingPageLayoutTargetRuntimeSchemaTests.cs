@@ -376,6 +376,13 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 SourceTermSetId = missingSetId,
                 HiddenTextFieldId = Guid.Parse("cfd9f3e8-ce6f-4dc0-a87f-18256c8d4dc3")
             };
+            var companion = CreateField(
+                field.Taxonomy.HiddenTextFieldId,
+                "ActivityNameTaxHTField0",
+                "Note",
+                FieldSchemaRole.Dependency,
+                "<Field ID=\"{cfd9f3e8-ce6f-4dc0-a87f-18256c8d4dc3}\" Name=\"ActivityNameTaxHTField0\" Type=\"Note\" Hidden=\"TRUE\" />");
+            companion.Hidden = true;
             var schema = new ContentTypeSchemaSnapshot
             {
                 EvidenceState = ContentTypeSchemaEvidenceState.Readable,
@@ -386,7 +393,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 ParentContentTypeId = "0x010100AA",
                 ParentContentTypeName = "Enterprise Wiki Page",
                 RequiredFieldLinks = new List<ContentTypeFieldLinkSnapshot> { Link(field) },
-                RequiredFieldClosure = new List<FieldSchemaSnapshot> { field }
+                RequiredFieldClosure = new List<FieldSchemaSnapshot> { companion, field }
             };
             var mapping = new TaxonomyTargetMapping
             {
@@ -400,7 +407,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
 
             var plan = ContentTypeSchemaPlanner.CreateRequiredClosure(schema, new[] { mapping });
-            var fieldPlan = plan.Fields.Single();
+            var fieldPlan = plan.Fields.Single(value => value.FieldId == field.Id);
 
             Assert.AreEqual(TaxonomyTargetMappingMode.PreserveUnresolvedSourceReference, fieldPlan.TaxonomyMappingMode);
             Assert.AreEqual(missingSetId, fieldPlan.SourceTermSetId);

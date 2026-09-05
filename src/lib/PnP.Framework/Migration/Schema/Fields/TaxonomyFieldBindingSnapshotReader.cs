@@ -115,6 +115,12 @@ namespace PnP.Framework.Migration.Schema.Fields
                 || string.Equals(typeAsString, "TaxonomyFieldTypeMulti", StringComparison.OrdinalIgnoreCase);
         }
 
+        internal static bool IsTaxonomyFieldTypeCandidate(string typeAsString)
+        {
+            return !string.IsNullOrWhiteSpace(typeAsString)
+                && typeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase);
+        }
+
         internal static bool TryValidateHiddenTextCompanion<T>(
             Guid taxonomyFieldId,
             TaxonomyFieldBindingSnapshot binding,

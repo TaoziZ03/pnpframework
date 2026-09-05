@@ -40,7 +40,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
 
             foreach (var field in plan.Fields.Where(value => value.Disposition == FieldSchemaMaterializationDisposition.Block))
             {
-                var code = field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
+                var code = TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString)
                     ? "TaxonomySchemaMappingUnavailable"
                     : field.TypeAsString.StartsWith("Lookup", StringComparison.OrdinalIgnoreCase)
                         ? "LookupSchemaMappingUnavailable"
