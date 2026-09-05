@@ -40,8 +40,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
             targetContext.ExecuteQueryRetry();
 
             var readbackPassed = targetFile.Exists && targetItem.Id > 0;
-            var contentEqual = writeResult.ResumedExistingOwnedPage
-                || string.Equals(writeResult.PersistedWikiFieldSha256, package.Plan.WikiFieldPlan?.ExpectedStoredSha256, StringComparison.OrdinalIgnoreCase);
+            var expectedSha = package.Plan.WikiFieldPlan?.ExpectedStoredSha256;
+            var contentEqual = !string.IsNullOrEmpty(writeResult.PersistedWikiFieldSha256)
+                ? string.Equals(writeResult.PersistedWikiFieldSha256, expectedSha, StringComparison.OrdinalIgnoreCase)
+                : string.IsNullOrEmpty(expectedSha);
+
+            var expectedWebPartCount = package.Plan.WebParts?.Count ?? 0;
+            var webPartsMatched = writeResult.ImportedWebPartCount == expectedWebPartCount;
+            var runtimePassed = readbackPassed && contentEqual && webPartsMatched;
 
             var receipt = new ClassicWikiImportReceipt
             {
@@ -49,7 +55,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 StartedAtUtc = startedAt,
                 CompletedAtUtc = DateTimeOffset.UtcNow,
                 OperationId = operationId,
-                ExecutionStatus = readbackPassed ? MigrationExecutionStatus.Succeeded : MigrationExecutionStatus.FailedUnexpectedly,
+                ExecutionStatus = runtimePassed ? MigrationExecutionStatus.Succeeded : MigrationExecutionStatus.FailedUnexpectedly,
                 MutationStarted = true,
                 Steps = new List<MigrationMutationReceipt>(recorder.Steps),
                 ApprovedPlanDigest = approvedPlanDigest,
@@ -63,11 +69,11 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 StorageContentEqual = contentEqual,
                 ResumedExistingOwnedPage = writeResult.ResumedExistingOwnedPage,
                 ImportedWebPartCount = writeResult.ImportedWebPartCount,
-                WebPartsMatched = true,
+                WebPartsMatched = webPartsMatched,
                 FreshReadbackPassed = readbackPassed,
                 StorageVerificationStatus = contentEqual ? StorageVerificationStatus.Passed : StorageVerificationStatus.Failed,
-                RuntimeVerificationStatus = RuntimeVerificationStatus.Passed,
-                AcceptanceStatus = (readbackPassed && contentEqual) ? MigrationAcceptanceStatus.Accepted : MigrationAcceptanceStatus.Rejected,
+                RuntimeVerificationStatus = runtimePassed ? RuntimeVerificationStatus.Passed : RuntimeVerificationStatus.Failed,
+                AcceptanceStatus = runtimePassed ? MigrationAcceptanceStatus.Accepted : MigrationAcceptanceStatus.Rejected,
                 Warnings = warnings,
                 Diagnostics = diagnostics
             };

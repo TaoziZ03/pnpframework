@@ -8,6 +8,7 @@ using PnP.Framework.Migration.Pages.Packaging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
 {
@@ -91,6 +92,22 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
 
             if (resumeOwnedPage)
             {
+                targetContext.Load(targetItem);
+                targetContext.ExecuteQueryRetry();
+                var resumedContent = targetItem.FieldValues.TryGetValue("WikiField", out var val) ? val as string ?? string.Empty : string.Empty;
+                var resumedSha = PageDigest.ComputeSha256(resumedContent);
+
+                var webPartCount = 0;
+                try
+                {
+                    var webParts = targetWeb.GetWebParts(package.Plan.TargetPageServerRelativeUrl);
+                    webPartCount = webParts != null ? webParts.Count() : 0;
+                }
+                catch
+                {
+                    webPartCount = 0;
+                }
+
                 recorder.RecordAlreadySatisfied("wiki-field.write", "Stored WikiField verified on resumed page.");
                 recorder.RecordAlreadySatisfied("page.webparts", "Web parts verified on resumed page.");
                 recorder.RecordAlreadySatisfied("page.ownership", "Target page carries matching provenance properties.");
@@ -100,7 +117,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                     TargetFile = targetFile,
                     TargetItem = targetItem,
                     ResumedExistingOwnedPage = true,
-                    PersistedWikiFieldSha256 = package.Snapshot.WikiFieldSha256
+                    PersistedWikiFieldSha256 = resumedSha,
+                    ImportedWebPartCount = webPartCount
                 };
             }
 
