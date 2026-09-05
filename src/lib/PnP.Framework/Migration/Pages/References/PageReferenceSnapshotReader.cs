@@ -215,6 +215,7 @@ namespace PnP.Framework.Migration.Pages.References
 
             if (sourceContext != null)
             {
+                var requestUri = PageReferenceAuthorizationEvidence.CsomRequestUri(sourceContext.Url);
                 try
                 {
                     var ownerWeb = owner.WebId == source.WebId
@@ -233,9 +234,17 @@ namespace PnP.Framework.Migration.Pages.References
                     reference.ContentLength = payload.LongLength;
                     reference.ContentSha256 = PageDigest.ComputeSha256(payload);
                 }
-                catch (Exception exception) when (exception is ServerException || exception is InvalidOperationException || exception is IOException)
+                catch (Exception exception) when (PageReferenceAuthorizationEvidence.IsExpectedReadFailure(exception))
                 {
                     reference.CaptureStatus = PageCaptureStatus.Failed;
+                    if (PageReferenceAuthorizationEvidence.TryCreate(
+                            exception,
+                            PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                            requestUri,
+                            out var authorizationEvidence))
+                    {
+                        reference.AuthorizationEvidence = authorizationEvidence;
+                    }
                     reference.Diagnostics.Add(exception.Message);
                     warnings?.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
                 }

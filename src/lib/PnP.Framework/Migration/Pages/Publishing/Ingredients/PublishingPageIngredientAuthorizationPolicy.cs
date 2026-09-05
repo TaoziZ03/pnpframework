@@ -1,6 +1,8 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
+using PnP.Framework.Migration.Pages.Publishing.Planning;
+using PnP.Framework.Migration.Pages.References;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,25 +21,82 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         public static IReadOnlyDictionary<string, LiteralHttpAuthorizationEvidence> GetEvidence(
             PublishingPageCaptureBundle snapshot)
         {
-            var source = snapshot?.Layout?.AuthorizationEvidence;
-            if (source == null)
+            return GetEvidence(snapshot, null);
+        }
+
+        public static IReadOnlyDictionary<string, LiteralHttpAuthorizationEvidence> GetEvidence(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageMigrationPlan plan)
+        {
+            var result = new Dictionary<string, LiteralHttpAuthorizationEvidence>(StringComparer.Ordinal);
+            var layoutEvidence = snapshot?.Layout?.AuthorizationEvidence;
+            if (layoutEvidence != null)
             {
-                return new Dictionary<string, LiteralHttpAuthorizationEvidence>(StringComparer.Ordinal);
+                LiteralHttpAuthorizationEvidence.Validate(layoutEvidence);
+                Add(result, PublishingPageIngredientIds.Layout, layoutEvidence);
+                Add(result, PublishingPageIngredientIds.ContentType, layoutEvidence);
             }
 
-            LiteralHttpAuthorizationEvidence.Validate(source);
-            return new Dictionary<string, LiteralHttpAuthorizationEvidence>(StringComparer.Ordinal)
+            var snapshotById = (snapshot?.Dependencies ?? Array.Empty<PageReferenceSnapshot>())
+                .Where(value => value != null && !string.IsNullOrWhiteSpace(value.Id))
+                .GroupBy(value => value.Id, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+            if (snapshotById.Any(value => value.Value.Length != 1))
             {
-                [PublishingPageIngredientIds.Layout] = source,
-                [PublishingPageIngredientIds.ContentType] = source
-            };
+                throw new InvalidDataException("Reference authorization evidence cannot bind a duplicate source dependency ID.");
+            }
+            foreach (var values in snapshotById.Values)
+            {
+                var reference = values[0];
+                if (reference.AuthorizationEvidence == null)
+                {
+                    continue;
+                }
+                PageReferenceAuthorizationEvidence.ValidateSource(snapshot.Source, reference);
+                Add(result, PublishingPageIngredientIds.Reference(reference.Id), reference.AuthorizationEvidence);
+            }
+
+            if (plan?.TargetProbe?.ReferenceVerifications == null)
+            {
+                return result;
+            }
+            var actionById = (plan.DependencyActions ?? Array.Empty<PageReferenceAction>())
+                .Where(value => value != null && !string.IsNullOrWhiteSpace(value.SnapshotDependencyId))
+                .GroupBy(value => value.SnapshotDependencyId, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+            if (actionById.Any(value => value.Value.Length != 1))
+            {
+                throw new InvalidDataException("Reference authorization evidence cannot bind a duplicate dependency action ID.");
+            }
+            foreach (var verification in plan.TargetProbe.ReferenceVerifications.Where(value =>
+                         value?.TargetRead?.AuthorizationEvidence != null))
+            {
+                if (!snapshotById.TryGetValue(verification.SnapshotDependencyId ?? string.Empty, out var references)
+                    || !actionById.TryGetValue(verification.SnapshotDependencyId ?? string.Empty, out var actions))
+                {
+                    throw new InvalidDataException(
+                        $"Target authorization evidence references unknown dependency '{verification.SnapshotDependencyId}'.");
+                }
+                var reference = references[0];
+                var action = actions[0];
+                PageReferenceAuthorizationEvidence.ValidateTarget(
+                    plan.TargetWebUrl,
+                    action,
+                    verification.TargetRead);
+                Add(
+                    result,
+                    PublishingPageIngredientIds.Reference(reference.Id),
+                    verification.TargetRead.AuthorizationEvidence);
+            }
+            return result;
         }
 
         public static void Apply(
             PublishingPageCaptureBundle snapshot,
+            PublishingPageMigrationPlan plan,
             IDictionary<string, PageIngredientAction> actions)
         {
-            foreach (var pair in GetEvidence(snapshot))
+            foreach (var pair in GetEvidence(snapshot, plan))
             {
                 if (actions == null || !actions.TryGetValue(pair.Key, out var action) || action == null)
                 {
@@ -50,7 +109,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 action.Disposition = IngredientDisposition.Block;
                 action.Realization = "none";
                 action.PolicyId = "policy.authorization.literal-http";
-                action.Reason = $"Source ingredient request '{evidence.Operation}' returned literal HTTP {evidence.HttpStatusCode}.";
+                action.Reason = $"Ingredient request '{evidence.Operation}' returned literal HTTP {evidence.HttpStatusCode}.";
                 action.VerificationAssertions = (action.VerificationAssertions ?? new List<string>())
                     .Concat(new[]
                     {
@@ -58,6 +117,27 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     })
                     .Distinct(StringComparer.Ordinal)
                     .ToList();
+            }
+        }
+
+        private static void Add(
+            IDictionary<string, LiteralHttpAuthorizationEvidence> evidenceByIngredient,
+            string ingredientId,
+            LiteralHttpAuthorizationEvidence evidence)
+        {
+            LiteralHttpAuthorizationEvidence.Validate(evidence);
+            if (!evidenceByIngredient.TryGetValue(ingredientId, out var existing))
+            {
+                evidenceByIngredient.Add(ingredientId, evidence);
+                return;
+            }
+            if (existing.HttpStatusCode != evidence.HttpStatusCode
+                || !string.Equals(existing.Operation, evidence.Operation, StringComparison.Ordinal)
+                || !string.Equals(existing.RequestUri, evidence.RequestUri, StringComparison.Ordinal)
+                || !string.Equals(existing.EvidenceSha256, evidence.EvidenceSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"Conflicting literal authorization evidence exists for ingredient '{ingredientId}'.");
             }
         }
     }

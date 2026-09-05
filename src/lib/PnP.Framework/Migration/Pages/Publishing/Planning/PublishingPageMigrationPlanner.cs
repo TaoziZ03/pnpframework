@@ -259,7 +259,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(
                 planningIngredientGraph,
                 plan.IngredientActions,
-                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot));
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot, plan));
             plan.MigrationOutcome = ingredientEvaluation.Outcome;
             plan.IngredientIssues = ingredientEvaluation.Issues;
             plan.ExecutionFrontier = ingredientEvaluation.ExecutionFrontier;

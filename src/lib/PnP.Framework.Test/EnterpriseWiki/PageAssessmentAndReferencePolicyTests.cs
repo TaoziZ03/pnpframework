@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Pages;
+using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Pages.Assessment;
 using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.Ingredients;
@@ -14,6 +15,7 @@ using PnP.Framework.Migration.Pages.Publishing.Verification;
 using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Content;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Taxonomy.Assets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,6 +45,126 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(IngredientDisposition.Block, assessment.ProposedDisposition);
             Assert.AreEqual(403, assessment.AuthorizationEvidence.HttpStatusCode);
             Assert.IsNull(assessment.MitigationCode);
+        }
+
+        [TestMethod]
+        public void CapturedReferenceAuthorizationEvidenceBlocksOnlyItsExactAssessment()
+        {
+            var source = SourceIdentity();
+            var requestUri = PageReferenceAuthorizationEvidence.CsomRequestUri(source.WebUrl);
+            var reference = new PageReferenceSnapshot
+            {
+                Id = "asset-a",
+                OriginalValue = "/teams/source/child/SiteAssets/a.js",
+                SourceAbsoluteUrl = "https://source.sharepoint.com/teams/source/child/SiteAssets/a.js",
+                SourceServerRelativeUrl = "/teams/source/child/SiteAssets/a.js",
+                IsRenderableResource = true,
+                CaptureStatus = PageCaptureStatus.Failed,
+                AuthorizationEvidence = LiteralHttpAuthorizationEvidence.Create(
+                    PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                    requestUri,
+                    403,
+                    DateTimeOffset.Parse("2026-09-05T00:00:00Z"))
+            };
+            var taxonomyReviewPlan = new TaxonomyAssetReviewPlan();
+            var merged = PublishingPageSnapshotAuthorizationEvidence.Merge(
+                new PublishingPageCaptureBundle
+                {
+                    Source = source,
+                    Dependencies = new List<PageReferenceSnapshot> { reference }
+                },
+                new PageAssessmentEvidence
+                {
+                    TaxonomyAssetReviewPlan = taxonomyReviewPlan
+                });
+            var assessments = new List<PageIngredientAssessment>
+            {
+                NewAssessment(PublishingPageIngredientIds.Reference("asset-a")),
+                NewAssessment(PublishingPageIngredientIds.Reference("asset-b"))
+            };
+
+            PublishingPageAuthorizationEvidenceProjector.Apply(assessments, merged);
+
+            Assert.AreSame(taxonomyReviewPlan, merged.TaxonomyAssetReviewPlan);
+            Assert.AreEqual(
+                PageIngredientAssessmentState.AuthorizationBlocked,
+                assessments.Single(value => value.IngredientId == PublishingPageIngredientIds.Reference("asset-a")).State);
+            Assert.AreNotEqual(
+                PageIngredientAssessmentState.AuthorizationBlocked,
+                assessments.Single(value => value.IngredientId == PublishingPageIngredientIds.Reference("asset-b")).State);
+        }
+
+        [TestMethod]
+        public void AssessmentRejectsAuthorizationEvidenceWithForgedSha256()
+        {
+            var evidence = Authorization("reference:asset", 403);
+            evidence.EvidenceSha256 = new string('f', 64);
+
+            Assert.ThrowsException<System.IO.InvalidDataException>(() =>
+                PublishingPageAuthorizationEvidenceProjector.Apply(
+                    new List<PageIngredientAssessment> { NewAssessment("reference:asset") },
+                    new PageAssessmentEvidence
+                    {
+                        AuthorizationFailures = new List<PageIngredientAuthorizationEvidence> { evidence }
+                    }));
+        }
+
+        [TestMethod]
+        public void SourceReference403BlocksOnlyItsExactExecutionFrontierBranch()
+        {
+            var source = SourceIdentity();
+            var blockedId = PublishingPageIngredientIds.Reference("asset-a");
+            var independentId = PublishingPageIngredientIds.Reference("asset-b");
+            var snapshot = new PublishingPageCaptureBundle
+            {
+                Source = source,
+                Dependencies = new List<PageReferenceSnapshot>
+                {
+                    new PageReferenceSnapshot
+                    {
+                        Id = "asset-a",
+                        OriginalValue = "/teams/source/child/SiteAssets/a.js",
+                        SourceAbsoluteUrl = "https://source.sharepoint.com/teams/source/child/SiteAssets/a.js",
+                        SourceServerRelativeUrl = "/teams/source/child/SiteAssets/a.js",
+                        IsRenderableResource = true,
+                        CaptureStatus = PageCaptureStatus.Failed,
+                        AuthorizationEvidence = LiteralHttpAuthorizationEvidence.Create(
+                            PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                            PageReferenceAuthorizationEvidence.CsomRequestUri(source.WebUrl),
+                            403,
+                            DateTimeOffset.Parse("2026-09-05T00:00:00Z"))
+                    },
+                    new PageReferenceSnapshot
+                    {
+                        Id = "asset-b",
+                        OriginalValue = "https://service.example.net/b.js",
+                        SourceAbsoluteUrl = "https://service.example.net/b.js"
+                    }
+                }
+            };
+            var graph = new CanonicalPageIngredientGraph
+            {
+                Nodes = new List<PageIngredientNode>
+                {
+                    new PageIngredientNode { Id = blockedId, Kind = PageIngredientKind.Reference, HasContent = true },
+                    new PageIngredientNode { Id = independentId, Kind = PageIngredientKind.Reference, HasContent = true }
+                }
+            };
+            var actions = new Dictionary<string, PageIngredientAction>(StringComparer.Ordinal)
+            {
+                [blockedId] = ReferenceAction(blockedId),
+                [independentId] = ReferenceAction(independentId)
+            };
+
+            PublishingPageIngredientAuthorizationPolicy.Apply(snapshot, null, actions);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                graph,
+                actions.Values,
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot));
+
+            Assert.AreEqual(PageMigrationOutcome.PartiallyExecutable, evaluation.Outcome);
+            Assert.AreEqual(PageIngredientExecutionState.AuthorizationBlocked, evaluation.ExecutionFrontier.GetState(blockedId));
+            Assert.AreEqual(PageIngredientExecutionState.Executable, evaluation.ExecutionFrontier.GetState(independentId));
         }
 
         [DataTestMethod]
@@ -473,15 +595,38 @@ namespace PnP.Framework.Test.EnterpriseWiki
             string ingredientId,
             int statusCode)
         {
-            return new PageIngredientAuthorizationEvidence
+            var literal = new LiteralHttpAuthorizationEvidence
             {
-                IngredientId = ingredientId,
                 Operation = "source-resource-get",
                 RequestUri = "https://source.sharepoint.com/asset.gif",
                 HttpStatusCode = statusCode,
-                ObservedAtUtc = DateTimeOffset.Parse("2026-09-03T00:00:00Z"),
+                ObservedAtUtc = DateTimeOffset.Parse("2026-09-03T00:00:00Z")
+            };
+            literal.EvidenceSha256 = LiteralHttpAuthorizationEvidence.ComputeSha256(literal);
+            return new PageIngredientAuthorizationEvidence
+            {
+                IngredientId = ingredientId,
+                Operation = literal.Operation,
+                RequestUri = literal.RequestUri,
+                HttpStatusCode = literal.HttpStatusCode,
+                ObservedAtUtc = literal.ObservedAtUtc,
                 EvidenceSource = "evidence/source-resource-probe.json",
-                EvidenceSha256 = new string('b', 64)
+                EvidenceSha256 = literal.EvidenceSha256
+            };
+        }
+
+        private static PageIngredientAction ReferenceAction(string ingredientId)
+        {
+            return new PageIngredientAction
+            {
+                ActionId = "action:" + ingredientId,
+                IngredientId = ingredientId,
+                Capability = IngredientCapability.Available,
+                Disposition = IngredientDisposition.Preserve,
+                Realization = "reuse-external-reference",
+                PolicyId = "policy.reference.page",
+                PolicyVersion = "1",
+                Reason = "Preserve the reference."
             };
         }
 

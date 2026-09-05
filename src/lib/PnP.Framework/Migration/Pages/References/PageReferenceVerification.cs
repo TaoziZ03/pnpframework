@@ -1,5 +1,6 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Http;
+using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Pages.Capture;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.References
 {
@@ -25,6 +27,9 @@ namespace PnP.Framework.Migration.Pages.References
         public string ContentSha256 { get; set; }
 
         public bool EvidenceComplete { get; set; } = true;
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public LiteralHttpAuthorizationEvidence AuthorizationEvidence { get; set; }
 
         public IList<string> Diagnostics { get; set; } = new List<string>();
     }
@@ -237,6 +242,7 @@ namespace PnP.Framework.Migration.Pages.References
                 };
             }
 
+            var requestUri = PageReferenceAuthorizationEvidence.CsomRequestUri(context.Url);
             var file = owner.GetFileByServerRelativePath(ResourcePath.FromDecodedUrl(serverRelativeUrl));
             var stream = file.OpenBinaryStream();
             context.Load(file, value => value.Exists, value => value.Length, value => value.Name);
@@ -246,26 +252,27 @@ namespace PnP.Framework.Migration.Pages.References
             }
             catch (ServerException exception)
             {
-                return new PageReferenceTargetReadState
+                if (IsMissing(exception))
                 {
-                    Exists = false,
-                    HttpStatusCode = IsMissing(exception)
-                        ? 404
-                        : exception.ServerErrorCode == -2147024891
-                            ? 403
-                            : (int?)null,
-                    EvidenceComplete = false,
-                    Diagnostics = new List<string> { exception.Message }
-                };
+                    return new PageReferenceTargetReadState
+                    {
+                        Exists = false,
+                        HttpStatusCode = 404,
+                        EvidenceComplete = false,
+                        Diagnostics = new List<string> { exception.Message }
+                    };
+                }
+                return ReadFailure(
+                    exception,
+                    PageReferenceAuthorizationEvidence.TargetCsomProbeOperation,
+                    requestUri);
             }
-            catch (Exception exception) when (exception is IOException || exception is InvalidOperationException)
+            catch (Exception exception) when (PageReferenceAuthorizationEvidence.IsExpectedReadFailure(exception))
             {
-                return new PageReferenceTargetReadState
-                {
-                    Exists = false,
-                    EvidenceComplete = false,
-                    Diagnostics = new List<string> { exception.Message }
-                };
+                return ReadFailure(
+                    exception,
+                    PageReferenceAuthorizationEvidence.TargetCsomProbeOperation,
+                    requestUri);
             }
 
             if (!file.Exists || stream.Value == null)
@@ -300,15 +307,13 @@ namespace PnP.Framework.Migration.Pages.References
                     return ReadStreamEvidence(stream.Value, file.Name, null, file.Length, maximumBytes);
                 }
             }
-            catch (Exception exception) when (exception is IOException || exception is InvalidOperationException)
+            catch (Exception exception) when (PageReferenceAuthorizationEvidence.IsExpectedReadFailure(exception))
             {
                 stream.Value?.Dispose();
-                return new PageReferenceTargetReadState
-                {
-                    Exists = false,
-                    EvidenceComplete = false,
-                    Diagnostics = new List<string> { exception.Message }
-                };
+                return ReadFailure(
+                    exception,
+                    PageReferenceAuthorizationEvidence.TargetCsomProbeOperation,
+                    requestUri);
             }
         }
 
@@ -332,17 +337,12 @@ namespace PnP.Framework.Migration.Pages.References
                         maximumBytes);
                 }
             }
-            catch (Exception exception) when (exception is HttpRequestException
-                || exception is System.Threading.Tasks.TaskCanceledException
-                || exception is IOException
-                || exception is InvalidOperationException)
+            catch (Exception exception) when (PageReferenceAuthorizationEvidence.IsExpectedReadFailure(exception))
             {
-                return new PageReferenceTargetReadState
-                {
-                    Exists = false,
-                    EvidenceComplete = false,
-                    Diagnostics = new List<string> { exception.Message }
-                };
+                return ReadFailure(
+                    exception,
+                    PageReferenceAuthorizationEvidence.TargetHttpProbeOperation,
+                    requestUri);
             }
         }
 
@@ -361,54 +361,75 @@ namespace PnP.Framework.Migration.Pages.References
                 throw new ArgumentNullException(nameof(request));
             }
 
-            using (var response = client.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
+            var requestUri = request.RequestUri?.AbsoluteUri;
+            try
             {
-                var statusCode = (int)response.StatusCode;
-                var mediaType = response.Content.Headers.ContentType?.MediaType;
-                if (!response.IsSuccessStatusCode)
+                using (var response = client.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
                 {
-                    return new PageReferenceTargetReadState
+                    var statusCode = (int)response.StatusCode;
+                    var mediaType = response.Content.Headers.ContentType?.MediaType;
+                    if (!response.IsSuccessStatusCode)
                     {
-                        Exists = false,
-                        HttpStatusCode = statusCode,
-                        MediaType = mediaType,
-                        Diagnostics = new List<string>
+                        var state = new PageReferenceTargetReadState
                         {
-                            $"The target runtime reference returned HTTP {statusCode}."
+                            Exists = false,
+                            HttpStatusCode = statusCode,
+                            MediaType = mediaType,
+                            EvidenceComplete = false,
+                            Diagnostics = new List<string>
+                            {
+                                $"The target runtime reference returned HTTP {statusCode}."
+                            }
+                        };
+                        if (statusCode == 401 || statusCode == 403)
+                        {
+                            state.AuthorizationEvidence = LiteralHttpAuthorizationEvidence.Create(
+                                PageReferenceAuthorizationEvidence.TargetHttpProbeOperation,
+                                response.RequestMessage?.RequestUri?.AbsoluteUri ?? requestUri,
+                                statusCode,
+                                DateTimeOffset.UtcNow);
                         }
-                    };
-                }
+                        return state;
+                    }
 
-                var declaredLength = response.Content.Headers.ContentLength;
-                if (declaredLength.HasValue && declaredLength.Value > maximumBytes)
-                {
-                    return new PageReferenceTargetReadState
+                    var declaredLength = response.Content.Headers.ContentLength;
+                    if (declaredLength.HasValue && declaredLength.Value > maximumBytes)
                     {
-                        Exists = true,
-                        HttpStatusCode = statusCode,
-                        MediaType = mediaType,
-                        ContentLength = declaredLength,
-                        EvidenceComplete = false,
-                        Diagnostics = new List<string>
+                        return new PageReferenceTargetReadState
                         {
-                            $"The target runtime reference is {declaredLength.Value} bytes, above the {maximumBytes}-byte verification limit."
-                        }
-                    };
-                }
+                            Exists = true,
+                            HttpStatusCode = statusCode,
+                            MediaType = mediaType,
+                            ContentLength = declaredLength,
+                            EvidenceComplete = false,
+                            Diagnostics = new List<string>
+                            {
+                                $"The target runtime reference is {declaredLength.Value} bytes, above the {maximumBytes}-byte verification limit."
+                            }
+                        };
+                    }
 
-                using (var content = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
-                {
-                    var state = ReadStreamEvidence(
-                        content,
-                        fileName,
-                        mediaType,
-                        declaredLength,
-                        maximumBytes);
-                    state.HttpStatusCode = statusCode;
-                    return state;
+                    using (var content = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
+                    {
+                        var state = ReadStreamEvidence(
+                            content,
+                            fileName,
+                            mediaType,
+                            declaredLength,
+                            maximumBytes);
+                        state.HttpStatusCode = statusCode;
+                        return state;
+                    }
                 }
+            }
+            catch (Exception exception) when (PageReferenceAuthorizationEvidence.IsExpectedReadFailure(exception))
+            {
+                return ReadFailure(
+                    exception,
+                    PageReferenceAuthorizationEvidence.TargetHttpProbeOperation,
+                    requestUri);
             }
         }
 
@@ -519,15 +540,15 @@ namespace PnP.Framework.Migration.Pages.References
                 diagnostics.Add("Fresh target reference evidence is unavailable.");
                 return false;
             }
-            if (!state.EvidenceComplete)
-            {
-                diagnostics.Add("Fresh target reference evidence is incomplete.");
-                return false;
-            }
             if (state.HttpStatusCode.HasValue
                 && (state.HttpStatusCode.Value < 200 || state.HttpStatusCode.Value >= 300))
             {
                 diagnostics.Add($"The fresh target reference returned HTTP {state.HttpStatusCode.Value}.");
+                return false;
+            }
+            if (!state.EvidenceComplete)
+            {
+                diagnostics.Add("Fresh target reference evidence is incomplete.");
                 return false;
             }
             if (!state.Exists)
@@ -673,6 +694,29 @@ namespace PnP.Framework.Migration.Pages.References
         {
             return string.Equals(exception.ServerErrorTypeName, "System.IO.FileNotFoundException", StringComparison.Ordinal)
                 || exception.ServerErrorCode == -2147024894;
+        }
+
+        internal static PageReferenceTargetReadState ReadFailure(
+            Exception exception,
+            string operation,
+            string requestUri)
+        {
+            var result = new PageReferenceTargetReadState
+            {
+                Exists = false,
+                EvidenceComplete = false,
+                Diagnostics = new List<string> { exception.Message }
+            };
+            if (PageReferenceAuthorizationEvidence.TryCreate(
+                    exception,
+                    operation,
+                    requestUri,
+                    out var authorizationEvidence))
+            {
+                result.HttpStatusCode = authorizationEvidence.HttpStatusCode;
+                result.AuthorizationEvidence = authorizationEvidence;
+            }
+            return result;
         }
     }
 }

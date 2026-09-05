@@ -1519,6 +1519,129 @@ namespace PnP.Framework.Test.PublishingProfiles
                 null).Matched);
         }
 
+        [TestMethod]
+        public void TargetReference403BlocksOnlyItsIngredientAndRejectsTamperedEvidence()
+        {
+            var package = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
+            var dependency = new PageReferenceSnapshot
+            {
+                Id = "runtime-script",
+                OriginalValue = "/_layouts/15/init.js",
+                SourceAbsoluteUrl = "https://source.sharepoint.com/_layouts/15/init.js",
+                SourceServerRelativeUrl = "/_layouts/15/init.js",
+                Consumer = "field:PublishingPageContent",
+                Kind = PageReferenceKind.Script,
+                IsRenderableResource = true,
+                CaptureStatus = PageCaptureStatus.CapturedWithLimitations
+            };
+            var action = new PageReferenceAction
+            {
+                SnapshotDependencyId = dependency.Id,
+                Disposition = PageReferenceDisposition.RewriteToTarget,
+                TargetServerRelativeUrl = "/_layouts/15/init.js",
+                TargetAbsoluteUrl = "https://target.sharepoint.com/_layouts/15/init.js"
+            };
+            var targetRead = new PageReferenceTargetReadState
+            {
+                Exists = false,
+                HttpStatusCode = 403,
+                EvidenceComplete = false,
+                AuthorizationEvidence = LiteralHttpAuthorizationEvidence.Create(
+                    PageReferenceAuthorizationEvidence.TargetHttpProbeOperation,
+                    PageReferenceAuthorizationEvidence.HttpRequestUri(
+                        package.Plan.TargetWebUrl,
+                        action.TargetServerRelativeUrl),
+                    403,
+                    DateTimeOffset.Parse("2026-09-05T00:00:00Z"))
+            };
+            package.Snapshot.Dependencies.Add(dependency);
+            package.Plan.DependencyActions.Add(action);
+            var verification = PageReferenceVerification.InspectPlan(
+                dependency,
+                action,
+                (_, __) => targetRead,
+                new Uri(package.Plan.TargetWebUrl));
+            package.Plan.TargetProbe.ReferenceVerifications.Add(verification);
+
+            ResealPackage(package);
+
+            PublishingPagePackageValidator.ValidateMigration(package);
+            Assert.AreEqual(PageMigrationOutcome.PartiallyExecutable, package.Plan.MigrationOutcome);
+            Assert.AreEqual(
+                PageIngredientExecutionState.AuthorizationBlocked,
+                package.Plan.ExecutionFrontier.GetState(PublishingPageIngredientIds.Reference(dependency.Id)));
+            Assert.AreEqual(
+                PageIngredientExecutionState.Executable,
+                package.Plan.ExecutionFrontier.GetState(PublishingPageIngredientIds.Layout));
+            Assert.IsTrue(package.Plan.IsExecutable);
+
+            targetRead.AuthorizationEvidence.RequestUri = "https://target.sharepoint.com/_layouts/15/other.js";
+            targetRead.AuthorizationEvidence.EvidenceSha256 = LiteralHttpAuthorizationEvidence.ComputeSha256(
+                targetRead.AuthorizationEvidence);
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateMigration(package));
+
+            targetRead.AuthorizationEvidence = LiteralHttpAuthorizationEvidence.Create(
+                PageReferenceAuthorizationEvidence.TargetHttpProbeOperation,
+                PageReferenceAuthorizationEvidence.HttpRequestUri(
+                    package.Plan.TargetWebUrl,
+                    action.TargetServerRelativeUrl),
+                403,
+                DateTimeOffset.Parse("2026-09-05T00:00:00Z"));
+            verification.SnapshotDependencyId = "other-reference";
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateMigration(package));
+
+            verification.SnapshotDependencyId = dependency.Id;
+            targetRead.AuthorizationEvidence = null;
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateMigration(package));
+        }
+
+        [TestMethod]
+        public void ExportValidationRejectsResealedSourceReferenceAuthorizationTampering()
+        {
+            var package = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
+            var reference = new PageReferenceSnapshot
+            {
+                Id = "source-denied-script",
+                OriginalValue = "/sites/source/SiteAssets/denied.js",
+                SourceAbsoluteUrl = "https://source.sharepoint.com/sites/source/SiteAssets/denied.js",
+                SourceServerRelativeUrl = "/sites/source/SiteAssets/denied.js",
+                Consumer = "field:PublishingPageContent",
+                Kind = PageReferenceKind.Script,
+                IsRenderableResource = true,
+                CaptureStatus = PageCaptureStatus.Failed,
+                AuthorizationEvidence = LiteralHttpAuthorizationEvidence.Create(
+                    PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                    PageReferenceAuthorizationEvidence.CsomRequestUri(package.Snapshot.Source.WebUrl),
+                    403,
+                    DateTimeOffset.Parse("2026-09-05T00:00:00Z"))
+            };
+            package.Snapshot.Dependencies.Add(reference);
+            package.Snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(package.Snapshot);
+            var export = new PublishingPageExportPackage
+            {
+                ExportedAtUtc = package.ExportedAtUtc,
+                Selection = package.Selection,
+                SelectionDigest = package.SelectionDigest,
+                Snapshot = package.Snapshot,
+                SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot)
+            };
+
+            PublishingPagePackageValidator.ValidateExport(export);
+
+            reference.AuthorizationEvidence.RequestUri = "https://source.sharepoint.com/sites/other/_vti_bin/client.svc/ProcessQuery";
+            reference.AuthorizationEvidence.EvidenceSha256 = LiteralHttpAuthorizationEvidence.ComputeSha256(
+                reference.AuthorizationEvidence);
+            export.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(export.Snapshot);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateExport(export));
+        }
+
         private static void ResealPackage(PublishingPageMigrationPackage package)
         {
             package.Snapshot.SourceTopology = new PnP.Framework.Migration.Topology.SourceSiteCollectionSnapshot
@@ -1594,10 +1717,12 @@ namespace PnP.Framework.Test.PublishingProfiles
                 package.Plan.IngredientGraph);
             var evaluation = PageIngredientPlanEvaluator.Evaluate(
                 package.Plan.IngredientGraph,
-                package.Plan.IngredientActions);
+                package.Plan.IngredientActions,
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(package.Snapshot, package.Plan));
             package.Plan.MigrationOutcome = evaluation.Outcome;
             package.Plan.IngredientIssues = evaluation.Issues;
             package.Plan.ExecutionFrontier = evaluation.ExecutionFrontier;
+            package.State = PublishingPagePackageStatePolicy.Derive(package.Plan);
             package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
         }
 

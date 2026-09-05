@@ -11,6 +11,7 @@ using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Layouts.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Pages.Runtime;
+using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
 using PnP.Framework.Migration.Lists.Items.Protection;
@@ -352,6 +353,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
             foreach (var dependency in snapshot.Dependencies)
             {
+                PageReferenceAuthorizationEvidence.ValidateSource(snapshot.Source, dependency);
                 if (dependency.IsRenderableResource
                     && dependency.CaptureStatus == PageCaptureStatus.Captured
                     && dependency.ContentBase64 == null)
