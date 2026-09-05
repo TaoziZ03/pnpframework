@@ -55,9 +55,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
         [TestMethod]
         public void PortableSchemaIgnoresRuntimeDisplayNameForHiddenTaxonomyCompanionOnly()
         {
-            const string sourceCompanion = "<Field Type=\"Note\" DisplayName=\"ServicesDomain_0\" Hidden=\"TRUE\" "
+            const string sourceCompanion = "<Field Type=\"Note\" DisplayName=\"ServicesDomain_0\" Hidden=\"TRUE\" ShowInViewForms=\"FALSE\" CanToggleHidden=\"TRUE\" "
                 + "ID=\"{35fe1c89-1f26-4c87-bd68-061ced1afdb3}\" Name=\"g6775e77a6d84637a29014d883a4378a\" />";
-            const string targetCompanion = "<Field Type=\"Note\" DisplayName=\"Services Domain_0\" Hidden=\"TRUE\" "
+            const string targetCompanion = "<Field Type=\"Note\" DisplayName=\"Services Domain_0\" Hidden=\"TRUE\" ShowInViewForms=\"FALSE\" CanToggleHidden=\"TRUE\" "
                 + "ID=\"{35fe1c89-1f26-4c87-bd68-061ced1afdb3}\" Name=\"g6775e77a6d84637a29014d883a4378a\" />";
             const string ordinaryField = "<Field Type=\"Note\" DisplayName=\"Services Domain_0\" Hidden=\"FALSE\" "
                 + "ID=\"{35fe1c89-1f26-4c87-bd68-061ced1afdb3}\" Name=\"VisibleNotes\" />";

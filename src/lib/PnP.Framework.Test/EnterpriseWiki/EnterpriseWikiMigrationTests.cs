@@ -2771,7 +2771,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
-        public void IngredientProjectionVersion6MakesInformationProtectionAnAcyclicDocumentTransaction()
+        public void CurrentIngredientProjectionMakesInformationProtectionAnAcyclicDocumentTransaction()
         {
             var siteId = Guid.Parse("11111111-1111-1111-1111-111111111111");
             var webId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -2800,7 +2800,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var documentId = PublishingPageIngredientIds.ListDocument(webId, listId, 7);
             var policyId = PublishingPageIngredientIds.ListDocumentInformationProtection(webId, listId, 7);
 
-            Assert.AreEqual("pnp-publishing-page-ingredient-projection/v6", current.ProjectionVersion);
+            Assert.AreEqual(PublishingPageIngredientGraphProjector.CurrentProjectionVersion, current.ProjectionVersion);
             Assert.AreEqual(1, current.Edges.Count(edge =>
                 edge.FromIngredientId == documentId
                 && edge.ToIngredientId == policyId
@@ -2819,7 +2819,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
-        public void IngredientProjectionVersion6BindsLayoutTransactionsToTheRootWeb()
+        public void CurrentIngredientProjectionBindsLayoutTransactionsToTheRootWeb()
         {
             var package = CreateMigrationPackage();
             var snapshot = package.Snapshot;
@@ -2852,7 +2852,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var fieldId = PublishingPageIngredientIds.PageContentTypeField(
                 snapshot.Layout.AssociatedContentTypeSchema.RequiredFieldClosure.Single().Id);
 
-            Assert.AreEqual("pnp-publishing-page-ingredient-projection/v6", graph.ProjectionVersion);
+            Assert.AreEqual(PublishingPageIngredientGraphProjector.CurrentProjectionVersion, graph.ProjectionVersion);
             Assert.IsTrue(HasRequiredEdge(graph, PublishingPageIngredientIds.Layout, ownerWebId));
             Assert.IsTrue(HasRequiredEdge(graph, PublishingPageIngredientIds.ContentType, ownerWebId));
             Assert.IsTrue(HasRequiredEdge(graph, resourceId, ownerWebId));
@@ -3127,7 +3127,8 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(IngredientDisposition.Preserve, resource.Disposition);
             Assert.AreEqual("copy-exact-bytes-create-only", resource.Realization);
             Assert.AreEqual("policy.layout.resource", resource.PolicyId);
-            Assert.IsFalse(actions.Any(value => value.PolicyId == "policy.ingredient.unknown"));
+            Assert.IsTrue(actions.Any(value => value.PolicyId == "policy.ingredient.unknown"
+                && value.Disposition == IngredientDisposition.Defer));
         }
 
         [TestMethod]
@@ -3340,7 +3341,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
-        public void ReadOnlyRuntimeListFieldsAreRequiredButTheirValuesAreNotReplayed()
+        public void UnconsumedReadOnlyRuntimeListFieldsRemainEvidenceOnly()
         {
             var siteId = Guid.Parse("11111111-1111-1111-1111-111111111111");
             var webId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -3370,11 +3371,11 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             var plan = ListMigrationPlanFactory.Create(new[] { source }, null, CreateTopology(siteId, webId), null, null);
 
-            Assert.AreEqual(ListFieldMaterializationDisposition.RequireTargetRuntime, plan.Lists.Single().Fields.Single().Disposition);
+            Assert.AreEqual(ListFieldMaterializationDisposition.EvidenceOnly, plan.Lists.Single().Fields.Single().Disposition);
         }
 
         [TestMethod]
-        public void ListScopedReadOnlyAndSealedFieldsRequireTargetRuntime()
+        public void UnconsumedListScopedReadOnlyAndSealedFieldsRemainEvidenceOnly()
         {
             var siteId = Guid.Parse("11111111-1111-1111-1111-111111111111");
             var webId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -3408,8 +3409,8 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var plan = ListMigrationPlanFactory.Create(new[] { source }, null, CreateTopology(siteId, webId), null, null);
             var fields = plan.Lists.Single().Fields.ToDictionary(value => value.InternalName);
 
-            Assert.AreEqual(ListFieldMaterializationDisposition.RequireTargetRuntime, fields["GeneratedMetadata"].Disposition);
-            Assert.AreEqual(ListFieldMaterializationDisposition.RequireTargetRuntimeAndCopyValue, fields["AssetAuthor"].Disposition);
+            Assert.AreEqual(ListFieldMaterializationDisposition.EvidenceOnly, fields["GeneratedMetadata"].Disposition);
+            Assert.AreEqual(ListFieldMaterializationDisposition.EvidenceOnly, fields["AssetAuthor"].Disposition);
         }
 
         [TestMethod]
