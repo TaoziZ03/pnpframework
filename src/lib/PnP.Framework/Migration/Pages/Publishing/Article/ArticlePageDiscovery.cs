@@ -72,4 +72,3 @@ namespace PnP.Framework.Migration.Pages.Publishing.Article
         }
     }
 }
-

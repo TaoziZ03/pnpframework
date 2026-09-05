@@ -62,8 +62,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             PublishingPagePackageValidator.ValidateMigration(package, artifactStore);
             var executionScope = PublishingPageExecutionScope.Create(package);
             var workflowPolicy = policy ?? PublishingPageProfileRegistry.ResolvePolicy(
-                package.Selection?.WorkflowId,
-                package.Snapshot?.Source?.ContentTypeId);
+                workflowId: package.Selection?.WorkflowId,
+                contentTypeId: package.Snapshot?.Source?.ContentTypeId);
 
             PublishingPageImportPlanValidator.Validate(package, workflowPolicy, executionScope);
             var operationId = Guid.NewGuid();

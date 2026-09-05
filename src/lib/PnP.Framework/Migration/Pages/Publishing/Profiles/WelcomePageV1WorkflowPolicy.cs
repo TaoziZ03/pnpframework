@@ -1,21 +1,21 @@
-using System;
-using System.Collections.Generic;
+using PnP.Framework.Migration.Evidence;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 {
     public static class WelcomePageV1WorkflowPolicy
     {
-        public static readonly PublishingPageWorkflowPolicy Instance = new PublishingPageWorkflowPolicy
-        {
-            WorkflowId = WelcomePageV1CohortPolicy.CohortId,
-            PreferredTargetPageLayoutFileName = "BlankWebPartPage.aspx",
-            StockPageLayoutFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        public static PublishingPageWorkflowPolicy Instance { get; } = new PublishingPageWorkflowPolicy(
+            WelcomePageV1CohortPolicy.CohortId,
+            "Welcome Page",
+            BuiltInContentTypeId.WelcomePage,
+            "BlankWebPartPage.aspx",
+            new[]
             {
                 "BlankWebPartPage.aspx",
                 "WelcomeSplash.aspx",
                 "WelcomeLinks.aspx"
             },
-            FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            new[]
             {
                 "ContentTypeId",
                 "FileLeafRef",
@@ -23,7 +23,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "PublishingPageLayout",
                 "Title"
             },
-            RecognizedPageFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            new[]
             {
                 "SummaryLinks",
                 "SummaryLinks2",
@@ -43,7 +43,6 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "HeaderStyle",
                 "HidePhysicalUrlsFromSearch"
             },
-            AssessValidationCohort = WelcomePageV1CohortPolicy.Assess
-        };
+            WelcomePageV1CohortPolicy.Assess);
     }
 }

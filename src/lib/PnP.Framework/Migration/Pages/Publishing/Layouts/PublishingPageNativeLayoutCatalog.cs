@@ -1,18 +1,31 @@
 using PnP.Framework.Migration.Evidence;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Layouts
 {
     public sealed class PublishingPageNativeLayoutProfile
     {
-        public string FileName { get; set; }
+        internal PublishingPageNativeLayoutProfile(
+            string fileName,
+            string title,
+            string associatedContentTypeName,
+            string associatedContentTypeId)
+        {
+            FileName = fileName;
+            Title = title;
+            AssociatedContentTypeName = associatedContentTypeName;
+            AssociatedContentTypeId = associatedContentTypeId;
+        }
 
-        public string Title { get; set; }
+        public string FileName { get; }
 
-        public string AssociatedContentTypeName { get; set; }
+        public string Title { get; }
 
-        public string AssociatedContentTypeId { get; set; }
+        public string AssociatedContentTypeName { get; }
+
+        public string AssociatedContentTypeId { get; }
     }
 
     public static class PublishingPageNativeLayoutCatalog
@@ -20,62 +33,22 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
         private static readonly IReadOnlyDictionary<string, PublishingPageNativeLayoutProfile> Profiles =
             new Dictionary<string, PublishingPageNativeLayoutProfile>(StringComparer.OrdinalIgnoreCase)
             {
-                ["EnterpriseWiki.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "EnterpriseWiki.aspx",
-                    Title = "Basic Page",
-                    AssociatedContentTypeName = "Enterprise Wiki Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.EnterpriseWikiPage
-                },
-                ["BlankWebPartPage.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "BlankWebPartPage.aspx",
-                    Title = "Blank Web Part page",
-                    AssociatedContentTypeName = "Welcome Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.WelcomePage
-                },
-                ["ArticleLeft.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "ArticleLeft.aspx",
-                    Title = "Article Page with left image",
-                    AssociatedContentTypeName = "Article Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.ArticlePage
-                },
-                ["ArticleRight.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "ArticleRight.aspx",
-                    Title = "Article Page with right image",
-                    AssociatedContentTypeName = "Article Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.ArticlePage
-                },
-                ["ArticleLinks.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "ArticleLinks.aspx",
-                    Title = "Article Page with summary links",
-                    AssociatedContentTypeName = "Article Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.ArticlePage
-                },
-                ["PageFromDocPack.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "PageFromDocPack.aspx",
-                    Title = "Page from document pack",
-                    AssociatedContentTypeName = "Article Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.ArticlePage
-                },
-                ["WelcomeSplash.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "WelcomeSplash.aspx",
-                    Title = "Welcome Splash page",
-                    AssociatedContentTypeName = "Welcome Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.WelcomePage
-                },
-                ["WelcomeLinks.aspx"] = new PublishingPageNativeLayoutProfile
-                {
-                    FileName = "WelcomeLinks.aspx",
-                    Title = "Welcome Links page",
-                    AssociatedContentTypeName = "Welcome Page",
-                    AssociatedContentTypeId = BuiltInContentTypeId.WelcomePage
-                }
+                ["EnterpriseWiki.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "EnterpriseWiki.aspx", "Basic Page", "Enterprise Wiki Page", BuiltInContentTypeId.EnterpriseWikiPage),
+                ["BlankWebPartPage.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "BlankWebPartPage.aspx", "Blank Web Part page", "Welcome Page", BuiltInContentTypeId.WelcomePage),
+                ["ArticleLeft.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "ArticleLeft.aspx", "Image on left", "Article Page", BuiltInContentTypeId.ArticlePage),
+                ["ArticleRight.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "ArticleRight.aspx", "Image on right", "Article Page", BuiltInContentTypeId.ArticlePage),
+                ["ArticleLinks.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "ArticleLinks.aspx", "Summary links", "Article Page", BuiltInContentTypeId.ArticlePage),
+                ["PageFromDocLayout.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "PageFromDocLayout.aspx", "Body only", "Article Page", BuiltInContentTypeId.ArticlePage),
+                ["WelcomeSplash.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "WelcomeSplash.aspx", "Splash", "Welcome Page", BuiltInContentTypeId.WelcomePage),
+                ["WelcomeLinks.aspx"] = new PublishingPageNativeLayoutProfile(
+                    "WelcomeLinks.aspx", "Summary links", "Welcome Page", BuiltInContentTypeId.WelcomePage)
             };
 
         public static bool TryGetUnavailableSourceSubstitution(
@@ -93,9 +66,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                 return false;
             }
 
-            if (!string.IsNullOrWhiteSpace(layout.Description)
-                && !string.Equals(layout.Description.Trim(), candidate.Title, StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(layout.Description.Trim(), candidate.AssociatedContentTypeName, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(layout.Description)
+                || !string.Equals(layout.Description.Trim(), candidate.Title, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            if (!string.IsNullOrWhiteSpace(layout.AssociatedContentTypeName)
+                && !string.Equals(layout.AssociatedContentTypeName, candidate.AssociatedContentTypeName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            if (!string.IsNullOrWhiteSpace(layout.AssociatedContentTypeId)
+                && !string.Equals(
+                    layout.AssociatedContentTypeId,
+                    candidate.AssociatedContentTypeId,
+                    StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -114,7 +99,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             return Profiles.TryGetValue(fileName, out profile);
         }
 
-        public static IReadOnlyCollection<PublishingPageNativeLayoutProfile> AllProfiles => new List<PublishingPageNativeLayoutProfile>(Profiles.Values);
+        public static IReadOnlyCollection<PublishingPageNativeLayoutProfile> AllProfiles => Profiles.Values
+            .OrderBy(value => value.FileName, StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            .AsReadOnly();
     }
 }
-

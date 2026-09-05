@@ -70,16 +70,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             string profileId,
             string contentTypeIdPrefix)
         {
-            PoliciesByWorkflowId[policy.WorkflowId] = policy;
+            var registeredPolicy = policy.Snapshot();
+            PoliciesByWorkflowId[registeredPolicy.WorkflowId] = registeredPolicy;
             if (!string.IsNullOrWhiteSpace(profileId))
             {
-                PoliciesByProfileId[profileId] = policy;
+                PoliciesByProfileId[profileId] = registeredPolicy;
             }
 
-            Registrations.RemoveAll(r => string.Equals(r.Policy.WorkflowId, policy.WorkflowId, StringComparison.OrdinalIgnoreCase));
+            Registrations.RemoveAll(r => string.Equals(r.Policy.WorkflowId, registeredPolicy.WorkflowId, StringComparison.OrdinalIgnoreCase));
             Registrations.Add(new PublishingProfileRegistration
             {
-                Policy = policy,
+                Policy = registeredPolicy,
                 ProfileId = profileId,
                 ContentTypeIdPrefix = contentTypeIdPrefix
             });
@@ -126,6 +127,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                     .Where(reg => !string.IsNullOrWhiteSpace(reg.ContentTypeIdPrefix) &&
                                   contentTypeId.StartsWith(reg.ContentTypeIdPrefix, StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(reg => reg.ContentTypeIdPrefix.Length)
+                    .ThenBy(reg => reg.ContentTypeIdPrefix, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(reg => reg.Policy.WorkflowId, StringComparer.Ordinal)
                     .FirstOrDefault();
 
                 if (matched != null)
@@ -135,7 +138,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 }
 
                 // Fallback: evaluate policy's AssessValidationCohort
-                foreach (var reg in Registrations)
+                foreach (var reg in Registrations.OrderBy(value => value.Policy.WorkflowId, StringComparer.Ordinal))
                 {
                     if (reg.Policy.AssessValidationCohort != null)
                     {
@@ -154,13 +157,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 
         public static PublishingPageWorkflowPolicy ResolvePolicy(string workflowId = null, string profileId = null, string contentTypeId = null)
         {
-            if (!string.IsNullOrWhiteSpace(workflowId) && TryGetPolicyByWorkflowId(workflowId, out var policyByWorkflow))
+            if (!string.IsNullOrWhiteSpace(workflowId))
             {
-                return policyByWorkflow;
+                if (TryGetPolicyByWorkflowId(workflowId, out var policyByWorkflow))
+                {
+                    return policyByWorkflow;
+                }
+                throw new InvalidOperationException($"No Publishing Page workflow policy is registered for workflow '{workflowId}'.");
             }
-            if (!string.IsNullOrWhiteSpace(profileId) && TryGetPolicyByProfileId(profileId, out var policyByProfile))
+            if (!string.IsNullOrWhiteSpace(profileId))
             {
-                return policyByProfile;
+                if (TryGetPolicyByProfileId(profileId, out var policyByProfile))
+                {
+                    return policyByProfile;
+                }
+                throw new InvalidOperationException($"No Publishing Page workflow policy is registered for profile '{profileId}'.");
             }
             if (!string.IsNullOrWhiteSpace(contentTypeId) && TryResolvePolicyByContentType(contentTypeId, out var policyByCt))
             {
@@ -175,7 +186,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             {
                 lock (SyncRoot)
                 {
-                    return PoliciesByWorkflowId.Values.ToList();
+                    return PoliciesByWorkflowId.Values
+                        .OrderBy(value => value.WorkflowId, StringComparer.Ordinal)
+                        .ToList()
+                        .AsReadOnly();
                 }
             }
         }
@@ -188,4 +202,3 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         }
     }
 }
-

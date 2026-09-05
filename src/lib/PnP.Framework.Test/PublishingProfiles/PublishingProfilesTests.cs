@@ -1,6 +1,8 @@
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Content;
+using ClientContext = Microsoft.SharePoint.Client.ClientContext;
+using FieldUrlValue = Microsoft.SharePoint.Client.FieldUrlValue;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Evidence;
@@ -164,8 +166,13 @@ namespace PnP.Framework.Test.PublishingProfiles
             Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetProfile("ArticleLinks.aspx", out var articleLinks));
             Assert.AreEqual(BuiltInContentTypeId.ArticlePage, articleLinks.AssociatedContentTypeId);
 
-            Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetProfile("PageFromDocPack.aspx", out var docPack));
+            Assert.AreEqual("Image on left", articleLeft.Title);
+            Assert.AreEqual("Image on right", articleRight.Title);
+            Assert.AreEqual("Summary links", articleLinks.Title);
+
+            Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetProfile("PageFromDocLayout.aspx", out var docPack));
             Assert.AreEqual(BuiltInContentTypeId.ArticlePage, docPack.AssociatedContentTypeId);
+            Assert.AreEqual("Body only", docPack.Title);
 
             Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetProfile("BlankWebPartPage.aspx", out var blankWp));
             Assert.AreEqual(BuiltInContentTypeId.WelcomePage, blankWp.AssociatedContentTypeId);
@@ -173,9 +180,11 @@ namespace PnP.Framework.Test.PublishingProfiles
 
             Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetProfile("WelcomeSplash.aspx", out var splash));
             Assert.AreEqual(BuiltInContentTypeId.WelcomePage, splash.AssociatedContentTypeId);
+            Assert.AreEqual("Splash", splash.Title);
 
             Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetProfile("WelcomeLinks.aspx", out var welcomeLinks));
             Assert.AreEqual(BuiltInContentTypeId.WelcomePage, welcomeLinks.AssociatedContentTypeId);
+            Assert.AreEqual("Summary links", welcomeLinks.Title);
 
             Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetProfile("EnterpriseWiki.aspx", out var ew));
             Assert.AreEqual(BuiltInContentTypeId.EnterpriseWikiPage, ew.AssociatedContentTypeId);
@@ -188,7 +197,7 @@ namespace PnP.Framework.Test.PublishingProfiles
             {
                 Availability = EvidenceAvailability.Unavailable,
                 EvidenceState = PublishingPageLayoutEvidenceState.Missing,
-                Description = "Article Page with left image"
+                Description = "Image on left"
             };
             Assert.IsTrue(PublishingPageNativeLayoutCatalog.TryGetUnavailableSourceSubstitution(
                 unavailArticle,
@@ -215,7 +224,7 @@ namespace PnP.Framework.Test.PublishingProfiles
             {
                 Availability = EvidenceAvailability.Captured,
                 EvidenceState = PublishingPageLayoutEvidenceState.Readable,
-                Description = "Article Page with left image"
+                Description = "Image on left"
             };
             Assert.IsFalse(PublishingPageNativeLayoutCatalog.TryGetUnavailableSourceSubstitution(
                 readableLayout,
@@ -230,43 +239,88 @@ namespace PnP.Framework.Test.PublishingProfiles
 
             // Resolve by workflow ID
             Assert.IsTrue(PublishingPageProfileRegistry.TryGetPolicyByWorkflowId("enterprise-wiki-v1", out var ewPolicy));
-            Assert.AreSame(EnterpriseWikiV1WorkflowPolicy.Instance, ewPolicy);
+            Assert.AreEqual(EnterpriseWikiV1WorkflowPolicy.Instance.WorkflowId, ewPolicy.WorkflowId);
 
             Assert.IsTrue(PublishingPageProfileRegistry.TryGetPolicyByWorkflowId("article-page-v1", out var articlePolicy));
-            Assert.AreSame(ArticlePageV1WorkflowPolicy.Instance, articlePolicy);
+            Assert.AreEqual(ArticlePageV1WorkflowPolicy.Instance.WorkflowId, articlePolicy.WorkflowId);
 
             Assert.IsTrue(PublishingPageProfileRegistry.TryGetPolicyByWorkflowId("welcome-page-v1", out var welcomePolicy));
-            Assert.AreSame(WelcomePageV1WorkflowPolicy.Instance, welcomePolicy);
+            Assert.AreEqual(WelcomePageV1WorkflowPolicy.Instance.WorkflowId, welcomePolicy.WorkflowId);
 
             // Resolve by profile ID
             Assert.IsTrue(PublishingPageProfileRegistry.TryGetPolicyByProfileId(PageProfileIds.EnterpriseWiki, out var ewByProfile));
-            Assert.AreSame(EnterpriseWikiV1WorkflowPolicy.Instance, ewByProfile);
+            Assert.AreEqual(EnterpriseWikiV1WorkflowPolicy.Instance.WorkflowId, ewByProfile.WorkflowId);
 
             Assert.IsTrue(PublishingPageProfileRegistry.TryGetPolicyByProfileId(PageProfileIds.ArticlePage, out var articleByProfile));
-            Assert.AreSame(ArticlePageV1WorkflowPolicy.Instance, articleByProfile);
+            Assert.AreEqual(ArticlePageV1WorkflowPolicy.Instance.WorkflowId, articleByProfile.WorkflowId);
 
             Assert.IsTrue(PublishingPageProfileRegistry.TryGetPolicyByProfileId(PageProfileIds.WelcomePage, out var welcomeByProfile));
-            Assert.AreSame(WelcomePageV1WorkflowPolicy.Instance, welcomeByProfile);
+            Assert.AreEqual(WelcomePageV1WorkflowPolicy.Instance.WorkflowId, welcomeByProfile.WorkflowId);
 
             // Resolve by ContentTypeId
             Assert.IsTrue(PublishingPageProfileRegistry.TryResolvePolicyByContentType(BuiltInContentTypeId.ArticlePage + "0099", out var resolvedArticle));
-            Assert.AreSame(ArticlePageV1WorkflowPolicy.Instance, resolvedArticle);
+            Assert.AreEqual(ArticlePageV1WorkflowPolicy.Instance.WorkflowId, resolvedArticle.WorkflowId);
 
             Assert.IsTrue(PublishingPageProfileRegistry.TryResolvePolicyByContentType(BuiltInContentTypeId.WelcomePage + "0088", out var resolvedWelcome));
-            Assert.AreSame(WelcomePageV1WorkflowPolicy.Instance, resolvedWelcome);
+            Assert.AreEqual(WelcomePageV1WorkflowPolicy.Instance.WorkflowId, resolvedWelcome.WorkflowId);
 
             Assert.IsTrue(PublishingPageProfileRegistry.TryResolvePolicyByContentType(BuiltInContentTypeId.EnterpriseWikiPage + "0077", out var resolvedEw));
-            Assert.AreSame(EnterpriseWikiV1WorkflowPolicy.Instance, resolvedEw);
+            Assert.AreEqual(EnterpriseWikiV1WorkflowPolicy.Instance.WorkflowId, resolvedEw.WorkflowId);
 
             Assert.IsFalse(PublishingPageProfileRegistry.TryResolvePolicyByContentType("0x010100UNKNOWN", out _));
 
             // Unified ResolvePolicy method
-            Assert.AreSame(ArticlePageV1WorkflowPolicy.Instance, PublishingPageProfileRegistry.ResolvePolicy(workflowId: "article-page-v1"));
-            Assert.AreSame(WelcomePageV1WorkflowPolicy.Instance, PublishingPageProfileRegistry.ResolvePolicy(profileId: PageProfileIds.WelcomePage));
-            Assert.AreSame(EnterpriseWikiV1WorkflowPolicy.Instance, PublishingPageProfileRegistry.ResolvePolicy(contentTypeId: BuiltInContentTypeId.EnterpriseWikiPage));
+            Assert.AreEqual("article-page-v1", PublishingPageProfileRegistry.ResolvePolicy(workflowId: "article-page-v1").WorkflowId);
+            Assert.AreEqual("welcome-page-v1", PublishingPageProfileRegistry.ResolvePolicy(profileId: PageProfileIds.WelcomePage).WorkflowId);
+            Assert.AreEqual("enterprise-wiki-v1", PublishingPageProfileRegistry.ResolvePolicy(contentTypeId: BuiltInContentTypeId.EnterpriseWikiPage).WorkflowId);
 
             // All registered policies count
             Assert.AreEqual(3, PublishingPageProfileRegistry.RegisteredPolicies.Count);
+        }
+
+        [TestMethod]
+        public void PublishingProfileRegistryFallsBackByContentTypeOnlyWhenWorkflowIsMissing()
+        {
+            PublishingPageProfileRegistry.ResetToDefaults();
+
+            Assert.AreEqual(
+                ArticlePageV1CohortPolicy.CohortId,
+                PublishingPageProfileRegistry.ResolvePolicy(
+                    workflowId: null,
+                    contentTypeId: BuiltInContentTypeId.ArticlePage + "0011").WorkflowId);
+            Assert.ThrowsException<InvalidOperationException>(() =>
+                PublishingPageProfileRegistry.ResolvePolicy(
+                    workflowId: "missing-workflow",
+                    contentTypeId: BuiltInContentTypeId.ArticlePage));
+        }
+
+        [TestMethod]
+        public void PublishingProfileRegistrySnapshotsInputsAndUsesDeterministicContentTypeTieBreak()
+        {
+            var stock = new[] { "Custom.aspx" };
+            var policyZ = new PublishingPageWorkflowPolicy(
+                "z-workflow", "Article Page", BuiltInContentTypeId.ArticlePage, "Custom.aspx",
+                stock, new[] { "Title" }, new[] { "SummaryLinks" }, ArticlePageV1CohortPolicy.Assess);
+            var policyA = new PublishingPageWorkflowPolicy(
+                "a-workflow", "Article Page", BuiltInContentTypeId.ArticlePage, "Custom.aspx",
+                stock, new[] { "Title" }, new[] { "SummaryLinks" }, ArticlePageV1CohortPolicy.Assess);
+            stock[0] = "Mutated.aspx";
+
+            try
+            {
+                PublishingPageProfileRegistry.Register(policyZ, "z-profile", BuiltInContentTypeId.ArticlePage);
+                PublishingPageProfileRegistry.Register(policyA, "a-profile", BuiltInContentTypeId.ArticlePage);
+
+                Assert.IsTrue(policyZ.IsStockLayout("Custom.aspx"));
+                Assert.IsFalse(policyZ.IsStockLayout("Mutated.aspx"));
+                Assert.IsTrue(PublishingPageProfileRegistry.TryResolvePolicyByContentType(
+                    BuiltInContentTypeId.ArticlePage + "00AB", out var resolved));
+                Assert.AreEqual("a-workflow", resolved.WorkflowId);
+            }
+            finally
+            {
+                PublishingPageProfileRegistry.ResetToDefaults();
+            }
         }
 
         [TestMethod]
@@ -282,7 +336,7 @@ namespace PnP.Framework.Test.PublishingProfiles
             Assert.IsTrue(article.RecognizedPageFields.Contains("PublishingPageImage"));
             Assert.IsTrue(article.RecognizedPageFields.Contains("PublishingStartDate"));
             Assert.IsTrue(article.RecognizedPageFields.Contains("PublishingExpirationDate"));
-            Assert.IsFalse(article.RecognizedPageFields.Contains("SummaryLinks"));
+            Assert.IsTrue(article.RecognizedPageFields.Contains("SummaryLinks"));
             Assert.IsFalse(article.RecognizedPageFields.Contains("Wiki_x0020_Page_x0020_Categories"));
 
             var welcome = WelcomePageV1WorkflowPolicy.Instance;
@@ -295,6 +349,7 @@ namespace PnP.Framework.Test.PublishingProfiles
             Assert.IsTrue(welcome.RecognizedPageFields.Contains("PublishingRollupImage"));
             Assert.IsFalse(welcome.RecognizedPageFields.Contains("ArticleByLine"));
             Assert.IsFalse(welcome.RecognizedPageFields.Contains("Wiki_x0020_Page_x0020_Categories"));
+            Assert.IsTrue(EnterpriseWikiV1WorkflowPolicy.Instance.RecognizedPageFields.Contains("Wiki_x0020_Page_x0020_Categories"));
         }
 
         [TestMethod]
@@ -404,7 +459,7 @@ namespace PnP.Framework.Test.PublishingProfiles
                     ServerRelativeUrl = "/_catalogs/masterpage/" + policy.PreferredTargetPageLayoutFileName,
                     FileName = policy.PreferredTargetPageLayoutFileName,
                     CustomizedPageStatus = 1,
-                    AssociatedContentTypeName = "Test Page",
+                    AssociatedContentTypeName = policy.SourceContentTypeName,
                     AssociatedContentTypeId = contentTypeId,
                     PageDirective = PageDirectiveParser.Parse("<%@ Page %>"),
                     Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", policy.PreferredTargetPageLayoutFileName),
@@ -464,15 +519,15 @@ namespace PnP.Framework.Test.PublishingProfiles
                 new Uri(snapshot.Source.WebUrl),
                 new Uri("https://target.sharepoint.com/sites/target"),
                 new Uri("https://target.sharepoint.com/sites/target"),
-                policy.PreferredTargetPageLayoutFileName);
+                policy);
             var layoutProbe = new PublishingPageLayoutTargetProbe
             {
                 TargetServerRelativeUrl = layoutPlan.TargetServerRelativeUrl,
                 FileExists = true,
-                ExistingAssociatedContentTypeName = "Test Page",
-                ExistingAssociatedContentTypeId = contentTypeId,
+                ExistingAssociatedContentTypeName = policy.SourceContentTypeName,
+                ExistingAssociatedContentTypeId = policy.SourceContentTypeIdPrefix,
                 AssociatedContentTypeAvailable = true,
-                ResolvedAssociatedContentTypeId = contentTypeId,
+                ResolvedAssociatedContentTypeId = policy.SourceContentTypeIdPrefix,
                 Availability = EvidenceAvailability.Captured
             };
             var layoutAdmission = PublishingPageLayoutTargetAdmissionEvaluator.Evaluate(layoutPlan, layoutProbe);
@@ -570,6 +625,8 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Availability = EvidenceAvailability.Captured,
                 EvidenceState = PublishingPageLayoutEvidenceState.Readable,
                 CustomizedPageStatus = 1,
+                AssociatedContentTypeName = "Article Page",
+                AssociatedContentTypeId = BuiltInContentTypeId.ArticlePage,
                 Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "ArticleRight.aspx")
             };
 
@@ -598,6 +655,8 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Availability = EvidenceAvailability.Captured,
                 EvidenceState = PublishingPageLayoutEvidenceState.Readable,
                 CustomizedPageStatus = 1,
+                AssociatedContentTypeName = "Article Page",
+                AssociatedContentTypeId = BuiltInContentTypeId.ArticlePage,
                 Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "ArticleLinks.aspx")
             };
 
@@ -624,6 +683,8 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Availability = EvidenceAvailability.Captured,
                 EvidenceState = PublishingPageLayoutEvidenceState.Readable,
                 CustomizedPageStatus = 1,
+                AssociatedContentTypeName = "Welcome Page",
+                AssociatedContentTypeId = BuiltInContentTypeId.WelcomePage,
                 Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "WelcomeSplash.aspx")
             };
 
@@ -652,6 +713,8 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Availability = EvidenceAvailability.Captured,
                 EvidenceState = PublishingPageLayoutEvidenceState.Readable,
                 CustomizedPageStatus = 1,
+                AssociatedContentTypeName = "Welcome Page",
+                AssociatedContentTypeId = BuiltInContentTypeId.WelcomePage,
                 Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "WelcomeLinks.aspx")
             };
 
@@ -664,6 +727,81 @@ namespace PnP.Framework.Test.PublishingProfiles
 
             Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.ReuseTargetStock, plan.Disposition);
             Assert.AreEqual("WelcomeLinks.aspx", plan.TargetFileName);
+        }
+
+        [TestMethod]
+        public void LayoutPlannerFailsClosedForCrossProfileOrMissingStockAssociation()
+        {
+            var crossProfile = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/WelcomeSplash.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/WelcomeSplash.aspx",
+                FileName = "WelcomeSplash.aspx",
+                Availability = EvidenceAvailability.Captured,
+                EvidenceState = PublishingPageLayoutEvidenceState.Readable,
+                CustomizedPageStatus = 1,
+                AssociatedContentTypeName = "Welcome Page",
+                AssociatedContentTypeId = BuiltInContentTypeId.WelcomePage,
+                Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "WelcomeSplash.aspx")
+            };
+            var missingAssociation = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/ArticleLeft.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/ArticleLeft.aspx",
+                FileName = "ArticleLeft.aspx",
+                Availability = EvidenceAvailability.Captured,
+                EvidenceState = PublishingPageLayoutEvidenceState.Readable,
+                CustomizedPageStatus = 1,
+                Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "ArticleLeft.aspx")
+            };
+
+            Assert.AreEqual(
+                PublishingPageLayoutMaterializationDisposition.Block,
+                PublishingPageLayoutPlanFactory.Create(
+                    crossProfile,
+                    new Uri("https://source.sharepoint.com/sites/source"),
+                    new Uri("https://target.sharepoint.com/sites/target"),
+                    new Uri("https://target.sharepoint.com/sites/target"),
+                    ArticlePageV1WorkflowPolicy.Instance).Disposition);
+            Assert.AreEqual(
+                PublishingPageLayoutMaterializationDisposition.Block,
+                PublishingPageLayoutPlanFactory.Create(
+                    missingAssociation,
+                    new Uri("https://source.sharepoint.com/sites/source"),
+                    new Uri("https://target.sharepoint.com/sites/target"),
+                    new Uri("https://target.sharepoint.com/sites/target"),
+                    ArticlePageV1WorkflowPolicy.Instance).Disposition);
+        }
+
+        [TestMethod]
+        public void LayoutPlannerUsesRealUnavailableMetadataWithinExactWorkflowFamily()
+        {
+            var unavailable = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/PageFromDocLayout.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/PageFromDocLayout.aspx",
+                FileName = "PageFromDocLayout.aspx",
+                Description = "Body only",
+                Availability = EvidenceAvailability.Unavailable,
+                EvidenceState = PublishingPageLayoutEvidenceState.Missing
+            };
+
+            var article = PublishingPageLayoutPlanFactory.Create(
+                unavailable,
+                new Uri("https://source.sharepoint.com/sites/source"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                ArticlePageV1WorkflowPolicy.Instance);
+            var welcome = PublishingPageLayoutPlanFactory.Create(
+                unavailable,
+                new Uri("https://source.sharepoint.com/sites/source"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                WelcomePageV1WorkflowPolicy.Instance);
+
+            Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.ReuseTargetStock, article.Disposition);
+            Assert.AreEqual("PageFromDocLayout.aspx", article.TargetFileName);
+            Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.Block, welcome.Disposition);
         }
 
         [TestMethod]
@@ -740,6 +878,8 @@ namespace PnP.Framework.Test.PublishingProfiles
             Assert.AreEqual(1, references.Count);
             Assert.AreEqual("https://source.sharepoint.com/sites/source/PublishingImages/hero.jpg", references[0].OriginalValue);
             Assert.AreEqual(PageReferenceKind.Image, references[0].Kind);
+            Assert.AreEqual(PageCaptureStatus.CapturedWithLimitations, references[0].CaptureStatus);
+            Assert.IsNull(references[0].ContentSha256);
 
             var replacements = new List<PageTextReplacement>
             {
@@ -804,6 +944,215 @@ namespace PnP.Framework.Test.PublishingProfiles
         }
 
         [TestMethod]
+        public void ReferenceReaderCapturesUrlFieldCandidatesWithoutClaimingMissingPayloadEvidence()
+        {
+            var references = PageReferenceSnapshotReader.Read(
+                null,
+                new PageIdentity
+                {
+                    WebId = Guid.NewGuid(),
+                    WebUrl = "https://source.sharepoint.com/sites/source",
+                    WebServerRelativeUrl = "/sites/source",
+                    PageServerRelativeUrl = "/sites/source/Pages/article.aspx"
+                },
+                null,
+                null,
+                null,
+                new PageCaptureOptions { SourcePageServerRelativeUrl = "/sites/source/Pages/article.aspx" },
+                new List<string>(),
+                new[]
+                {
+                    new PageFieldValueSnapshot
+                    {
+                        InternalName = "PublishingRollupImage",
+                        Kind = PageFieldValueKind.Url,
+                        UrlValue = new PageUrlValueSnapshot
+                        {
+                            Url = "https://source.sharepoint.com/sites/source/PublishingImages/rollup.jpg",
+                            Description = "Rollup"
+                        }
+                    }
+                });
+
+            Assert.AreEqual(1, references.Count);
+            Assert.AreEqual("field:PublishingRollupImage", references[0].Consumer);
+            Assert.IsTrue(references[0].IsRenderableResource);
+            Assert.AreEqual(PageCaptureStatus.CapturedWithLimitations, references[0].CaptureStatus);
+            Assert.IsNull(references[0].ContentBase64);
+        }
+
+        [TestMethod]
+        public void FreshFieldAndLayoutReadbackVerifiesRewrittenValuesAndRejectsDrift()
+        {
+            using (var context = new ClientContext("https://target.sharepoint.com/sites/target"))
+            {
+                var item = context.Web.Lists.GetByTitle("Pages").GetItemById(1);
+                item["SummaryLinks"] = "<a href=\"/sites/target/Pages/about.aspx\">About</a>";
+                item["PublishingPageLayout"] = new FieldUrlValue
+                {
+                    Url = "https://target.sharepoint.com/sites/target/_catalogs/masterpage/ArticleLinks.aspx",
+                    Description = "Summary links"
+                };
+                item["PublishingRollupImage"] = new FieldUrlValue
+                {
+                    Url = "https://target.sharepoint.com/sites/target/PublishingImages/rollup.jpg",
+                    Description = "Rollup"
+                };
+                var field = new PageFieldValueSnapshot
+                {
+                    InternalName = "SummaryLinks",
+                    Kind = PageFieldValueKind.String,
+                    Value = "<a href=\"/sites/source/Pages/about.aspx\">About</a>"
+                };
+                var action = new PageFieldAction
+                {
+                    SourceInternalName = "SummaryLinks",
+                    TargetInternalName = "SummaryLinks",
+                    Disposition = PageFieldDisposition.Apply
+                };
+                var urlField = new PageFieldValueSnapshot
+                {
+                    InternalName = "PublishingRollupImage",
+                    Kind = PageFieldValueKind.Url,
+                    UrlValue = new PageUrlValueSnapshot
+                    {
+                        Url = "https://source.sharepoint.com/sites/source/PublishingImages/rollup.jpg",
+                        Description = "Rollup"
+                    }
+                };
+                var urlAction = new PageFieldAction
+                {
+                    SourceInternalName = "PublishingRollupImage",
+                    TargetInternalName = "PublishingRollupImage",
+                    Disposition = PageFieldDisposition.Apply
+                };
+                var replacements = new[]
+                {
+                    new PageTextReplacement
+                    {
+                        Source = "/sites/source/Pages/about.aspx",
+                        Target = "/sites/target/Pages/about.aspx"
+                    },
+                    new PageTextReplacement
+                    {
+                        Source = "https://source.sharepoint.com/sites/source/PublishingImages/rollup.jpg",
+                        Target = "https://target.sharepoint.com/sites/target/PublishingImages/rollup.jpg"
+                    }
+                };
+
+                var passed = PublishingPageFieldFreshReadbackVerifier.Verify(
+                    item, new[] { field, urlField }, new[] { action, urlAction }, replacements, Array.Empty<PageFieldImportResult>());
+                Assert.IsTrue(passed.All(value => value.Succeeded));
+                Assert.IsTrue(PublishingPageFieldFreshReadbackVerifier.LayoutMatches(
+                    item, "/sites/target/_catalogs/masterpage/ArticleLinks.aspx"));
+
+                item["SummaryLinks"] = "<a href=\"/sites/target/Pages/drift.aspx\">Drift</a>";
+                var drifted = PublishingPageFieldFreshReadbackVerifier.Verify(
+                    item, new[] { field, urlField }, new[] { action, urlAction }, replacements, Array.Empty<PageFieldImportResult>());
+                Assert.IsFalse(drifted.Single(value => value.InternalName == "SummaryLinks").Succeeded);
+                Assert.IsFalse(PublishingPageFieldFreshReadbackVerifier.LayoutMatches(
+                    item, "/sites/target/_catalogs/masterpage/ArticleRight.aspx"));
+            }
+        }
+
+        [TestMethod]
+        public void PackageLifecycleProjectsCapturedFieldReferencesAndDropsUnsafeRewriteWithoutPayloadEvidence()
+        {
+            var package = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
+            var field = new PageFieldValueSnapshot
+            {
+                Id = Guid.NewGuid(),
+                InternalName = "PublishingPageImage",
+                TypeAsString = "Image",
+                Kind = PageFieldValueKind.String,
+                HasValue = true,
+                CaptureStatus = PageCaptureStatus.Captured,
+                Value = "<img src=\"https://source.sharepoint.com/sites/source/PublishingImages/guide.jpg\" alt=\"Guide\" />"
+            };
+            var dependency = PageReferenceSnapshotReader.Read(
+                null,
+                package.Snapshot.Source,
+                null,
+                null,
+                null,
+                package.Snapshot.CapturePolicy,
+                new List<string>(),
+                new[] { field }).Single();
+            dependency.CaptureStatus = PageCaptureStatus.Captured;
+            dependency.ContentBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("guide"));
+            dependency.ContentSha256 = PublishingPageDigest.ComputeSha256(Encoding.UTF8.GetBytes("guide"));
+            dependency.ContentLength = 5;
+            package.Snapshot.Fields.Add(field);
+            package.Snapshot.Dependencies.Add(dependency);
+            package.Plan.FieldActions.Add(new PageFieldAction
+            {
+                SourceInternalName = "PublishingPageImage",
+                TargetInternalName = "PublishingPageImage",
+                TargetTypeAsString = "Image",
+                Disposition = PageFieldDisposition.Apply
+            });
+            package.Plan.DependencyActions = new List<PageReferenceAction>
+            {
+                new PageReferenceAction
+                {
+                    SnapshotDependencyId = dependency.Id,
+                    Disposition = PageReferenceDisposition.MaterializeAtTarget,
+                    TargetServerRelativeUrl = "/sites/target/PublishingImages/guide.jpg",
+                    TargetAbsoluteUrl = "https://target.sharepoint.com/sites/target/PublishingImages/guide.jpg"
+                }
+            };
+            package.Plan.Replacements = PageReferencePlanner.BuildTextReplacements(
+                package.Snapshot.Source,
+                package.Plan.TargetWebUrl,
+                package.Plan.TargetWebServerRelativeUrl,
+                package.Snapshot.Dependencies,
+                package.Plan.DependencyActions);
+            package.Plan.ExecutionFrontier = new PageIngredientExecutionFrontier
+            {
+                Decisions = new List<PageIngredientExecutionDecision>
+                {
+                    new PageIngredientExecutionDecision
+                    {
+                        IngredientId = PublishingPageIngredientIds.Field("PublishingPageImage"),
+                        State = PageIngredientExecutionState.Executable
+                    },
+                    new PageIngredientExecutionDecision
+                    {
+                        IngredientId = PublishingPageIngredientIds.Reference(dependency.Id),
+                        State = PageIngredientExecutionState.Executable
+                    }
+                }
+            };
+
+            var scope = PublishingPageExecutionScope.Create(package);
+            var replacements = PublishingPageExecutionReplacementProjector.Project(package, scope);
+            using (var context = new ClientContext(package.Plan.TargetWebUrl))
+            {
+                var item = context.Web.Lists.GetByTitle("Pages").GetItemById(1);
+                item["PublishingPageImage"] = PageTextTransformer.Rewrite(field.Value, replacements);
+                var verified = PublishingPageFieldFreshReadbackVerifier.Verify(
+                    item,
+                    package.Snapshot.Fields,
+                    scope.PageFieldActions(package),
+                    replacements,
+                    Array.Empty<PageFieldImportResult>());
+                Assert.IsTrue(verified.Single().Succeeded);
+                StringAssert.Contains((string)item["PublishingPageImage"], "https://target.sharepoint.com/sites/target/PublishingImages/guide.jpg");
+            }
+
+            dependency.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+            dependency.ContentBase64 = null;
+            dependency.ContentSha256 = null;
+            package.Plan.DependencyActions[0].Disposition = PageReferenceDisposition.PreserveExternal;
+            package.Plan.DependencyActions[0].TargetServerRelativeUrl = null;
+            package.Plan.DependencyActions[0].TargetAbsoluteUrl = dependency.SourceAbsoluteUrl;
+            var withoutEvidence = PublishingPageExecutionReplacementProjector.Project(package, scope);
+            Assert.IsFalse(withoutEvidence.Any(value =>
+                string.Equals(value.Source, package.Snapshot.Source.WebUrl, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value.Source, package.Snapshot.Source.WebServerRelativeUrl, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        [TestMethod]
         public void UnifiedPublishingImporterValidatesArticleAndWelcomePackages()
         {
             var articlePackage = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
@@ -815,15 +1164,19 @@ namespace PnP.Framework.Test.PublishingProfiles
             PublishingPageImportPlanValidator.Validate(articlePackage, ArticlePageV1WorkflowPolicy.Instance, articleScope);
             PublishingPageImportPlanValidator.Validate(welcomePackage, WelcomePageV1WorkflowPolicy.Instance, welcomeScope);
 
-            var articleImporter = new ArticlePageMigrationImporter();
-            var welcomeImporter = new PnP.Framework.Migration.Pages.Publishing.Welcome.WelcomePageMigrationImporter();
-            var ewImporter = new EnterpriseWikiMigrationImporter();
-            var genericImporter = new PublishingPageMigrationImporter();
+            using (var articleContext = new ClientContext(articlePackage.Plan.TargetWebUrl))
+            using (var welcomeContext = new ClientContext(welcomePackage.Plan.TargetWebUrl))
+            {
+                var articleReceipt = new ArticlePageMigrationImporter().Import(
+                    articleContext, articlePackage, "not-the-approved-digest");
+                var welcomeReceipt = new PnP.Framework.Migration.Pages.Publishing.Welcome.WelcomePageMigrationImporter().Import(
+                    welcomeContext, welcomePackage, "not-the-approved-digest");
 
-            Assert.IsNotNull(articleImporter);
-            Assert.IsNotNull(welcomeImporter);
-            Assert.IsNotNull(ewImporter);
-            Assert.IsNotNull(genericImporter);
+                Assert.IsFalse(articleReceipt.MutationStarted);
+                Assert.IsFalse(welcomeReceipt.MutationStarted);
+                Assert.AreEqual("PlanDigestNotApproved", articleReceipt.AdmissionFailure.Code);
+                Assert.AreEqual("PlanDigestNotApproved", welcomeReceipt.AdmissionFailure.Code);
+            }
         }
 
         [TestMethod]

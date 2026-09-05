@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
+using PnP.Framework.Migration.Pages.Publishing.Verification;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Taxonomy;
 using System;
@@ -28,7 +29,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                 throw new ArgumentNullException(nameof(workflowPolicy));
             }
 
-            return Create(
+            return CreateCore(
                 layout,
                 sourcePageWebUrl,
                 targetPageWebUrl,
@@ -37,7 +38,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                 taxonomyMappings,
                 artifactStore,
                 allowExternalResourceReferences,
-                workflowPolicy.StockPageLayoutFileNames);
+                workflowPolicy.StockPageLayoutFileNames,
+                workflowPolicy);
         }
 
         public static PublishingPageLayoutMaterializationPlan Create(
@@ -50,6 +52,31 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             IMigrationArtifactStore artifactStore = null,
             bool allowExternalResourceReferences = true,
             IEnumerable<string> recognizedStockFileNames = null)
+        {
+            return CreateCore(
+                layout,
+                sourcePageWebUrl,
+                targetPageWebUrl,
+                targetSiteCollectionUrl,
+                reviewedStockFileName,
+                taxonomyMappings,
+                artifactStore,
+                allowExternalResourceReferences,
+                recognizedStockFileNames,
+                null);
+        }
+
+        private static PublishingPageLayoutMaterializationPlan CreateCore(
+            PublishingPageLayoutSnapshot layout,
+            Uri sourcePageWebUrl,
+            Uri targetPageWebUrl,
+            Uri targetSiteCollectionUrl,
+            string reviewedStockFileName,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
+            IMigrationArtifactStore artifactStore,
+            bool allowExternalResourceReferences,
+            IEnumerable<string> recognizedStockFileNames,
+            PublishingPageWorkflowPolicy workflowPolicy)
         {
             if (layout == null)
             {
@@ -68,15 +95,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                 ? layout.FileName
                 : Path.GetFileName(layout.ServerRelativeUrl ?? layout.Url ?? string.Empty);
             var isNativeStock = PublishingPageNativeLayoutCatalog.TryGetProfile(sourceFileName, out var nativeStockProfile);
+            var isAllowedStock = string.Equals(sourceFileName, reviewedStockFileName, StringComparison.OrdinalIgnoreCase)
+                || recognizedStockFileNames != null
+                    && recognizedStockFileNames.Any(name => string.Equals(sourceFileName, name, StringComparison.OrdinalIgnoreCase));
             var isReviewedStock = layout.CustomizedPageStatus == 1
-                && (string.Equals(sourceFileName, reviewedStockFileName, StringComparison.OrdinalIgnoreCase)
-                    || (recognizedStockFileNames != null && recognizedStockFileNames.Any(name => string.Equals(sourceFileName, name, StringComparison.OrdinalIgnoreCase)))
-                    || isNativeStock);
+                && isAllowedStock;
             if (isReviewedStock)
             {
-                var targetStockFileName = isNativeStock
-                    ? nativeStockProfile.FileName
-                    : (sourceFileName ?? reviewedStockFileName);
+                if (workflowPolicy != null
+                    && (!isNativeStock || !NativeProfileMatchesPolicy(nativeStockProfile, workflowPolicy)))
+                {
+                    return Block(layout, sourceFileName,
+                        $"The source stock Page Layout '{sourceFileName}' is not in the exact native layout family allowed by workflow '{workflowPolicy.WorkflowId}'.");
+                }
+                if (isNativeStock && !LayoutAssociationMatchesNativeProfile(layout, nativeStockProfile))
+                {
+                    return Block(layout, sourceFileName,
+                        $"The source stock Page Layout '{sourceFileName}' has missing or conflicting associated content type evidence.");
+                }
+
+                var targetStockFileName = sourceFileName ?? reviewedStockFileName;
                 var stockTargetPath = BuildTargetPath(targetSiteCollectionUrl, targetStockFileName);
 
                 return new PublishingPageLayoutMaterializationPlan
@@ -95,15 +133,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                     RequiredRegistrations = layout.Registrations.ToList(),
                     Zones = layout.Zones.ToList(),
                     ResourceReferences = layout.ResourceReferences.ToList(),
-                    TargetBytes = layout.Bytes,
+                    TargetBytes = null,
                     Reason = $"Reuse the reviewed uncustomized target stock {targetStockFileName} Page Layout."
                 };
             }
 
-            if (PublishingPageNativeLayoutCatalog.TryGetUnavailableSourceSubstitution(
+            if (isAllowedStock
+                && PublishingPageNativeLayoutCatalog.TryGetUnavailableSourceSubstitution(
                 layout,
                 sourceFileName,
-                out var nativeProfile))
+                out var nativeProfile)
+                && (workflowPolicy == null || NativeProfileMatchesPolicy(nativeProfile, workflowPolicy)))
             {
                 return new PublishingPageLayoutMaterializationPlan
                 {
@@ -140,6 +180,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             {
                 return Block(layout, sourceFileName,
                     "The readable source Page Layout has no associated content type name or ID evidence.");
+            }
+            if (workflowPolicy != null
+                && !PublishingPageContentTypeIdentity.MatchesSiteContentType(
+                    layout.AssociatedContentTypeId,
+                    workflowPolicy.SourceContentTypeIdPrefix))
+            {
+                return Block(layout, sourceFileName,
+                    $"The source Page Layout content type '{layout.AssociatedContentTypeId}' is outside workflow '{workflowPolicy.WorkflowId}' content type family '{workflowPolicy.SourceContentTypeIdPrefix}'.");
             }
 
             var sourceBytes = MigrationArtifact.ReadAllBytes(layout.Bytes, layout.ContentBase64, artifactStore);
@@ -312,6 +360,41 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             return ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(schema, out targetRuntimeRequirement)
                 ? targetRuntimeRequirement
                 : null;
+        }
+
+        private static bool NativeProfileMatchesPolicy(
+            PublishingPageNativeLayoutProfile profile,
+            PublishingPageWorkflowPolicy policy)
+        {
+            return profile != null
+                && policy != null
+                && policy.IsStockLayout(profile.FileName)
+                && string.Equals(
+                    profile.AssociatedContentTypeName,
+                    policy.SourceContentTypeName,
+                    StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    profile.AssociatedContentTypeId,
+                    policy.SourceContentTypeIdPrefix,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool LayoutAssociationMatchesNativeProfile(
+            PublishingPageLayoutSnapshot layout,
+            PublishingPageNativeLayoutProfile profile)
+        {
+            return layout != null
+                && profile != null
+                && !string.IsNullOrWhiteSpace(layout.AssociatedContentTypeName)
+                && !string.IsNullOrWhiteSpace(layout.AssociatedContentTypeId)
+                && string.Equals(
+                    layout.AssociatedContentTypeName,
+                    profile.AssociatedContentTypeName,
+                    StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    layout.AssociatedContentTypeId,
+                    profile.AssociatedContentTypeId,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         private static void RequireAbsoluteHttps(Uri value, string parameterName)

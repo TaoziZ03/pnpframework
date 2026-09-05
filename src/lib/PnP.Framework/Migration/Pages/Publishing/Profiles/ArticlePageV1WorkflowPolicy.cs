@@ -1,22 +1,22 @@
-using System;
-using System.Collections.Generic;
+using PnP.Framework.Migration.Evidence;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 {
     public static class ArticlePageV1WorkflowPolicy
     {
-        public static readonly PublishingPageWorkflowPolicy Instance = new PublishingPageWorkflowPolicy
-        {
-            WorkflowId = ArticlePageV1CohortPolicy.CohortId,
-            PreferredTargetPageLayoutFileName = "ArticleLeft.aspx",
-            StockPageLayoutFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        public static PublishingPageWorkflowPolicy Instance { get; } = new PublishingPageWorkflowPolicy(
+            ArticlePageV1CohortPolicy.CohortId,
+            "Article Page",
+            BuiltInContentTypeId.ArticlePage,
+            "ArticleLeft.aspx",
+            new[]
             {
                 "ArticleLeft.aspx",
                 "ArticleRight.aspx",
                 "ArticleLinks.aspx",
-                "PageFromDocPack.aspx"
+                "PageFromDocLayout.aspx"
             },
-            FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            new[]
             {
                 "ContentTypeId",
                 "FileLeafRef",
@@ -24,7 +24,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "PublishingPageLayout",
                 "Title"
             },
-            RecognizedPageFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            new[]
             {
                 "ArticleByLine",
                 "ArticleStartDate",
@@ -35,6 +35,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "PublishingPageDescription",
                 "PublishingPageImage",
                 "PublishingRollupImage",
+                "SummaryLinks",
                 "PublishingStartDate",
                 "PublishingExpirationDate",
                 "SeoBrowserTitle",
@@ -43,7 +44,6 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "SeoRobotsNoIndex",
                 "Comments"
             },
-            AssessValidationCohort = ArticlePageV1CohortPolicy.Assess
-        };
+            ArticlePageV1CohortPolicy.Assess);
     }
 }

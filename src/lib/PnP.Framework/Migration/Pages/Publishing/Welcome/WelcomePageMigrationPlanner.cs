@@ -78,4 +78,3 @@ namespace PnP.Framework.Migration.Pages.Publishing.Welcome
         }
     }
 }
-

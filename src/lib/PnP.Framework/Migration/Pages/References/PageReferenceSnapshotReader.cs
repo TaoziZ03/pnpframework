@@ -41,28 +41,47 @@ namespace PnP.Framework.Migration.Pages.References
             {
                 foreach (var field in fields)
                 {
-                    if (field == null || field.Kind != PageFieldValueKind.String || string.IsNullOrWhiteSpace(field.Value))
+                    if (field == null || !IsReferenceBearingField(field.InternalName))
                     {
                         continue;
                     }
 
-                    if (string.Equals(field.InternalName, "SummaryLinks", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(field.InternalName, "SummaryLinks2", StringComparison.OrdinalIgnoreCase))
+                    var fieldValue = field.Kind == PageFieldValueKind.Url
+                        ? field.UrlValue?.Url
+                        : field.Kind == PageFieldValueKind.String
+                            ? field.Value
+                            : null;
+                    if (string.IsNullOrWhiteSpace(fieldValue))
                     {
-                        var htmlRefs = ExtractHtmlReferences(field.Value).ToList();
-                        candidates.AddRange(htmlRefs);
-                        var htmlValues = new HashSet<string>(htmlRefs.Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
-                        candidates.AddRange(ExtractTextReferences(field.Value, $"field:{field.InternalName}").Where(r => !htmlValues.Contains(r.Value)));
+                        continue;
                     }
-                    else if (string.Equals(field.InternalName, "PublishingPageImage", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(field.InternalName, "PublishingRollupImage", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(field.InternalName, "PublishingContactPicture", StringComparison.OrdinalIgnoreCase))
+
+                    if (field.Kind == PageFieldValueKind.Url)
                     {
-                        var htmlRefs = ExtractHtmlReferences(field.Value).ToList();
-                        candidates.AddRange(htmlRefs);
-                        var htmlValues = new HashSet<string>(htmlRefs.Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
-                        candidates.AddRange(ExtractTextReferences(field.Value, $"field:{field.InternalName}").Where(r => !htmlValues.Contains(r.Value)));
+                        candidates.Add(new ReferenceCandidate
+                        {
+                            Consumer = $"field:{field.InternalName}",
+                            Kind = IsImageField(field.InternalName) ? PageReferenceKind.Image : PageReferenceKind.Anchor,
+                            Value = fieldValue.Trim(),
+                            IsRenderableResource = IsImageField(field.InternalName)
+                        });
+                        continue;
                     }
+
+                    var htmlRefs = ExtractHtmlReferences(fieldValue).ToList();
+                    candidates.AddRange(htmlRefs);
+                    if (htmlRefs.Count == 0 && IsImageField(field.InternalName) && LooksLikeReference(fieldValue))
+                    {
+                        candidates.Add(new ReferenceCandidate
+                        {
+                            Consumer = $"field:{field.InternalName}",
+                            Kind = PageReferenceKind.Image,
+                            Value = fieldValue.Trim(),
+                            IsRenderableResource = true
+                        });
+                    }
+                    var htmlValues = new HashSet<string>(htmlRefs.Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
+                    candidates.AddRange(ExtractTextReferences(fieldValue, $"field:{field.InternalName}").Where(r => !htmlValues.Contains(r.Value)));
                 }
             }
 
@@ -182,8 +201,37 @@ namespace PnP.Framework.Migration.Pages.References
                     warnings.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
                 }
             }
+            else
+            {
+                reference.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+                reference.Diagnostics.Add("The renderable resource candidate was extracted without a source ClientContext, so no payload was captured.");
+                warnings?.Add($"Resource '{absoluteUri}' was discovered without a source ClientContext; no restorable payload is claimed.");
+            }
 
             return reference;
+        }
+
+        private static bool IsReferenceBearingField(string internalName)
+        {
+            return string.Equals(internalName, "PublishingPageDescription", StringComparison.OrdinalIgnoreCase)
+                || internalName?.StartsWith("SummaryLinks", StringComparison.OrdinalIgnoreCase) == true
+                || IsImageField(internalName);
+        }
+
+        private static bool LooksLikeReference(string value)
+        {
+            var trimmed = value?.Trim();
+            return !string.IsNullOrWhiteSpace(trimmed)
+                && (trimmed.StartsWith("/", StringComparison.Ordinal)
+                    || trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsImageField(string internalName)
+        {
+            return string.Equals(internalName, "PublishingPageImage", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(internalName, "PublishingRollupImage", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(internalName, "PublishingContactPicture", StringComparison.OrdinalIgnoreCase);
         }
 
         private static byte[] ReadFile(

@@ -128,7 +128,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             if (string.Equals(fileName, "ArticleLeft.aspx", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(fileName, "ArticleRight.aspx", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(fileName, "ArticleLinks.aspx", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(fileName, "PageFromDocPack.aspx", StringComparison.OrdinalIgnoreCase))
+                || string.Equals(fileName, "PageFromDocLayout.aspx", StringComparison.OrdinalIgnoreCase))
             {
                 result.Add(Signal(
                     PageProfileIds.ArticlePage,
@@ -174,4 +174,3 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         }
     }
 }
-

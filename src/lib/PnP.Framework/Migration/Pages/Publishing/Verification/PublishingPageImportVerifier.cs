@@ -12,6 +12,7 @@ using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Topology.Ingredients;
 using PnP.Framework.Migration.Pages.Fields.Taxonomy;
 using PnP.Framework.Migration.Pages.Publishing.Execution;
+using PnP.Framework.Migration.Pages.Publishing.Layouts;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Content;
@@ -42,6 +43,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             if (!executionScope.PageArtifact)
             {
                 return VerifyComponents(
+                    targetContext,
                     package,
                     executionScope,
                     approvedPlanDigest,
@@ -62,6 +64,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
 
                 var file = verificationContext.Web.GetFileByServerRelativePath(ResourcePath.FromDecodedUrl(package.Plan.TargetPageServerRelativeUrl));
                 var executableTaxonomyActions = executionScope.TaxonomyActions(package).ToArray();
+                var executableFieldActions = executionScope.PageFieldActions(package)
+                    .Where(value => value.WillApply)
+                    .ToArray();
+                var ordinaryViewFields = string.Join(
+                    Environment.NewLine,
+                    executableFieldActions
+                        .Where(value => value.Disposition != PageFieldDisposition.ApplyTaxonomyRelationships)
+                        .Select(value => value.TargetInternalName)
+                        .Where(value => !string.IsNullOrWhiteSpace(value))
+                        .Concat(new[] { "PublishingPageLayout" })
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(value => value, StringComparer.Ordinal)
+                        .Select(value => "    <FieldRef Name='" + System.Security.SecurityElement.Escape(value) + "' />"));
                 var taxonomyViewFields = string.Join(
                     Environment.NewLine,
                     executableTaxonomyActions
@@ -89,6 +104,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
     <FieldRef Name='ContentTypeId' />
     <FieldRef Name='PublishingPageContent' />
     <FieldRef Name='_ModerationStatus' />
+{ordinaryViewFields}
 {taxonomyViewFields}
 {taxCatchAllViewField}
   </ViewFields>
@@ -208,14 +224,35 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     receiptWarnings.Add("Target Page ownership provenance differs from the approved source identity, snapshot digest, or plan digest.");
                 }
 
-                var plannedFieldsPassed = fieldResults.All(result => !result.Attempted || result.Succeeded);
+                var freshFieldResults = PublishingPageFieldFreshReadbackVerifier.Verify(
+                    item,
+                    package.Snapshot.Fields,
+                    executableFieldActions,
+                    executionReplacements,
+                    fieldResults);
+                var plannedFieldsPassed = freshFieldResults.Count == executableFieldActions.Length
+                    && freshFieldResults.All(result => result.Attempted && result.Succeeded);
+                if (!plannedFieldsPassed)
+                {
+                    receiptWarnings.Add("Fresh page field readback did not verify every executable field value.");
+                    receiptWarnings.AddRange(freshFieldResults
+                        .Where(value => !value.Succeeded)
+                        .Select(value => value.InternalName + ": " + value.Message));
+                }
+                var layoutMatched = PublishingPageFieldFreshReadbackVerifier.LayoutMatches(
+                    item,
+                    package.Plan.LayoutMaterialization?.TargetServerRelativeUrl);
+                if (!layoutMatched)
+                {
+                    receiptWarnings.Add("Fresh PublishingPageLayout readback differs from the approved target Page Layout path.");
+                }
                 var taxonomyRelationshipResults = PageTaxonomyRelationshipVerifier.Verify(
                     verificationContext,
                     pages,
                     item,
                     package.Snapshot.Fields,
                     executableTaxonomyActions,
-                    fieldResults);
+                    freshFieldResults);
                 var taxonomyRelationshipsMatched = taxonomyRelationshipResults.All(value => value.Passed)
                     && taxonomyRelationshipResults.Count == executableTaxonomyActions.Length;
                 if (!taxonomyRelationshipsMatched)
@@ -263,6 +300,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     && lifecycleMatched
                     && securityMatched
                     && ownershipMatched
+                    && layoutMatched
                     && plannedFieldsPassed
                     && taxonomyRelationshipsMatched
                     && topologyMatched
@@ -292,7 +330,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                         TopologyMatched = topologyMatched,
                         DependenciesMatched = dependenciesMatched,
                         RuntimeVerificationRequired = runtimeVerificationRequired,
-                        FieldResults = fieldResults,
+                        FieldResults = freshFieldResults,
                         WebPartResults = webPartResults,
                         ListReceipts = listReceipts
                     });
@@ -330,7 +368,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     SecurityMatched = securityMatched,
                     OwnershipMatched = ownershipMatched,
                     PageArtifactMatched = ownershipMatched,
-                    LayoutMatched = true,
+                    LayoutMatched = layoutMatched,
                     ContentTypeMatched = contentTypeMatched,
                     PageFieldsMatched = plannedFieldsPassed,
                     DependenciesMatched = dependenciesMatched,
@@ -354,7 +392,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                         listReceipts,
                         DroppedDependentTargetIdentityStatus.Present),
                     ListsMatched = listsMatched,
-                    FieldResults = fieldResults,
+                    FieldResults = freshFieldResults,
                     TaxonomyRelationshipsMatched = taxonomyRelationshipsMatched,
                     TaxonomyRelationshipResults = taxonomyRelationshipResults,
                     FreshReadbackPassed = readbackPassed,
@@ -377,6 +415,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
         }
 
         private static PublishingPageImportReceipt VerifyComponents(
+            ClientContext targetContext,
             PublishingPageMigrationPackage package,
             PublishingPageExecutionScope executionScope,
             string approvedPlanDigest,
@@ -398,6 +437,22 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             var expectedMaterializedDependencies = executionScope.ReferenceActions(package)
                 .Count(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget);
             var dependenciesMatched = materializedDependencyCount == expectedMaterializedDependencies;
+            var layoutMatched = true;
+            if (executionScope.Layout)
+            {
+                var freshLayoutProbe = PublishingPageLayoutTargetInspector.Inspect(
+                    targetContext,
+                    package.Plan.LayoutMaterialization);
+                var freshLayoutAdmission = PublishingPageLayoutTargetAdmissionEvaluator.Evaluate(
+                    package.Plan.LayoutMaterialization,
+                    freshLayoutProbe);
+                layoutMatched = freshLayoutAdmission.IsEligible && freshLayoutProbe.FileExists;
+                if (!layoutMatched)
+                {
+                    receiptWarnings.Add("Fresh target Page Layout readback did not verify the approved layout transaction.");
+                    receiptWarnings.AddRange(freshLayoutAdmission.Issues.Select(value => value.Code + ": " + value.Message));
+                }
+            }
             if (!topologyMatched)
             {
                 receiptWarnings.Add("Fresh topology readback did not verify every Site/Web mapping in the execution frontier.");
@@ -423,14 +478,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 receiptWarnings.Add("Source Web fidelity remains authorization-limited; target path verification does not claim source topology parity.");
             }
 
-            var readbackPassed = topologyMatched && listsMatched && dependenciesMatched;
+            var readbackPassed = topologyMatched && listsMatched && dependenciesMatched && layoutMatched;
             var completedIngredientIds = executionScope.ExecutableIngredientIds;
             var ingredientVerification = PublishingPageIngredientVerificationProjector.Project(
                 package,
                 executionScope,
                 new PublishingPageIngredientVerificationEvidence
                 {
-                    StructuralMaterializersPassed = true,
+                    StructuralMaterializersPassed = layoutMatched,
                     PageArtifactMatched = false,
                     ContentTypeMatched = true,
                     PublishingContentMatched = false,
@@ -469,7 +524,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 SecurityMatched = true,
                 OwnershipMatched = true,
                 PageArtifactMatched = true,
-                LayoutMatched = true,
+                LayoutMatched = layoutMatched,
                 ContentTypeMatched = true,
                 PageFieldsMatched = true,
                 DependenciesMatched = dependenciesMatched,

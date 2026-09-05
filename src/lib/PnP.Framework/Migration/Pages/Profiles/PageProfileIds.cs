@@ -11,4 +11,3 @@ namespace PnP.Framework.Migration.Pages.Profiles
         public const string WelcomePage = "profile.publishing.welcome";
     }
 }
-

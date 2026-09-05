@@ -1,19 +1,19 @@
-using System;
-using System.Collections.Generic;
+using PnP.Framework.Migration.Evidence;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 {
     public static class EnterpriseWikiV1WorkflowPolicy
     {
-        public static readonly PublishingPageWorkflowPolicy Instance = new PublishingPageWorkflowPolicy
-        {
-            WorkflowId = EnterpriseWikiV1CohortPolicy.CohortId,
-            PreferredTargetPageLayoutFileName = "EnterpriseWiki.aspx",
-            StockPageLayoutFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        public static PublishingPageWorkflowPolicy Instance { get; } = new PublishingPageWorkflowPolicy(
+            EnterpriseWikiV1CohortPolicy.CohortId,
+            "Enterprise Wiki Page",
+            BuiltInContentTypeId.EnterpriseWikiPage,
+            "EnterpriseWiki.aspx",
+            new[]
             {
                 "EnterpriseWiki.aspx"
             },
-            FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            new[]
             {
                 "ContentTypeId",
                 "FileLeafRef",
@@ -21,7 +21,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "PublishingPageLayout",
                 "Title"
             },
-            RecognizedPageFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            new[]
             {
                 "OOCLReference",
                 "PublishingContact",
@@ -33,13 +33,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
                 "PublishingRollupImage",
                 "PublishingStartDate",
                 "PublishingExpirationDate",
-                "WikiCategories",
+                "Wiki_x0020_Page_x0020_Categories",
                 "SeoBrowserTitle",
                 "SeoKeywords",
                 "SeoMetaDescription",
                 "SeoRobotsNoIndex"
             },
-            AssessValidationCohort = EnterpriseWikiV1CohortPolicy.Assess
-        };
+            EnterpriseWikiV1CohortPolicy.Assess);
     }
 }

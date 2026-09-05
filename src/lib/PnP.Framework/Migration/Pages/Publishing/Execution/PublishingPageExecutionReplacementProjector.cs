@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Pages.Content;
+using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.References;
 using System;
@@ -35,7 +36,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     .Where(IsReplacementAction)
                     .Select(value => value.SnapshotDependencyId),
                 StringComparer.Ordinal);
-            if (actions.All(value => selectedIds.Contains(value.SnapshotDependencyId)))
+            var dependencies = package.Snapshot?.Dependencies ?? Array.Empty<PageReferenceSnapshot>();
+            var dependencyById = dependencies
+                .Where(value => value != null && !string.IsNullOrWhiteSpace(value.Id))
+                .GroupBy(value => value.Id, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+            var hasUnavailablePreservedSourceResource = actions.Any(value =>
+                value.Disposition == PageReferenceDisposition.PreserveExternal
+                && dependencyById.TryGetValue(value.SnapshotDependencyId, out var dependency)
+                && dependency.IsRenderableResource
+                && (dependency.CaptureStatus == PageCaptureStatus.Failed
+                    || string.IsNullOrWhiteSpace(dependency.ContentSha256)));
+            if (!hasUnavailablePreservedSourceResource
+                && actions.All(value => selectedIds.Contains(value.SnapshotDependencyId)))
             {
                 return (package.Plan?.Replacements ?? Array.Empty<PageTextReplacement>()).ToList();
             }
@@ -44,7 +57,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 .GroupBy(value => value.SnapshotDependencyId, StringComparer.Ordinal)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
             var exactSources = new HashSet<string>(
-                (package.Snapshot?.Dependencies ?? Array.Empty<PageReferenceSnapshot>())
+                dependencies
                 .Where(value => value != null
                     && !string.IsNullOrWhiteSpace(value.Id)
                     && !string.IsNullOrWhiteSpace(value.OriginalValue)

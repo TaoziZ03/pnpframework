@@ -46,8 +46,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             }
 
             var policy = PublishingPageProfileRegistry.ResolvePolicy(
-                exportPackage.Selection?.WorkflowId,
-                exportPackage.Snapshot?.Source?.ContentTypeId);
+                workflowId: exportPackage.Selection?.WorkflowId,
+                contentTypeId: exportPackage.Snapshot?.Source?.ContentTypeId);
 
             return Plan(targetContext, exportPackage, options, policy, artifactStore);
         }
@@ -198,8 +198,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             var fieldActions = PageFieldPlanner.BuildActions(
                 targetContext,
                 snapshot.Fields,
-                workflowPolicy.FieldsHandledByPageWriter,
-                workflowPolicy.RecognizedPageFields,
+                new HashSet<string>(workflowPolicy.FieldsHandledByPageWriter, StringComparer.OrdinalIgnoreCase),
+                new HashSet<string>(workflowPolicy.RecognizedPageFields, StringComparer.OrdinalIgnoreCase),
                 options,
                 taxonomyRelationshipActions,
                 blockers,
