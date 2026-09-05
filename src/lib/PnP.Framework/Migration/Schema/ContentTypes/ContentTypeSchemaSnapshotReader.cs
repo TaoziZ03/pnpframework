@@ -26,6 +26,38 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             IEnumerable<string> requiredFieldIdentifiers,
             ICollection<string> diagnostics)
         {
+            return Read(
+                context,
+                web,
+                contentTypeId,
+                requiredFieldIdentifiers,
+                diagnostics,
+                false);
+        }
+
+        internal static ContentTypeSchemaSnapshot ReadAllFieldLinks(
+            ClientContext context,
+            Web web,
+            string contentTypeId,
+            ICollection<string> diagnostics)
+        {
+            return Read(
+                context,
+                web,
+                contentTypeId,
+                Enumerable.Empty<string>(),
+                diagnostics,
+                true);
+        }
+
+        private static ContentTypeSchemaSnapshot Read(
+            ClientContext context,
+            Web web,
+            string contentTypeId,
+            IEnumerable<string> requiredFieldIdentifiers,
+            ICollection<string> diagnostics,
+            bool captureAllFieldLinks)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -87,7 +119,13 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
 
             context.ExecuteQueryRetry();
             var requiredIdentifiers = new HashSet<string>(
-                (requiredFieldIdentifiers ?? Enumerable.Empty<string>())
+                (captureAllFieldLinks
+                    ? contentType.FieldLinks.SelectMany(link => new[]
+                    {
+                        link.Name,
+                        link.Id.ToString("D")
+                    })
+                    : requiredFieldIdentifiers ?? Enumerable.Empty<string>())
                     .Select(NormalizeFieldIdentifier)
                     .Where(value => !string.IsNullOrWhiteSpace(value)),
                 StringComparer.OrdinalIgnoreCase);
@@ -95,7 +133,8 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                 ? new HashSet<Guid>()
                 : new HashSet<Guid>(contentType.Parent.FieldLinks.Select(value => value.Id));
             var requiredLinks = contentType.FieldLinks
-                .Where(link => MatchesFieldIdentifier(requiredIdentifiers, link.Id, link.Name))
+                .Where(link => captureAllFieldLinks
+                    || MatchesFieldIdentifier(requiredIdentifiers, link.Id, link.Name))
                 .Select(link => new ContentTypeFieldLinkSnapshot
                 {
                     FieldId = link.Id,

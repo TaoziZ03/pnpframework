@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Features;
 using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.ContentTypes;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
 using PnP.Framework.Migration.Lists.Items.Protection;
@@ -151,26 +152,32 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 StringComparer.OrdinalIgnoreCase);
             foreach (var contentType in source.ContentTypes.Where(value => value != null))
             {
+                var unavailable = !ListContentTypeEvidence.IsCaptured(contentType);
                 var missingParent = !string.IsNullOrWhiteSpace(contentType.ParentId)
                     && !ContentTypeRuntimeCatalog.IsTargetRuntime(contentType.ParentId)
                     && !capturedParents.Contains(contentType.ParentId);
+                var blocked = unavailable || missingParent;
                 assessments.Add(
                     PublishingPageIngredientIds.ListContentType(source.SourceWebId, source.SourceListId, contentType.Id),
-                    missingParent
+                    blocked
                         ? PageIngredientAssessmentState.KnownGap
                         : PageIngredientAssessmentState.TargetInspectionRequired,
-                    missingParent ? IngredientCapability.Missing : IngredientCapability.Available,
-                    missingParent ? IngredientDisposition.Defer : IngredientDisposition.Preserve,
-                    missingParent ? "none" : "materialize-list-content-type-membership",
+                    blocked ? IngredientCapability.Missing : IngredientCapability.Available,
+                    blocked ? IngredientDisposition.Defer : IngredientDisposition.Preserve,
+                    blocked ? "none" : "materialize-list-content-type-membership",
                     "policy.list-content-type.membership",
-                    missingParent
+                    unavailable
+                        ? "The List-local Content Type member metadata or field-link evidence is partial."
+                        : missingParent
                         ? "The List-local Content Type references a custom parent whose exact site Content Type closure is absent."
                         : "Create or reuse the captured List Content Type membership, field links, and ordering after its parent closure is admitted.",
-                    missingParent || plan == null
+                    blocked || plan == null
                         ? null
                         : plan.TargetRootFolderServerRelativeUrl + "#content-type:" + contentType.Id,
-                    missingParent ? "CustomListContentTypeClosureUnavailable" : null,
-                    missingParent ? null : $"The List receipt maps source Content Type '{contentType.Id}' to a verified target Content Type ID.");
+                    unavailable
+                        ? "ListContentTypeEvidenceUnavailable"
+                        : missingParent ? "CustomListContentTypeClosureUnavailable" : null,
+                    blocked ? null : $"The List receipt maps source Content Type '{contentType.Id}' to a verified target Content Type ID.");
             }
         }
 
@@ -638,8 +645,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             foreach (var view in source.Views.Where(value => value != null))
             {
                 plans.TryGetValue(view.Id, out var viewPlan);
-                var unavailable = view.Availability is EvidenceAvailability.Unavailable
-                    or EvidenceAvailability.Conflict;
+                var unavailable = view.Availability != EvidenceAvailability.Captured;
                 var customRendering = IsCustomRenderingReference(view.JsLink)
                     || IsCustomRenderingReference(view.XslLink);
                 var blocked = unavailable

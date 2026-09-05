@@ -16,6 +16,11 @@ namespace PnP.Framework.Migration.Lists.Execution
             List targetList,
             ListDependencySnapshot source)
         {
+            if (source.ContentTypes.Any(value => !ListContentTypeEvidence.IsCaptured(value)))
+            {
+                throw new InvalidDataException(
+                    "List Content Type membership materialization requires completely captured member metadata and field links.");
+            }
             context.Load(context.Web.AvailableContentTypes, values => values.Include(value => value.Id, value => value.Name));
             LoadListContentTypes(context, targetList);
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
