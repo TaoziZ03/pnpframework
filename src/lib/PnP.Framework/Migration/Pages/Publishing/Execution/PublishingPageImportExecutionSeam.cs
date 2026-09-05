@@ -27,6 +27,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
 
         public bool HasUniqueRoleAssignments { get; set; }
 
+        public bool? PagesLibraryModerationEnabled { get; set; }
+
         public IDictionary<string, object> Properties { get; set; } =
             new Dictionary<string, object>(StringComparer.Ordinal);
 

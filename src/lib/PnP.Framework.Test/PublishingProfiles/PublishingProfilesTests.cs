@@ -1257,6 +1257,7 @@ namespace PnP.Framework.Test.PublishingProfiles
                     TargetAbsoluteUrl = "https://target.sharepoint.com/sites/target/PublishingImages/guide.jpg"
                 }
             };
+            package.Plan.TargetProbe.EnableModeration = true;
             package.Plan.RuntimeVerification.Requirements.Clear();
             package.Plan.Replacements = PageReferencePlanner.BuildTextReplacements(
                 package.Snapshot.Source,
@@ -1297,6 +1298,7 @@ namespace PnP.Framework.Test.PublishingProfiles
                     VersionLabel = "1.0",
                     Level = Microsoft.SharePoint.Client.FileLevel.Published,
                     CheckOutType = Microsoft.SharePoint.Client.CheckOutType.None,
+                    PagesLibraryModerationEnabled = true,
                     Fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["PublishingPageImage"] = item["PublishingPageImage"],
@@ -1361,6 +1363,28 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Assert.IsFalse(layoutDrift.LayoutMatched);
 
                 storage.Fields["PublishingPageLayout"] = item["PublishingPageLayout"];
+                storage.CheckOutType = Microsoft.SharePoint.Client.CheckOutType.Online;
+                var checkoutDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
+                    context, package, package.PlanDigest, executionSeam, ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(checkoutDrift.FreshReadbackPassed);
+                Assert.IsFalse(checkoutDrift.LifecycleMatched);
+
+                storage.CheckOutType = Microsoft.SharePoint.Client.CheckOutType.None;
+                storage.Fields["_ModerationStatus"] = 2;
+                var moderationDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
+                    context, package, package.PlanDigest, executionSeam, ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(moderationDrift.FreshReadbackPassed);
+                Assert.IsFalse(moderationDrift.LifecycleMatched);
+                Assert.AreEqual(2, moderationDrift.ActualModerationStatus);
+
+                storage.Fields["_ModerationStatus"] = 0;
+                storage.PagesLibraryModerationEnabled = false;
+                var moderationContractDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
+                    context, package, package.PlanDigest, executionSeam, ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(moderationContractDrift.FreshReadbackPassed);
+                Assert.IsFalse(moderationContractDrift.LifecycleMatched);
+
+                storage.PagesLibraryModerationEnabled = true;
                 storage.Level = Microsoft.SharePoint.Client.FileLevel.Draft;
                 var lifecycleDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
                     context, package, package.PlanDigest, executionSeam, ArticlePageV1WorkflowPolicy.Instance);
@@ -1378,6 +1402,53 @@ namespace PnP.Framework.Test.PublishingProfiles
             Assert.IsFalse(withoutEvidence.Any(value =>
                 string.Equals(value.Source, package.Snapshot.Source.WebUrl, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(value.Source, package.Snapshot.Source.WebServerRelativeUrl, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        [TestMethod]
+        public void LifecycleVerifierAuditsPublishedAndDraftModerationContracts()
+        {
+            Assert.IsTrue(PublishingPageLifecycleVerifier.Verify(
+                PublishingPageTargetLifecycle.Published,
+                true,
+                Microsoft.SharePoint.Client.FileLevel.Published,
+                Microsoft.SharePoint.Client.CheckOutType.None,
+                0).Matched);
+            Assert.IsFalse(PublishingPageLifecycleVerifier.Verify(
+                PublishingPageTargetLifecycle.Published,
+                true,
+                Microsoft.SharePoint.Client.FileLevel.Published,
+                Microsoft.SharePoint.Client.CheckOutType.Online,
+                0).Matched);
+            Assert.IsFalse(PublishingPageLifecycleVerifier.Verify(
+                PublishingPageTargetLifecycle.Published,
+                true,
+                Microsoft.SharePoint.Client.FileLevel.Published,
+                Microsoft.SharePoint.Client.CheckOutType.None,
+                null).Matched);
+            Assert.IsTrue(PublishingPageLifecycleVerifier.Verify(
+                PublishingPageTargetLifecycle.Draft,
+                true,
+                Microsoft.SharePoint.Client.FileLevel.Draft,
+                Microsoft.SharePoint.Client.CheckOutType.None,
+                3).Matched);
+            Assert.IsFalse(PublishingPageLifecycleVerifier.Verify(
+                PublishingPageTargetLifecycle.Draft,
+                true,
+                Microsoft.SharePoint.Client.FileLevel.Draft,
+                Microsoft.SharePoint.Client.CheckOutType.None,
+                0).Matched);
+            Assert.IsTrue(PublishingPageLifecycleVerifier.Verify(
+                PublishingPageTargetLifecycle.Draft,
+                false,
+                Microsoft.SharePoint.Client.FileLevel.Draft,
+                Microsoft.SharePoint.Client.CheckOutType.None,
+                null).Matched);
+            Assert.IsFalse(PublishingPageLifecycleVerifier.Verify(
+                PublishingPageTargetLifecycle.Draft,
+                null,
+                Microsoft.SharePoint.Client.FileLevel.Draft,
+                Microsoft.SharePoint.Client.CheckOutType.None,
+                null).Matched);
         }
 
         private static void ResealPackage(PublishingPageMigrationPackage package)

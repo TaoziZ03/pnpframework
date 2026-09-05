@@ -137,6 +137,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     value => value.Level,
                     value => value.CheckOutType,
                     value => value.Properties);
+                verificationContext.Load(pages, value => value.EnableModeration);
                 verificationContext.Load(items);
                 verificationContext.ExecuteQueryRetry();
                 if (!file.Exists)
@@ -207,16 +208,24 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
 
                 var actualLevel = file.Level.ToString();
                 var actualCheckOutType = file.CheckOutType.ToString();
+                var actualModerationStatus = PublishingPageCaptureReader.TryGetInt32(item, "_ModerationStatus");
                 var effectiveLifecycle = executionScope.Lifecycle
                     ? package.Plan.TargetLifecycle
                     : PublishingPageTargetLifecycle.Draft;
-                var lifecycleMatched = effectiveLifecycle == PublishingPageTargetLifecycle.Published
-                    ? string.Equals(actualLevel, "Published", StringComparison.OrdinalIgnoreCase)
-                    : string.Equals(actualLevel, "Draft", StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(actualCheckOutType, "None", StringComparison.OrdinalIgnoreCase);
+                var lifecycleVerification = PublishingPageLifecycleVerifier.Verify(
+                    effectiveLifecycle,
+                    pages.EnableModeration,
+                    file.Level,
+                    file.CheckOutType,
+                    actualModerationStatus);
+                var moderationContractMatched = package.Plan.TargetProbe != null
+                    && package.Plan.TargetProbe.EnableModeration == pages.EnableModeration;
+                var lifecycleMatched = moderationContractMatched && lifecycleVerification.Matched;
                 if (!lifecycleMatched)
                 {
-                    receiptWarnings.Add($"Target lifecycle mismatch. Expected {effectiveLifecycle}; actual level is {actualLevel} and checkout state is {actualCheckOutType}.");
+                    receiptWarnings.Add(
+                        $"Target lifecycle mismatch. Expected {effectiveLifecycle}; actual level is {actualLevel}, checkout state is {actualCheckOutType}, moderation-enabled is {pages.EnableModeration}, moderation is {(actualModerationStatus.HasValue ? actualModerationStatus.Value.ToString() : "unknown")}. "
+                        + (moderationContractMatched ? lifecycleVerification.Message : "The target Pages-library moderation setting changed after approval."));
                 }
 
                 var securityMatched = !executionScope.Security
@@ -382,7 +391,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     ApprovedLifecycle = package.Plan.TargetLifecycle,
                     ActualFileLevel = actualLevel,
                     ActualCheckOutType = actualCheckOutType,
-                    ActualModerationStatus = PublishingPageCaptureReader.TryGetInt32(item, "_ModerationStatus"),
+                    ActualModerationStatus = actualModerationStatus,
                     LifecycleMatched = lifecycleMatched,
                     SecurityMatched = securityMatched,
                     OwnershipMatched = ownershipMatched,
@@ -468,9 +477,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 : PublishingPageTargetLifecycle.Draft;
             var actualLevel = state.Level.ToString();
             var actualCheckOutType = state.CheckOutType.ToString();
-            var lifecycleMatched = effectiveLifecycle == PublishingPageTargetLifecycle.Published
-                ? state.Level == FileLevel.Published
-                : state.Level == FileLevel.Draft && state.CheckOutType == CheckOutType.None;
+            var actualModerationStatus = IntField(state.Fields, "_ModerationStatus");
+            var lifecycleVerification = PublishingPageLifecycleVerifier.Verify(
+                effectiveLifecycle,
+                state.PagesLibraryModerationEnabled,
+                state.Level,
+                state.CheckOutType,
+                actualModerationStatus);
+            var moderationContractMatched = package.Plan.TargetProbe != null
+                && state.PagesLibraryModerationEnabled.HasValue
+                && package.Plan.TargetProbe.EnableModeration == state.PagesLibraryModerationEnabled.Value;
+            var lifecycleMatched = moderationContractMatched && lifecycleVerification.Matched;
             var securityMatched = !executionScope.Security
                 || package.Snapshot.Security.HasUniqueRoleAssignments
                 || !state.HasUniqueRoleAssignments;
@@ -517,7 +534,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 .ToList();
             if (!storageContentEqual) receiptWarnings.Add("Fresh PublishingPageContent readback differs from the approved rewritten content.");
             if (!contentTypeMatched) receiptWarnings.Add("Fresh ContentTypeId readback differs from the approved target content type.");
-            if (!lifecycleMatched) receiptWarnings.Add($"Target lifecycle mismatch. Expected {effectiveLifecycle}; actual level is {actualLevel} and checkout state is {actualCheckOutType}.");
+            if (!lifecycleMatched) receiptWarnings.Add(
+                $"Target lifecycle mismatch. Expected {effectiveLifecycle}; actual level is {actualLevel}, checkout state is {actualCheckOutType}, moderation-enabled is {(state.PagesLibraryModerationEnabled.HasValue ? state.PagesLibraryModerationEnabled.Value.ToString() : "unknown")}, moderation is {(actualModerationStatus.HasValue ? actualModerationStatus.Value.ToString() : "unknown")}. "
+                + (moderationContractMatched ? lifecycleVerification.Message : "The target Pages-library moderation setting is unavailable or changed after approval."));
             if (!securityMatched) receiptWarnings.Add("Fresh target security readback differs from the approved inheritance policy.");
             if (!ownershipMatched) receiptWarnings.Add("Fresh target ownership provenance differs from the approved sealed plan.");
             if (!layoutMatched) receiptWarnings.Add("Fresh PublishingPageLayout readback differs from the approved target Page Layout path.");
@@ -574,7 +593,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 ApprovedLifecycle = package.Plan.TargetLifecycle,
                 ActualFileLevel = actualLevel,
                 ActualCheckOutType = actualCheckOutType,
-                ActualModerationStatus = IntField(state.Fields, "_ModerationStatus"),
+                ActualModerationStatus = actualModerationStatus,
                 LifecycleMatched = lifecycleMatched,
                 SecurityMatched = securityMatched,
                 OwnershipMatched = ownershipMatched,
