@@ -1,5 +1,4 @@
 using Microsoft.SharePoint.Client;
-using Microsoft.SharePoint.Client.Taxonomy;
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.Fields;
@@ -146,7 +145,22 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     .OrderBy(value => value.SchemaXml ?? string.Empty, StringComparer.Ordinal)
                     .ThenBy(value => value.InternalName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                     .First());
+            var taxonomyFields = requiredLinks
+                .Where(link => fieldsById.ContainsKey(link.FieldId))
+                .Select(link => fieldsById[link.FieldId])
+                .Where(field => TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
+                .GroupBy(field => field.Id)
+                .Select(group => group.First())
+                .ToArray();
+            var taxonomyCaptures = TaxonomyFieldBindingSnapshotReader.ReadAll(
+                taxonomyFields,
+                field => field.Id,
+                field => field.InternalName,
+                field => field.SchemaXml,
+                values => ReadTypedTaxonomyBindings(context, values),
+                field => ReadTypedTaxonomyBinding(context, web.Url, field.Id));
             var closure = new List<FieldSchemaSnapshot>();
+            var fieldEvidenceComplete = true;
             foreach (var link in requiredLinks)
             {
                 Field sourceField;
@@ -156,7 +170,13 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     continue;
                 }
 
-                var snapshot = CreateFieldSnapshot(context, sourceField, link.Role);
+                bool snapshotComplete;
+                var snapshot = CreateFieldSnapshot(sourceField, link.Role, taxonomyCaptures, out snapshotComplete);
+                fieldEvidenceComplete &= snapshotComplete;
+                foreach (var fieldDiagnostic in snapshot.Diagnostics)
+                {
+                    diagnostics?.Add($"Field '{snapshot.InternalName}' ({snapshot.Id:D}): {fieldDiagnostic}");
+                }
                 var existingIndex = closure.FindIndex(value => value.Id == snapshot.Id);
                 if (existingIndex < 0)
                 {
@@ -174,9 +194,18 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     && fieldsById.TryGetValue(snapshot.Taxonomy.HiddenTextFieldId, out var hiddenField)
                     && closure.All(value => value.Id != hiddenField.Id))
                 {
-                    closure.Add(CreateFieldSnapshot(context, hiddenField, FieldSchemaRole.Dependency));
+                    bool hiddenSnapshotComplete;
+                    var hiddenSnapshot = CreateFieldSnapshot(hiddenField, FieldSchemaRole.Dependency, taxonomyCaptures, out hiddenSnapshotComplete);
+                    closure.Add(hiddenSnapshot);
+                    fieldEvidenceComplete &= hiddenSnapshotComplete;
+                    foreach (var fieldDiagnostic in hiddenSnapshot.Diagnostics)
+                    {
+                        diagnostics?.Add($"Field '{hiddenSnapshot.InternalName}' ({hiddenSnapshot.Id:D}): {fieldDiagnostic}");
+                    }
                 }
             }
+
+            fieldEvidenceComplete &= ValidateTaxonomyCompanionClosure(closure, diagnostics);
 
             foreach (var field in closure)
             {
@@ -185,6 +214,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
 
             var complete = missingIdentifiers.Length == 0
                 && !hasConflictingDuplicateFields
+                && fieldEvidenceComplete
                 && requiredLinks.Count == closure.Count(value => value.Role != FieldSchemaRole.Dependency);
             return new ContentTypeSchemaSnapshot
             {
@@ -208,10 +238,12 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
         }
 
         private static FieldSchemaSnapshot CreateFieldSnapshot(
-            ClientContext context,
             Field field,
-            FieldSchemaRole role)
+            FieldSchemaRole role,
+            IDictionary<Guid, TaxonomyFieldBindingCaptureResult> taxonomyCaptures,
+            out bool complete)
         {
+            complete = true;
             var snapshot = new FieldSchemaSnapshot
             {
                 Id = field.Id,
@@ -225,20 +257,91 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                 Sealed = field.Sealed,
                 SchemaXml = field.SchemaXml,
                 SchemaXmlSha256 = MigrationDigest.ComputeSha256(field.SchemaXml ?? string.Empty),
-                PortableSchemaSha256 = FieldSchemaCanonicalizer.PortableDigest(field.SchemaXml),
                 Role = role
             };
-            if (field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                var taxonomyField = context.CastTo<TaxonomyField>(field);
-                context.Load(taxonomyField,
+                snapshot.PortableSchemaSha256 = FieldSchemaCanonicalizer.PortableDigest(field.SchemaXml);
+            }
+            catch (Exception exception)
+            {
+                complete = false;
+                snapshot.Diagnostics.Add(
+                    "FieldSchemaCanonicalizationFailed: exceptionType=" + exception.GetType().FullName + ".");
+            }
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
+            {
+                if (!taxonomyCaptures.TryGetValue(field.Id, out var capture))
+                {
+                    capture = new TaxonomyFieldBindingCaptureResult
+                    {
+                        IsComplete = false,
+                        Diagnostics = new List<string> { "TaxonomyBindingCaptureMissing: no binding capture result was produced." }
+                    };
+                }
+                snapshot.Taxonomy = capture.Binding;
+                snapshot.Sources = capture.Sources.ToList();
+                snapshot.Diagnostics = snapshot.Diagnostics.Concat(capture.Diagnostics).ToList();
+                complete &= capture.IsComplete;
+            }
+            else if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(field.TypeAsString))
+            {
+                complete = false;
+                snapshot.Diagnostics.Add("TaxonomyFieldTypeUnsupported: type=" + field.TypeAsString + ".");
+            }
+
+            return snapshot;
+        }
+
+        private static IDictionary<Guid, TaxonomyFieldBindingSnapshot> ReadTypedTaxonomyBindings(
+            ClientContext context,
+            IEnumerable<Field> fields)
+        {
+            var typed = new Dictionary<Guid, Microsoft.SharePoint.Client.Taxonomy.TaxonomyField>();
+            foreach (var field in fields)
+            {
+                var taxonomy = context.CastTo<Microsoft.SharePoint.Client.Taxonomy.TaxonomyField>(field);
+                context.Load(taxonomy,
                     value => value.SspId,
                     value => value.TermSetId,
                     value => value.AnchorId,
                     value => value.TextField,
                     value => value.Open);
+                typed.Add(field.Id, taxonomy);
+            }
+            if (typed.Count > 0)
+            {
                 context.ExecuteQueryRetry();
-                snapshot.Taxonomy = new TaxonomyFieldBindingSnapshot
+            }
+            return typed.ToDictionary(
+                value => value.Key,
+                value => new TaxonomyFieldBindingSnapshot
+                {
+                    SourceTermStoreId = value.Value.SspId,
+                    SourceTermSetId = value.Value.TermSetId,
+                    AnchorTermId = value.Value.AnchorId,
+                    HiddenTextFieldId = value.Value.TextField,
+                    Open = value.Value.Open
+                });
+        }
+
+        private static TaxonomyFieldBindingSnapshot ReadTypedTaxonomyBinding(
+            ClientContext context,
+            string sourceWebUrl,
+            Guid fieldId)
+        {
+            using (var isolatedContext = context.Clone(sourceWebUrl))
+            {
+                var field = isolatedContext.Web.AvailableFields.GetById(fieldId);
+                var taxonomyField = isolatedContext.CastTo<Microsoft.SharePoint.Client.Taxonomy.TaxonomyField>(field);
+                isolatedContext.Load(taxonomyField,
+                    value => value.SspId,
+                    value => value.TermSetId,
+                    value => value.AnchorId,
+                    value => value.TextField,
+                    value => value.Open);
+                isolatedContext.ExecuteQueryRetry();
+                return new TaxonomyFieldBindingSnapshot
                 {
                     SourceTermStoreId = taxonomyField.SspId,
                     SourceTermSetId = taxonomyField.TermSetId,
@@ -247,8 +350,36 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     Open = taxonomyField.Open
                 };
             }
+        }
 
-            return snapshot;
+        internal static bool ValidateTaxonomyCompanionClosure(
+            IEnumerable<FieldSchemaSnapshot> fields,
+            ICollection<string> diagnostics)
+        {
+            var closure = (fields ?? Enumerable.Empty<FieldSchemaSnapshot>())
+                .Where(value => value != null)
+                .ToArray();
+            var complete = true;
+            foreach (var taxonomyField in closure.Where(value => value.Taxonomy != null))
+            {
+                string companionDiagnostic;
+                if (TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                    taxonomyField.Id,
+                    taxonomyField.Taxonomy,
+                    closure,
+                    value => value.Id,
+                    value => value.TypeAsString,
+                    value => value.Hidden,
+                    out companionDiagnostic))
+                {
+                    continue;
+                }
+                complete = false;
+                var diagnostic = "TaxonomyBindingHiddenTextCompanionInvalid: " + companionDiagnostic + ".";
+                taxonomyField.Diagnostics.Add(diagnostic);
+                diagnostics?.Add($"Field '{taxonomyField.InternalName}' ({taxonomyField.Id:D}): {diagnostic}");
+            }
+            return complete;
         }
 
         private static ContentTypeSchemaSnapshot Missing(string diagnostic)

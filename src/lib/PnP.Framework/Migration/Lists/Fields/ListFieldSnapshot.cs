@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Schema.Fields;
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Lists.Fields
 {
@@ -40,6 +41,9 @@ namespace PnP.Framework.Migration.Lists.Fields
         public string LookupField { get; set; }
 
         public TaxonomyFieldBindingSnapshot Taxonomy { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<EvidenceSource> Sources { get; set; }
 
         public EvidenceAvailability Availability { get; set; } = EvidenceAvailability.Captured;
 

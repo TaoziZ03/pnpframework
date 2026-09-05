@@ -106,7 +106,12 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 "TaxonomyFieldTypeMulti",
                 FieldSchemaRole.InheritedFromParent,
                 "<Field ID=\"{e1a5b98c-dd71-426d-acb6-e478c7a5882f}\" Name=\"Wiki_x0020_Page_x0020_Categories\" Type=\"TaxonomyFieldTypeMulti\" />");
-            taxonomy.Taxonomy = new TaxonomyFieldBindingSnapshot { HiddenTextFieldId = companion.Id };
+            taxonomy.Taxonomy = new TaxonomyFieldBindingSnapshot
+            {
+                SourceTermStoreId = Guid.Parse("9d8e750d-e37c-462b-a1f0-449f3cae45d6"),
+                SourceTermSetId = Guid.Parse("0e176830-bfc8-4bee-ab3f-7ad966c41e27"),
+                HiddenTextFieldId = companion.Id
+            };
             schema.RequiredFieldLinks.Add(Link(taxonomy));
             schema.RequiredFieldClosure.Add(companion);
             schema.RequiredFieldClosure.Add(taxonomy);
@@ -371,6 +376,13 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 SourceTermSetId = missingSetId,
                 HiddenTextFieldId = Guid.Parse("cfd9f3e8-ce6f-4dc0-a87f-18256c8d4dc3")
             };
+            var companion = CreateField(
+                field.Taxonomy.HiddenTextFieldId,
+                "ActivityNameTaxHTField0",
+                "Note",
+                FieldSchemaRole.Dependency,
+                "<Field ID=\"{cfd9f3e8-ce6f-4dc0-a87f-18256c8d4dc3}\" Name=\"ActivityNameTaxHTField0\" Type=\"Note\" Hidden=\"TRUE\" />");
+            companion.Hidden = true;
             var schema = new ContentTypeSchemaSnapshot
             {
                 EvidenceState = ContentTypeSchemaEvidenceState.Readable,
@@ -381,7 +393,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 ParentContentTypeId = "0x010100AA",
                 ParentContentTypeName = "Enterprise Wiki Page",
                 RequiredFieldLinks = new List<ContentTypeFieldLinkSnapshot> { Link(field) },
-                RequiredFieldClosure = new List<FieldSchemaSnapshot> { field }
+                RequiredFieldClosure = new List<FieldSchemaSnapshot> { companion, field }
             };
             var mapping = new TaxonomyTargetMapping
             {
@@ -395,7 +407,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
 
             var plan = ContentTypeSchemaPlanner.CreateRequiredClosure(schema, new[] { mapping });
-            var fieldPlan = plan.Fields.Single();
+            var fieldPlan = plan.Fields.Single(value => value.FieldId == field.Id);
 
             Assert.AreEqual(TaxonomyTargetMappingMode.PreserveUnresolvedSourceReference, fieldPlan.TaxonomyMappingMode);
             Assert.AreEqual(missingSetId, fieldPlan.SourceTermSetId);

@@ -162,6 +162,7 @@ namespace PnP.Framework.Migration.Lists.Capture
             var contentTypeDiagnostics = new List<string>();
             var listContentTypes = ListContentTypeSnapshotReader.Read(list.ContentTypes, contentTypeDiagnostics);
             var siteContentTypes = ContentTypeClosureSnapshotReader.Read(context, sourceWeb, listContentTypes, contentTypeDiagnostics);
+            var fields = ListFieldSnapshotReader.Read(context, sourceWeb.Url, list.Id, list.Fields);
             var availability = EvidenceAvailability.Captured;
             if (items.Count != list.ItemCount || items.Any(value => value.Availability != EvidenceAvailability.Captured))
             {
@@ -176,6 +177,11 @@ namespace PnP.Framework.Migration.Lists.Capture
                 availability = EvidenceAvailability.Partial;
             }
             if (informationRightsManagement.Availability != EvidenceAvailability.Captured)
+            {
+                availability = EvidenceAvailability.Partial;
+            }
+            if (fields.Any(value => value.Availability != EvidenceAvailability.Captured)
+                || siteContentTypes.Any(value => value.Availability != EvidenceAvailability.Captured))
             {
                 availability = EvidenceAvailability.Partial;
             }
@@ -201,7 +207,7 @@ namespace PnP.Framework.Migration.Lists.Capture
                 ForceCheckout = list.ForceCheckout,
                 InformationRightsManagement = informationRightsManagement,
                 SourceItemCount = list.ItemCount,
-                Fields = ListFieldSnapshotReader.Read(context, list.Fields),
+                Fields = fields,
                 ContentTypes = listContentTypes,
                 HasExplicitUniqueContentTypeOrder = list.RootFolder.UniqueContentTypeOrder != null,
                 UniqueContentTypeOrder = (list.RootFolder.UniqueContentTypeOrder ?? new ContentTypeId[0])
@@ -221,6 +227,15 @@ namespace PnP.Framework.Migration.Lists.Capture
             {
                 snapshot.Diagnostics.Add(diagnostic);
                 warnings.Add(diagnostic);
+            }
+            foreach (var field in fields.Where(value => value.Diagnostics.Count > 0))
+            {
+                foreach (var diagnostic in field.Diagnostics)
+                {
+                    var message = "List field '" + field.InternalName + "' (" + field.Id.ToString("D") + "): " + diagnostic;
+                    snapshot.Diagnostics.Add(message);
+                    warnings.Add(message);
+                }
             }
             foreach (var diagnostic in informationRightsManagement.Diagnostics)
             {

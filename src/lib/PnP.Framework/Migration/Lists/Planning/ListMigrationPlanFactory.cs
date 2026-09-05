@@ -559,9 +559,27 @@ namespace PnP.Framework.Migration.Lists.Planning
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
             ICollection<MigrationIssue> issues)
         {
-            if (field.Availability == EvidenceAvailability.Unavailable || field.Availability == EvidenceAvailability.Conflict)
+            if (field.Availability != EvidenceAvailability.Captured)
             {
-                return Block(field, issues, "ListFieldEvidenceUnavailable", "Field schema evidence is unavailable or conflicting.");
+                return Block(field, issues, "ListFieldEvidenceIncomplete", "Field schema evidence is not completely captured.");
+            }
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(field.TypeAsString)
+                && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
+            {
+                return Block(field, issues, "TaxonomyFieldTypeUnsupported", "Only TaxonomyFieldType and TaxonomyFieldTypeMulti are executable taxonomy field types.");
+            }
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString)
+                && (!TaxonomyFieldBindingSnapshotReader.IsComplete(field.Taxonomy)
+                    || !TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                        field.Id,
+                        field.Taxonomy,
+                        source.Fields,
+                        candidate => candidate.Id,
+                        candidate => candidate.TypeAsString,
+                        candidate => candidate.Hidden,
+                        out _)))
+            {
+                return Block(field, issues, "TaxonomyBindingIncomplete", "Taxonomy field binding or hidden-text companion evidence is incomplete.");
             }
             var hasValue = HasBusinessValue(source, field.InternalName);
             var requiredBySurface = source.Views.Any(view => view.ViewFields.Contains(field.InternalName, StringComparer.OrdinalIgnoreCase))
@@ -606,7 +624,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                 return Plan(field, ListFieldMaterializationDisposition.MapLookup, null,
                     "Create or reuse the lookup field after its dependency List and source-to-target item ID catalog exist.");
             }
-            if (field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase))
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
             {
                 var mapping = field.Taxonomy == null ? null : (taxonomyMappings ?? Enumerable.Empty<TaxonomyTargetMapping>()).SingleOrDefault(value =>
                     value.SourceTermStoreId == field.Taxonomy.SourceTermStoreId && value.SourceTermSetId == field.Taxonomy.SourceTermSetId);
