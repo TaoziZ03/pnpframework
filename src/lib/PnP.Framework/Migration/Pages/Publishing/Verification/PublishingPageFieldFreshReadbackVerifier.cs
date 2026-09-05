@@ -18,6 +18,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             IEnumerable<PageTextReplacement> replacements,
             IEnumerable<PageFieldImportResult> writeResults)
         {
+            return Verify(targetItem?.FieldValues, fields, actions, replacements, writeResults);
+        }
+
+        public static IList<PageFieldImportResult> Verify(
+            IDictionary<string, object> targetFieldValues,
+            IEnumerable<PageFieldValueSnapshot> fields,
+            IEnumerable<PageFieldAction> actions,
+            IEnumerable<PageTextReplacement> replacements,
+            IEnumerable<PageFieldImportResult> writeResults)
+        {
+            if (targetFieldValues == null)
+            {
+                throw new ArgumentNullException(nameof(targetFieldValues));
+            }
             var fieldByName = (fields ?? Array.Empty<PageFieldValueSnapshot>())
                 .Where(value => value != null && !string.IsNullOrWhiteSpace(value.InternalName))
                 .ToDictionary(value => value.InternalName, StringComparer.OrdinalIgnoreCase);
@@ -60,7 +74,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     continue;
                 }
 
-                targetItem.FieldValues.TryGetValue(action.TargetInternalName, out var actual);
+                targetFieldValues.TryGetValue(action.TargetInternalName, out var actual);
                 result.Succeeded = Matches(field, actual, replacements);
                 result.Message = result.Succeeded
                     ? "Fresh target readback matches the sealed rewritten field value."
@@ -71,8 +85,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
 
         public static bool LayoutMatches(ListItem targetItem, string expectedServerRelativeUrl)
         {
-            if (targetItem == null || string.IsNullOrWhiteSpace(expectedServerRelativeUrl)
-                || !targetItem.FieldValues.TryGetValue("PublishingPageLayout", out var value)
+            return LayoutMatches(targetItem?.FieldValues, expectedServerRelativeUrl);
+        }
+
+        public static bool LayoutMatches(
+            IDictionary<string, object> targetFieldValues,
+            string expectedServerRelativeUrl)
+        {
+            if (targetFieldValues == null || string.IsNullOrWhiteSpace(expectedServerRelativeUrl)
+                || !targetFieldValues.TryGetValue("PublishingPageLayout", out var value)
                 || value == null)
             {
                 return false;

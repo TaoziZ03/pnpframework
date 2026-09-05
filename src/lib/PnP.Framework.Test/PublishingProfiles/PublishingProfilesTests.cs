@@ -1257,6 +1257,7 @@ namespace PnP.Framework.Test.PublishingProfiles
                     TargetAbsoluteUrl = "https://target.sharepoint.com/sites/target/PublishingImages/guide.jpg"
                 }
             };
+            package.Plan.RuntimeVerification.Requirements.Clear();
             package.Plan.Replacements = PageReferencePlanner.BuildTextReplacements(
                 package.Snapshot.Source,
                 package.Plan.TargetWebUrl,
@@ -1288,16 +1289,39 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Assert.IsTrue(verified.Single().Succeeded);
                 StringAssert.Contains((string)item["PublishingPageImage"], "https://target.sharepoint.com/sites/target/PublishingImages/guide.jpg");
 
-                var resumed = new PublishingPageMigrationImporter().ImportWithExecutionContractSeam(
+                var storage = new PublishingPageTargetStorageState
+                {
+                    Exists = true,
+                    FileUniqueId = Guid.NewGuid(),
+                    ListItemId = 42,
+                    VersionLabel = "1.0",
+                    Level = Microsoft.SharePoint.Client.FileLevel.Published,
+                    CheckOutType = Microsoft.SharePoint.Client.CheckOutType.None,
+                    Fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["PublishingPageImage"] = item["PublishingPageImage"],
+                        ["PublishingPageContent"] = item["PublishingPageContent"],
+                        ["PublishingPageLayout"] = item["PublishingPageLayout"],
+                        ["ContentTypeId"] = item["ContentTypeId"],
+                        ["_ModerationStatus"] = 0
+                    },
+                    Properties = new Dictionary<string, object>(StringComparer.Ordinal)
+                    {
+                        [PublishingPageTargetOwnership.OriginalIdentifierPropertyName] = package.Plan.OriginalIdentifier,
+                        [PublishingPageTargetOwnership.SourceSnapshotDigestPropertyName] = package.SnapshotDigest,
+                        [PublishingPageTargetOwnership.PlanDigestPropertyName] = package.PlanDigest
+                    }
+                };
+                var executionSeam = new PublishingPageImportExecutionSeam
+                {
+                    TargetWebUrl = package.Plan.TargetWebUrl,
+                    ReadTargetPage = () => storage
+                };
+                var resumed = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
                     context,
                     package,
                     package.PlanDigest,
-                    _ => new PublishingPageMigrationImporter.ContractExecutionObservation
-                    {
-                        TargetItem = item,
-                        ResumedExistingOwnedPage = true,
-                        ObservedLifecycle = package.Plan.TargetLifecycle
-                    },
+                    executionSeam,
                     ArticlePageV1WorkflowPolicy.Instance);
                 Assert.IsTrue(resumed.MutationStarted);
                 Assert.IsTrue(resumed.FreshReadbackPassed);
@@ -1306,23 +1330,42 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Assert.IsTrue(resumed.StorageContentEqual);
                 Assert.IsTrue(resumed.ContentTypeMatched);
                 Assert.IsTrue(resumed.LifecycleMatched);
+                Assert.AreEqual("Published", resumed.ActualFileLevel);
+                Assert.AreEqual("None", resumed.ActualCheckOutType);
+                Assert.AreEqual(0, resumed.ActualModerationStatus);
                 Assert.AreEqual(MigrationAcceptanceStatus.Accepted, resumed.AcceptanceStatus);
+                Assert.IsTrue(resumed.Steps.Any(value => value.ActionId == "admission.target-storage-session"));
+                Assert.IsTrue(resumed.Steps.Any(value => value.ActionId == "topology.controlled-session"));
+                Assert.IsTrue(resumed.Steps.Any(value => value.ActionId == "page.create" && value.Outcome == MutationOutcome.AlreadySatisfied));
 
-                item["PublishingPageImage"] = "<img src=\"https://target.sharepoint.com/sites/target/PublishingImages/drift.jpg\" />";
-                var drifted = new PublishingPageMigrationImporter().ImportWithExecutionContractSeam(
+                storage.Fields["PublishingPageImage"] = "<img src=\"https://target.sharepoint.com/sites/target/PublishingImages/drift.jpg\" />";
+                var fieldDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
                     context,
                     package,
                     package.PlanDigest,
-                    _ => new PublishingPageMigrationImporter.ContractExecutionObservation
-                    {
-                        TargetItem = item,
-                        ResumedExistingOwnedPage = true,
-                        ObservedLifecycle = package.Plan.TargetLifecycle
-                    },
+                    executionSeam,
                     ArticlePageV1WorkflowPolicy.Instance);
-                Assert.IsFalse(drifted.FreshReadbackPassed);
-                Assert.IsFalse(drifted.PageFieldsMatched);
-                Assert.AreEqual(MigrationAcceptanceStatus.Rejected, drifted.AcceptanceStatus);
+                Assert.IsFalse(fieldDrift.FreshReadbackPassed);
+                Assert.IsFalse(fieldDrift.PageFieldsMatched);
+                Assert.AreEqual(MigrationAcceptanceStatus.Rejected, fieldDrift.AcceptanceStatus);
+
+                storage.Fields["PublishingPageImage"] = item["PublishingPageImage"];
+                storage.Fields["PublishingPageLayout"] = new FieldUrlValue
+                {
+                    Url = "https://target.sharepoint.com/sites/target/_catalogs/masterpage/ArticleRight.aspx",
+                    Description = "Image on right"
+                };
+                var layoutDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
+                    context, package, package.PlanDigest, executionSeam, ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(layoutDrift.FreshReadbackPassed);
+                Assert.IsFalse(layoutDrift.LayoutMatched);
+
+                storage.Fields["PublishingPageLayout"] = item["PublishingPageLayout"];
+                storage.Level = Microsoft.SharePoint.Client.FileLevel.Draft;
+                var lifecycleDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
+                    context, package, package.PlanDigest, executionSeam, ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(lifecycleDrift.FreshReadbackPassed);
+                Assert.IsFalse(lifecycleDrift.LifecycleMatched);
             }
 
             dependency.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
