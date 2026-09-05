@@ -401,7 +401,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 package.Plan.IngredientActions);
 
             Assert.AreEqual(IngredientDisposition.Delegate, fieldAction.Disposition);
-            Assert.AreEqual(PageMigrationOutcome.ExecutableWithLoss, evaluation.Outcome);
+            Assert.AreEqual(PageMigrationOutcome.PartiallyExecutable, evaluation.Outcome);
             Assert.IsFalse(evaluation.Issues.Any(value =>
                 value.Code == "IngredientBlocked"
                 || value.Code == "RequiredIngredientDependencyUnsatisfied"));
@@ -717,7 +717,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(IngredientDisposition.Delegate, relationship.Disposition);
             Assert.AreEqual("retain-sealed-relationship-evidence", relationship.Realization);
             Assert.IsNull(relationship.TargetIdentity);
-            Assert.AreEqual(PageMigrationOutcome.ExecutableWithLoss, package.Plan.MigrationOutcome);
+            Assert.AreEqual(PageMigrationOutcome.PartiallyExecutable, package.Plan.MigrationOutcome);
 
             package.Plan.TaxonomyRelationshipActions.Single().TargetTermStoreId =
                 Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
@@ -1076,7 +1076,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             PublishingPagePackageValidator.ValidateMigration(roundTripped);
             Assert.AreEqual(EnterpriseWikiV1CohortPolicy.CohortId, roundTripped.Selection.WorkflowId);
             Assert.AreEqual(PageRuntimeAdapterIds.Publishing, roundTripped.Snapshot.Runtime.AdapterId);
-            Assert.AreEqual(PageMigrationOutcome.ExecutableWithLoss, roundTripped.Plan.MigrationOutcome);
+            Assert.AreEqual(PageMigrationOutcome.PartiallyExecutable, roundTripped.Plan.MigrationOutcome);
             Assert.AreEqual("https://source.sharepoint.com/_catalogs/masterpage/EnterpriseWiki.aspx", roundTripped.Snapshot.Layout.Url);
             Assert.AreEqual(package.Snapshot.Layout.Bytes.Sha256, roundTripped.Snapshot.Layout.Bytes.Sha256);
             Assert.AreEqual("PublishingPageContent", roundTripped.Snapshot.Layout.Controls.Single().FieldName);
@@ -1332,7 +1332,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 new Uri("https://source.sharepoint.com/sites/source"),
                 new Uri("https://target.sharepoint.com/sites/target"),
                 new Uri("https://target.sharepoint.com/sites/target"),
-                "EnterpriseWiki.aspx");
+                string.Equals(contentTypeId, BuiltInContentTypeId.EnterpriseWikiPage, StringComparison.OrdinalIgnoreCase)
+                    ? EnterpriseWikiV1WorkflowPolicy.Instance
+                    : WelcomePageV1WorkflowPolicy.Instance);
 
             Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.ReuseTargetStock, plan.Disposition);
             Assert.AreEqual(fileName, plan.TargetFileName);

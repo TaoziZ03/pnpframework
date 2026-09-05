@@ -7,9 +7,9 @@ using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 
-namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
+namespace PnP.Framework.Migration.Pages.Publishing.Welcome
 {
-    public sealed class EnterpriseWikiMigrationImporter
+    public sealed class WelcomePageMigrationImporter
     {
         private readonly PublishingPageMigrationImporter importer = new PublishingPageMigrationImporter();
 
@@ -18,7 +18,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
             PublishingPageMigrationPackage package,
             string approvedPlanDigest)
         {
-            return importer.Import(targetContext, package, approvedPlanDigest, EnterpriseWikiV1WorkflowPolicy.Instance);
+            return importer.Import(targetContext, package, approvedPlanDigest, WelcomePageV1WorkflowPolicy.Instance);
         }
 
         public PublishingPageImportReceipt Import(
@@ -27,7 +27,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
             string approvedPlanDigest,
             IMigrationExecutionJournal journal)
         {
-            return importer.Import(targetContext, package, approvedPlanDigest, EnterpriseWikiV1WorkflowPolicy.Instance, journal);
+            return importer.Import(targetContext, package, approvedPlanDigest, WelcomePageV1WorkflowPolicy.Instance, journal);
         }
 
         public PublishingPageImportReceipt Import(
@@ -37,7 +37,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
             IMigrationExecutionJournal journal,
             IMigrationArtifactStore artifactStore)
         {
-            return importer.Import(targetContext, package, approvedPlanDigest, EnterpriseWikiV1WorkflowPolicy.Instance, journal, artifactStore);
+            return importer.Import(targetContext, package, approvedPlanDigest, WelcomePageV1WorkflowPolicy.Instance, journal, artifactStore);
         }
 
         public PublishingPageImportReceipt ImportWithSharedTopology(
@@ -53,7 +53,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki
                 package,
                 approvedPlanDigest,
                 sharedTopologyProof,
-                EnterpriseWikiV1WorkflowPolicy.Instance,
+                WelcomePageV1WorkflowPolicy.Instance,
                 journal,
                 artifactStore);
         }

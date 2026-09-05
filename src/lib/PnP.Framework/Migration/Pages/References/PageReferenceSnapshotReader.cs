@@ -1,3 +1,4 @@
+using PnP.Framework.Migration.Pages.Fields;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using Microsoft.SharePoint.Client;
@@ -27,12 +28,63 @@ namespace PnP.Framework.Migration.Pages.References
             string pageContent,
             IEnumerable<ClassicWebPartSnapshot> webParts,
             PageCaptureOptions options,
-            ICollection<string> warnings)
+            ICollection<string> warnings,
+            IEnumerable<PageFieldValueSnapshot> fields = null)
         {
             var candidates = ExtractHtmlReferences(pageContent);
-            foreach (var webPart in webParts)
+            foreach (var webPart in webParts ?? Array.Empty<ClassicWebPartSnapshot>())
             {
                 candidates.AddRange(ExtractTextReferences(webPart.ExportXml, $"webpart:{webPart.Id}"));
+            }
+
+            if (fields != null)
+            {
+                foreach (var field in fields)
+                {
+                    if (field == null
+                        || (field.Kind != PageFieldValueKind.String
+                            && field.Kind != PageFieldValueKind.Url))
+                    {
+                        continue;
+                    }
+
+                    var fieldValue = field.Kind == PageFieldValueKind.Url
+                        ? field.UrlValue?.Url
+                        : field.Kind == PageFieldValueKind.String
+                            ? field.Value
+                            : null;
+                    if (string.IsNullOrWhiteSpace(fieldValue))
+                    {
+                        continue;
+                    }
+
+                    if (field.Kind == PageFieldValueKind.Url)
+                    {
+                        candidates.Add(new ReferenceCandidate
+                        {
+                            Consumer = $"field:{field.InternalName}",
+                            Kind = IsImageField(field.InternalName) ? PageReferenceKind.Image : PageReferenceKind.Anchor,
+                            Value = fieldValue.Trim(),
+                            IsRenderableResource = IsImageField(field.InternalName)
+                        });
+                        continue;
+                    }
+
+                    var htmlRefs = ExtractHtmlReferences(fieldValue).ToList();
+                    candidates.AddRange(htmlRefs);
+                    if (htmlRefs.Count == 0 && IsImageField(field.InternalName) && LooksLikeReference(fieldValue))
+                    {
+                        candidates.Add(new ReferenceCandidate
+                        {
+                            Consumer = $"field:{field.InternalName}",
+                            Kind = PageReferenceKind.Image,
+                            Value = fieldValue.Trim(),
+                            IsRenderableResource = true
+                        });
+                    }
+                    var htmlValues = new HashSet<string>(htmlRefs.Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
+                    candidates.AddRange(ExtractTextReferences(fieldValue, $"field:{field.InternalName}").Where(r => !htmlValues.Contains(r.Value)));
+                }
             }
 
             var sourceWebUri = new Uri(UrlUtility.EnsureTrailingSlash(source.WebUrl));
@@ -132,24 +184,49 @@ namespace PnP.Framework.Migration.Pages.References
                 return reference;
             }
 
-            try
+            if (sourceContext != null)
             {
-                var ownerWeb = owner.WebId == source.WebId
-                    ? sourceContext.Web
-                    : sourceContext.Site.OpenWebById(owner.WebId);
-                var payload = ReadFile(ownerWeb, sourceContext, sourcePath, options.MaximumDependencyBytes);
-                reference.ContentBase64 = Convert.ToBase64String(payload);
-                reference.ContentLength = payload.LongLength;
-                reference.ContentSha256 = PageDigest.ComputeSha256(payload);
+                try
+                {
+                    var ownerWeb = owner.WebId == source.WebId
+                        ? sourceContext.Web
+                        : sourceContext.Site.OpenWebById(owner.WebId);
+                    var payload = ReadFile(ownerWeb, sourceContext, sourcePath, options.MaximumDependencyBytes);
+                    reference.ContentBase64 = Convert.ToBase64String(payload);
+                    reference.ContentLength = payload.LongLength;
+                    reference.ContentSha256 = PageDigest.ComputeSha256(payload);
+                }
+                catch (Exception exception) when (exception is ServerException || exception is InvalidOperationException || exception is IOException)
+                {
+                    reference.CaptureStatus = PageCaptureStatus.Failed;
+                    reference.Diagnostics.Add(exception.Message);
+                    warnings.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
+                }
             }
-            catch (Exception exception) when (exception is ServerException || exception is InvalidOperationException || exception is IOException)
+            else
             {
-                reference.CaptureStatus = PageCaptureStatus.Failed;
-                reference.Diagnostics.Add(exception.Message);
-                warnings.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
+                reference.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+                reference.Diagnostics.Add("The renderable resource candidate was extracted without a source ClientContext, so no payload was captured.");
+                warnings?.Add($"Resource '{absoluteUri}' was discovered without a source ClientContext; no restorable payload is claimed.");
             }
 
             return reference;
+        }
+
+        private static bool LooksLikeReference(string value)
+        {
+            var trimmed = value?.Trim();
+            return !string.IsNullOrWhiteSpace(trimmed)
+                && (trimmed.StartsWith("/", StringComparison.Ordinal)
+                    || trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsImageField(string internalName)
+        {
+            return string.Equals(internalName, "PublishingPageImage", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(internalName, "PublishingRollupImage", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(internalName, "PublishingContactPicture", StringComparison.OrdinalIgnoreCase);
         }
 
         private static byte[] ReadFile(

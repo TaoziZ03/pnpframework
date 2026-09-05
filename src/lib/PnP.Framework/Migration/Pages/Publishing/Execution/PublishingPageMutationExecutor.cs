@@ -30,30 +30,44 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             MigrationExecutionRecorder recorder,
             IMigrationArtifactStore artifactStore,
             string expectedContentTypeId,
-            SharedTopologyExecutionProof sharedTopologyProof = null)
+            SharedTopologyExecutionProof sharedTopologyProof = null,
+            PublishingPageImportExecutionSeam executionSeam = null)
         {
             var warnings = new List<string>();
-            var topologyReceipt = package.Plan.SharedTopologyReference == null
-                ? TopologyMaterializationCoordinator.Ensure(
+            var topologyReceipt = executionSeam == null
+                ? package.Plan.SharedTopologyReference == null
+                    ? TopologyMaterializationCoordinator.Ensure(
+                        targetContext,
+                        package.Plan.Topology,
+                        executionScope.TopologyPlan,
+                        recorder)
+                    : ProjectSharedTopologyReceipt(package, sharedTopologyProof, recorder)
+                : ProjectControlledTopologyReceipt(executionScope, recorder);
+            if (executionSeam == null)
+            {
+                MaterializeLayout(targetContext, package, executionScope, recorder, artifactStore);
+            }
+            else
+            {
+                recorder.RecordAlreadySatisfied("layout.controlled-session", "The controlled target storage session supplies the admitted layout state for production verification.");
+            }
+            var materializedDependencies = executionSeam == null
+                ? MaterializeDependencies(
                     targetContext,
-                    package.Plan.Topology,
-                    executionScope.TopologyPlan,
+                    package,
+                    executionScope,
+                    topologyReceipt,
                     recorder)
-                : ProjectSharedTopologyReceipt(package, sharedTopologyProof, recorder);
-            MaterializeLayout(targetContext, package, executionScope, recorder, artifactStore);
-            var materializedDependencies = MaterializeDependencies(
-                targetContext,
-                package,
-                executionScope,
-                topologyReceipt,
-                recorder);
-            var listReceipts = ListMaterializationCoordinator.Ensure(
-                targetContext,
-                package.Snapshot.ListDependencies,
-                package.Plan.ListMigration,
-                executionScope.ListScope,
-                recorder,
-                artifactStore);
+                : ProjectControlledDependencyCount(package, executionScope, recorder);
+            var listReceipts = executionSeam == null
+                ? ListMaterializationCoordinator.Ensure(
+                    targetContext,
+                    package.Snapshot.ListDependencies,
+                    package.Plan.ListMigration,
+                    executionScope.ListScope,
+                    recorder,
+                    artifactStore)
+                : new Dictionary<Guid, ListMaterializationReceipt>();
             PublishingPageWriteResult writeResult = null;
             if (executionScope.PageArtifact)
             {
@@ -63,7 +77,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     executionScope,
                     listReceipts,
                     recorder,
-                    warnings);
+                    warnings,
+                    executionSeam);
                 if (writeResult.ResumedExistingOwnedPage)
                 {
                     recorder.RecordAlreadySatisfied(
@@ -107,11 +122,51 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 recorder.Steps,
                 warnings,
                 expectedContentTypeId,
-                sharedTopologyProof);
+                sharedTopologyProof,
+                executionSeam);
             recorder.RecordState(receipt.ExecutionStatus, receipt.FreshReadbackPassed
                 ? "Mutation and fresh storage verification completed."
                 : "Mutation completed, but fresh storage verification failed.");
             return receipt;
+        }
+
+        private static TopologyMaterializationReceipt ProjectControlledTopologyReceipt(
+            PublishingPageExecutionScope executionScope,
+            MigrationExecutionRecorder recorder)
+        {
+            recorder.RecordAlreadySatisfied(
+                "topology.controlled-session",
+                "The controlled target storage session supplies admitted target Web identities for the production execution path.");
+            return new TopologyMaterializationReceipt
+            {
+                FreshReadbackPassed = true,
+                Webs = (executionScope.TopologyPlan?.SiteCollections ?? Array.Empty<SiteCollectionMappingPlan>())
+                    .SelectMany(value => value.Webs ?? Array.Empty<WebMappingPlan>())
+                    .Select(value => new TopologyWebMaterializationReceipt
+                    {
+                        SourceSiteId = value.SourceSiteId,
+                        SourceWebId = value.SourceWebId,
+                        TargetSiteId = Guid.Empty,
+                        TargetWebId = Guid.Empty,
+                        TargetWebUrl = value.TargetWebUrl,
+                        Disposition = TopologyMaterializationDisposition.ReuseApprovedHost,
+                        MappingDigest = value.OriginalIdentifier
+                    })
+                    .ToList()
+            };
+        }
+
+        private static int ProjectControlledDependencyCount(
+            PublishingPageMigrationPackage package,
+            PublishingPageExecutionScope executionScope,
+            MigrationExecutionRecorder recorder)
+        {
+            var count = executionScope.ReferenceActions(package)
+                .Count(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget);
+            recorder.RecordAlreadySatisfied(
+                "dependencies.controlled-session",
+                $"The controlled target storage session exposes {count} admitted dependency artifact(s) for production verification.");
+            return count;
         }
 
         private static TopologyMaterializationReceipt ProjectSharedTopologyReceipt(
