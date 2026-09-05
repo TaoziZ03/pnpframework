@@ -6,16 +6,25 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
     {
         public static RuntimeVerificationStatus RuntimeStatus => RuntimeVerificationStatus.Pending;
 
-        public static MigrationAcceptanceStatus Acceptance(bool storagePassed, bool hasExplicitExclusions)
+        public static MigrationAcceptanceStatus Acceptance(
+            bool storagePassed,
+            RuntimeVerificationStatus runtimeStatus,
+            bool hasExplicitExclusions)
         {
-            if (!storagePassed)
+            if (!storagePassed || runtimeStatus == RuntimeVerificationStatus.Failed)
             {
                 return MigrationAcceptanceStatus.Rejected;
             }
 
+            if (runtimeStatus == RuntimeVerificationStatus.Pending
+                || runtimeStatus == RuntimeVerificationStatus.NotRun)
+            {
+                return MigrationAcceptanceStatus.Pending;
+            }
+
             return hasExplicitExclusions
                 ? MigrationAcceptanceStatus.PartiallyAccepted
-                : MigrationAcceptanceStatus.Pending;
+                : MigrationAcceptanceStatus.Accepted;
         }
     }
 }

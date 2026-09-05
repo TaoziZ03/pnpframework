@@ -135,6 +135,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Capture
                 LibraryBaseTemplate = sourceCapture.LibraryBaseTemplate,
                 LibraryTitle = sourceCapture.LibraryTitle,
                 LibraryServerRelativeUrl = sourceCapture.LibraryServerRelativeUrl,
+                LibraryEnableVersioning = sourceCapture.LibraryEnableVersioning,
+                LibraryEnableMinorVersions = sourceCapture.LibraryEnableMinorVersions,
+                LibraryEnableModeration = sourceCapture.LibraryEnableModeration,
+                LibraryForceCheckout = sourceCapture.LibraryForceCheckout,
                 Fields = sourceCapture.Fields.OrderBy(field => field.InternalName, StringComparer.Ordinal).ToList(),
                 WebParts = sourceCapture.WebParts
                     .OrderBy(webPart => webPart.ZoneId, StringComparer.OrdinalIgnoreCase)

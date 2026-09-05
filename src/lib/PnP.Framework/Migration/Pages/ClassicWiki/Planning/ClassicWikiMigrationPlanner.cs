@@ -206,7 +206,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
                 SecurityPlan = securityPlan,
                 WebParts = webPartPlans,
                 Dependencies = dependencyPlans,
-                LifecyclePolicy = "Publish",
+                LifecyclePolicy = ClassicWikiLifecyclePolicy.Publish,
                 Warnings = warnings,
                 Blockers = blockers
             };

@@ -1,6 +1,7 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
 using System;
 using System.IO;
 
@@ -45,32 +46,37 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
             try
             {
                 list = web.GetList(libraryPath);
-                context.Load(list, l => l.Id, l => l.Title, l => l.BaseTemplate, l => l.RootFolder.ServerRelativeUrl);
+                LoadLibrary(context, list);
                 context.ExecuteQueryRetry();
             }
             catch (ServerException exception) when (IsMissingLibrary(exception))
             {
-                // Library does not exist, create it based on modeled template
-                var templateType = planLoc.TargetLibraryTemplate == 101 ? ListTemplateType.DocumentLibrary : ListTemplateType.WebPageLibrary;
                 list = recorder.Execute(
                     "library.ensure",
                     $"Create target wiki library '{planLoc.TargetLibraryTitle}' with template {planLoc.TargetLibraryTemplate}.",
-                    () => web.CreateList(templateType, planLoc.TargetLibraryTitle, false),
+                    () =>
+                    {
+                        var created = web.Lists.Add(BuildCreationInformation(planLoc, web.ServerRelativeUrl));
+                        if (package.Plan.LifecyclePolicy == ClassicWikiLifecyclePolicy.Publish)
+                        {
+                            created.EnableVersioning = true;
+                        }
+                        created.Update();
+                        context.ExecuteQueryRetry();
+                        return created;
+                    },
                     value => MutationOutcome.Applied,
                     value => $"Created target wiki library '{planLoc.TargetLibraryTitle}'.");
-                context.Load(list, l => l.Id, l => l.Title, l => l.BaseTemplate, l => l.RootFolder.ServerRelativeUrl);
+                LoadLibrary(context, list);
                 context.ExecuteQueryRetry();
             }
 
-            if (list.BaseTemplate != planLoc.TargetLibraryTemplate
-                || !string.Equals(
-                    list.RootFolder.ServerRelativeUrl?.TrimEnd('/'),
-                    planLoc.TargetLibraryServerRelativeUrl?.TrimEnd('/'),
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    $"Target library identity differs from the sealed plan. Expected template/path '{planLoc.TargetLibraryTemplate}:{planLoc.TargetLibraryServerRelativeUrl}'; observed '{list.BaseTemplate}:{list.RootFolder.ServerRelativeUrl}'.");
-            }
+            ValidateLoadedLibrary(
+                planLoc,
+                package.Plan.LifecyclePolicy,
+                list.BaseTemplate,
+                list.RootFolder.ServerRelativeUrl,
+                list.EnableVersioning);
 
             var rootFolderUrl = list.RootFolder.ServerRelativeUrl.TrimEnd('/');
             var targetFolderUrl = (planLoc.TargetFolderServerRelativeUrl ?? rootFolderUrl).TrimEnd('/');
@@ -114,6 +120,68 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                     leftUri.GetLeftPart(UriPartial.Path).TrimEnd('/'),
                     rightUri.GetLeftPart(UriPartial.Path).TrimEnd('/'),
                     StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static ListCreationInformation BuildCreationInformation(
+            ClassicWikiTargetLocationPlan plan,
+            string targetWebServerRelativeUrl)
+        {
+            if (plan == null) throw new ArgumentNullException(nameof(plan));
+            var webPath = (targetWebServerRelativeUrl ?? string.Empty).TrimEnd('/');
+            var libraryPath = plan.TargetLibraryServerRelativeUrl.TrimEnd('/');
+            if (!PagePath.IsWithin(libraryPath, webPath))
+            {
+                throw new InvalidDataException("The sealed library path is outside the target Web.");
+            }
+            var relativeUrl = libraryPath.Substring(webPath.Length).TrimStart('/');
+            if (string.IsNullOrWhiteSpace(relativeUrl))
+            {
+                throw new InvalidDataException("A sealed library URL below the target Web is required.");
+            }
+
+            return new ListCreationInformation
+            {
+                Title = plan.TargetLibraryTitle,
+                Url = relativeUrl,
+                TemplateType = plan.TargetLibraryTemplate
+            };
+        }
+
+        private static void LoadLibrary(ClientContext context, List list)
+        {
+            context.Load(
+                list,
+                value => value.Id,
+                value => value.Title,
+                value => value.BaseTemplate,
+                value => value.ForceCheckout,
+                value => value.EnableVersioning,
+                value => value.EnableMinorVersions,
+                value => value.EnableModeration,
+                value => value.RootFolder.ServerRelativeUrl);
+        }
+
+        internal static void ValidateLoadedLibrary(
+            ClassicWikiTargetLocationPlan plan,
+            ClassicWikiLifecyclePolicy lifecyclePolicy,
+            int actualTemplate,
+            string actualServerRelativeUrl,
+            bool enableVersioning)
+        {
+            if (actualTemplate != plan.TargetLibraryTemplate
+                || !string.Equals(
+                    actualServerRelativeUrl?.TrimEnd('/'),
+                    plan.TargetLibraryServerRelativeUrl?.TrimEnd('/'),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Target library identity differs from the sealed plan. Expected template/path '{plan.TargetLibraryTemplate}:{plan.TargetLibraryServerRelativeUrl}'; observed '{actualTemplate}:{actualServerRelativeUrl}'.");
+            }
+            if (lifecyclePolicy == ClassicWikiLifecyclePolicy.Publish && !enableVersioning)
+            {
+                throw new InvalidOperationException(
+                    $"Target library '{actualServerRelativeUrl}' does not support the sealed Publish lifecycle because versioning is disabled.");
+            }
         }
 
         private static bool IsMissingLibrary(ServerException exception)

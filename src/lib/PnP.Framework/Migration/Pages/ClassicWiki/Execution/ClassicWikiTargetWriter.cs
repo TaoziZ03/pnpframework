@@ -148,28 +148,13 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
             // Write ownership provenance properties
             ClassicWikiProvenanceWriter.WriteOwnership(targetContext, targetFile, package, recorder);
 
-            // Lifecycle: Check-in / Publish if needed
-            if (targetLocation.TargetLibrary.EnableVersioning || targetLocation.TargetLibrary.ForceCheckout)
-            {
-                try
-                {
-                    recorder.Execute<bool>(
-                        "page.checkin",
-                        $"Check in wiki page '{package.Plan.TargetPageServerRelativeUrl}'.",
-                        () =>
-                        {
-                            targetFile.CheckIn("Migration checkin", CheckinType.MajorCheckIn);
-                            return true;
-                        },
-                        value => MutationOutcome.Applied,
-                        value => "Checked in wiki page.");
-                    targetContext.ExecuteQueryRetry();
-                }
-                catch (Exception ex)
-                {
-                    warnings.Add("Check-in warning: " + ex.Message);
-                }
-            }
+            ClassicWikiLifecycleExecutor.Apply(
+                targetContext,
+                targetFile,
+                targetLocation.TargetLibrary,
+                package.Plan.LifecyclePolicy,
+                package.Plan.TargetPageServerRelativeUrl,
+                recorder);
 
             return new ClassicWikiWriteResult
             {

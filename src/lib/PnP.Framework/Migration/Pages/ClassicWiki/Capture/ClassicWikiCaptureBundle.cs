@@ -42,6 +42,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Capture
 
         public string LibraryServerRelativeUrl { get; set; }
 
+        public bool LibraryEnableVersioning { get; set; }
+
+        public bool LibraryEnableMinorVersions { get; set; }
+
+        public bool LibraryEnableModeration { get; set; }
+
+        public bool LibraryForceCheckout { get; set; }
+
         public IList<PageFieldValueSnapshot> Fields { get; set; } = new List<PageFieldValueSnapshot>();
 
         public IList<ClassicWebPartSnapshot> WebParts { get; set; } = new List<ClassicWebPartSnapshot>();

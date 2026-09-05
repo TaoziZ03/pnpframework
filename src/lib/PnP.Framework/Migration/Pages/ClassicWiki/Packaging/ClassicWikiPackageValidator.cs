@@ -75,6 +75,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
                 || string.IsNullOrWhiteSpace(package.Plan.TargetLocation.TargetWebUrl)
                 || string.IsNullOrWhiteSpace(package.Plan.TargetLocation.TargetLibraryServerRelativeUrl)
                 || string.IsNullOrWhiteSpace(package.Plan.TargetLocation.TargetLibraryTitle)
+                || string.IsNullOrWhiteSpace(package.Plan.TargetLocation.TargetFolderServerRelativeUrl)
+                || string.IsNullOrWhiteSpace(package.Plan.TargetLocation.FileName)
                 || string.IsNullOrWhiteSpace(package.Plan.TargetPageServerRelativeUrl))
             {
                 throw new InvalidDataException("Migration package requires a sealed target Web URL and identity.");
@@ -91,6 +93,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
                     package.Plan.TargetLocation.TargetLibraryServerRelativeUrl))
             {
                 throw new InvalidDataException("Target library and page paths must remain within the sealed target Web and library.");
+            }
+            var expectedPagePath = CombineServerRelative(
+                package.Plan.TargetLocation.TargetFolderServerRelativeUrl,
+                package.Plan.TargetLocation.FileName);
+            if (!PagePath.UriEquals(expectedPagePath, package.Plan.TargetPageServerRelativeUrl))
+            {
+                throw new InvalidDataException(
+                    $"TargetFolderServerRelativeUrl plus FileName must equal the exact target page path. Expected '{expectedPagePath}', sealed '{package.Plan.TargetPageServerRelativeUrl}'.");
             }
             if (package.Plan.TargetLocation.TargetLibraryTemplate != 101
                 && package.Plan.TargetLocation.TargetLibraryTemplate != 119)
@@ -114,6 +124,19 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
             {
                 throw new InvalidDataException("Classic wiki plan requires an explicit target security disposition.");
             }
+            if (!Enum.IsDefined(typeof(ClassicWikiLifecyclePolicy), package.Plan.LifecyclePolicy)
+                || package.Plan.LifecyclePolicy != ClassicWikiLifecyclePolicy.Publish)
+            {
+                throw new InvalidDataException($"Unsupported classic wiki lifecycle policy '{package.Plan.LifecyclePolicy}'.");
+            }
+            if (package.State == ClassicWikiPackageState.Quarantined
+                || (package.Snapshot.Blockers?.Any(value => !string.IsNullOrWhiteSpace(value)) ?? false)
+                || (package.Plan.Blockers?.Any(value => !string.IsNullOrWhiteSpace(value)) ?? false)
+                || (package.Report?.Blockers?.Any(value => !string.IsNullOrWhiteSpace(value)) ?? false)
+                || string.Equals(package.Report?.Status?.Trim(), "Blocked", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("Quarantined or blocked classic wiki packages are not admissible for import.");
+            }
             if ((package.Plan.WebParts ?? Array.Empty<ClassicWikiWebPartPlacementPlan>()).Any(value =>
                 value == null
                 || string.IsNullOrWhiteSpace(value.TypeName)
@@ -130,6 +153,11 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
             {
                 throw new InvalidDataException("Every planned dependency requires exact consumer, original-value, and absolute-URL evidence.");
             }
+        }
+
+        private static string CombineServerRelative(string folder, string fileName)
+        {
+            return (folder ?? string.Empty).TrimEnd('/') + "/" + (fileName ?? string.Empty).TrimStart('/');
         }
     }
 }

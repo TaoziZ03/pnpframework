@@ -74,6 +74,9 @@ namespace PnP.Framework.Test.ClassicWiki
                 LibraryBaseTemplate = libraryTemplate,
                 LibraryTitle = libraryTemplate == 119 ? "Site Pages" : "Documents",
                 LibraryServerRelativeUrl = libraryTemplate == 119 ? "/sites/demo/SitePages" : "/sites/demo/Documents",
+                LibraryEnableVersioning = true,
+                LibraryEnableModeration = false,
+                LibraryForceCheckout = false,
                 Fields = new List<PageFieldValueSnapshot>
                 {
                     new PageFieldValueSnapshot { InternalName = "Title", Value = "Test Page" },
@@ -143,7 +146,7 @@ namespace PnP.Framework.Test.ClassicWiki
                     HasUniqueRoleAssignments = deferredSecurity,
                     Disposition = deferredSecurity ? "Deferred" : "Inherit"
                 },
-                LifecyclePolicy = "Publish"
+                LifecyclePolicy = ClassicWikiLifecyclePolicy.Publish
             };
             var package = new ClassicWikiMigrationPackage
             {

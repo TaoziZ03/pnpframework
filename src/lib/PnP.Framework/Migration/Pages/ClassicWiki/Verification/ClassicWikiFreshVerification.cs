@@ -285,15 +285,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             Capture.ClassicWikiCaptureBundle target,
             ClassicWikiComparisonResult result)
         {
-            var expected = package.Snapshot?.Lifecycle;
             var actual = target.Lifecycle;
-            var publishRequired = string.Equals(package.Plan.LifecyclePolicy, "Publish", StringComparison.OrdinalIgnoreCase);
-            if (expected != null
+            if (package.Plan.LifecyclePolicy == ClassicWikiLifecyclePolicy.Publish
                 && actual != null
-                && (!publishRequired || string.Equals(actual.Level, "Published", StringComparison.OrdinalIgnoreCase))
+                && target.LibraryEnableVersioning
+                && string.Equals(actual.Level, "Published", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(actual.CheckOutType, "None", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(target.Source?.VersionLabel)
-                && expected.ModerationStatus == actual.ModerationStatus)
+                && (!target.LibraryEnableModeration || actual.ModerationStatus == 0))
             {
                 result.LifecycleMatched = true;
                 result.CanariesPassed.Add("LifecycleFidelity");

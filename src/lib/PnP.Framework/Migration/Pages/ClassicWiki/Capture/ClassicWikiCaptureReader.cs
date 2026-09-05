@@ -52,6 +52,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Capture
                 value => value.Id,
                 value => value.Title,
                 value => value.BaseTemplate,
+                value => value.EnableVersioning,
+                value => value.EnableMinorVersions,
+                value => value.EnableModeration,
+                value => value.ForceCheckout,
                 value => value.RootFolder.ServerRelativeUrl);
 
             try
@@ -104,6 +108,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Capture
                 LibraryBaseTemplate = parentList.BaseTemplate,
                 LibraryTitle = parentList.Title,
                 LibraryServerRelativeUrl = parentList.RootFolder.ServerRelativeUrl,
+                LibraryEnableVersioning = parentList.EnableVersioning,
+                LibraryEnableMinorVersions = parentList.EnableMinorVersions,
+                LibraryEnableModeration = parentList.EnableModeration,
+                LibraryForceCheckout = parentList.ForceCheckout,
                 Fields = PageFieldSnapshotReader.Read(context, item, warnings),
                 WebParts = options.IncludeWebParts
                     ? ClassicWebPartSnapshotReader.Read(web, pagePath, blockers)

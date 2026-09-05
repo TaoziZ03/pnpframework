@@ -89,7 +89,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 FreshReadbackPassed = readbackPassed,
                 StorageVerificationStatus = readbackPassed ? StorageVerificationStatus.Passed : StorageVerificationStatus.Failed,
                 RuntimeVerificationStatus = ClassicWikiImportStatusPolicy.RuntimeStatus,
-                AcceptanceStatus = ClassicWikiImportStatusPolicy.Acceptance(readbackPassed, hasExclusions),
+                AcceptanceStatus = ClassicWikiImportStatusPolicy.Acceptance(
+                    readbackPassed,
+                    ClassicWikiImportStatusPolicy.RuntimeStatus,
+                    hasExclusions),
                 Warnings = warnings,
                 Diagnostics = diagnostics
             };

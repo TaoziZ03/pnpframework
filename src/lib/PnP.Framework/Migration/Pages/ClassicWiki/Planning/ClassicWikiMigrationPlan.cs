@@ -88,7 +88,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public SharedTopologyPageReference SharedTopologyReference { get; set; }
 
-        public string LifecyclePolicy { get; set; } = "Publish";
+        public ClassicWikiLifecyclePolicy LifecyclePolicy { get; set; } = ClassicWikiLifecyclePolicy.Publish;
 
         public IList<string> Warnings { get; set; } = new List<string>();
 

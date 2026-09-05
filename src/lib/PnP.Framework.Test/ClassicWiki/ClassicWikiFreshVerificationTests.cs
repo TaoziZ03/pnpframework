@@ -1,5 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Pages.ClassicWebParts;
+using PnP.Framework.Migration.Pages.ClassicWiki.Execution;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
 using PnP.Framework.Migration.Pages.ClassicWiki.Verification;
@@ -222,10 +224,22 @@ namespace PnP.Framework.Test.ClassicWiki
             Assert.AreEqual(RuntimeVerificationStatus.Pending, ClassicWikiImportStatusPolicy.RuntimeStatus);
             Assert.AreEqual(
                 MigrationAcceptanceStatus.Pending,
-                ClassicWikiImportStatusPolicy.Acceptance(storagePassed: true, hasExplicitExclusions: false));
+                ClassicWikiImportStatusPolicy.Acceptance(
+                    storagePassed: true,
+                    runtimeStatus: RuntimeVerificationStatus.Pending,
+                    hasExplicitExclusions: false));
             Assert.AreEqual(
                 MigrationAcceptanceStatus.Rejected,
-                ClassicWikiImportStatusPolicy.Acceptance(storagePassed: false, hasExplicitExclusions: false));
+                ClassicWikiImportStatusPolicy.Acceptance(
+                    storagePassed: false,
+                    runtimeStatus: RuntimeVerificationStatus.Pending,
+                    hasExplicitExclusions: false));
+            Assert.AreEqual(
+                MigrationAcceptanceStatus.Accepted,
+                ClassicWikiImportStatusPolicy.Acceptance(
+                    storagePassed: true,
+                    runtimeStatus: RuntimeVerificationStatus.Passed,
+                    hasExplicitExclusions: false));
         }
 
         [TestMethod]
@@ -238,8 +252,137 @@ namespace PnP.Framework.Test.ClassicWiki
             Assert.IsTrue(storage.Passed, string.Join(" | ", storage.Differences));
             Assert.IsTrue(ClassicWikiFreshVerification.HasExplicitExclusions(package));
             Assert.AreEqual(
+                MigrationAcceptanceStatus.Pending,
+                ClassicWikiImportStatusPolicy.Acceptance(
+                    storagePassed: storage.Passed,
+                    runtimeStatus: RuntimeVerificationStatus.Pending,
+                    hasExplicitExclusions: true));
+            Assert.AreEqual(
                 MigrationAcceptanceStatus.PartiallyAccepted,
-                ClassicWikiImportStatusPolicy.Acceptance(storagePassed: storage.Passed, hasExplicitExclusions: true));
+                ClassicWikiImportStatusPolicy.Acceptance(
+                    storagePassed: storage.Passed,
+                    runtimeStatus: RuntimeVerificationStatus.Passed,
+                    hasExplicitExclusions: true));
+        }
+
+        [TestMethod]
+        public void BlockedPackagesAreRejectedBeforeAnyCsomRequestRuns()
+        {
+            using var context = new ClientContext("https://contoso.sharepoint.com/sites/target");
+            var quarantined = ClassicWikiTestFactory.CreateMigrationPackage();
+            quarantined.State = ClassicWikiPackageState.Quarantined;
+            var receipt = new ClassicWikiMigrationImporter().Import(context, quarantined, quarantined.PlanDigest);
+            Assert.IsFalse(receipt.MutationStarted);
+            Assert.AreEqual("PackageNotAdmissible", receipt.AdmissionFailure.Code);
+
+            var snapshotBlocked = ClassicWikiTestFactory.CreateMigrationPackage();
+            snapshotBlocked.Snapshot.Blockers.Add("Source request returned literal HTTP 403 without typed ingredient authorization evidence.");
+            snapshotBlocked.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(snapshotBlocked.Snapshot);
+            snapshotBlocked.Plan.SourceSnapshotDigest = snapshotBlocked.SnapshotDigest;
+            snapshotBlocked.PlanDigest = ClassicWikiDigest.ComputePlanDigest(snapshotBlocked.Plan);
+            receipt = new ClassicWikiMigrationImporter().Import(context, snapshotBlocked, snapshotBlocked.PlanDigest);
+            Assert.IsFalse(receipt.MutationStarted);
+            Assert.AreEqual("PackageNotAdmissible", receipt.AdmissionFailure.Code);
+
+            var planBlocked = ClassicWikiTestFactory.CreateMigrationPackage();
+            planBlocked.Plan.Blockers.Add("Blocked plan ingredient.");
+            planBlocked.PlanDigest = ClassicWikiDigest.ComputePlanDigest(planBlocked.Plan);
+            receipt = new ClassicWikiMigrationImporter().Import(context, planBlocked, planBlocked.PlanDigest);
+            Assert.IsFalse(receipt.MutationStarted);
+            Assert.AreEqual("PackageNotAdmissible", receipt.AdmissionFailure.Code);
+
+            var reportBlocked = ClassicWikiTestFactory.CreateMigrationPackage();
+            reportBlocked.Report.Status = "Blocked";
+            receipt = new ClassicWikiMigrationImporter().Import(context, reportBlocked, reportBlocked.PlanDigest);
+            Assert.IsFalse(receipt.MutationStarted);
+            Assert.AreEqual("PackageNotAdmissible", receipt.AdmissionFailure.Code);
+
+            var reportBlocker = ClassicWikiTestFactory.CreateMigrationPackage();
+            reportBlocker.Report.Blockers.Add("Blocked report ingredient.");
+            receipt = new ClassicWikiMigrationImporter().Import(context, reportBlocker, reportBlocker.PlanDigest);
+            Assert.IsFalse(receipt.MutationStarted);
+            Assert.AreEqual("PackageNotAdmissible", receipt.AdmissionFailure.Code);
+        }
+
+        [TestMethod]
+        public void LifecyclePolicyIsStrictAndModeratedPublishRequiresApproval()
+        {
+            var actions = ClassicWikiLifecycleExecutor.Plan(
+                ClassicWikiLifecyclePolicy.Publish,
+                CheckOutType.Online,
+                moderationEnabled: true);
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    ClassicWikiLifecycleAction.CheckIn,
+                    ClassicWikiLifecycleAction.Publish,
+                    ClassicWikiLifecycleAction.Approve
+                },
+                actions.ToArray());
+
+            var package = ClassicWikiTestFactory.CreateMigrationPackage();
+            package.Plan.LifecyclePolicy = (ClassicWikiLifecyclePolicy)999;
+            package.PlanDigest = ClassicWikiDigest.ComputePlanDigest(package.Plan);
+            Assert.ThrowsException<System.IO.InvalidDataException>(() =>
+                ClassicWikiPackageValidator.ValidateMigration(package));
+        }
+
+        [TestMethod]
+        public void FreshModeratedPublishRequiresApprovedStatusInsteadOfSourceModerationParity()
+        {
+            var package = ClassicWikiTestFactory.CreateMigrationPackage();
+            package.Snapshot.Lifecycle.ModerationStatus = 2;
+            package.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(package.Snapshot);
+            package.Plan.SourceSnapshotDigest = package.SnapshotDigest;
+            package.PlanDigest = ClassicWikiDigest.ComputePlanDigest(package.Plan);
+            var evidence = ClassicWikiTestFactory.CreateFreshEvidence(package);
+            evidence.FileProperties[ClassicWikiTargetOwnership.SourceSnapshotDigestPropertyName] = package.SnapshotDigest;
+            evidence.FileProperties[ClassicWikiTargetOwnership.PlanDigestPropertyName] = package.PlanDigest;
+            evidence.Recapture.Snapshot.LibraryEnableModeration = true;
+            evidence.Recapture.Snapshot.Lifecycle.ModerationStatus = 0;
+
+            var approved = ClassicWikiFreshVerification.Evaluate(package, evidence);
+            Assert.IsTrue(approved.Passed, string.Join(" | ", approved.Differences));
+
+            evidence.Recapture.Snapshot.Lifecycle.ModerationStatus = 2;
+            var pending = ClassicWikiFreshVerification.Evaluate(package, evidence);
+            Assert.IsFalse(pending.Passed);
+            Assert.IsFalse(pending.LifecycleMatched);
+        }
+
+        [TestMethod]
+        public void SealedLibraryUrlAndExactPageCompositionAreEnforced()
+        {
+            var package = ClassicWikiTestFactory.CreateMigrationPackage();
+            package.Plan.TargetLocation.TargetLibraryTitle = "Friendly Display Name";
+            package.Plan.TargetLocation.TargetLibraryServerRelativeUrl = "/sites/target/SealedWiki";
+            package.Plan.TargetLocation.TargetFolderServerRelativeUrl = "/sites/target/SealedWiki/Dept";
+            package.Plan.TargetLocation.FileName = "Page.aspx";
+            package.Plan.TargetPageServerRelativeUrl = "/sites/target/SealedWiki/Dept/Page.aspx";
+            package.PlanDigest = ClassicWikiDigest.ComputePlanDigest(package.Plan);
+
+            var creation = ClassicWikiTargetLocationMaterializer.BuildCreationInformation(
+                package.Plan.TargetLocation,
+                "/sites/target");
+            Assert.AreEqual("Friendly Display Name", creation.Title);
+            Assert.AreEqual("SealedWiki", creation.Url);
+            Assert.ThrowsException<System.InvalidOperationException>(() =>
+                ClassicWikiTargetLocationMaterializer.ValidateLoadedLibrary(
+                    package.Plan.TargetLocation,
+                    ClassicWikiLifecyclePolicy.Publish,
+                    actualTemplate: 119,
+                    actualServerRelativeUrl: "/sites/target/SealedWiki",
+                    enableVersioning: false));
+
+            package.Plan.TargetLocation.FileName = "Other.aspx";
+            package.PlanDigest = ClassicWikiDigest.ComputePlanDigest(package.Plan);
+            Assert.ThrowsException<System.IO.InvalidDataException>(() =>
+                ClassicWikiPackageValidator.ValidateMigration(package));
+
+            package.Plan.TargetLocation.FileName = string.Empty;
+            package.PlanDigest = ClassicWikiDigest.ComputePlanDigest(package.Plan);
+            Assert.ThrowsException<System.IO.InvalidDataException>(() =>
+                ClassicWikiPackageValidator.ValidateMigration(package));
         }
     }
 }

@@ -19,7 +19,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
                 OperationId = operationId,
                 StartedAtUtc = startedAt,
                 CompletedAtUtc = DateTimeOffset.UtcNow,
-                ExecutionStatus = MigrationExecutionStatus.FailedUnexpectedly,
+                ExecutionStatus = MigrationExecutionStatus.NotStarted,
                 AdmissionFailure = failure,
                 MutationStarted = false,
                 ApprovedPlanDigest = package?.PlanDigest,

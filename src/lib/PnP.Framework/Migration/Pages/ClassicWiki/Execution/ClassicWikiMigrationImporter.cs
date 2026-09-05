@@ -3,6 +3,7 @@ using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using System;
+using System.IO;
 
 namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
 {
@@ -35,11 +36,29 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
             if (targetContext == null) throw new ArgumentNullException(nameof(targetContext));
             if (package == null) throw new ArgumentNullException(nameof(package));
 
-            ClassicWikiPackageValidator.ValidateMigration(package, artifactStore);
-
             var operationId = Guid.NewGuid();
             var startedAt = DateTimeOffset.UtcNow;
             var recorder = new MigrationExecutionRecorder(operationId, package.PlanDigest, journal);
+
+            try
+            {
+                ClassicWikiPackageValidator.ValidateMigration(package, artifactStore);
+            }
+            catch (InvalidDataException exception)
+            {
+                var failure = new ExecutionAdmissionFailure
+                {
+                    Code = "PackageNotAdmissible",
+                    Subject = package.Plan?.TargetPageServerRelativeUrl,
+                    Message = exception.Message
+                };
+                return ClassicWikiImportReceiptFactory.AdmissionFailure(
+                    package,
+                    operationId,
+                    startedAt,
+                    failure,
+                    recorder);
+            }
 
             if (!string.Equals(package.PlanDigest, approvedPlanDigest, StringComparison.OrdinalIgnoreCase))
             {
