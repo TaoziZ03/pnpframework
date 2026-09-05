@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.ContentTypes;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Items;
 using PnP.Framework.Migration.Lists.Views;
@@ -274,6 +275,13 @@ namespace PnP.Framework.Migration.Lists.Planning
             {
                 issues.Add(Issue("ListItemCaptureIncomplete", "list:" + source.SourceListId.ToString("D"), "Source ItemCount is " + source.SourceItemCount + ", but " + source.Items.Count + " item snapshots were captured."));
             }
+            foreach (var contentType in source.ContentTypes.Where(value => !ListContentTypeEvidence.IsCaptured(value)))
+            {
+                issues.Add(Issue(
+                    "ListContentTypeEvidenceUnavailable",
+                    "content-type:" + contentType.Id,
+                    "The List Content Type member metadata or field-link evidence is partial and cannot be materialized."));
+            }
             foreach (var attachment in source.Items.SelectMany(value => value.Attachments))
             {
                 if (!HasReplayableBinary(attachment.Content))
@@ -307,7 +315,8 @@ namespace PnP.Framework.Migration.Lists.Planning
                 issues.Add(issue);
             }
             var capturedSiteContentTypeIds = new HashSet<string>(contentTypeClosure.Nodes.Select(value => value.Schema.ContentTypeId), StringComparer.OrdinalIgnoreCase);
-            foreach (var contentType in source.ContentTypes.Where(value => !string.IsNullOrWhiteSpace(value.ParentId)
+            foreach (var contentType in source.ContentTypes.Where(value => ListContentTypeEvidence.IsCaptured(value)
+                && !string.IsNullOrWhiteSpace(value.ParentId)
                 && !ContentTypeRuntimeCatalog.IsTargetRuntime(value.ParentId)
                 && !capturedSiteContentTypeIds.Contains(value.ParentId)))
             {
@@ -315,7 +324,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                     "The List uses custom content type '" + contentType.Name + "', but its exact site-content-type parent closure is missing."));
             }
             var requiredFeatures = ContentTypeRuntimeCatalog.CreateFeatureRequirements(
-                source.ContentTypes.Select(value => value.ParentId),
+                source.ContentTypes.Where(ListContentTypeEvidence.IsCaptured).Select(value => value.ParentId),
                 source.SiteContentTypes,
                 owner.TargetSiteCollectionUrl);
 
@@ -349,7 +358,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                     SourceViewId = view.Id,
                     Title = view.Title,
                     SourceServerRelativeUrl = view.ServerRelativeUrl,
-                    Disposition = view.Availability == EvidenceAvailability.Unavailable || view.Availability == EvidenceAvailability.Conflict
+                    Disposition = view.Availability != EvidenceAvailability.Captured
                             || resourceClosureMissing
                         ? ListViewMaterializationDisposition.Block
                         : view.PersonalView
@@ -358,7 +367,9 @@ namespace PnP.Framework.Migration.Lists.Planning
                                 ? ListViewMaterializationDisposition.CreateOrReuseWebPartView
                                 : ListViewMaterializationDisposition.CreateOrReuseOwnedPublicView,
                     Source = view,
-                    Reason = resourceClosureMissing
+                    Reason = view.Availability != EvidenceAvailability.Captured
+                        ? "The source View schema evidence is not completely captured."
+                        : resourceClosureMissing
                         ? "One or more custom View rendering resources have no exact captured and materializable dependency."
                         : view.PersonalView
                             ? "Personal views are user-scoped and remain evidence-only."
@@ -559,9 +570,27 @@ namespace PnP.Framework.Migration.Lists.Planning
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
             ICollection<MigrationIssue> issues)
         {
-            if (field.Availability == EvidenceAvailability.Unavailable || field.Availability == EvidenceAvailability.Conflict)
+            if (field.Availability != EvidenceAvailability.Captured)
             {
-                return Block(field, issues, "ListFieldEvidenceUnavailable", "Field schema evidence is unavailable or conflicting.");
+                return Block(field, issues, "ListFieldEvidenceIncomplete", "Field schema evidence is not completely captured.");
+            }
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(field.TypeAsString)
+                && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
+            {
+                return Block(field, issues, "TaxonomyFieldTypeUnsupported", "Only TaxonomyFieldType and TaxonomyFieldTypeMulti are executable taxonomy field types.");
+            }
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString)
+                && (!TaxonomyFieldBindingSnapshotReader.IsComplete(field.Taxonomy)
+                    || !TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                        field.Id,
+                        field.Taxonomy,
+                        source.Fields,
+                        candidate => candidate.Id,
+                        candidate => candidate.TypeAsString,
+                        candidate => candidate.Hidden,
+                        out _)))
+            {
+                return Block(field, issues, "TaxonomyBindingIncomplete", "Taxonomy field binding or hidden-text companion evidence is incomplete.");
             }
             var hasValue = HasBusinessValue(source, field.InternalName);
             var requiredBySurface = source.Views.Any(view => view.ViewFields.Contains(field.InternalName, StringComparer.OrdinalIgnoreCase))
@@ -606,7 +635,7 @@ namespace PnP.Framework.Migration.Lists.Planning
                 return Plan(field, ListFieldMaterializationDisposition.MapLookup, null,
                     "Create or reuse the lookup field after its dependency List and source-to-target item ID catalog exist.");
             }
-            if (field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase))
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
             {
                 var mapping = field.Taxonomy == null ? null : (taxonomyMappings ?? Enumerable.Empty<TaxonomyTargetMapping>()).SingleOrDefault(value =>
                     value.SourceTermStoreId == field.Taxonomy.SourceTermStoreId && value.SourceTermSetId == field.Taxonomy.SourceTermSetId);

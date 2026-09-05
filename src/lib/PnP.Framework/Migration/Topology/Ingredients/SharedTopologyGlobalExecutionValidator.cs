@@ -17,7 +17,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             ValidateDag(dag);
             if (analysis == null
-                || !string.Equals(analysis.SchemaVersion, "pnp-shared-topology-global-target-analysis/v3", StringComparison.Ordinal)
+                || !string.Equals(analysis.SchemaVersion, SharedTopologyGlobalTargetAnalysis.CurrentSchemaVersion, StringComparison.Ordinal)
                 || analysis.Probes == null
                 || analysis.Probes.Any(value => value == null)
                 || analysis.Issues == null
@@ -64,7 +64,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         {
             ValidateAnalysis(dag, analysis);
             if (plan == null
-                || !string.Equals(plan.SchemaVersion, "pnp-shared-topology-global-action-plan/v3", StringComparison.Ordinal)
+                || !string.Equals(plan.SchemaVersion, SharedTopologyGlobalActionPlan.CurrentSchemaVersion, StringComparison.Ordinal)
                 || plan.Actions == null
                 || plan.Actions.Any(value => value == null)
                 || !string.Equals(plan.GlobalActionDagDigest, dag.DagDigest, StringComparison.OrdinalIgnoreCase)
@@ -107,7 +107,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             var plans = ValidateSourcePlans(sourcePlans, dag);
             ValidateActionPlanShape(dag, actionPlan);
             if (receipt == null
-                || !string.Equals(receipt.SchemaVersion, "pnp-shared-topology-global-receipt/v3", StringComparison.Ordinal)
+                || !string.Equals(receipt.SchemaVersion, SharedTopologyGlobalMaterializationReceipt.CurrentSchemaVersion, StringComparison.Ordinal)
                 || receipt.OperationId == Guid.Empty
                 || receipt.StartedAtUtc == default(DateTimeOffset)
                 || receipt.CompletedAtUtc < receipt.StartedAtUtc
@@ -119,8 +119,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 || !IsDistinctDigestSet(receipt.SupportCohortDigests)
                 || receipt.Actions == null
                 || receipt.Actions.Any(value => value == null)
+                || receipt.TerminalActions == null
+                || receipt.TerminalActions.Any(value => value == null)
                 || receipt.SourceWebMappings == null
-                || receipt.SourceWebMappings.Count == 0
                 || receipt.SourceWebMappings.Any(value => value == null || string.IsNullOrWhiteSpace(value.SourceOwnerKey))
                 || receipt.Diagnostics == null
                 || !receipt.FreshReadbackPassed
@@ -132,16 +133,24 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             {
                 throw new InvalidDataException("The shared topology receipt is incomplete, unverified, or references another approval boundary.");
             }
-            ValidateCoverage(actionPlan.Actions.Select(value => value.LogicalActionKey), receipt.Actions.Select(value => value.LogicalActionKey), "receipt");
+            ValidateCoverage(
+                actionPlan.Actions.Select(value => value.LogicalActionKey),
+                receipt.Actions.Select(value => value.LogicalActionKey)
+                    .Concat(receipt.TerminalActions.Select(value => value.LogicalActionKey)),
+                "receipt");
             var actionByKey = actionPlan.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var containerByKey = dag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var receiptByKey = receipt.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+            var terminalByKey = receipt.TerminalActions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var targetWebIds = new HashSet<Guid>();
             foreach (var item in receipt.Actions)
             {
                 var action = actionByKey[item.LogicalActionKey];
                 var container = containerByKey[item.LogicalActionKey];
-                if (item.TargetSiteId == Guid.Empty
+                if (action.SelectedAction == SharedTopologyActionKind.AuthorizationBlocked
+                    || action.SelectedAction == SharedTopologyActionKind.SkipByDependency
+                    || action.SelectedAction == SharedTopologyActionKind.Block
+                    || item.TargetSiteId == Guid.Empty
                     || item.TargetWebId == Guid.Empty
                     || !targetWebIds.Add(item.TargetWebId)
                     || !item.FreshReadbackPassed
@@ -168,14 +177,19 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 }
                 else
                 {
-                    var parent = receiptByKey[container.ParentLogicalActionKey];
-                    if (item.TargetParentWebId == Guid.Empty
+                    if (!receiptByKey.TryGetValue(container.ParentLogicalActionKey, out var parent)
+                        || item.TargetParentWebId == Guid.Empty
                         || item.TargetSiteId != parent.TargetSiteId
                         || item.TargetParentWebId != parent.TargetWebId)
                     {
                         throw new InvalidDataException("A shared topology action receipt differs from its verified direct parent identity.");
                     }
                 }
+            }
+
+            foreach (var item in receipt.TerminalActions)
+            {
+                ValidateTerminalActionReceipt(actionByKey, containerByKey, terminalByKey, item);
             }
 
             ValidateSourceMappings(plans, receipt, receiptByKey);
@@ -274,7 +288,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             SharedTopologyGlobalActionPlan actionPlan)
         {
             if (actionPlan == null
-                || !string.Equals(actionPlan.SchemaVersion, "pnp-shared-topology-global-action-plan/v3", StringComparison.Ordinal)
+                || !string.Equals(actionPlan.SchemaVersion, SharedTopologyGlobalActionPlan.CurrentSchemaVersion, StringComparison.Ordinal)
                 || actionPlan.Actions == null
                 || actionPlan.Actions.Any(value => value == null)
                 || !string.Equals(actionPlan.GlobalActionDagDigest, dag.DagDigest, StringComparison.OrdinalIgnoreCase)
@@ -403,6 +417,59 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             }
         }
 
+        private static void ValidateTerminalActionReceipt(
+            IReadOnlyDictionary<string, SharedTopologyGlobalAction> actions,
+            IReadOnlyDictionary<string, TargetWebContainerIngredientPlan> containers,
+            IReadOnlyDictionary<string, SharedTopologyGlobalTerminalActionReceipt> terminal,
+            SharedTopologyGlobalTerminalActionReceipt item)
+        {
+            if (!actions.TryGetValue(item.LogicalActionKey, out var action)
+                || !containers.TryGetValue(item.LogicalActionKey, out var container)
+                || !string.Equals(item.SchemaVersion, SharedTopologyGlobalTerminalActionReceipt.CurrentSchemaVersion, StringComparison.Ordinal)
+                || !string.Equals(item.TargetSlotKey, container.TargetSlotKey, StringComparison.Ordinal)
+                || !string.Equals(item.ExecutionGrantSignature, action.ExecutionGrant.Signature, StringComparison.OrdinalIgnoreCase)
+                || item.SelectedAction != action.SelectedAction
+                || item.CauseLogicalActionKeys == null
+                || item.CauseLogicalActionKeys.Any(string.IsNullOrWhiteSpace)
+                || item.CauseLogicalActionKeys.Distinct(StringComparer.Ordinal).Count() != item.CauseLogicalActionKeys.Count
+                || string.IsNullOrWhiteSpace(item.Diagnostic)
+                || !string.Equals(item.ReceiptDigest, SharedTopologyGlobalExecutionDigest.ComputeTerminalActionReceipt(item), StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("A terminal topology action receipt is incomplete, duplicated, or stale.");
+            }
+
+            if (item.ExecutionOutcome == SharedTopologyActionExecutionOutcome.AuthorizationBlocked)
+            {
+                if (item.FinalState != TargetWebContainerState.AuthorizationBlocked
+                    || item.SelectedAction == SharedTopologyActionKind.Block
+                    || item.SelectedAction == SharedTopologyActionKind.SkipByDependency
+                    || item.CauseLogicalActionKeys.Count != 1
+                    || !string.Equals(item.CauseLogicalActionKeys[0], item.LogicalActionKey, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException("An authorization-blocked topology receipt has an invalid terminal state or cause set.");
+                }
+                BoundLiteralHttpAuthorizationEvidence.Validate(
+                    item.AuthorizationEvidence,
+                    container.LogicalActionKey,
+                    PathDerivedTopologyTargetAnalyzer.TargetInspectionOperation,
+                    new Uri(PathDerivedTopologyTargetAnalyzer.ExpectedInspectionRequestUri(container)).Authority,
+                    PathDerivedTopologyTargetAnalyzer.ExpectedInspectionRequestUri(container));
+                return;
+            }
+
+            if (item.FinalState != TargetWebContainerState.SkippedByDependency
+                || item.ExecutionOutcome != SharedTopologyActionExecutionOutcome.SkippedByDependency
+                || item.SelectedAction == SharedTopologyActionKind.Block
+                || item.AuthorizationEvidence != null
+                || string.IsNullOrWhiteSpace(container.ParentLogicalActionKey)
+                || !terminal.TryGetValue(container.ParentLogicalActionKey, out var parent)
+                || !item.CauseLogicalActionKeys.Contains(parent.LogicalActionKey, StringComparer.Ordinal)
+                || parent.CauseLogicalActionKeys.Any(cause => !item.CauseLogicalActionKeys.Contains(cause, StringComparer.Ordinal)))
+            {
+                throw new InvalidDataException("A dependency-skipped topology receipt is not bound to its terminal direct-parent causes.");
+            }
+        }
+
         private static void ValidateSourceMappings(
             IEnumerable<SharedTopologyPlan> plans,
             SharedTopologyGlobalMaterializationReceipt receipt,
@@ -419,9 +486,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 {
                     throw new InvalidDataException("One source owner carries conflicting source or target binding evidence.");
                 }
-                expected.Add(group.Key, group
+                var binding = group
                     .OrderBy(MigrationContractSerializer.SerializeCanonical, StringComparer.Ordinal)
-                    .First());
+                    .First();
+                if (actions.ContainsKey(binding.TargetLogicalActionKey))
+                {
+                    expected.Add(group.Key, binding);
+                }
             }
             var actual = receipt.SourceWebMappings
                 .GroupBy(value => value.SourceOwnerKey, StringComparer.Ordinal)
@@ -475,6 +546,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     return SharedTopologyActionKind.ReuseExplicitApprovedHost;
                 case TargetWebContainerState.RecoverInterruptedCreate:
                     return SharedTopologyActionKind.RecoverInterruptedCreate;
+                case TargetWebContainerState.AuthorizationBlocked:
+                    return SharedTopologyActionKind.AuthorizationBlocked;
                 case TargetWebContainerState.SkippedByDependency:
                     return SharedTopologyActionKind.SkipByDependency;
                 default:

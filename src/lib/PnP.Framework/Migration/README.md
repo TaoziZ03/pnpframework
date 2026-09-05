@@ -26,6 +26,7 @@ Start with:
 - [Execution and verification](docs/execution-and-verification.md)
 - [Path-derived shared topology](docs/path-derived-shared-topology.md)
 - [Performance and concurrency](docs/performance-and-concurrency.md)
+- [Durable scale-run controller](docs/scale-run-controller.md)
 
 ## Design rules
 
@@ -49,6 +50,7 @@ Every migration area should preserve the following boundaries:
 | `PnP.Framework.Migration.Diagnostics` | Typed, stable migration issues that can be reported without parsing exception or blocker text. |
 | `PnP.Framework.Migration.Evidence` | Evidence availability, source lineage, and derived-artifact provenance shared by migration domains. |
 | `PnP.Framework.Migration.Execution` | Operation state, write-ahead mutation intents, step receipts, and pluggable execution journals. |
+| `PnP.Framework.Migration.Scale` | Stable page-campaign manifests, bounded six-stage scheduling, append-only stage checkpoints, mutation-only journaling, safe fresh-probe resume, and machine-readable loop summaries. |
 | `PnP.Framework.Migration.Packaging` | Content-addressed artifact references, artifact-store contracts, digest helpers, and a local directory-backed content-addressed store for larger or binary evidence. |
 | `PnP.Framework.Migration.Topology` | Source SPSite/SPWeb evidence, complete or authorization-limited exact-path target maps, signature-deduplicated global Web actions, conservative ownership, child-Web materialization, and source-to-target runtime identity receipts. |
 | `PnP.Framework.Migration.Features` | Explicit conditional SharePoint platform-feature plans, target probes, dependency-ordered activation, and promised runtime-contract verification. |

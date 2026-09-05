@@ -61,7 +61,10 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     || value.Id == Guid.Empty
                     || string.IsNullOrWhiteSpace(value.InternalName)
                     || string.IsNullOrWhiteSpace(value.TypeAsString)
-                    || string.IsNullOrWhiteSpace(value.SchemaXml)))
+                    || string.IsNullOrWhiteSpace(value.SchemaXml)
+                    || (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(value.TypeAsString)
+                        && (!TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)
+                            || !TaxonomyFieldBindingSnapshotReader.IsComplete(value.Taxonomy)))))
             {
                 return false;
             }
@@ -70,7 +73,16 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             var closureIds = new HashSet<Guid>(closure.Select(value => value.Id));
             if (closureIds.Count != closure.Length
                 || schema.RequiredFieldLinks.Select(value => value.FieldId).Distinct().Count() != schema.RequiredFieldLinks.Count
-                || schema.RequiredFieldLinks.Any(value => !closureIds.Contains(value.FieldId)))
+                || schema.RequiredFieldLinks.Any(value => !closureIds.Contains(value.FieldId))
+                || closure.Any(value => TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)
+                    && !TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                        value.Id,
+                        value.Taxonomy,
+                        closure,
+                        candidate => candidate.Id,
+                        candidate => candidate.TypeAsString,
+                        candidate => candidate.Hidden,
+                        out _)))
             {
                 return false;
             }
@@ -135,6 +147,26 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             IReadOnlyCollection<FieldSchemaSnapshot> closure,
             IReadOnlyCollection<TaxonomyTargetMapping> mappings)
         {
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(field.TypeAsString)
+                && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
+            {
+                return Plan(field, FieldOwnershipClassifier.Classify(field, closure), FieldSchemaMaterializationDisposition.Block, null, null, null,
+                    "Only TaxonomyFieldType and TaxonomyFieldTypeMulti are executable taxonomy field types.");
+            }
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString)
+                && (!TaxonomyFieldBindingSnapshotReader.IsComplete(field.Taxonomy)
+                    || !TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                        field.Id,
+                        field.Taxonomy,
+                        closure,
+                        candidate => candidate.Id,
+                        candidate => candidate.TypeAsString,
+                        candidate => candidate.Hidden,
+                        out _)))
+            {
+                return Plan(field, FieldOwnershipClassifier.Classify(field, closure), FieldSchemaMaterializationDisposition.Block, null, null, null,
+                    "Taxonomy field binding or hidden-text companion evidence is incomplete.");
+            }
             var ownership = FieldOwnershipClassifier.Classify(field, closure);
             if (ownership == FieldOwnership.TargetRuntime)
             {
@@ -166,7 +198,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     "A lookup field requires an explicit target Web, List, and lookup-field mapping.");
             }
 
-            if (field.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase))
+            if (TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString))
             {
                 if (field.Taxonomy == null)
                 {

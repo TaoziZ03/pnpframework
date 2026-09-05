@@ -21,6 +21,7 @@ The documents describe the current implementation and its intended invariants. T
 8. [Path-derived shared topology](path-derived-shared-topology.md) defines exact-path target containers, stable logical producers, per-capture execution grants, conservative ownership, and authorization-limited source fidelity.
 9. [Performance and concurrency](performance-and-concurrency.md) defines measurement stages, safe read parallelism, write serialization, caching boundaries, and semantic regression requirements.
 10. [Protected document capture exclusions](protected-asset-capture-exclusions.md) defines the explicit pre-download metadata-only policy, existing-frontier exclusion, and typed absence verification.
+11. [Durable scale-run controller](scale-run-controller.md) defines stable campaign/page action identity, bounded page pipelines, separate stage and mutation journals, safe resume, failure evidence, and loop-summary projection.
 
 ## Document roles
 
@@ -63,9 +64,10 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 | Path-derived source topology evidence | `pnp-path-derived-source-topology-evidence/v3` |
 | Shared topology plan | `pnp-shared-topology-plan/v3` |
 | Shared topology global action DAG | `pnp-shared-topology-global-action-dag/v3` |
-| Shared topology target analysis | `pnp-shared-topology-global-target-analysis/v3` |
-| Shared topology action plan | `pnp-shared-topology-global-action-plan/v3` |
-| Shared topology materialization receipt | `pnp-shared-topology-global-receipt/v3` |
+| Shared topology target analysis | `pnp-shared-topology-global-target-analysis/v4` |
+| Shared topology action plan | `pnp-shared-topology-global-action-plan/v4` |
+| Shared topology materialization receipt | `pnp-shared-topology-global-receipt/v4` |
+| Shared topology terminal action receipt | `pnp-shared-topology-global-terminal-action-receipt/v1` |
 | Shared topology page reference | `pnp-shared-topology-page-reference/v4` |
 | List dependency snapshot | `pnp-list-dependency/v1` |
 | List migration plan | `pnp-list-migration-plan/v1` |
@@ -75,6 +77,12 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 | Runtime verification manifest | `pnp-migration-runtime-verification/v1` |
 | Runtime verification receipt | `pnp-migration-runtime-verification-receipt/v1` |
 | Taxonomy value relationship | `pnp-taxonomy-value-relationship/v1` |
+| Scale-run manifest | `pnp-scale-run-manifest/v1` |
+| Scale stage checkpoint | `pnp-scale-stage-checkpoint/v2` |
+| Scale stage execution journal | `pnp-scale-stage-journal-record/v2` |
+| Scale HTTP authorization evidence | `pnp-scale-http-authorization-evidence/v2` |
+| Scale run summary | `pnp-scale-run-summary/v2` |
+| Scale loop catalog projection | `pnp-scale-loop-catalog-update/v2` |
 
 These contracts are under development. A CLR type being public does not by itself declare the contract stable or released.
 

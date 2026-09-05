@@ -49,6 +49,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     return SharedTopologyActionKind.ReuseExplicitApprovedHost;
                 case TargetWebContainerState.RecoverInterruptedCreate:
                     return SharedTopologyActionKind.RecoverInterruptedCreate;
+                case TargetWebContainerState.AuthorizationBlocked:
+                    return SharedTopologyActionKind.AuthorizationBlocked;
                 case TargetWebContainerState.SkippedByDependency:
                     return SharedTopologyActionKind.SkipByDependency;
                 default:
@@ -66,7 +68,11 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                         ? "Reuse the exact explicitly approved external target Web."
                         : state == TargetWebContainerState.RecoverInterruptedCreate
                             ? "Complete ownership stamping for an exact interrupted create."
-                            : "The target Web global action is not executable.";
+                            : state == TargetWebContainerState.AuthorizationBlocked
+                                ? "Retain the bound literal HTTP 401/403 evidence for only this ingredient."
+                                : state == TargetWebContainerState.SkippedByDependency
+                                    ? "Skip this ingredient because its direct dependency did not reach a verified target state."
+                                    : "The target Web global action is not executable.";
         }
     }
 }

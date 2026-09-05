@@ -59,7 +59,8 @@ namespace PnP.Framework.Migration.Topology.Ingredients
         ReuseExplicitApprovedHost = 3,
         RecoverInterruptedCreate = 4,
         SkipByDependency = 5,
-        Block = 6
+        Block = 6,
+        AuthorizationBlocked = 7
     }
 
     public enum SharedTopologyOwnership

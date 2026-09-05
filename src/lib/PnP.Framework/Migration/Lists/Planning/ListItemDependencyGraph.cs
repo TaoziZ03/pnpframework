@@ -287,7 +287,9 @@ namespace PnP.Framework.Migration.Lists.Planning
                 .Where(value => value != null
                     && string.Equals(value.Id, result.ContentTypeId, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
-            if (matches.Length != 1 || matches[0].FieldLinks == null)
+            if (matches.Length != 1
+                || !ListContentTypeEvidence.IsCaptured(matches[0])
+                || matches[0].FieldLinks == null)
             {
                 return result;
             }

@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.ContentTypes;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
@@ -143,10 +144,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 .Select(value => value.SourceFieldId));
             foreach (var contentType in source.ContentTypes.Where(value => value != null))
             {
+                var unavailable = !ListContentTypeEvidence.IsCaptured(contentType);
                 var missingParent = !string.IsNullOrWhiteSpace(contentType.ParentId)
                     && !ContentTypeRuntimeCatalog.IsTargetRuntime(contentType.ParentId)
                     && !capturedParents.Contains(contentType.ParentId);
-                var blocked = (!transactionDependencyProjection && listBlocked) || missingParent;
+                var blocked = (!transactionDependencyProjection && listBlocked) || unavailable || missingParent;
                 var releasedFields = contentType.FieldLinks
                     .Where(value => droppedFieldIds.Contains(value.FieldId))
                     .Select(value => PublishingPageIngredientIds.ListField(source.SourceWebId, source.SourceListId, value.FieldId))
@@ -165,7 +167,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                             ? "materialize-list-content-type-with-runtime-cache-links-released"
                             : "materialize-list-content-type-membership",
                     "policy.list-content-type.membership",
-                    missingParent
+                    unavailable
+                        ? "The List-local Content Type member metadata or field-link evidence is partial."
+                        : missingParent
                         ? "The List-local Content Type references a custom parent whose exact site Content Type closure is absent."
                         : listBlocked && !transactionDependencyProjection
                             ? "The owning List has no executable materialization plan."

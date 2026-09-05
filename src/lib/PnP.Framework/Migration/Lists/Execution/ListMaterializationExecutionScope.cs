@@ -251,6 +251,7 @@ namespace PnP.Framework.Migration.Lists.Execution
                 Hidden = source.Hidden,
                 ReadOnly = source.ReadOnly,
                 Sealed = source.Sealed,
+                Availability = source.Availability,
                 FieldLinks = source.FieldLinks
                     .Where(value => value != null && selectedFieldIds.Contains(value.FieldId))
                     .ToList()

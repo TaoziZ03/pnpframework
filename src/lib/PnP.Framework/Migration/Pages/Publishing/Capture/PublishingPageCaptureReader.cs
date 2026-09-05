@@ -39,24 +39,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
             var file = web.GetFileByServerRelativePath(ResourcePath.FromDecodedUrl(pagePath));
             var item = file.ListItemAllFields;
             var contentType = item.ContentType;
-            context.Load(site, value => value.Id);
-            context.Load(web, value => value.Id, value => value.Url, value => value.ServerRelativeUrl);
-            context.Load(file,
-                value => value.Exists,
-                value => value.Name,
-                value => value.UniqueId,
-                value => value.ServerRelativeUrl,
-                value => value.UIVersionLabel,
-                value => value.Length,
-                value => value.TimeLastModified,
-                value => value.CheckOutType,
-                value => value.Level,
-                value => value.TimeCreated);
-            context.Load(item);
-            context.Load(contentType, value => value.Id, value => value.Name);
-            context.ExecuteQueryRetry();
-            context.Load(item, value => value.Id, value => value.HasUniqueRoleAssignments);
-            context.ExecuteQueryRetry();
+            LoadInitialState(context, site, web, file, item, contentType);
             if (!file.Exists)
             {
                 throw new FileNotFoundException("The source publishing page was not found.", pagePath);
@@ -118,6 +101,33 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 },
                 SourceFence = SourcePageFenceReader.FromFile(file)
             };
+        }
+
+        internal static void LoadInitialState(
+            ClientContext context,
+            Site site,
+            Web web,
+            Microsoft.SharePoint.Client.File file,
+            ListItem item,
+            ContentType contentType)
+        {
+            context.Load(site, value => value.Id);
+            context.Load(web, value => value.Id, value => value.Url, value => value.ServerRelativeUrl);
+            context.Load(file,
+                value => value.Exists,
+                value => value.Name,
+                value => value.UniqueId,
+                value => value.ServerRelativeUrl,
+                value => value.UIVersionLabel,
+                value => value.Length,
+                value => value.TimeLastModified,
+                value => value.CheckOutType,
+                value => value.Level,
+                value => value.TimeCreated);
+            context.Load(item);
+            context.Load(item, value => value.Id, value => value.HasUniqueRoleAssignments);
+            context.Load(contentType, value => value.Id, value => value.Name);
+            context.ExecuteQueryRetry();
         }
 
         internal static string GetFieldString(ListItem item, string internalName)

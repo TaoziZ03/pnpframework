@@ -8,6 +8,7 @@ using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Schema.ContentTypes.Packaging;
 using PnP.Framework.Migration.Features;
 using PnP.Framework.Migration.Lists.Items;
+using PnP.Framework.Migration.Schema.Fields;
 
 namespace PnP.Framework.Migration.Lists.Packaging
 {
@@ -53,6 +54,12 @@ namespace PnP.Framework.Migration.Lists.Packaging
                 if (list.Disposition != ListMaterializationDisposition.Block && (list.TargetProbe == null || !list.TargetProbe.IsAdmitted))
                 {
                     throw new InvalidDataException("An executable List plan has no admitted target probe: " + list.SourceListId.ToString("D"));
+                }
+                if (list.Fields.Any(value => value == null
+                    || TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldTypeCandidate(value.TypeAsString)
+                        && !TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)))
+                {
+                    throw new InvalidDataException("A List field plan is null or uses an unsupported taxonomy field type: " + list.SourceListId.ToString("D"));
                 }
                 foreach (var contentType in list.SiteContentTypes)
                 {

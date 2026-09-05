@@ -30,9 +30,11 @@ using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Lists.Items;
 using PnP.Framework.Migration.Lists.Items.Protection;
 using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.Execution;
 using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.ContentTypes;
 using PnP.Framework.Migration.Lists.Packaging;
+using PnP.Framework.Migration.Lists.Views;
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Evidence;
@@ -48,6 +50,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Xml.Linq;
 
@@ -62,6 +65,19 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsTrue(EnterpriseWikiPageDiscovery.IsEnterpriseWikiContentType(BuiltInContentTypeId.EnterpriseWikiPage + "001122"));
             Assert.IsFalse(EnterpriseWikiPageDiscovery.IsEnterpriseWikiContentType(BuiltInContentTypeId.ProjectPage + "001122"));
             Assert.IsFalse(EnterpriseWikiPageDiscovery.IsEnterpriseWikiContentType("0x010100C568DB52D9"));
+        }
+
+        [TestMethod]
+        public void PublishingExporterDerivesTheWebPathWithoutASeparateSharePointQuery()
+        {
+            Assert.AreEqual(
+                "/teams/campus ipkits/site",
+                PublishingPagePackageExporter.GetContextWebServerRelativeUrl(
+                    "https://source.sharepoint.com/teams/campus%20ipkits/site/"));
+            Assert.AreEqual(
+                "/",
+                PublishingPagePackageExporter.GetContextWebServerRelativeUrl(
+                    "https://source.sharepoint.com/"));
         }
 
         [TestMethod]
@@ -1147,6 +1163,252 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 new[] { "{" + fieldId.ToString("D") + "}" }, fieldId, "PublishingPageContent"));
             Assert.IsFalse(ContentTypeSchemaSnapshotReader.MatchesFieldIdentifier(
                 new[] { "Title" }, fieldId, "PublishingPageContent"));
+        }
+
+        [TestMethod]
+        public void ContentTypeClosureReaderIsolatesOneMemberFailureAndContinuesItsSiblingAndParent()
+        {
+            const string failedId = "0x010100AA";
+            const string siblingId = "0x010100BB";
+            const string parentId = "0x010100CC";
+            var observed = new List<string>();
+            var diagnostics = new List<string>();
+
+            var snapshots = ContentTypeClosureSnapshotReader.Read(
+                new[] { failedId, siblingId },
+                "https://source.sharepoint.com/sites/source",
+                contentTypeId =>
+                {
+                    observed.Add(contentTypeId);
+                    if (string.Equals(contentTypeId, failedId, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException("dynamic server detail must not be retained");
+                    }
+                    return new ContentTypeSchemaSnapshot
+                    {
+                        EvidenceState = ContentTypeSchemaEvidenceState.Readable,
+                        Availability = EvidenceAvailability.Captured,
+                        SourceWebUrl = "https://source.sharepoint.com/sites/source",
+                        ContentTypeId = contentTypeId,
+                        Name = contentTypeId,
+                        ParentContentTypeId = string.Equals(contentTypeId, siblingId, StringComparison.Ordinal)
+                            ? parentId
+                            : null
+                    };
+                },
+                diagnostics);
+
+            Assert.AreEqual(3, snapshots.Count);
+            Assert.IsTrue(observed.Contains(siblingId));
+            Assert.IsTrue(observed.Contains(parentId));
+            var failed = snapshots.Single(value => value.ContentTypeId == failedId);
+            Assert.AreEqual(ContentTypeSchemaEvidenceState.Partial, failed.EvidenceState);
+            Assert.AreEqual(EvidenceAvailability.Partial, failed.Availability);
+            Assert.AreEqual("/sites/source", failed.SourceScope);
+            Assert.AreEqual(1, failed.Diagnostics.Count);
+            StringAssert.Contains(failed.Diagnostics[0],
+                "ContentTypeClosureMemberCapturePartial: contentTypeId=" + failedId);
+            Assert.IsFalse(failed.Diagnostics[0].Contains("dynamic server detail"));
+            Assert.IsTrue(diagnostics.Any(value => value.Contains(
+                "ContentTypeClosureMemberCapturePartial: contentTypeId=" + failedId)));
+        }
+
+        [TestMethod]
+        public void PartialSiteContentTypeClosureRemainsPackageableAndNonExecutable()
+        {
+            const string contentTypeId = "0x010100AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+            var partial = ContentTypeClosureSnapshotReader.Read(
+                new[] { contentTypeId },
+                "https://source.sharepoint.com/sites/source",
+                _ => throw new InvalidOperationException("member"),
+                new List<string>()).Single();
+            var siteId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            var webId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+            var source = CreateListSnapshot(
+                siteId,
+                webId,
+                Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                "Items");
+            source.SiteContentTypes.Add(partial);
+
+            ListDependencyPackageValidator.Validate(
+                Array.Empty<ClassicWebPartSnapshot>(),
+                Array.Empty<ClassicListWebPartBindingSnapshot>(),
+                new[] { source },
+                Array.Empty<ListLookupDependency>(),
+                null,
+                null);
+            var listPlan = ListMigrationPlanFactory.Create(
+                new[] { source },
+                null,
+                CreateTopology(siteId, webId),
+                null,
+                null).Lists.Single();
+
+            Assert.AreEqual(ListMaterializationDisposition.Block, listPlan.Disposition);
+            Assert.IsTrue(listPlan.Issues.Any(value =>
+                value.Code == "ContentTypeSchemaUnavailable"
+                && value.Subject.Contains(contentTypeId)));
+        }
+
+        [TestMethod]
+        public void ContentTypeClosureReaderDoesNotSwallowAnUnclassifiedNetworkFailure()
+        {
+            Assert.ThrowsException<WebException>(() => ContentTypeClosureSnapshotReader.Read(
+                new[] { "0x010100AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
+                "https://source.sharepoint.com/sites/source",
+                _ => throw new WebException("no literal response status"),
+                new List<string>()));
+        }
+
+        [TestMethod]
+        public void ListMemberFallbackDoesNotSwallowWebTransportFailures()
+        {
+            Assert.IsFalse(ListDependencySnapshotReader.IsRecoverableMemberCaptureFailure(
+                new WebException("no literal response status")));
+            Assert.IsTrue(ListDependencySnapshotReader.IsRecoverableMemberCaptureFailure(
+                new InvalidOperationException("member")));
+        }
+
+        [TestMethod]
+        public void PartialListContentTypeIsRetainedButOnlyItsIngredientIsDeferred()
+        {
+            var siteId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            var webId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+            var listId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+            const string contentTypeId = "0x010100AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+            var source = CreateListSnapshot(siteId, webId, listId, "Items");
+            source.ContentTypes.Add(new ListContentTypeSnapshot
+            {
+                Id = contentTypeId,
+                Name = "Partially captured member",
+                FieldLinks = new List<ListContentTypeFieldLinkSnapshot>(),
+                Availability = EvidenceAvailability.Partial
+            });
+            source.Diagnostics.Add(
+                "ListContentTypeMetadataPartial: contentTypeId=" + contentTypeId
+                + "; exceptionType=Microsoft.SharePoint.Client.ServerException.");
+
+            ListDependencyPackageValidator.Validate(
+                Array.Empty<ClassicWebPartSnapshot>(),
+                Array.Empty<ClassicListWebPartBindingSnapshot>(),
+                new[] { source },
+                Array.Empty<ListLookupDependency>(),
+                null,
+                null);
+            var topology = CreateTopology(siteId, webId);
+            var listPlan = ListMigrationPlanFactory.Create(
+                new[] { source },
+                null,
+                topology,
+                null,
+                null);
+            var plan = listPlan.Lists.Single();
+            Assert.AreEqual(ListMaterializationDisposition.Block, plan.Disposition);
+            Assert.IsTrue(plan.Issues.Any(value => value.Code == "ListContentTypeEvidenceUnavailable"));
+
+            var package = CreateMigrationPackage();
+            package.Snapshot.ListDependencies = new List<ListDependencySnapshot> { source };
+            package.Snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(package.Snapshot);
+            package.Plan.ListMigration = listPlan;
+            var actions = PublishingPageIngredientActionProjector.Project(package.Snapshot, package.Plan)
+                .ToDictionary(value => value.IngredientId, StringComparer.Ordinal);
+            Assert.AreEqual(
+                IngredientDisposition.Preserve,
+                actions[PublishingPageIngredientIds.List(webId, listId)].Disposition);
+            Assert.AreEqual(
+                IngredientDisposition.Defer,
+                actions[PublishingPageIngredientIds.ListContentType(webId, listId, contentTypeId)].Disposition);
+
+            using (var context = new ClientContext("https://target.sharepoint.com/sites/target"))
+            {
+                var targetList = context.Web.Lists.GetByTitle("Items");
+                Assert.ThrowsException<InvalidDataException>(() =>
+                    ListContentTypeMaterializer.EnsureMembership(context, targetList, source));
+            }
+        }
+
+        [TestMethod]
+        public void PartialListViewIsRetainedButOnlyItsIngredientIsDeferred()
+        {
+            var siteId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            var webId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+            var listId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+            var viewId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+            const string viewXml = "<View />";
+            var source = CreateListSnapshot(siteId, webId, listId, "Items");
+            source.Views.Add(new ListViewSnapshot
+            {
+                Id = viewId,
+                Title = "Partial view",
+                ViewType = "Html",
+                ViewFields = new List<string>(),
+                ListViewXml = viewXml,
+                ListViewXmlSha256 = MigrationDigest.ComputeSha256(viewXml),
+                Availability = EvidenceAvailability.Partial,
+                Diagnostics = new List<string>
+                {
+                    "ListViewMetadataPartial: exceptionType=Microsoft.SharePoint.Client.ServerException."
+                }
+            });
+
+            ListDependencyPackageValidator.Validate(
+                Array.Empty<ClassicWebPartSnapshot>(),
+                Array.Empty<ClassicListWebPartBindingSnapshot>(),
+                new[] { source },
+                Array.Empty<ListLookupDependency>(),
+                null,
+                null);
+            var topology = CreateTopology(siteId, webId);
+            var listPlan = ListMigrationPlanFactory.Create(
+                new[] { source },
+                null,
+                topology,
+                null,
+                null);
+            var plan = listPlan.Lists.Single();
+            var viewPlan = plan.Views.Single();
+            Assert.AreEqual(ListViewMaterializationDisposition.Block, viewPlan.Disposition);
+            Assert.IsTrue(plan.Issues.Any(value => value.Code == "ViewEvidenceUnavailable"));
+
+            var package = CreateMigrationPackage();
+            package.Snapshot.ListDependencies = new List<ListDependencySnapshot> { source };
+            package.Snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(package.Snapshot);
+            package.Plan.ListMigration = listPlan;
+            var actions = PublishingPageIngredientActionProjector.Project(package.Snapshot, package.Plan)
+                .ToDictionary(value => value.IngredientId, StringComparer.Ordinal);
+            Assert.AreEqual(
+                IngredientDisposition.Preserve,
+                actions[PublishingPageIngredientIds.List(webId, listId)].Disposition);
+            Assert.AreEqual(
+                IngredientDisposition.Defer,
+                actions[PublishingPageIngredientIds.View(webId, listId, viewId)].Disposition);
+
+            viewPlan.Disposition = ListViewMaterializationDisposition.CreateOrReuseOwnedPublicView;
+            using (var context = new ClientContext("https://target.sharepoint.com/sites/target"))
+            {
+                var targetList = context.Web.Lists.GetByTitle("Items");
+                Assert.ThrowsException<InvalidDataException>(() =>
+                    ListViewMaterializer.Ensure(context, targetList, plan));
+            }
+        }
+
+        [TestMethod]
+        public void CapturedListContentTypeKeepsLegacyCanonicalJsonUntilPartialEvidenceExists()
+        {
+            var snapshot = new ListContentTypeSnapshot
+            {
+                Id = "0x010100AA",
+                Name = "Captured",
+                ParentId = "0x0101"
+            };
+
+            var captured = MigrationContractSerializer.SerializeCanonical(snapshot);
+            Assert.IsFalse(captured.Contains("\"availability\""));
+
+            snapshot.Availability = EvidenceAvailability.Partial;
+            var partial = MigrationContractSerializer.SerializeCanonical(snapshot);
+            StringAssert.Contains(partial, "\"availability\":\"Partial\"");
         }
 
         [TestMethod]

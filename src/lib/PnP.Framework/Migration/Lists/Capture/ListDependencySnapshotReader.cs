@@ -119,22 +119,47 @@ namespace PnP.Framework.Migration.Lists.Capture
                 value => value.JSLink));
             context.ExecuteQueryRetry();
 
-            foreach (var contentType in list.ContentTypes)
+            var contentTypeDiagnostics = new List<string>();
+            IList<ListContentTypeSnapshot> listContentTypes;
+            IList<ListViewSnapshot> views;
+            try
             {
-                context.Load(contentType.Parent, value => value.Id);
-                context.Load(contentType.FieldLinks, values => values.Include(
-                    value => value.Id,
-                    value => value.Name,
-                    value => value.DisplayName,
-                    value => value.Required,
-                    value => value.Hidden,
-                    value => value.ReadOnly));
+                foreach (var contentType in list.ContentTypes)
+                {
+                    context.Load(contentType.Parent, value => value.Id);
+                    context.Load(contentType.FieldLinks, values => values.Include(
+                        value => value.Id,
+                        value => value.Name,
+                        value => value.DisplayName,
+                        value => value.Required,
+                        value => value.Hidden,
+                        value => value.ReadOnly));
+                }
+                foreach (var view in list.Views)
+                {
+                    context.Load(view.ViewFields);
+                }
+                context.ExecuteQueryRetry();
+                listContentTypes = ListContentTypeSnapshotReader.Read(list.ContentTypes, contentTypeDiagnostics);
+                views = ListViewSnapshotReader.Read(list.Views, list.RootFolder.ServerRelativeUrl);
             }
-            foreach (var view in list.Views)
+            catch (Exception exception) when (IsRecoverableMemberCaptureFailure(exception))
             {
-                context.Load(view.ViewFields);
+                contentTypeDiagnostics.Add(
+                    "ListSecondaryMetadataBatchFallback: exceptionType=" + exception.GetType().FullName + ".");
+                listContentTypes = ReadContentTypesIndividually(
+                    context,
+                    sourceWeb.Url,
+                    sourceListId,
+                    list.ContentTypes,
+                    contentTypeDiagnostics);
+                views = ReadViewsIndividually(
+                    context,
+                    sourceWeb.Url,
+                    sourceListId,
+                    list.Views,
+                    list.RootFolder.ServerRelativeUrl);
             }
-            context.ExecuteQueryRetry();
 
             var informationRightsManagement = ReadInformationRightsManagement(
                 context,
@@ -150,7 +175,6 @@ namespace PnP.Framework.Migration.Lists.Capture
                 artifactStore,
                 protectedAssetPolicy,
                 warnings);
-            var views = ListViewSnapshotReader.Read(list.Views, list.RootFolder.ServerRelativeUrl);
             var viewRenderingResources = ListViewRenderingResourceSnapshotReader.Read(
                 context,
                 sourceWeb,
@@ -159,23 +183,32 @@ namespace PnP.Framework.Migration.Lists.Capture
                 maximumBytes,
                 artifactStore,
                 warnings);
-            var contentTypeDiagnostics = new List<string>();
-            var listContentTypes = ListContentTypeSnapshotReader.Read(list.ContentTypes, contentTypeDiagnostics);
             var siteContentTypes = ContentTypeClosureSnapshotReader.Read(context, sourceWeb, listContentTypes, contentTypeDiagnostics);
+            var fields = ListFieldSnapshotReader.Read(context, sourceWeb.Url, list.Id, list.Fields);
             var availability = EvidenceAvailability.Captured;
             if (items.Count != list.ItemCount || items.Any(value => value.Availability != EvidenceAvailability.Captured))
             {
                 availability = EvidenceAvailability.Partial;
             }
-            if (viewRenderingResources.Any(value => value.Availability != EvidenceAvailability.Captured))
+            if (views.Any(value => value.Availability != EvidenceAvailability.Captured)
+                || viewRenderingResources.Any(value => value.Availability != EvidenceAvailability.Captured))
             {
                 availability = EvidenceAvailability.Partial;
             }
-            if (contentTypeDiagnostics.Any(value => value.StartsWith("ConflictingListContentTypeFieldLink:", StringComparison.Ordinal)))
+            if (contentTypeDiagnostics.Any(value =>
+                value.StartsWith("ConflictingListContentTypeFieldLink:", StringComparison.Ordinal)
+                || value.StartsWith("ListSecondaryMetadataBatchFallback:", StringComparison.Ordinal)
+                || value.StartsWith("ListContentTypeMetadataPartial:", StringComparison.Ordinal)
+                || value.IndexOf("ContentTypeClosureMemberCapturePartial:", StringComparison.Ordinal) >= 0))
             {
                 availability = EvidenceAvailability.Partial;
             }
             if (informationRightsManagement.Availability != EvidenceAvailability.Captured)
+            {
+                availability = EvidenceAvailability.Partial;
+            }
+            if (fields.Any(value => value.Availability != EvidenceAvailability.Captured)
+                || siteContentTypes.Any(value => value.Availability != EvidenceAvailability.Captured))
             {
                 availability = EvidenceAvailability.Partial;
             }
@@ -201,7 +234,7 @@ namespace PnP.Framework.Migration.Lists.Capture
                 ForceCheckout = list.ForceCheckout,
                 InformationRightsManagement = informationRightsManagement,
                 SourceItemCount = list.ItemCount,
-                Fields = ListFieldSnapshotReader.Read(context, list.Fields),
+                Fields = fields,
                 ContentTypes = listContentTypes,
                 HasExplicitUniqueContentTypeOrder = list.RootFolder.UniqueContentTypeOrder != null,
                 UniqueContentTypeOrder = (list.RootFolder.UniqueContentTypeOrder ?? new ContentTypeId[0])
@@ -222,12 +255,127 @@ namespace PnP.Framework.Migration.Lists.Capture
                 snapshot.Diagnostics.Add(diagnostic);
                 warnings.Add(diagnostic);
             }
+            foreach (var field in fields.Where(value => value.Diagnostics.Count > 0))
+            {
+                foreach (var diagnostic in field.Diagnostics)
+                {
+                    var message = "List field '" + field.InternalName + "' (" + field.Id.ToString("D") + "): " + diagnostic;
+                    snapshot.Diagnostics.Add(message);
+                    warnings.Add(message);
+                }
+            }
+            foreach (var view in views.Where(value => value.Diagnostics.Count > 0))
+            {
+                foreach (var diagnostic in view.Diagnostics)
+                {
+                    var message = "List view '" + view.Id.ToString("D") + "': " + diagnostic;
+                    snapshot.Diagnostics.Add(message);
+                    warnings.Add(message);
+                }
+            }
             foreach (var diagnostic in informationRightsManagement.Diagnostics)
             {
                 snapshot.Diagnostics.Add(diagnostic);
                 warnings.Add(diagnostic);
             }
             return snapshot;
+        }
+
+        private static IList<ListContentTypeSnapshot> ReadContentTypesIndividually(
+            ClientContext context,
+            string sourceWebUrl,
+            Guid sourceListId,
+            ContentTypeCollection contentTypes,
+            ICollection<string> diagnostics)
+        {
+            var snapshots = new List<ListContentTypeSnapshot>();
+            foreach (var sourceContentType in contentTypes.OrderBy(value => value.Id.StringValue, StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using (var isolatedContext = context.Clone(sourceWebUrl))
+                    {
+                        var contentType = isolatedContext.Web.Lists.GetById(sourceListId)
+                            .ContentTypes.GetById(sourceContentType.Id.StringValue);
+                        isolatedContext.Load(contentType,
+                            value => value.Id,
+                            value => value.Name,
+                            value => value.Description,
+                            value => value.Group,
+                            value => value.Hidden,
+                            value => value.ReadOnly,
+                            value => value.Sealed);
+                        isolatedContext.Load(contentType.Parent, value => value.Id);
+                        isolatedContext.Load(contentType.FieldLinks, values => values.Include(
+                            value => value.Id,
+                            value => value.Name,
+                            value => value.DisplayName,
+                            value => value.Required,
+                            value => value.Hidden,
+                            value => value.ReadOnly));
+                        isolatedContext.ExecuteQueryRetry();
+                        snapshots.Add(ListContentTypeSnapshotReader.ReadOne(contentType, diagnostics));
+                    }
+                }
+                catch (Exception exception) when (IsRecoverableMemberCaptureFailure(exception))
+                {
+                    diagnostics.Add(
+                        "ListContentTypeMetadataPartial: contentTypeId=" + sourceContentType.Id.StringValue
+                        + "; exceptionType=" + exception.GetType().FullName + ".");
+                    snapshots.Add(ListContentTypeSnapshotReader.Partial(sourceContentType));
+                }
+            }
+            return snapshots;
+        }
+
+        private static IList<ListViewSnapshot> ReadViewsIndividually(
+            ClientContext context,
+            string sourceWebUrl,
+            Guid sourceListId,
+            ViewCollection sourceViews,
+            string listRootFolder)
+        {
+            var snapshots = new List<ListViewSnapshot>();
+            foreach (var sourceView in sourceViews.OrderBy(value => value.Id))
+            {
+                try
+                {
+                    using (var isolatedContext = context.Clone(sourceWebUrl))
+                    {
+                        var view = isolatedContext.Web.Lists.GetById(sourceListId).Views.GetById(sourceView.Id);
+                        isolatedContext.Load(view,
+                            value => value.Id,
+                            value => value.Title,
+                            value => value.ServerRelativeUrl,
+                            value => value.Hidden,
+                            value => value.DefaultView,
+                            value => value.PersonalView,
+                            value => value.ViewType,
+                            value => value.RowLimit,
+                            value => value.Paged,
+                            value => value.ViewQuery,
+                            value => value.ListViewXml,
+                            value => value.JSLink);
+                        isolatedContext.Load(view.ViewFields);
+                        isolatedContext.ExecuteQueryRetry();
+                        snapshots.Add(ListViewSnapshotReader.ReadOne(view, listRootFolder));
+                    }
+                }
+                catch (Exception exception) when (IsRecoverableMemberCaptureFailure(exception))
+                {
+                    snapshots.Add(ListViewSnapshotReader.Partial(
+                        sourceView,
+                        listRootFolder,
+                        "ListViewMetadataPartial: exceptionType=" + exception.GetType().FullName + "."));
+                }
+            }
+            return snapshots;
+        }
+
+        internal static bool IsRecoverableMemberCaptureFailure(Exception exception)
+        {
+            return exception is ServerException
+                || exception is InvalidOperationException && !(exception is WebException);
         }
 
         private static ListInformationRightsManagementSnapshot ReadInformationRightsManagement(

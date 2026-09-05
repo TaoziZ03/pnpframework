@@ -27,6 +27,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             }
             var probe = AnalyzeObservation(container, observation);
             if (!container.IsTargetSiteRoot
+                && probe.State != TargetWebContainerState.AuthorizationBlocked
                 && expectedParentWebId.HasValue
                 && (!probe.TargetParentWebId.HasValue || probe.TargetParentWebId.Value != expectedParentWebId.Value))
             {
