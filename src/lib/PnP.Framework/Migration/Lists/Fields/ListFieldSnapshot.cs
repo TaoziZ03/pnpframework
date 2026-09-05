@@ -41,6 +41,8 @@ namespace PnP.Framework.Migration.Lists.Fields
 
         public TaxonomyFieldBindingSnapshot Taxonomy { get; set; }
 
+        public IList<EvidenceSource> Sources { get; set; } = new List<EvidenceSource>();
+
         public EvidenceAvailability Availability { get; set; } = EvidenceAvailability.Captured;
 
         public IList<string> Diagnostics { get; set; } = new List<string>();

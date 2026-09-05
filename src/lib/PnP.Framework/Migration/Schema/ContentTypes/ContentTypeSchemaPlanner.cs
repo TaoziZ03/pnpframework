@@ -61,7 +61,9 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     || value.Id == Guid.Empty
                     || string.IsNullOrWhiteSpace(value.InternalName)
                     || string.IsNullOrWhiteSpace(value.TypeAsString)
-                    || string.IsNullOrWhiteSpace(value.SchemaXml)))
+                    || string.IsNullOrWhiteSpace(value.SchemaXml)
+                    || (value.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
+                        && value.Taxonomy == null)))
             {
                 return false;
             }
