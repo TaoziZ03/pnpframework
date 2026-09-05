@@ -310,11 +310,13 @@ namespace PnP.Framework.Test.ClassicWiki
             var actions = ClassicWikiLifecycleExecutor.Plan(
                 ClassicWikiLifecyclePolicy.Publish,
                 CheckOutType.Online,
+                versioningEnabled: true,
+                minorVersionsEnabled: true,
                 moderationEnabled: true);
             CollectionAssert.AreEqual(
                 new[]
                 {
-                    ClassicWikiLifecycleAction.CheckIn,
+                    ClassicWikiLifecycleAction.CheckInMinor,
                     ClassicWikiLifecycleAction.Publish,
                     ClassicWikiLifecycleAction.Approve
                 },
@@ -325,6 +327,110 @@ namespace PnP.Framework.Test.ClassicWiki
             package.PlanDigest = ClassicWikiDigest.ComputePlanDigest(package.Plan);
             Assert.ThrowsException<System.IO.InvalidDataException>(() =>
                 ClassicWikiPackageValidator.ValidateMigration(package));
+        }
+
+        [TestMethod]
+        public void NewAndExistingLibraryLifecycleMatrixCovers101And119Capabilities()
+        {
+            foreach (var template in new[] { 101, 119 })
+            foreach (var newlyCreated in new[] { false, true })
+            foreach (var versioning in new[] { false, true })
+            foreach (var minorVersions in new[] { false, true })
+            foreach (var moderation in new[] { false, true })
+            {
+                var package = ClassicWikiTestFactory.CreateMigrationPackage(template);
+                if (newlyCreated)
+                {
+                    var creation = ClassicWikiTargetLocationMaterializer.BuildCreationInformation(
+                        package.Plan.TargetLocation,
+                        "/sites/target");
+                    Assert.AreEqual(template, creation.TemplateType);
+                }
+
+                if (!versioning)
+                {
+                    Assert.ThrowsException<System.InvalidOperationException>(() =>
+                        ClassicWikiLifecycleExecutor.Plan(
+                            ClassicWikiLifecyclePolicy.Publish,
+                            CheckOutType.Online,
+                            versioning,
+                            minorVersions,
+                            moderation));
+                    Assert.ThrowsException<System.InvalidOperationException>(() =>
+                        ClassicWikiTargetLocationMaterializer.ValidateLoadedLibrary(
+                            package.Plan.TargetLocation,
+                            ClassicWikiLifecyclePolicy.Publish,
+                            template,
+                            package.Plan.TargetLocation.TargetLibraryServerRelativeUrl,
+                            enableVersioning: false));
+                    continue;
+                }
+
+                var actions = ClassicWikiLifecycleExecutor.Plan(
+                    ClassicWikiLifecyclePolicy.Publish,
+                    CheckOutType.Online,
+                    versioning,
+                    minorVersions,
+                    moderation).ToArray();
+                Assert.AreEqual(
+                    minorVersions ? ClassicWikiLifecycleAction.CheckInMinor : ClassicWikiLifecycleAction.CheckInMajor,
+                    actions[0],
+                    $"template={template}; new={newlyCreated}; minor={minorVersions}; moderation={moderation}");
+                Assert.AreEqual(minorVersions, actions.Contains(ClassicWikiLifecycleAction.Publish));
+                Assert.AreEqual(moderation, actions.Contains(ClassicWikiLifecycleAction.Approve));
+
+                var alreadyCheckedIn = ClassicWikiLifecycleExecutor.Plan(
+                    ClassicWikiLifecyclePolicy.Publish,
+                    CheckOutType.None,
+                    versioning,
+                    minorVersions,
+                    moderation).ToArray();
+                Assert.IsFalse(alreadyCheckedIn.Contains(ClassicWikiLifecycleAction.CheckInMinor));
+                Assert.IsFalse(alreadyCheckedIn.Contains(ClassicWikiLifecycleAction.CheckInMajor));
+                Assert.AreEqual(minorVersions, alreadyCheckedIn.Contains(ClassicWikiLifecycleAction.Publish));
+                Assert.AreEqual(moderation, alreadyCheckedIn.Contains(ClassicWikiLifecycleAction.Approve));
+            }
+        }
+
+        [TestMethod]
+        public void FreshLifecycleMatrixAcceptsMajorOnlyWithoutRequiringPublishApi()
+        {
+            foreach (var template in new[] { 101, 119 })
+            foreach (var newlyCreated in new[] { false, true })
+            foreach (var versioning in new[] { false, true })
+            foreach (var minorVersions in new[] { false, true })
+            foreach (var moderation in new[] { false, true })
+            {
+                var package = ClassicWikiTestFactory.CreateMigrationPackage(template);
+                var evidence = ClassicWikiTestFactory.CreateFreshEvidence(package);
+                evidence.Recapture.Snapshot.LibraryEnableVersioning = versioning;
+                evidence.Recapture.Snapshot.LibraryEnableMinorVersions = minorVersions;
+                evidence.Recapture.Snapshot.LibraryEnableModeration = moderation;
+                evidence.Recapture.Snapshot.Source.VersionLabel = newlyCreated ? "1.0" : "7.0";
+                evidence.Recapture.Snapshot.Lifecycle.Level = "Published";
+                evidence.Recapture.Snapshot.Lifecycle.CheckOutType = "None";
+                evidence.Recapture.Snapshot.Lifecycle.ModerationStatus = moderation ? 0 : 2;
+
+                var result = ClassicWikiFreshVerification.Evaluate(package, evidence);
+                Assert.AreEqual(
+                    versioning,
+                    result.Passed,
+                    $"template={template}; new={newlyCreated}; versioning={versioning}; minor={minorVersions}; moderation={moderation}; {string.Join(" | ", result.Differences)}");
+
+                if (versioning && minorVersions)
+                {
+                    evidence.Recapture.Snapshot.Source.VersionLabel = "7.1";
+                    result = ClassicWikiFreshVerification.Evaluate(package, evidence);
+                    Assert.IsFalse(result.Passed, "A draft minor version cannot satisfy Publish.");
+                }
+                if (versioning && moderation)
+                {
+                    evidence.Recapture.Snapshot.Source.VersionLabel = "7.0";
+                    evidence.Recapture.Snapshot.Lifecycle.ModerationStatus = 1;
+                    result = ClassicWikiFreshVerification.Evaluate(package, evidence);
+                    Assert.IsFalse(result.Passed, "A moderated page must be approved.");
+                }
+            }
         }
 
         [TestMethod]

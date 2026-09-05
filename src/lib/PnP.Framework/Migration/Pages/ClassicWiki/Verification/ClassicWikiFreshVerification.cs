@@ -291,7 +291,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 && target.LibraryEnableVersioning
                 && string.Equals(actual.Level, "Published", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(actual.CheckOutType, "None", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(target.Source?.VersionLabel)
+                && IsPublishedMajorVersion(target.Source?.VersionLabel)
                 && (!target.LibraryEnableModeration || actual.ModerationStatus == 0))
             {
                 result.LifecycleMatched = true;
@@ -301,6 +301,19 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 result.Differences.Add("Fresh lifecycle evidence is missing or differs from the sealed publish policy.");
             }
+        }
+
+        internal static bool IsPublishedMajorVersion(string versionLabel)
+        {
+            if (string.IsNullOrWhiteSpace(versionLabel))
+            {
+                return false;
+            }
+
+            var separator = versionLabel.LastIndexOf('.');
+            return separator > 0
+                && int.TryParse(versionLabel.Substring(separator + 1), out var minor)
+                && minor == 0;
         }
 
         private static void CompareSecurity(
