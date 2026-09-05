@@ -50,10 +50,9 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 if (!dagByAction.TryGetValue(container.LogicalActionKey, out var logicalAction)
                     || !logicalAction.ExecutionGrants.Any(value => string.Equals(value.Signature, grant.Signature, StringComparison.OrdinalIgnoreCase))
                     || !approvedByAction.TryGetValue(container.LogicalActionKey, out var approved)
-                    || approved.SelectedAction == SharedTopologyActionKind.Block
-                    || approved.SelectedAction == SharedTopologyActionKind.SkipByDependency)
+                    || approved.SelectedAction == SharedTopologyActionKind.Block)
                 {
-                    throw new InvalidDataException("The page references a blocked logical action or an execution grant absent from the approved DAG.");
+                    throw new InvalidDataException("The page references a non-terminal blocked logical action or an execution grant absent from the approved DAG.");
                 }
             }
 
@@ -221,6 +220,7 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             var dagActions = dag.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var approvedActions = actionPlan.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var receiptActions = receipt.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+            var terminalActions = receipt.TerminalActions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             if (reference.RequiredActions.Count != planActions.Count
                 || !new HashSet<string>(reference.RequiredActions.Select(value => value.LogicalActionKey), StringComparer.Ordinal).SetEquals(planActions.Keys))
             {
@@ -228,6 +228,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             }
             foreach (var required in reference.RequiredActions)
             {
+                if (terminalActions.TryGetValue(required.LogicalActionKey, out var terminal))
+                {
+                    throw new InvalidDataException(
+                        terminal.ExecutionOutcome == SharedTopologyActionExecutionOutcome.AuthorizationBlocked
+                            ? "The page requires an authorization-blocked topology ingredient with retained literal HTTP 401/403 evidence: " + required.LogicalActionKey
+                            : "The page requires a topology ingredient skipped by a terminal hard dependency: " + required.LogicalActionKey);
+                }
                 if (!planActions.TryGetValue(required.LogicalActionKey, out var planned)
                     || !dagActions.TryGetValue(required.LogicalActionKey, out var logical)
                     || !approvedActions.ContainsKey(required.LogicalActionKey)

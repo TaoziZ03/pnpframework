@@ -85,7 +85,11 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                     approvedActionPlan,
                     operationId,
                     recorder);
-                recorder.RecordState(MigrationExecutionStatus.Succeeded, "Every global topology action passed a signed fresh-readback checkpoint.");
+                recorder.RecordState(
+                    MigrationExecutionStatus.Succeeded,
+                    receipt.TerminalActions.Count == 0
+                        ? "Every global topology action passed a signed fresh-readback checkpoint."
+                        : "Independent topology actions completed; authorization-limited ingredients and their hard dependencies were retained as terminal evidence.");
                 return new PathDerivedTopologyMigrationExecutionResult
                 {
                     OperationId = operationId,
@@ -138,13 +142,31 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             SharedTopologyGlobalExecutionValidator.ValidateActionPlan(dag, reviewedAnalysis, approvedActionPlan);
             var startedAt = DateTimeOffset.UtcNow;
             var actionByKey = approvedActionPlan.Actions.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
+            var reviewedByKey = reviewedAnalysis.Probes.ToDictionary(value => value.LogicalActionKey, StringComparer.Ordinal);
             var completed = new Dictionary<string, SharedTopologyGlobalActionReceipt>(StringComparer.Ordinal);
+            var terminal = new Dictionary<string, SharedTopologyGlobalTerminalActionReceipt>(StringComparer.Ordinal);
 
             foreach (var container in dag.Actions
                 .OrderBy(value => SharedTopologyPath.Depth(value.TargetServerRelativeUrl))
                 .ThenBy(value => value.TargetSlotKey, StringComparer.Ordinal))
             {
                 var approved = actionByKey[container.LogicalActionKey];
+                var reviewed = reviewedByKey[container.LogicalActionKey];
+                if (!container.IsTargetSiteRoot
+                    && terminal.ContainsKey(container.ParentLogicalActionKey))
+                {
+                    var terminalReceipt = SharedTopologyTerminalActionReceiptFactory.CreateDependencySkipped(
+                        container, approved, reviewed, terminal);
+                    terminal.Add(container.LogicalActionKey, terminalReceipt);
+                    continue;
+                }
+                if (approved.SelectedAction == SharedTopologyActionKind.SkipByDependency)
+                {
+                    var terminalReceipt = SharedTopologyTerminalActionReceiptFactory.CreateDependencySkipped(
+                        container, approved, reviewed, terminal);
+                    terminal.Add(container.LogicalActionKey, terminalReceipt);
+                    continue;
+                }
                 Guid? expectedParentWebId = null;
                 if (!container.IsTargetSiteRoot)
                 {
@@ -158,6 +180,13 @@ namespace PnP.Framework.Migration.Topology.Ingredients
 
                 var fresh = InspectExactlyOne(runtime, container, expectedParentWebId);
                 EnsureApprovedTransition(approved, container, fresh);
+                if (fresh.State == TargetWebContainerState.AuthorizationBlocked)
+                {
+                    terminal.Add(
+                        container.LogicalActionKey,
+                        SharedTopologyTerminalActionReceiptFactory.CreateAuthorizationBlocked(container, approved, fresh));
+                    continue;
+                }
                 var mutationAttempted = false;
                 var executionOutcome = SharedTopologyActionExecutionOutcome.AlreadySatisfied;
                 if (fresh.State == TargetWebContainerState.ReuseExplicitApprovedHost)
@@ -228,14 +257,16 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 ExecutionGroupDigests = dag.ExecutionGroupDigests.ToList(),
                 SupportCohortDigests = dag.SupportCohortDigests.ToList(),
                 Actions = completed.Values.OrderBy(value => value.TargetSlotKey, StringComparer.Ordinal).ToList(),
+                TerminalActions = terminal.Values.OrderBy(value => value.TargetSlotKey, StringComparer.Ordinal).ToList(),
                 SourceWebMappings = CreateSourceWebMappings(sourcePlans, completed),
                 SourceFidelityAuthorizationLimited = sourcePlans.SelectMany(value => value.SourceWebFidelityIngredients)
                     .Any(value => value.State == SourceWebFidelityState.AuthorizationBlocked),
-                FreshReadbackPassed = completed.Count == approvedActionPlan.Actions.Count
+                FreshReadbackPassed = completed.Count + terminal.Count == approvedActionPlan.Actions.Count
                     && completed.Values.All(value => value.FreshReadbackPassed),
                 Diagnostics = new List<string>
                 {
-                    "Each global target-Web action was freshly probed before execution and sealed by a fresh verification checkpoint.",
+                    "Each executable global target-Web action was freshly probed and sealed by a verification checkpoint.",
+                    "A bound literal HTTP 401/403 stops only its exact ingredient; only hard-dependent descendants are skipped and independent branches continue.",
                     "The journal is prior-attempt evidence only; every retry still requires a fresh target probe."
                 }
             };
@@ -331,17 +362,23 @@ namespace PnP.Framework.Migration.Topology.Ingredients
             PathDerivedTargetWebProbe fresh)
         {
             var allowed = approved.SelectedAction == SharedTopologyActionKind.CreateMissing
-                ? fresh.State == TargetWebContainerState.CreateMissing
+                ? fresh.State == TargetWebContainerState.AuthorizationBlocked
+                    || fresh.State == TargetWebContainerState.CreateMissing
                     || fresh.State == TargetWebContainerState.RecoverInterruptedCreate
                     || fresh.State == TargetWebContainerState.ReuseOwned
                 : approved.SelectedAction == SharedTopologyActionKind.RecoverInterruptedCreate
-                    ? fresh.State == TargetWebContainerState.RecoverInterruptedCreate
+                    ? fresh.State == TargetWebContainerState.AuthorizationBlocked
+                        || fresh.State == TargetWebContainerState.RecoverInterruptedCreate
                         || fresh.State == TargetWebContainerState.ReuseOwned
                     : approved.SelectedAction == SharedTopologyActionKind.ReuseOwned
-                        ? fresh.State == TargetWebContainerState.ReuseOwned
+                        ? fresh.State == TargetWebContainerState.AuthorizationBlocked
+                            || fresh.State == TargetWebContainerState.ReuseOwned
                         : approved.SelectedAction == SharedTopologyActionKind.ReuseExplicitApprovedHost
-                            && fresh.State == TargetWebContainerState.ReuseExplicitApprovedHost
-                            && fresh.TargetWebId == container.ApprovedExistingTargetWebId;
+                            ? fresh.State == TargetWebContainerState.AuthorizationBlocked
+                                || fresh.State == TargetWebContainerState.ReuseExplicitApprovedHost
+                                && fresh.TargetWebId == container.ApprovedExistingTargetWebId
+                            : approved.SelectedAction == SharedTopologyActionKind.AuthorizationBlocked
+                                && fresh.State == TargetWebContainerState.AuthorizationBlocked;
             if (!allowed)
             {
                 throw new InvalidOperationException(
@@ -454,7 +491,10 @@ namespace PnP.Framework.Migration.Topology.Ingredients
                 var binding = bindings
                     .OrderBy(MigrationContractSerializer.SerializeCanonical, StringComparer.Ordinal)
                     .First();
-                var target = completed[binding.TargetLogicalActionKey];
+                if (!completed.TryGetValue(binding.TargetLogicalActionKey, out var target))
+                {
+                    continue;
+                }
                 var mapping = new SharedTopologySourceWebMaterializationReceipt
                 {
                     SourceOwnerKey = binding.SourceOwnerKey,

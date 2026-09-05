@@ -37,9 +37,10 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `PathDerivedSourceTopologyEvidence` | `pnp-path-derived-source-topology-evidence/v3` |
 | `SharedTopologyPlan` | `pnp-shared-topology-plan/v3` |
 | `SharedTopologyGlobalActionDag` | `pnp-shared-topology-global-action-dag/v3` |
-| `SharedTopologyGlobalTargetAnalysis` | `pnp-shared-topology-global-target-analysis/v3` |
-| `SharedTopologyGlobalActionPlan` | `pnp-shared-topology-global-action-plan/v3` |
-| `SharedTopologyGlobalMaterializationReceipt` | `pnp-shared-topology-global-receipt/v3` |
+| `SharedTopologyGlobalTargetAnalysis` | `pnp-shared-topology-global-target-analysis/v4` |
+| `SharedTopologyGlobalActionPlan` | `pnp-shared-topology-global-action-plan/v4` |
+| `SharedTopologyGlobalMaterializationReceipt` | `pnp-shared-topology-global-receipt/v4` |
+| `SharedTopologyGlobalTerminalActionReceipt` | `pnp-shared-topology-global-terminal-action-receipt/v1` |
 | `SharedTopologyPageReference` | `pnp-shared-topology-page-reference/v4` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
