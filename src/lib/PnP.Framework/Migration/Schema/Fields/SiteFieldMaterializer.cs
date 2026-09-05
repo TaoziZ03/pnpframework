@@ -164,10 +164,9 @@ namespace PnP.Framework.Migration.Schema.Fields
             IEnumerable<FieldSchemaMaterializationPlan> plans)
         {
             var values = (plans ?? Enumerable.Empty<FieldSchemaMaterializationPlan>()).ToArray();
-            var hiddenTextFieldIds = values
+            var hiddenTextFieldIds = new HashSet<Guid>(values
                 .Where(value => value?.HiddenTextFieldId.HasValue == true)
-                .Select(value => value.HiddenTextFieldId.Value)
-                .ToHashSet();
+                .Select(value => value.HiddenTextFieldId.Value));
             return values
                 .OrderBy(value => hiddenTextFieldIds.Contains(value.FieldId)
                     ? 0

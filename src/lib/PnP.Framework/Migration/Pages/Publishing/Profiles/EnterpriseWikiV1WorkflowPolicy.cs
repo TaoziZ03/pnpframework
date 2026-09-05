@@ -9,6 +9,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         {
             WorkflowId = EnterpriseWikiV1CohortPolicy.CohortId,
             PreferredTargetPageLayoutFileName = "EnterpriseWiki.aspx",
+            StockPageLayoutFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "EnterpriseWiki.aspx"
+            },
             FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "ContentTypeId",
@@ -19,18 +23,23 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             },
             RecognizedPageFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "ArticleByLine",
+                "OOCLReference",
                 "PublishingContact",
+                "PublishingContactName",
+                "PublishingContactEmail",
+                "PublishingContactPicture",
                 "PublishingPageDescription",
                 "PublishingPageImage",
                 "PublishingRollupImage",
+                "PublishingStartDate",
+                "PublishingExpirationDate",
+                "WikiCategories",
                 "SeoBrowserTitle",
                 "SeoKeywords",
                 "SeoMetaDescription",
-                "Wiki_x0020_Page_x0020_Categories"
+                "SeoRobotsNoIndex"
             },
             AssessValidationCohort = EnterpriseWikiV1CohortPolicy.Assess
         };
     }
 }
-

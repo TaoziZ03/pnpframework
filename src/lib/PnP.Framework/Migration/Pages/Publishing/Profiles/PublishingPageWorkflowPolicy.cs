@@ -11,11 +11,33 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
 
         public string PreferredTargetPageLayoutFileName { get; set; }
 
+        public ISet<string> StockPageLayoutFileNames { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         public ISet<string> FieldsHandledByPageWriter { get; set; }
 
         public ISet<string> RecognizedPageFields { get; set; }
 
         public Func<string, ValidationCohortAssessment> AssessValidationCohort { get; set; }
+
+        public bool IsStockLayout(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return false;
+            }
+
+            if (string.Equals(fileName, PreferredTargetPageLayoutFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (StockPageLayoutFileNames != null && StockPageLayoutFileNames.Contains(fileName))
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         public PublishingPageWorkflowSelection Select(string sourceContentTypeId)
         {
@@ -32,4 +54,3 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         }
     }
 }
-

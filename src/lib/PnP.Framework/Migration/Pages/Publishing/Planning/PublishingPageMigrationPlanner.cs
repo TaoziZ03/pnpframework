@@ -32,8 +32,26 @@ using System.Linq;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Planning
 {
-    internal sealed class PublishingPageMigrationPlanner
+    public sealed class PublishingPageMigrationPlanner
     {
+        public PublishingPageMigrationPackage Plan(
+            ClientContext targetContext,
+            PublishingPageExportPackage exportPackage,
+            PagePlanningOptions options,
+            IMigrationArtifactStore artifactStore = null)
+        {
+            if (exportPackage == null)
+            {
+                throw new ArgumentNullException(nameof(exportPackage));
+            }
+
+            var policy = PublishingPageProfileRegistry.ResolvePolicy(
+                exportPackage.Selection?.WorkflowId,
+                exportPackage.Snapshot?.Source?.ContentTypeId);
+
+            return Plan(targetContext, exportPackage, options, policy, artifactStore);
+        }
+
         public PublishingPageMigrationPackage Plan(
             ClientContext targetContext,
             PublishingPageExportPackage exportPackage,
@@ -114,7 +132,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 new Uri(snapshot.Source.WebUrl),
                 new Uri(targetWeb.Url),
                 new Uri(targetRootWeb.Url),
-                workflowPolicy.PreferredTargetPageLayoutFileName,
+                workflowPolicy,
                 options.TaxonomySchemaMappings,
                 artifactStore,
                 options.AllowExternalResourceReferences);

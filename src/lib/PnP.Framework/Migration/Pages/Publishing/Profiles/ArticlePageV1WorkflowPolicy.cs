@@ -9,6 +9,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         {
             WorkflowId = ArticlePageV1CohortPolicy.CohortId,
             PreferredTargetPageLayoutFileName = "ArticleLeft.aspx",
+            StockPageLayoutFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "ArticleLeft.aspx",
+                "ArticleRight.aspx",
+                "ArticleLinks.aspx",
+                "PageFromDocPack.aspx"
+            },
             FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "ContentTypeId",
@@ -40,4 +47,3 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         };
     }
 }
-

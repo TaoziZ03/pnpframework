@@ -1,22 +1,24 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Execution;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
-using PnP.Framework.Migration.Packaging;
-using System;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Topology.Ingredients;
+using System;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Article
 {
     public sealed class ArticlePageMigrationImporter
     {
+        private readonly PublishingPageMigrationImporter importer = new PublishingPageMigrationImporter();
+
         public PublishingPageImportReceipt Import(
             ClientContext targetContext,
             PublishingPageMigrationPackage package,
             string approvedPlanDigest)
         {
-            return ImportCore(targetContext, package, approvedPlanDigest, null, null, null);
+            return importer.Import(targetContext, package, approvedPlanDigest, ArticlePageV1WorkflowPolicy.Instance);
         }
 
         public PublishingPageImportReceipt Import(
@@ -25,7 +27,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Article
             string approvedPlanDigest,
             IMigrationExecutionJournal journal)
         {
-            return ImportCore(targetContext, package, approvedPlanDigest, journal, null, null);
+            return importer.Import(targetContext, package, approvedPlanDigest, ArticlePageV1WorkflowPolicy.Instance, journal);
         }
 
         public PublishingPageImportReceipt Import(
@@ -35,7 +37,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Article
             IMigrationExecutionJournal journal,
             IMigrationArtifactStore artifactStore)
         {
-            return ImportCore(targetContext, package, approvedPlanDigest, journal, artifactStore, null);
+            return importer.Import(targetContext, package, approvedPlanDigest, ArticlePageV1WorkflowPolicy.Instance, journal, artifactStore);
         }
 
         public PublishingPageImportReceipt ImportWithSharedTopology(
@@ -46,74 +48,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Article
             IMigrationExecutionJournal journal = null,
             IMigrationArtifactStore artifactStore = null)
         {
-            return ImportCore(
+            return importer.ImportWithSharedTopology(
                 targetContext,
                 package,
                 approvedPlanDigest,
+                sharedTopologyProof,
+                ArticlePageV1WorkflowPolicy.Instance,
                 journal,
-                artifactStore,
-                sharedTopologyProof);
-        }
-
-        private static PublishingPageImportReceipt ImportCore(
-            ClientContext targetContext,
-            PublishingPageMigrationPackage package,
-            string approvedPlanDigest,
-            IMigrationExecutionJournal journal,
-            IMigrationArtifactStore artifactStore,
-            SharedTopologyExecutionProof sharedTopologyProof)
-        {
-            if (targetContext == null)
-            {
-                throw new ArgumentNullException(nameof(targetContext));
-            }
-
-            PublishingPagePackageValidator.ValidateMigration(package, artifactStore);
-            var executionScope = PublishingPageExecutionScope.Create(package);
-            PublishingPageImportPlanValidator.Validate(package, ArticlePageV1WorkflowPolicy.Instance, executionScope);
-            var operationId = Guid.NewGuid();
-            var startedAt = DateTimeOffset.UtcNow;
-            var recorder = new MigrationExecutionRecorder(operationId, package.PlanDigest, journal);
-            var admissionFailure = PublishingPageImportAdmission.TryAdmit(
-                targetContext,
-                package,
-                executionScope,
-                approvedPlanDigest,
-                operationId,
-                startedAt,
-                recorder,
-                sharedTopologyProof);
-            if (admissionFailure != null)
-            {
-                return admissionFailure;
-            }
-
-            recorder.RecordState(MigrationExecutionStatus.Running, "Target admission passed. Mutation execution is starting.");
-            try
-            {
-                return PublishingPageMutationExecutor.Execute(
-                    targetContext,
-                    package,
-                    executionScope,
-                    approvedPlanDigest,
-                    operationId,
-                    startedAt,
-                    recorder,
-                    artifactStore,
-                    package.Plan.TargetProbe?.PageContentTypeId,
-                    sharedTopologyProof);
-            }
-            catch (Exception exception)
-            {
-                recorder.RecordState(MigrationExecutionStatus.FailedUnexpectedly, exception.Message);
-                return PublishingPageImportReceiptFactory.UnexpectedFailure(
-                    package,
-                    operationId,
-                    startedAt,
-                    exception,
-                    recorder);
-            }
+                artifactStore);
         }
     }
 }
-

@@ -1,3 +1,4 @@
+using PnP.Framework.Migration.Pages.Fields;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using Microsoft.SharePoint.Client;
@@ -27,12 +28,42 @@ namespace PnP.Framework.Migration.Pages.References
             string pageContent,
             IEnumerable<ClassicWebPartSnapshot> webParts,
             PageCaptureOptions options,
-            ICollection<string> warnings)
+            ICollection<string> warnings,
+            IEnumerable<PageFieldValueSnapshot> fields = null)
         {
             var candidates = ExtractHtmlReferences(pageContent);
-            foreach (var webPart in webParts)
+            foreach (var webPart in webParts ?? Array.Empty<ClassicWebPartSnapshot>())
             {
                 candidates.AddRange(ExtractTextReferences(webPart.ExportXml, $"webpart:{webPart.Id}"));
+            }
+
+            if (fields != null)
+            {
+                foreach (var field in fields)
+                {
+                    if (field == null || field.Kind != PageFieldValueKind.String || string.IsNullOrWhiteSpace(field.Value))
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(field.InternalName, "SummaryLinks", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(field.InternalName, "SummaryLinks2", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var htmlRefs = ExtractHtmlReferences(field.Value).ToList();
+                        candidates.AddRange(htmlRefs);
+                        var htmlValues = new HashSet<string>(htmlRefs.Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
+                        candidates.AddRange(ExtractTextReferences(field.Value, $"field:{field.InternalName}").Where(r => !htmlValues.Contains(r.Value)));
+                    }
+                    else if (string.Equals(field.InternalName, "PublishingPageImage", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(field.InternalName, "PublishingRollupImage", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(field.InternalName, "PublishingContactPicture", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var htmlRefs = ExtractHtmlReferences(field.Value).ToList();
+                        candidates.AddRange(htmlRefs);
+                        var htmlValues = new HashSet<string>(htmlRefs.Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
+                        candidates.AddRange(ExtractTextReferences(field.Value, $"field:{field.InternalName}").Where(r => !htmlValues.Contains(r.Value)));
+                    }
+                }
             }
 
             var sourceWebUri = new Uri(UrlUtility.EnsureTrailingSlash(source.WebUrl));
@@ -132,21 +163,24 @@ namespace PnP.Framework.Migration.Pages.References
                 return reference;
             }
 
-            try
+            if (sourceContext != null)
             {
-                var ownerWeb = owner.WebId == source.WebId
-                    ? sourceContext.Web
-                    : sourceContext.Site.OpenWebById(owner.WebId);
-                var payload = ReadFile(ownerWeb, sourceContext, sourcePath, options.MaximumDependencyBytes);
-                reference.ContentBase64 = Convert.ToBase64String(payload);
-                reference.ContentLength = payload.LongLength;
-                reference.ContentSha256 = PageDigest.ComputeSha256(payload);
-            }
-            catch (Exception exception) when (exception is ServerException || exception is InvalidOperationException || exception is IOException)
-            {
-                reference.CaptureStatus = PageCaptureStatus.Failed;
-                reference.Diagnostics.Add(exception.Message);
-                warnings.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
+                try
+                {
+                    var ownerWeb = owner.WebId == source.WebId
+                        ? sourceContext.Web
+                        : sourceContext.Site.OpenWebById(owner.WebId);
+                    var payload = ReadFile(ownerWeb, sourceContext, sourcePath, options.MaximumDependencyBytes);
+                    reference.ContentBase64 = Convert.ToBase64String(payload);
+                    reference.ContentLength = payload.LongLength;
+                    reference.ContentSha256 = PageDigest.ComputeSha256(payload);
+                }
+                catch (Exception exception) when (exception is ServerException || exception is InvalidOperationException || exception is IOException)
+                {
+                    reference.CaptureStatus = PageCaptureStatus.Failed;
+                    reference.Diagnostics.Add(exception.Message);
+                    warnings.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
+                }
             }
 
             return reference;

@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Taxonomy;
 using System;
@@ -17,10 +18,38 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             Uri sourcePageWebUrl,
             Uri targetPageWebUrl,
             Uri targetSiteCollectionUrl,
-            string reviewedStockFileName,
+            PublishingPageWorkflowPolicy workflowPolicy,
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings = null,
             IMigrationArtifactStore artifactStore = null,
             bool allowExternalResourceReferences = true)
+        {
+            if (workflowPolicy == null)
+            {
+                throw new ArgumentNullException(nameof(workflowPolicy));
+            }
+
+            return Create(
+                layout,
+                sourcePageWebUrl,
+                targetPageWebUrl,
+                targetSiteCollectionUrl,
+                workflowPolicy.PreferredTargetPageLayoutFileName,
+                taxonomyMappings,
+                artifactStore,
+                allowExternalResourceReferences,
+                workflowPolicy.StockPageLayoutFileNames);
+        }
+
+        public static PublishingPageLayoutMaterializationPlan Create(
+            PublishingPageLayoutSnapshot layout,
+            Uri sourcePageWebUrl,
+            Uri targetPageWebUrl,
+            Uri targetSiteCollectionUrl,
+            string reviewedStockFileName,
+            IEnumerable<TaxonomyTargetMapping> taxonomyMappings = null,
+            IMigrationArtifactStore artifactStore = null,
+            bool allowExternalResourceReferences = true,
+            IEnumerable<string> recognizedStockFileNames = null)
         {
             if (layout == null)
             {
@@ -38,11 +67,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             var sourceFileName = !string.IsNullOrWhiteSpace(layout.FileName)
                 ? layout.FileName
                 : Path.GetFileName(layout.ServerRelativeUrl ?? layout.Url ?? string.Empty);
-            var isReviewedStock = string.Equals(sourceFileName, reviewedStockFileName, StringComparison.OrdinalIgnoreCase)
-                && layout.CustomizedPageStatus == 1;
-            var stockTargetPath = BuildTargetPath(targetSiteCollectionUrl, reviewedStockFileName);
+            var isNativeStock = PublishingPageNativeLayoutCatalog.TryGetProfile(sourceFileName, out var nativeStockProfile);
+            var isReviewedStock = layout.CustomizedPageStatus == 1
+                && (string.Equals(sourceFileName, reviewedStockFileName, StringComparison.OrdinalIgnoreCase)
+                    || (recognizedStockFileNames != null && recognizedStockFileNames.Any(name => string.Equals(sourceFileName, name, StringComparison.OrdinalIgnoreCase)))
+                    || isNativeStock);
             if (isReviewedStock)
             {
+                var targetStockFileName = isNativeStock
+                    ? nativeStockProfile.FileName
+                    : (sourceFileName ?? reviewedStockFileName);
+                var stockTargetPath = BuildTargetPath(targetSiteCollectionUrl, targetStockFileName);
+
                 return new PublishingPageLayoutMaterializationPlan
                 {
                     Disposition = PublishingPageLayoutMaterializationDisposition.ReuseTargetStock,
@@ -50,17 +86,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                     SourceServerRelativeUrl = layout.ServerRelativeUrl,
                     SourceFileName = sourceFileName,
                     SourceBytes = layout.Bytes,
-                    AssociatedContentTypeName = layout.AssociatedContentTypeName,
-                    AssociatedContentTypeId = layout.AssociatedContentTypeId,
-                    TargetFileName = reviewedStockFileName,
-                    TargetPageLayoutName = Path.GetFileNameWithoutExtension(reviewedStockFileName),
+                    AssociatedContentTypeName = nativeStockProfile?.AssociatedContentTypeName ?? layout.AssociatedContentTypeName,
+                    AssociatedContentTypeId = nativeStockProfile?.AssociatedContentTypeId ?? layout.AssociatedContentTypeId,
+                    TargetFileName = targetStockFileName,
+                    TargetPageLayoutName = Path.GetFileNameWithoutExtension(targetStockFileName),
                     TargetServerRelativeUrl = stockTargetPath,
                     RequiredFieldBindings = RequiredFieldBindings(layout),
                     RequiredRegistrations = layout.Registrations.ToList(),
                     Zones = layout.Zones.ToList(),
                     ResourceReferences = layout.ResourceReferences.ToList(),
                     TargetBytes = layout.Bytes,
-                    Reason = $"Reuse the reviewed uncustomized target stock {reviewedStockFileName} Page Layout."
+                    Reason = $"Reuse the reviewed uncustomized target stock {targetStockFileName} Page Layout."
                 };
             }
 
@@ -125,7 +161,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                     SourceReference = value.SourceReference,
                     TargetReference = value.TargetReference
                 })
-                .GroupBy(value => value.SourceReference + "\u001f" + value.TargetReference, StringComparer.Ordinal)
+                .GroupBy(value => value.SourceReference + "" + value.TargetReference, StringComparer.Ordinal)
                 .Select(value => value.First())
                 .ToList();
             var targetBytes = PublishingPageLayoutResourceRewriter.Rewrite(sourceBytes, rewrites);

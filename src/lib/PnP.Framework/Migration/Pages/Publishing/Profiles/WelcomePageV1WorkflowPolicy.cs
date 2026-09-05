@@ -9,6 +9,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         {
             WorkflowId = WelcomePageV1CohortPolicy.CohortId,
             PreferredTargetPageLayoutFileName = "BlankWebPartPage.aspx",
+            StockPageLayoutFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "BlankWebPartPage.aspx",
+                "WelcomeSplash.aspx",
+                "WelcomeLinks.aspx"
+            },
             FieldsHandledByPageWriter = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "ContentTypeId",
@@ -41,4 +47,3 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
         };
     }
 }
-

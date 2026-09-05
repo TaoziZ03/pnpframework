@@ -116,7 +116,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 sourceCapture.PublishingPageContent,
                 sourceCapture.WebParts,
                 options,
-                warnings);
+                warnings,
+                sourceCapture.Fields);
             var afterFence = SourcePageFenceReader.Read(sourceContext, sourcePagePath);
             if (!SourcePageFenceReader.Equals(sourceCapture.SourceFence, afterFence))
             {

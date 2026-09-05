@@ -1,3 +1,6 @@
+using PnP.Framework.Migration.Schema.ContentTypes;
+using PnP.Framework.Migration.Pages.References;
+using PnP.Framework.Migration.Pages.Content;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Diagnostics;
 using PnP.Framework.Migration.Evidence;
@@ -364,7 +367,7 @@ namespace PnP.Framework.Test.PublishingProfiles
         {
             var fileUniqueId = Guid.NewGuid();
             var modifiedUtc = new DateTime(2026, 8, 26, 1, 2, 3, DateTimeKind.Utc);
-            var pageBytes = Encoding.UTF8.GetBytes("<%@ Page %>");
+            var pageBytes = Encoding.UTF8.GetBytes("<%@ Page Language=\"C#\" Inherits=\"Microsoft.SharePoint.Publishing.TemplateRedirectionPage, Microsoft.SharePoint.Publishing\" %>");
             var snapshot = new PublishingPageCaptureBundle
             {
                 CapturePolicy = new PageCaptureOptions
@@ -395,18 +398,15 @@ namespace PnP.Framework.Test.PublishingProfiles
                     PageDirective = PageDirectiveParser.Parse(Encoding.UTF8.GetString(pageBytes)),
                     Availability = EvidenceAvailability.Captured
                 },
-                Runtime = new PageRuntimeSnapshot
-                {
-                    SchemaVersion = "pnp-page-runtime/v1",
-                    AdapterId = PageRuntimeAdapterIds.Publishing,
-                    ResolutionState = PageRuntimeResolutionState.Resolved,
-                    Diagnostics = new List<string>()
-                },
                 Layout = new PublishingPageLayoutSnapshot
                 {
                     Url = "https://source.sharepoint.com/_catalogs/masterpage/" + policy.PreferredTargetPageLayoutFileName,
                     ServerRelativeUrl = "/_catalogs/masterpage/" + policy.PreferredTargetPageLayoutFileName,
                     FileName = policy.PreferredTargetPageLayoutFileName,
+                    CustomizedPageStatus = 1,
+                    AssociatedContentTypeName = "Test Page",
+                    AssociatedContentTypeId = contentTypeId,
+                    PageDirective = PageDirectiveParser.Parse("<%@ Page %>"),
                     Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", policy.PreferredTargetPageLayoutFileName),
                     ContentBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("<%@ Page %>")),
                     Availability = EvidenceAvailability.Captured,
@@ -453,6 +453,8 @@ namespace PnP.Framework.Test.PublishingProfiles
                     ModifiedUtc = modifiedUtc
                 }
             };
+            snapshot.Runtime = PageRuntimeResolver.Resolve(snapshot.PageArtifact, snapshot.Layout.PageDirective, snapshot.Source.ContentTypeId);
+            snapshot.Runtime = PageRuntimeResolver.Resolve(snapshot.PageArtifact, snapshot.Layout.PageDirective, snapshot.Source.ContentTypeId);
             snapshot.ProfileSignals = PublishingPageProfileSignalProjector.Project(snapshot.Source, snapshot.Layout, snapshot.Fields);
             snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot);
 
@@ -556,5 +558,319 @@ namespace PnP.Framework.Test.PublishingProfiles
                 }
             };
         }
-    }
+
+        [TestMethod]
+        public void LayoutPlannerReusesTargetStockForReadableArticleRightLayout()
+        {
+            var layout = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/ArticleRight.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/ArticleRight.aspx",
+                FileName = "ArticleRight.aspx",
+                Availability = EvidenceAvailability.Captured,
+                EvidenceState = PublishingPageLayoutEvidenceState.Readable,
+                CustomizedPageStatus = 1,
+                Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "ArticleRight.aspx")
+            };
+
+            var plan = PublishingPageLayoutPlanFactory.Create(
+                layout,
+                new Uri("https://source.sharepoint.com/sites/source"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                ArticlePageV1WorkflowPolicy.Instance);
+
+            Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.ReuseTargetStock, plan.Disposition);
+            Assert.AreEqual("ArticleRight.aspx", plan.TargetFileName);
+            Assert.AreEqual("ArticleRight", plan.TargetPageLayoutName);
+            Assert.AreEqual("/sites/target/_catalogs/masterpage/ArticleRight.aspx", plan.TargetServerRelativeUrl);
+            Assert.AreEqual(BuiltInContentTypeId.ArticlePage, plan.AssociatedContentTypeId);
+        }
+
+        [TestMethod]
+        public void LayoutPlannerReusesTargetStockForReadableArticleLinksLayout()
+        {
+            var layout = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/ArticleLinks.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/ArticleLinks.aspx",
+                FileName = "ArticleLinks.aspx",
+                Availability = EvidenceAvailability.Captured,
+                EvidenceState = PublishingPageLayoutEvidenceState.Readable,
+                CustomizedPageStatus = 1,
+                Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "ArticleLinks.aspx")
+            };
+
+            var plan = PublishingPageLayoutPlanFactory.Create(
+                layout,
+                new Uri("https://source.sharepoint.com/sites/source"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                ArticlePageV1WorkflowPolicy.Instance);
+
+            Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.ReuseTargetStock, plan.Disposition);
+            Assert.AreEqual("ArticleLinks.aspx", plan.TargetFileName);
+            Assert.AreEqual("ArticleLinks", plan.TargetPageLayoutName);
+        }
+
+        [TestMethod]
+        public void LayoutPlannerReusesTargetStockForReadableWelcomeSplashLayout()
+        {
+            var layout = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/WelcomeSplash.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/WelcomeSplash.aspx",
+                FileName = "WelcomeSplash.aspx",
+                Availability = EvidenceAvailability.Captured,
+                EvidenceState = PublishingPageLayoutEvidenceState.Readable,
+                CustomizedPageStatus = 1,
+                Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "WelcomeSplash.aspx")
+            };
+
+            var plan = PublishingPageLayoutPlanFactory.Create(
+                layout,
+                new Uri("https://source.sharepoint.com/sites/source"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                WelcomePageV1WorkflowPolicy.Instance);
+
+            Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.ReuseTargetStock, plan.Disposition);
+            Assert.AreEqual("WelcomeSplash.aspx", plan.TargetFileName);
+            Assert.AreEqual("WelcomeSplash", plan.TargetPageLayoutName);
+            Assert.AreEqual("/sites/target/_catalogs/masterpage/WelcomeSplash.aspx", plan.TargetServerRelativeUrl);
+            Assert.AreEqual(BuiltInContentTypeId.WelcomePage, plan.AssociatedContentTypeId);
+        }
+
+        [TestMethod]
+        public void LayoutPlannerReusesTargetStockForReadableWelcomeLinksLayout()
+        {
+            var layout = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/WelcomeLinks.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/WelcomeLinks.aspx",
+                FileName = "WelcomeLinks.aspx",
+                Availability = EvidenceAvailability.Captured,
+                EvidenceState = PublishingPageLayoutEvidenceState.Readable,
+                CustomizedPageStatus = 1,
+                Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "WelcomeLinks.aspx")
+            };
+
+            var plan = PublishingPageLayoutPlanFactory.Create(
+                layout,
+                new Uri("https://source.sharepoint.com/sites/source"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                WelcomePageV1WorkflowPolicy.Instance);
+
+            Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.ReuseTargetStock, plan.Disposition);
+            Assert.AreEqual("WelcomeLinks.aspx", plan.TargetFileName);
+        }
+
+        [TestMethod]
+        public void LayoutPlannerCreatesOwnedForCustomArticleLayout()
+        {
+            var layout = new PublishingPageLayoutSnapshot
+            {
+                Url = "https://source.sharepoint.com/_catalogs/masterpage/CustomArticleLayout.aspx",
+                ServerRelativeUrl = "/_catalogs/masterpage/CustomArticleLayout.aspx",
+                FileName = "CustomArticleLayout.aspx",
+                Availability = EvidenceAvailability.Captured,
+                EvidenceState = PublishingPageLayoutEvidenceState.Readable,
+                CustomizedPageStatus = 1,
+                AssociatedContentTypeName = "Article Page",
+                AssociatedContentTypeId = BuiltInContentTypeId.ArticlePage,
+                Bytes = MigrationArtifact.Describe(Encoding.UTF8.GetBytes("<%@ Page %>"), "application/vnd.ms-aspx", "CustomArticleLayout.aspx"),
+                ContentBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("<%@ Page %>")),
+                AssociatedContentTypeSchema = new ContentTypeSchemaSnapshot
+                {
+                    EvidenceState = ContentTypeSchemaEvidenceState.Readable,
+                    Availability = EvidenceAvailability.Captured,
+                    SourceWebUrl = "https://source.sharepoint.com/sites/source",
+                    ContentTypeId = BuiltInContentTypeId.ArticlePage,
+                    Name = "Article Page",
+                    Description = "Article Page schema",
+                    Group = "Page Layout Content Types",
+                    ParentContentTypeId = BuiltInContentTypeId.Page,
+                    ParentContentTypeName = "Page"
+                }
+            };
+
+            var plan = PublishingPageLayoutPlanFactory.Create(
+                layout,
+                new Uri("https://source.sharepoint.com/sites/source"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                new Uri("https://target.sharepoint.com/sites/target"),
+                ArticlePageV1WorkflowPolicy.Instance);
+
+            Assert.AreEqual(PublishingPageLayoutMaterializationDisposition.CreateOwned, plan.Disposition);
+            Assert.IsTrue(plan.TargetFileName.StartsWith("pnp-customarticlelayout-", StringComparison.OrdinalIgnoreCase));
+        }
+
+        [TestMethod]
+        public void ArticlePageExtractsAndRewritesPublishingPageImageReference()
+        {
+            var sourceIdentity = new PageIdentity
+            {
+                WebUrl = "https://source.sharepoint.com/sites/source",
+                WebServerRelativeUrl = "/sites/source",
+                PageServerRelativeUrl = "/sites/source/Pages/article.aspx"
+            };
+
+            var fields = new List<PageFieldValueSnapshot>
+            {
+                new PageFieldValueSnapshot
+                {
+                    InternalName = "PublishingPageImage",
+                    Kind = PageFieldValueKind.String,
+                    HasValue = true,
+                    Value = "<img src=\"https://source.sharepoint.com/sites/source/PublishingImages/hero.jpg\" alt=\"Hero\" />"
+                }
+            };
+
+            var references = PageReferenceSnapshotReader.Read(
+                null,
+                sourceIdentity,
+                null,
+                null,
+                null,
+                new PageCaptureOptions { SourcePageServerRelativeUrl = "/sites/source/Pages/article.aspx" },
+                new List<string>(),
+                fields);
+
+            Assert.AreEqual(1, references.Count);
+            Assert.AreEqual("https://source.sharepoint.com/sites/source/PublishingImages/hero.jpg", references[0].OriginalValue);
+            Assert.AreEqual(PageReferenceKind.Image, references[0].Kind);
+
+            var replacements = new List<PageTextReplacement>
+            {
+                new PageTextReplacement
+                {
+                    Source = "https://source.sharepoint.com/sites/source/PublishingImages/hero.jpg",
+                    Target = "https://target.sharepoint.com/sites/target/PublishingImages/hero.jpg"
+                }
+            };
+
+            var rewritten = PageTextTransformer.Rewrite(fields[0].Value, replacements);
+            Assert.IsTrue(rewritten.Contains("https://target.sharepoint.com/sites/target/PublishingImages/hero.jpg"));
+            Assert.IsFalse(rewritten.Contains("https://source.sharepoint.com/sites/source/PublishingImages/hero.jpg"));
+        }
+
+        [TestMethod]
+        public void WelcomePageExtractsAndRewritesSummaryLinksReference()
+        {
+            var sourceIdentity = new PageIdentity
+            {
+                WebUrl = "https://source.sharepoint.com/sites/source",
+                WebServerRelativeUrl = "/sites/source",
+                PageServerRelativeUrl = "/sites/source/Pages/welcome.aspx"
+            };
+
+            var fields = new List<PageFieldValueSnapshot>
+            {
+                new PageFieldValueSnapshot
+                {
+                    InternalName = "SummaryLinks",
+                    Kind = PageFieldValueKind.String,
+                    HasValue = true,
+                    Value = "<div class=\"slm-layout-main\"><a href=\"/sites/source/Pages/about.aspx\">About</a></div>"
+                }
+            };
+
+            var references = PageReferenceSnapshotReader.Read(
+                null,
+                sourceIdentity,
+                null,
+                null,
+                null,
+                new PageCaptureOptions { SourcePageServerRelativeUrl = "/sites/source/Pages/welcome.aspx" },
+                new List<string>(),
+                fields);
+
+            Assert.AreEqual(1, references.Count);
+            Assert.AreEqual("/sites/source/Pages/about.aspx", references[0].OriginalValue);
+
+            var replacements = new List<PageTextReplacement>
+            {
+                new PageTextReplacement
+                {
+                    Source = "/sites/source/Pages/about.aspx",
+                    Target = "/sites/target/Pages/about.aspx"
+                }
+            };
+
+            var rewritten = PageTextTransformer.Rewrite(fields[0].Value, replacements);
+            Assert.IsTrue(rewritten.Contains("/sites/target/Pages/about.aspx"));
+            Assert.IsFalse(rewritten.Contains("/sites/source/Pages/about.aspx"));
+        }
+
+        [TestMethod]
+        public void UnifiedPublishingImporterValidatesArticleAndWelcomePackages()
+        {
+            var articlePackage = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
+            var welcomePackage = CreatePackage(BuiltInContentTypeId.WelcomePage, WelcomePageV1WorkflowPolicy.Instance);
+
+            var articleScope = PublishingPageExecutionScope.Create(articlePackage);
+            var welcomeScope = PublishingPageExecutionScope.Create(welcomePackage);
+
+            PublishingPageImportPlanValidator.Validate(articlePackage, ArticlePageV1WorkflowPolicy.Instance, articleScope);
+            PublishingPageImportPlanValidator.Validate(welcomePackage, WelcomePageV1WorkflowPolicy.Instance, welcomeScope);
+
+            var articleImporter = new ArticlePageMigrationImporter();
+            var welcomeImporter = new PnP.Framework.Migration.Pages.Publishing.Welcome.WelcomePageMigrationImporter();
+            var ewImporter = new EnterpriseWikiMigrationImporter();
+            var genericImporter = new PublishingPageMigrationImporter();
+
+            Assert.IsNotNull(articleImporter);
+            Assert.IsNotNull(welcomeImporter);
+            Assert.IsNotNull(ewImporter);
+            Assert.IsNotNull(genericImporter);
+        }
+
+        [TestMethod]
+        public void PageStorageAssertionBuilderGeneratesAssertionsForArticleAndWelcome()
+        {
+            var articlePackage = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
+            var assertions = PageStorageAssertionBuilder.Build(
+                articlePackage.Snapshot,
+                articlePackage.Plan.TargetPageServerRelativeUrl,
+                articlePackage.Plan.DependencyActions,
+                articlePackage.Plan.ExpectedPublishingPageContentSha256,
+                articlePackage.Plan.TargetLifecycle);
+
+            Assert.IsTrue(assertions.Any(a => a.StartsWith("target-page=")));
+            Assert.IsTrue(assertions.Contains("fresh-read-target-file-identity"));
+            Assert.IsTrue(assertions.Contains("fresh-read-target-page-content-type"));
+        }
+
+        [TestMethod]
+        public void PublishingPagePackageFileStoreSavesAndLoadsAcrossProfiles()
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "pnp-pub-test-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(tempDir);
+                var package = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
+
+                var savedPath = PublishingPagePackageFileStore.SaveMigration(tempDir, package, null, true);
+                Assert.IsTrue(File.Exists(savedPath));
+
+                var loaded = PublishingPagePackageFileStore.LoadMigration(tempDir);
+                Assert.IsNotNull(loaded);
+                Assert.AreEqual(package.Snapshot.Source.Title, loaded.Snapshot.Source.Title);
+
+                var articleSaved = ArticlePagePackageFileStore.SaveMigration(tempDir, package, true);
+                Assert.IsTrue(File.Exists(articleSaved));
+
+                var articleLoaded = ArticlePagePackageFileStore.LoadMigration(tempDir);
+                Assert.IsNotNull(articleLoaded);
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+        }
+}
 }
