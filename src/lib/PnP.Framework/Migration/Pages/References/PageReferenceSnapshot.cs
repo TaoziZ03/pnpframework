@@ -1,5 +1,7 @@
 using PnP.Framework.Migration.Pages.Capture;
+using PnP.Framework.Migration.Evidence;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.References
 {
@@ -26,6 +28,9 @@ namespace PnP.Framework.Migration.Pages.References
         public long ContentLength { get; set; }
 
         public PageCaptureStatus CaptureStatus { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public LiteralHttpAuthorizationEvidence AuthorizationEvidence { get; set; }
 
         public IList<string> Diagnostics { get; set; } = new List<string>();
     }

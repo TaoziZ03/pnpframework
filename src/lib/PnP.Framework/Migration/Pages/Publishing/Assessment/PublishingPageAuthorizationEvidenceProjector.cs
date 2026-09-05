@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Pages.Assessment;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Evidence;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -77,21 +78,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 || requestUri.Scheme != Uri.UriSchemeHttp && requestUri.Scheme != Uri.UriSchemeHttps
                 || evidence.HttpStatusCode != 401 && evidence.HttpStatusCode != 403
                 || evidence.ObservedAtUtc == default(DateTimeOffset)
-                || string.IsNullOrWhiteSpace(evidence.EvidenceSource)
-                || !IsSha256(evidence.EvidenceSha256))
+                || string.IsNullOrWhiteSpace(evidence.EvidenceSource))
             {
                 throw new InvalidDataException(
                     "AuthorizationBlocked requires retained literal HTTP 401/403 wire evidence with operation, URI, timestamp, source, and SHA-256.");
             }
-        }
-
-        private static bool IsSha256(string value)
-        {
-            return !string.IsNullOrWhiteSpace(value)
-                && value.Length == 64
-                && value.All(character => character >= '0' && character <= '9'
-                    || character >= 'a' && character <= 'f'
-                    || character >= 'A' && character <= 'F');
+            LiteralHttpAuthorizationEvidence.Validate(new LiteralHttpAuthorizationEvidence
+            {
+                Operation = evidence.Operation,
+                RequestUri = evidence.RequestUri,
+                HttpStatusCode = evidence.HttpStatusCode,
+                ObservedAtUtc = evidence.ObservedAtUtc,
+                EvidenceSha256 = evidence.EvidenceSha256
+            });
         }
 
         private static PageIngredientAuthorizationEvidence Copy(

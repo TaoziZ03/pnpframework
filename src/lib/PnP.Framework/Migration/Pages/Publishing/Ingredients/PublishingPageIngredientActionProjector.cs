@@ -72,7 +72,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             {
                 action.Disposition = IngredientDisposition.Defer;
             }
-            PublishingPageIngredientAuthorizationPolicy.Apply(snapshot, actions);
+            PublishingPageIngredientAuthorizationPolicy.Apply(snapshot, plan, actions);
 
             return actions.Values.OrderBy(value => value.IngredientId, StringComparer.Ordinal).ToList();
         }

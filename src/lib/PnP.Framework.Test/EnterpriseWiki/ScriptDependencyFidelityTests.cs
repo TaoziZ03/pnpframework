@@ -1,5 +1,6 @@
 using Microsoft.SharePoint.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Pages;
 using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.ClassicWebParts;
@@ -86,6 +87,155 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 Assert.AreEqual(expected.LongLength, reference.ContentLength);
                 Assert.AreEqual(PublishingPageDigest.ComputeSha256(expected), reference.ContentSha256);
             }
+        }
+
+        [DataTestMethod]
+        [DataRow(401)]
+        [DataRow(403)]
+        public void SourceCaptureRetainsDirectLiteralWebExceptionAuthorizationEvidence(int statusCode)
+        {
+            using (var context = new ClientContext("https://source.example/sites/ipkit"))
+            {
+                var references = ReadReferences(
+                    "ScriptEditorDocumentFilter.xml",
+                    context,
+                    path => throw LiteralWebException(
+                        (HttpStatusCode)statusCode,
+                        new Uri(context.Url).GetLeftPart(UriPartial.Authority) + PagePath.Encode(path)));
+                var reference = references.Single(value => value.OriginalValue.EndsWith("DocumentFilter.js", StringComparison.OrdinalIgnoreCase));
+
+                Assert.AreEqual(PageCaptureStatus.Failed, reference.CaptureStatus);
+                Assert.AreEqual(statusCode, reference.AuthorizationEvidence.HttpStatusCode);
+                Assert.AreEqual(reference.SourceAbsoluteUrl, reference.AuthorizationEvidence.RequestUri);
+                LiteralHttpAuthorizationEvidence.Validate(reference.AuthorizationEvidence);
+            }
+        }
+
+        [DataTestMethod]
+        [DataRow(401)]
+        [DataRow(403)]
+        public void SourceCaptureFindsNestedLiteralWebExceptionAuthorizationEvidence(int statusCode)
+        {
+            using (var context = new ClientContext("https://source.example/sites/ipkit"))
+            {
+                var requestUri = PageReferenceAuthorizationEvidence.CsomRequestUri(context.Url);
+                var references = ReadReferences(
+                    "ScriptEditorDocumentFilter.xml",
+                    context,
+                    _ => throw new IOException(
+                        "outer transport wrapper",
+                        LiteralWebException((HttpStatusCode)statusCode, requestUri)));
+                var reference = references.Single(value => value.OriginalValue.EndsWith("DocumentFilter.js", StringComparison.OrdinalIgnoreCase));
+
+                Assert.AreEqual(statusCode, reference.AuthorizationEvidence.HttpStatusCode);
+                Assert.AreEqual(PageReferenceAuthorizationEvidence.SourceCaptureOperation, reference.AuthorizationEvidence.Operation);
+            }
+        }
+
+        [TestMethod]
+        public void SourceCaptureRetainsHttpRequestExceptionStatusCodeEvidence()
+        {
+            using (var context = new ClientContext("https://source.example/sites/ipkit"))
+            {
+                var references = ReadReferences(
+                    "ScriptEditorDocumentFilter.xml",
+                    context,
+                    _ => throw new HttpRequestException(
+                        "forbidden",
+                        null,
+                        HttpStatusCode.Forbidden));
+                var reference = references.Single(value => value.OriginalValue.EndsWith("DocumentFilter.js", StringComparison.OrdinalIgnoreCase));
+
+                Assert.AreEqual(403, reference.AuthorizationEvidence.HttpStatusCode);
+                Assert.AreEqual(
+                    PageReferenceAuthorizationEvidence.CsomRequestUri(context.Url),
+                    reference.AuthorizationEvidence.RequestUri);
+            }
+        }
+
+        [TestMethod]
+        public void NonAuthorizationWebExceptionRemainsMitigationEvidenceOnly()
+        {
+            using (var context = new ClientContext("https://source.example/sites/ipkit"))
+            {
+                var requestUri = PageReferenceAuthorizationEvidence.CsomRequestUri(context.Url);
+                var references = ReadReferences(
+                    "ScriptEditorDocumentFilter.xml",
+                    context,
+                    _ => throw LiteralWebException(HttpStatusCode.NotFound, requestUri));
+                var reference = references.Single(value => value.OriginalValue.EndsWith("DocumentFilter.js", StringComparison.OrdinalIgnoreCase));
+
+                Assert.AreEqual(PageCaptureStatus.Failed, reference.CaptureStatus);
+                Assert.IsNull(reference.AuthorizationEvidence);
+            }
+        }
+
+        [TestMethod]
+        public void NonProtocolWebExceptionCannotBecomeAuthorizationEvidence()
+        {
+            var requestUri = PageReferenceAuthorizationEvidence.CsomRequestUri("https://source.example/sites/ipkit");
+            var exception = LiteralWebException(
+                HttpStatusCode.Forbidden,
+                requestUri,
+                WebExceptionStatus.ConnectFailure);
+
+            Assert.IsFalse(PageReferenceAuthorizationEvidence.TryCreate(
+                exception,
+                PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                requestUri,
+                out _));
+            Assert.IsFalse(PageReferenceAuthorizationEvidence.TryCreate(
+                new WebException(
+                    "protocol error without response",
+                    null,
+                    WebExceptionStatus.ProtocolError,
+                    null),
+                PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                requestUri,
+                out _));
+        }
+
+        [TestMethod]
+        public void CsomAccessDeniedAndAuthorizationTextCannotForgeLiteralEvidence()
+        {
+            var requestUri = PageReferenceAuthorizationEvidence.CsomRequestUri("https://source.example/sites/ipkit");
+            var serverException = ServerAccessDeniedException("HTTP 403 AccessDenied");
+
+            Assert.IsFalse(PageReferenceAuthorizationEvidence.TryCreate(
+                serverException,
+                PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                requestUri,
+                out _));
+            var targetState = PageReferenceVerification.ReadFailure(
+                serverException,
+                PageReferenceAuthorizationEvidence.TargetCsomProbeOperation,
+                PageReferenceAuthorizationEvidence.CsomRequestUri("https://target.example/sites/ipkit-target"));
+            Assert.IsNull(targetState.AuthorizationEvidence);
+            Assert.IsFalse(targetState.HttpStatusCode.HasValue);
+            Assert.IsFalse(PageReferenceAuthorizationEvidence.TryCreate(
+                new IOException("The message contains HTTP 401 and 403 but has no response."),
+                PageReferenceAuthorizationEvidence.SourceCaptureOperation,
+                requestUri,
+                out _));
+        }
+
+        [TestMethod]
+        public void LegacyReferenceJsonOmitsOptionalAuthorizationEvidence()
+        {
+            var snapshot = ScriptSnapshot(withPayload: false);
+            var state = new PageReferenceTargetReadState
+            {
+                Exists = false,
+                HttpStatusCode = 404
+            };
+
+            var snapshotJson = PublishingPagePackageSerializer.SerializeCanonical(snapshot);
+            var stateJson = PublishingPagePackageSerializer.SerializeCanonical(state);
+
+            Assert.IsFalse(snapshotJson.Contains("authorizationEvidence"));
+            Assert.IsFalse(stateJson.Contains("authorizationEvidence"));
+            Assert.IsNull(PublishingPagePackageSerializer.Deserialize<PageReferenceSnapshot>(snapshotJson).AuthorizationEvidence);
+            Assert.IsNull(PublishingPagePackageSerializer.Deserialize<PageReferenceTargetReadState>(stateJson).AuthorizationEvidence);
         }
 
         [TestMethod]
@@ -696,6 +846,73 @@ script.setAttribute('src', dynamicUrl);
             Assert.IsTrue(handler.Disposed);
         }
 
+        [DataTestMethod]
+        [DataRow(401)]
+        [DataRow(403)]
+        public void TargetHttpResponseRetainsLiteralAuthorizationEvidence(int statusCode)
+        {
+            using (var client = new HttpClient(new StaticStatusHttpMessageHandler((HttpStatusCode)statusCode)))
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "https://target.example/_layouts/15/init.js"))
+            {
+                var state = PageReferenceVerification.ReadHttpTargetResponse(client, request, "init.js", 1024);
+
+                Assert.IsFalse(state.Exists);
+                Assert.AreEqual(statusCode, state.HttpStatusCode);
+                Assert.AreEqual(statusCode, state.AuthorizationEvidence.HttpStatusCode);
+                PageReferenceAuthorizationEvidence.ValidateTarget(
+                    "https://target.example/sites/ipkit-target",
+                    RuntimeRewriteAction("runtime-script"),
+                    state);
+            }
+        }
+
+        [TestMethod]
+        public void TargetHttpProbeFindsNestedWebExceptionAuthorizationEvidence()
+        {
+            const string requestUri = "https://target.example/_layouts/15/init.js";
+            using (var client = new HttpClient(new ThrowingHttpMessageHandler(() =>
+                new IOException(
+                    "outer transport wrapper",
+                    LiteralWebException(HttpStatusCode.Forbidden, requestUri)))))
+            using (var request = new HttpRequestMessage(HttpMethod.Get, requestUri))
+            {
+                var state = PageReferenceVerification.ReadHttpTargetResponse(client, request, "init.js", 1024);
+
+                Assert.AreEqual(403, state.AuthorizationEvidence.HttpStatusCode);
+                Assert.AreEqual(PageReferenceAuthorizationEvidence.TargetHttpProbeOperation, state.AuthorizationEvidence.Operation);
+            }
+        }
+
+        [TestMethod]
+        public void TargetHttpProbeRetainsHttpRequestExceptionStatusCodeEvidence()
+        {
+            const string requestUri = "https://target.example/_layouts/15/init.js";
+            using (var client = new HttpClient(new ThrowingHttpMessageHandler(() =>
+                new HttpRequestException("unauthorized", null, HttpStatusCode.Unauthorized))))
+            using (var request = new HttpRequestMessage(HttpMethod.Get, requestUri))
+            {
+                var state = PageReferenceVerification.ReadHttpTargetResponse(client, request, "init.js", 1024);
+
+                Assert.AreEqual(401, state.HttpStatusCode);
+                Assert.AreEqual(requestUri, state.AuthorizationEvidence.RequestUri);
+            }
+        }
+
+        [TestMethod]
+        public void TargetNonAuthorizationWebExceptionIsNotPromotedToLiteralEvidence()
+        {
+            const string requestUri = "https://target.example/_layouts/15/init.js";
+            using (var client = new HttpClient(new ThrowingHttpMessageHandler(() =>
+                LiteralWebException(HttpStatusCode.NotFound, requestUri))))
+            using (var request = new HttpRequestMessage(HttpMethod.Get, requestUri))
+            {
+                var state = PageReferenceVerification.ReadHttpTargetResponse(client, request, "init.js", 1024);
+
+                Assert.IsFalse(state.Exists);
+                Assert.IsNull(state.AuthorizationEvidence);
+            }
+        }
+
         private static List<PageReferenceSnapshot> ReadReferences(
             string fixtureName,
             ClientContext context,
@@ -805,6 +1022,64 @@ script.setAttribute('src', dynamicUrl);
             };
         }
 
+        private static PageReferenceAction RuntimeRewriteAction(string id)
+        {
+            return new PageReferenceAction
+            {
+                SnapshotDependencyId = id,
+                Disposition = PageReferenceDisposition.RewriteToTarget,
+                TargetAbsoluteUrl = "https://target.example/_layouts/15/init.js",
+                TargetServerRelativeUrl = "/_layouts/15/init.js"
+            };
+        }
+
+        private static WebException LiteralWebException(
+            HttpStatusCode statusCode,
+            string requestUri,
+            WebExceptionStatus webExceptionStatus = WebExceptionStatus.ProtocolError)
+        {
+            var constructor = typeof(HttpWebResponse)
+                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Single(value =>
+                {
+                    var parameters = value.GetParameters();
+                    return parameters.Length == 3
+                        && parameters[0].ParameterType == typeof(HttpResponseMessage)
+                        && parameters[1].ParameterType == typeof(Uri)
+                        && parameters[2].ParameterType == typeof(CookieContainer);
+                });
+            var responseMessage = new HttpResponseMessage(statusCode)
+            {
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, requestUri)
+            };
+            var response = (HttpWebResponse)constructor.Invoke(new object[]
+            {
+                responseMessage,
+                new Uri(requestUri),
+                new CookieContainer()
+            });
+            return new WebException(
+                "literal HTTP response",
+                null,
+                webExceptionStatus,
+                response);
+        }
+
+        private static ServerException ServerAccessDeniedException(string message)
+        {
+            var constructor = typeof(ServerException).GetConstructor(
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                null,
+                new[] { typeof(string), typeof(string), typeof(int) },
+                null);
+            return (ServerException)constructor.Invoke(new object[]
+            {
+                message,
+                "System.UnauthorizedAccessException",
+                -2147024891
+            });
+        }
+
         private static string ReadFixture(string fileName)
         {
             var assembly = typeof(ScriptDependencyFidelityTests).GetTypeInfo().Assembly;
@@ -841,6 +1116,44 @@ script.setAttribute('src', dynamicUrl);
             {
                 Disposed = true;
                 base.Dispose(disposing);
+            }
+        }
+
+        private sealed class StaticStatusHttpMessageHandler : HttpMessageHandler
+        {
+            private readonly HttpStatusCode statusCode;
+
+            public StaticStatusHttpMessageHandler(HttpStatusCode statusCode)
+            {
+                this.statusCode = statusCode;
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new HttpResponseMessage(statusCode)
+                {
+                    RequestMessage = request,
+                    Content = new ByteArrayContent(Array.Empty<byte>())
+                });
+            }
+        }
+
+        private sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+        {
+            private readonly Func<Exception> exceptionFactory;
+
+            public ThrowingHttpMessageHandler(Func<Exception> exceptionFactory)
+            {
+                this.exceptionFactory = exceptionFactory;
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                return Task.FromException<HttpResponseMessage>(exceptionFactory());
             }
         }
     }

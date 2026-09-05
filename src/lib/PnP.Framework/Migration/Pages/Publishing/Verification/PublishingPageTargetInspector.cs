@@ -251,7 +251,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     },
                     new Uri(web.Url));
                 snapshot.ReferenceVerifications.Add(verification);
-                if (!verification.Passed)
+                if (!verification.Passed
+                    && verification.TargetRead?.AuthorizationEvidence == null)
                 {
                     foreach (var diagnostic in verification.Diagnostics)
                     {

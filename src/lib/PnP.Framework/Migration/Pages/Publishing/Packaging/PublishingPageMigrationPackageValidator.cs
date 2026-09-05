@@ -577,7 +577,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             var evaluation = PageIngredientPlanEvaluator.Evaluate(
                 graph,
                 plan.IngredientActions,
-                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot));
+                PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot, plan));
             if (evaluation.Outcome != plan.MigrationOutcome)
             {
                 throw new InvalidDataException($"The sealed migration outcome '{plan.MigrationOutcome}' differs from evaluated outcome '{evaluation.Outcome}'.");
@@ -670,14 +670,29 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                         action.TargetServerRelativeUrl,
                         StringComparison.OrdinalIgnoreCase)
                     || result.Diagnostics == null
-                    || result.TargetRead != null && result.TargetRead.Diagnostics == null
-                    || plan.IsExecutable && !result.Passed)
+                    || result.TargetRead != null && result.TargetRead.Diagnostics == null)
                 {
                     throw new InvalidDataException(
                         $"The target reference preflight does not verify dependency action '{action.SnapshotDependencyId}'.");
                 }
 
                 var source = snapshots[action.SnapshotDependencyId];
+                PageReferenceAuthorizationEvidence.ValidateTarget(
+                    plan.TargetWebUrl,
+                    action,
+                    result.TargetRead);
+                var referenceIngredientId = PublishingPageIngredientIds.Reference(action.SnapshotDependencyId);
+                var referenceExecutionState = plan.ExecutionFrontier.GetState(referenceIngredientId);
+                var authorizedFailedPreflight = !result.Passed
+                    && result.TargetRead?.AuthorizationEvidence != null
+                    && (referenceExecutionState == PageIngredientExecutionState.AuthorizationBlocked
+                        || referenceExecutionState == PageIngredientExecutionState.SkippedByAuthorizationDependency);
+                if ((!result.Passed && !authorizedFailedPreflight)
+                    || (result.Passed && result.TargetRead?.AuthorizationEvidence != null))
+                {
+                    throw new InvalidDataException(
+                        $"The target reference preflight failure for dependency action '{action.SnapshotDependencyId}' is not bound to an authorization-blocked reference ingredient.");
+                }
                 var expected = PageReferenceVerification.InspectPlan(
                     source,
                     action,
@@ -691,6 +706,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 if (action.Disposition == PageReferenceDisposition.RewriteToTarget
                     && source.IsRenderableResource
                     && plan.IsExecutable
+                    && !authorizedFailedPreflight
                     && (result.TargetRead == null || !result.TargetRead.EvidenceComplete))
                 {
                     throw new InvalidDataException(
