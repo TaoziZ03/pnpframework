@@ -109,6 +109,55 @@ namespace PnP.Framework.Migration.Schema.Fields
             return TryValidate(binding, out ignored);
         }
 
+        internal static bool IsTaxonomyFieldType(string typeAsString)
+        {
+            return string.Equals(typeAsString, "TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(typeAsString, "TaxonomyFieldTypeMulti", StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static bool TryValidateHiddenTextCompanion<T>(
+            Guid taxonomyFieldId,
+            TaxonomyFieldBindingSnapshot binding,
+            IEnumerable<T> closure,
+            Func<T, Guid> fieldId,
+            Func<T, string> fieldType,
+            Func<T, bool> fieldHidden,
+            out string diagnostic)
+        {
+            diagnostic = null;
+            if (!IsComplete(binding))
+            {
+                diagnostic = "reason=incomplete-binding";
+                return false;
+            }
+            if (binding.HiddenTextFieldId == taxonomyFieldId)
+            {
+                diagnostic = "reason=self-reference; hiddenTextFieldId=" + binding.HiddenTextFieldId.ToString("D");
+                return false;
+            }
+
+            var matches = (closure ?? Enumerable.Empty<T>())
+                .Where(value => value != null && fieldId(value) == binding.HiddenTextFieldId)
+                .ToArray();
+            if (matches.Length != 1)
+            {
+                diagnostic = "reason=" + (matches.Length == 0 ? "missing" : "duplicate-identity")
+                    + "; hiddenTextFieldId=" + binding.HiddenTextFieldId.ToString("D");
+                return false;
+            }
+            if (!fieldHidden(matches[0]))
+            {
+                diagnostic = "reason=not-hidden; hiddenTextFieldId=" + binding.HiddenTextFieldId.ToString("D");
+                return false;
+            }
+            if (!string.Equals(fieldType(matches[0]), "Note", StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostic = "reason=wrong-type; hiddenTextFieldId=" + binding.HiddenTextFieldId.ToString("D");
+                return false;
+            }
+            return true;
+        }
+
         internal static bool TryReadSchemaXml(
             string schemaXml,
             out TaxonomyFieldBindingSnapshot binding,
@@ -138,7 +187,7 @@ namespace PnP.Framework.Migration.Schema.Fields
                 return false;
             }
             var fieldType = ((string)root.Attribute("Type") ?? string.Empty).Trim();
-            if (!fieldType.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase))
+            if (!IsTaxonomyFieldType(fieldType))
             {
                 diagnostic = "SchemaXml Field Type is not a taxonomy field type.";
                 return false;

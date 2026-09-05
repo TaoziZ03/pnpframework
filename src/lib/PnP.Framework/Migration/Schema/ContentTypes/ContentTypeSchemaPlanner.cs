@@ -63,7 +63,8 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     || string.IsNullOrWhiteSpace(value.TypeAsString)
                     || string.IsNullOrWhiteSpace(value.SchemaXml)
                     || (value.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
-                        && !TaxonomyFieldBindingSnapshotReader.IsComplete(value.Taxonomy))))
+                        && (!TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)
+                            || !TaxonomyFieldBindingSnapshotReader.IsComplete(value.Taxonomy)))))
             {
                 return false;
             }
@@ -73,8 +74,15 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             if (closureIds.Count != closure.Length
                 || schema.RequiredFieldLinks.Select(value => value.FieldId).Distinct().Count() != schema.RequiredFieldLinks.Count
                 || schema.RequiredFieldLinks.Any(value => !closureIds.Contains(value.FieldId))
-                || closure.Any(value => value.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
-                    && !closureIds.Contains(value.Taxonomy.HiddenTextFieldId)))
+                || closure.Any(value => TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(value.TypeAsString)
+                    && !TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                        value.Id,
+                        value.Taxonomy,
+                        closure,
+                        candidate => candidate.Id,
+                        candidate => candidate.TypeAsString,
+                        candidate => candidate.Hidden,
+                        out _)))
             {
                 return false;
             }

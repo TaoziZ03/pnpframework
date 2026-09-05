@@ -6,6 +6,7 @@ using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Schema.Fields;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -57,6 +58,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 "<Property><Name>SspId</Name><Name>Ambiguous</Name><Value>"
                     + TermStoreId.ToString("D") + "</Value></Property>"
                     + Property("SspId", TermStoreId.ToString("D"))));
+            AssertFallbackFailure(ValidSchemaXml().Replace(
+                "Type=\"TaxonomyFieldType\"",
+                "Type=\"TaxonomyFieldTypeBogus\""));
         }
 
         [TestMethod]
@@ -192,7 +196,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                         Role = FieldSchemaRole.DirectBinding
                     }
                 },
-                RequiredFieldClosure = new[] { field }
+                RequiredFieldClosure = new List<FieldSchemaSnapshot> { field }
             };
 
             Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(schema, out var plan));
@@ -212,7 +216,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var diagnostics = new System.Collections.Generic.List<string>();
 
             Assert.IsFalse(ContentTypeSchemaSnapshotReader.ValidateTaxonomyCompanionClosure(new[] { field }, diagnostics));
-            Assert.IsTrue(field.Diagnostics.Any(value => value.StartsWith("TaxonomyBindingHiddenTextCompanionMissing:", StringComparison.Ordinal)));
+            Assert.IsTrue(field.Diagnostics.Any(value => value.StartsWith("TaxonomyBindingHiddenTextCompanionInvalid:", StringComparison.Ordinal)));
             Assert.AreEqual(1, diagnostics.Count);
 
             var listField = new ListFieldSnapshot
@@ -224,7 +228,25 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
             Assert.IsFalse(ListFieldSnapshotReader.ValidateTaxonomyCompanionClosure(new[] { listField }));
             Assert.AreEqual(EvidenceAvailability.Partial, listField.Availability);
-            Assert.IsTrue(listField.Diagnostics.Any(value => value.StartsWith("TaxonomyBindingHiddenTextCompanionMissing:", StringComparison.Ordinal)));
+            Assert.IsTrue(listField.Diagnostics.Any(value => value.StartsWith("TaxonomyBindingHiddenTextCompanionInvalid:", StringComparison.Ordinal)));
+
+            var selfBinding = ValidBinding();
+            selfBinding.HiddenTextFieldId = FieldId;
+            field.Taxonomy = selfBinding;
+            diagnostics.Clear();
+            Assert.IsFalse(ContentTypeSchemaSnapshotReader.ValidateTaxonomyCompanionClosure(new[] { field }, diagnostics));
+            StringAssert.Contains(field.Diagnostics.Last(), "reason=self-reference");
+
+            var wrongType = Companion(TextFieldId, "Text", true);
+            field.Taxonomy = ValidBinding();
+            diagnostics.Clear();
+            Assert.IsFalse(ContentTypeSchemaSnapshotReader.ValidateTaxonomyCompanionClosure(new[] { field, wrongType }, diagnostics));
+            StringAssert.Contains(field.Diagnostics.Last(), "reason=wrong-type");
+
+            var visibleNote = Companion(TextFieldId, "Note", false);
+            diagnostics.Clear();
+            Assert.IsFalse(ContentTypeSchemaSnapshotReader.ValidateTaxonomyCompanionClosure(new[] { field, visibleNote }, diagnostics));
+            StringAssert.Contains(field.Diagnostics.Last(), "reason=not-hidden");
         }
 
         [TestMethod]
@@ -236,6 +258,18 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             var missingCompanion = PartialRuntimeSchema(ValidBinding());
             Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(missingCompanion, out _));
+
+            var selfReference = PartialRuntimeSchema(ValidBinding());
+            selfReference.RequiredFieldClosure[0].Taxonomy.HiddenTextFieldId = FieldId;
+            Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(selfReference, out _));
+
+            var wrongType = PartialRuntimeSchema(ValidBinding());
+            wrongType.RequiredFieldClosure.Add(Companion(TextFieldId, "Text", true));
+            Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(wrongType, out _));
+
+            var visibleNote = PartialRuntimeSchema(ValidBinding());
+            visibleNote.RequiredFieldClosure.Add(Companion(TextFieldId, "Note", false));
+            Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(visibleNote, out _));
         }
 
         [TestMethod]
@@ -318,7 +352,21 @@ namespace PnP.Framework.Test.EnterpriseWiki
                         Role = FieldSchemaRole.DirectBinding
                     }
                 },
-                RequiredFieldClosure = new[] { field }
+                RequiredFieldClosure = new List<FieldSchemaSnapshot> { field }
+            };
+        }
+
+        private static FieldSchemaSnapshot Companion(Guid id, string typeAsString, bool hidden)
+        {
+            return new FieldSchemaSnapshot
+            {
+                Id = id,
+                InternalName = "CategoriesTaxHTField0",
+                TypeAsString = typeAsString,
+                Hidden = hidden,
+                SchemaXml = "<Field ID=\"{" + id.ToString("D") + "}\" Name=\"CategoriesTaxHTField0\" Type=\"" + typeAsString + "\" />",
+                Role = FieldSchemaRole.Dependency,
+                Ownership = FieldOwnership.TargetRuntime
             };
         }
 

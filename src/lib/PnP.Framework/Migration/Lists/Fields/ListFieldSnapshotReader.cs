@@ -39,16 +39,22 @@ namespace PnP.Framework.Migration.Lists.Fields
             var complete = true;
             foreach (var taxonomyField in closure.Where(value => value.Taxonomy != null))
             {
-                if (taxonomyField.Taxonomy.HiddenTextFieldId != Guid.Empty
-                    && closure.Any(value => value.Id == taxonomyField.Taxonomy.HiddenTextFieldId))
+                string companionDiagnostic;
+                if (TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                    taxonomyField.Id,
+                    taxonomyField.Taxonomy,
+                    closure,
+                    value => value.Id,
+                    value => value.TypeAsString,
+                    value => value.Hidden,
+                    out companionDiagnostic))
                 {
                     continue;
                 }
                 complete = false;
                 taxonomyField.Availability = PnP.Framework.Migration.Evidence.EvidenceAvailability.Partial;
                 taxonomyField.Diagnostics.Add(
-                    "TaxonomyBindingHiddenTextCompanionMissing: hiddenTextFieldId="
-                    + taxonomyField.Taxonomy.HiddenTextFieldId.ToString("D") + ".");
+                    "TaxonomyBindingHiddenTextCompanionInvalid: " + companionDiagnostic + ".");
             }
             return complete;
         }

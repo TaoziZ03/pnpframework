@@ -357,14 +357,20 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             var complete = true;
             foreach (var taxonomyField in closure.Where(value => value.Taxonomy != null))
             {
-                if (taxonomyField.Taxonomy.HiddenTextFieldId != Guid.Empty
-                    && closure.Any(value => value.Id == taxonomyField.Taxonomy.HiddenTextFieldId))
+                string companionDiagnostic;
+                if (TaxonomyFieldBindingSnapshotReader.TryValidateHiddenTextCompanion(
+                    taxonomyField.Id,
+                    taxonomyField.Taxonomy,
+                    closure,
+                    value => value.Id,
+                    value => value.TypeAsString,
+                    value => value.Hidden,
+                    out companionDiagnostic))
                 {
                     continue;
                 }
                 complete = false;
-                var diagnostic = "TaxonomyBindingHiddenTextCompanionMissing: hiddenTextFieldId="
-                    + taxonomyField.Taxonomy.HiddenTextFieldId.ToString("D") + ".";
+                var diagnostic = "TaxonomyBindingHiddenTextCompanionInvalid: " + companionDiagnostic + ".";
                 taxonomyField.Diagnostics.Add(diagnostic);
                 diagnostics?.Add($"Field '{taxonomyField.InternalName}' ({taxonomyField.Id:D}): {diagnostic}");
             }
