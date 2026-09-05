@@ -51,9 +51,9 @@ An item labelled **Implemented** exists in the current code. **Planned** identif
 
 | Artifact | Schema |
 | --- | --- |
-| Publishing Page source export | `pnp-publishing-page-export/v2` |
-| Publishing Page migration package | `pnp-publishing-page-migration-package/v2` |
-| Publishing Page import receipt | `pnp-publishing-page-import-receipt/v4` |
+| Publishing Page source export | `pnp-publishing-page-export/v3` |
+| Publishing Page migration package | `pnp-publishing-page-migration-package/v3` |
+| Publishing Page import receipt | `pnp-publishing-page-import-receipt/v5` |
 | Source ASPX artifact | `pnp-page-artifact/v1` |
 | Page runtime resolution | `pnp-page-runtime/v1` |
 | Canonical page ingredient graph | `pnp-page-ingredient-graph/v1`; `v2` for plan-time shared external references |

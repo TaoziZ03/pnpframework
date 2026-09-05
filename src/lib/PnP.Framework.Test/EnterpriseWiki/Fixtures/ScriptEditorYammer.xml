@@ -1,0 +1,15 @@
+<webParts>
+  <webPart xmlns="http://schemas.microsoft.com/WebPart/v3">
+    <metaData>
+      <type name="Microsoft.SharePoint.WebPartPages.ScriptEditorWebPart" />
+    </metaData>
+    <data>
+      <properties>
+        <property name="Content" type="string">&lt;script type="text/javascript" src="https://assets.example.net/platform_embed.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="https://source.example/sites/ipkit/SiteAssets/Scripts/YammerScript.js"&gt;&lt;/script&gt;
+&lt;div id="embedded-feed"&gt;&lt;/div&gt;</property>
+        <property name="Title" type="string">Yammer Group Discussion</property>
+      </properties>
+    </data>
+  </webPart>
+</webParts>

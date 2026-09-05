@@ -18,6 +18,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
         public static PublishingPageTargetSnapshot Inspect(
             ClientContext context,
             string targetPagePath,
+            IEnumerable<PageReferenceSnapshot> dependencySnapshots,
             IEnumerable<PageReferenceAction> dependencies,
             PublishingPageTargetLifecycle targetLifecycle,
             PublishingPageLayoutMaterializationPlan layoutPlan,
@@ -29,6 +30,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             return Inspect(
                 context,
                 targetPagePath,
+                dependencySnapshots,
                 dependencies,
                 targetLifecycle,
                 layoutPlan,
@@ -45,6 +47,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             ClientContext context,
             string targetPagePath,
             string pageOriginalIdentifier,
+            IEnumerable<PageReferenceSnapshot> dependencySnapshots,
             IEnumerable<PageReferenceAction> dependencies,
             PublishingPageTargetLifecycle targetLifecycle,
             PublishingPageLayoutMaterializationPlan layoutPlan,
@@ -57,6 +60,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             return Inspect(
                 context,
                 targetPagePath,
+                dependencySnapshots,
                 dependencies,
                 targetLifecycle,
                 layoutPlan,
@@ -72,6 +76,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
         public static PublishingPageTargetSnapshot Inspect(
             ClientContext context,
             string targetPagePath,
+            IEnumerable<PageReferenceSnapshot> dependencySnapshots,
             IEnumerable<PageReferenceAction> dependencies,
             PublishingPageTargetLifecycle targetLifecycle,
             PublishingPageLayoutMaterializationPlan layoutPlan,
@@ -84,6 +89,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             return Inspect(
                 context,
                 targetPagePath,
+                dependencySnapshots,
                 dependencies,
                 targetLifecycle,
                 layoutPlan,
@@ -99,6 +105,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
         private static PublishingPageTargetSnapshot Inspect(
             ClientContext context,
             string targetPagePath,
+            IEnumerable<PageReferenceSnapshot> dependencySnapshots,
             IEnumerable<PageReferenceAction> dependencies,
             PublishingPageTargetLifecycle targetLifecycle,
             PublishingPageLayoutMaterializationPlan layoutPlan,
@@ -197,7 +204,63 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 blockers.Add($"The target Page path '{targetPagePath}' is outside the publishing Pages library '{actualDirectory}'.");
             }
 
-            var dependencyPaths = dependencies
+            var dependencyActions = (dependencies ?? Array.Empty<PageReferenceAction>()).ToArray();
+            var dependencyById = (dependencySnapshots ?? Array.Empty<PageReferenceSnapshot>())
+                .Where(value => value != null && !string.IsNullOrWhiteSpace(value.Id))
+                .GroupBy(value => value.Id, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+            foreach (var action in dependencyActions)
+            {
+                if (action == null
+                    || string.IsNullOrWhiteSpace(action.SnapshotDependencyId)
+                    || !dependencyById.TryGetValue(action.SnapshotDependencyId ?? string.Empty, out var dependency))
+                {
+                    var missing = PageReferenceVerification.InspectPlan(null, action, null);
+                    snapshot.ReferenceVerifications.Add(missing);
+                    foreach (var diagnostic in missing.Diagnostics)
+                    {
+                        blockers.Add(diagnostic);
+                    }
+                    continue;
+                }
+
+                var verification = PageReferenceVerification.InspectPlan(
+                    dependency,
+                    action,
+                    (reference, plannedAction) =>
+                    {
+                        var owner = ResolveDependencyOwner(
+                            context,
+                            web,
+                            plannedAction.TargetServerRelativeUrl,
+                            dependencyTopology);
+                        return owner == null
+                            ? new PageReferenceTargetReadState
+                            {
+                                Exists = false,
+                                Diagnostics = new List<string>
+                                {
+                                    $"The reference target is outside the reviewed target topology: {plannedAction.TargetServerRelativeUrl}"
+                                }
+                            }
+                            : PageReferenceVerification.ReadTarget(
+                                context,
+                                owner,
+                                plannedAction.TargetServerRelativeUrl,
+                                PageReferenceVerification.TargetReadLimit(reference));
+                    },
+                    new Uri(web.Url));
+                snapshot.ReferenceVerifications.Add(verification);
+                if (!verification.Passed)
+                {
+                    foreach (var diagnostic in verification.Diagnostics)
+                    {
+                        blockers.Add($"Reference '{dependency.OriginalValue}': {diagnostic}");
+                    }
+                }
+            }
+
+            var dependencyPaths = dependencyActions
                 .Where(dependency => dependency.Disposition == PageReferenceDisposition.MaterializeAtTarget)
                 .Select(dependency => dependency.TargetServerRelativeUrl)
                 .Where(path => !string.IsNullOrWhiteSpace(path))
@@ -213,6 +276,41 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     continue;
                 }
                 dependencyOwners[path] = owner;
+            }
+
+            foreach (var owner in dependencyOwners.Values.Distinct())
+            {
+                context.Load(owner, value => value.EffectiveBasePermissions);
+            }
+            if (dependencyOwners.Count > 0)
+            {
+                try
+                {
+                    context.ExecuteQueryRetry();
+                }
+                catch (ServerException exception)
+                {
+                    blockers.Add(
+                        $"Target dependency owner permissions could not be read: {exception.Message}");
+                }
+                foreach (var pair in dependencyOwners)
+                {
+                    if (!pair.Value.IsPropertyAvailable("EffectiveBasePermissions"))
+                    {
+                        blockers.Add($"Target dependency owner permission evidence is unavailable: {pair.Key}");
+                        continue;
+                    }
+                    if (!pair.Value.EffectiveBasePermissions.Has(PermissionKind.AddListItems))
+                    {
+                        blockers.Add($"The target dependency owner cannot add files at '{pair.Key}'.");
+                    }
+                    if (pair.Key.IndexOf("/_catalogs/masterpage/", StringComparison.OrdinalIgnoreCase) >= 0
+                        && !pair.Value.EffectiveBasePermissions.Has(PermissionKind.AddAndCustomizePages))
+                    {
+                        blockers.Add(
+                            $"The target dependency owner lacks AddAndCustomizePages for '{pair.Key}'.");
+                    }
+                }
             }
 
             var pathsToProbe = new[] { targetPagePath }
@@ -291,6 +389,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             string targetPath,
             TopologyTargetAnalysis topology)
         {
+            if (PageReferenceSnapshotReader.IsSharePointRuntimePath(targetPath))
+            {
+                return pageWeb;
+            }
+
             if (PagePath.IsWithin(targetPath, pageWeb.ServerRelativeUrl))
             {
                 return pageWeb;

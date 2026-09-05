@@ -181,6 +181,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 targetContext,
                 targetPagePath,
                 pageOriginalIdentifier,
+                snapshot.Dependencies,
                 dependencyActions,
                 targetLifecycle,
                 layoutMaterialization,

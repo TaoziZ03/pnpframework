@@ -1,0 +1,16 @@
+<webParts>
+  <webPart xmlns="http://schemas.microsoft.com/WebPart/v3">
+    <metaData>
+      <type name="Microsoft.SharePoint.WebPartPages.ScriptEditorWebPart, Microsoft.SharePoint, Version=16.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c" />
+    </metaData>
+    <data>
+      <properties>
+        <property name="Content" type="string">&lt;script type="text/javascript" src="https://source.example/sites/ipkit/SiteAssets/Scripts/jquery-1.10.2.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://source.example/sites/ipkit/SiteAssets/Scripts/DocumentFilter.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="https://source.example/sites/ipkit/Style Library/DocumentFilter.css" /&gt;
+&lt;div id="ContentMain"&gt;&lt;img src="https://source.example/sites/ipkit/SiteAssets/Images/loading.gif" /&gt; Loading&lt;/div&gt;</property>
+        <property name="Title" type="string">Related Documents</property>
+      </properties>
+    </data>
+  </webPart>
+</webParts>

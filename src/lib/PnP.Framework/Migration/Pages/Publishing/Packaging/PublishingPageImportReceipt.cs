@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Lifecycle;
 using PnP.Framework.Migration.Pages.Publishing.Lifecycle;
+using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Publishing.Verification;
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Verification;
@@ -104,6 +105,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
         public IList<PublishingPageWebPartVerificationResult> WebPartResults { get; set; } = new List<PublishingPageWebPartVerificationResult>();
 
         public int MaterializedDependencyCount { get; set; }
+
+        public IList<PageReferenceVerificationResult> ReferenceVerifications { get; set; } = new List<PageReferenceVerificationResult>();
 
         public TopologyMaterializationReceipt TopologyMaterialization { get; set; }
 

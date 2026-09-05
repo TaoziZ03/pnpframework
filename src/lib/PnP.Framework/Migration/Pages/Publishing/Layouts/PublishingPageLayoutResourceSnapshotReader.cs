@@ -16,6 +16,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             PublishingPageLayoutResourceReference reference,
             IMigrationArtifactStore artifactStore)
         {
+            if (reference.IsUnresolvedDynamic)
+            {
+                return Result(
+                    reference,
+                    PublishingPageLayoutResourceEvidenceState.Unsupported,
+                    null,
+                    null,
+                    reference.Diagnostic
+                        ?? "The Page Layout constructs a required script reference dynamically, so an exact source URI cannot be captured.");
+            }
+
             if (PublishingPageLayoutResourcePolicy.IsTargetRuntimeResource(reference.Value))
             {
                 return Result(reference, PublishingPageLayoutResourceEvidenceState.TargetRuntime, null, null, null);
@@ -74,10 +85,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             }
             catch (ServerException exception)
             {
-                var accessDenied = exception.ServerErrorCode == -2147024891
-                    || exception.Message.IndexOf("Access denied", StringComparison.OrdinalIgnoreCase) >= 0;
-                var missing = exception.ServerErrorCode == -2147024894
-                    || string.Equals(exception.ServerErrorTypeName, "System.IO.FileNotFoundException", StringComparison.Ordinal);
+                var missing = PublishingPageLayoutServerFailure.IsMissing(
+                    exception.ServerErrorCode,
+                    exception.ServerErrorTypeName);
+                var accessDenied = PublishingPageLayoutServerFailure.IsAccessDenied(
+                    exception.ServerErrorCode,
+                    exception.ServerErrorTypeName);
                 return Result(
                     reference,
                     accessDenied ? PublishingPageLayoutResourceEvidenceState.AccessDenied

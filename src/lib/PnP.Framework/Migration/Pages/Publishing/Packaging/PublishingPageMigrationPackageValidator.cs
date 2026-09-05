@@ -12,6 +12,7 @@ using PnP.Framework.Migration.Pages.Publishing.Lifecycle;
 using PnP.Framework.Migration.Pages.Publishing.Packaging.Taxonomy;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Verification;
+using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
@@ -69,6 +70,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
 
             ValidateActionCoverage(package.Snapshot, plan);
+            ValidateReferencePreflight(package.Snapshot, plan);
             ValidateDerivedIngredientActions(package.Snapshot, plan);
             ValidateIngredientActions(package.Snapshot, plan.IngredientGraph, plan);
             ValidateExpectedContent(package, plan);
@@ -127,6 +129,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || plan.IngredientIssues == null
                 || plan.ExecutionFrontier == null
                 || plan.ExecutionFrontier.Decisions == null
+                || plan.TargetProbe.ReferenceVerifications == null
                 || plan.Blockers == null
                 || plan.Warnings == null)
             {
@@ -624,6 +627,75 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || !webPartIds.SetEquals(plannedWebPartIds))
             {
                 throw new InvalidDataException("The plan must contain exactly one Web Part action for every captured shared Web Part.");
+            }
+        }
+
+        private static void ValidateReferencePreflight(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageMigrationPlan plan)
+        {
+            var results = plan.TargetProbe.ReferenceVerifications;
+            var duplicate = results
+                .GroupBy(value => value?.SnapshotDependencyId, StringComparer.Ordinal)
+                .FirstOrDefault(group => string.IsNullOrWhiteSpace(group.Key) || group.Count() > 1);
+            if (results.Any(value => value == null)
+                || duplicate != null
+                || results.Count != plan.DependencyActions.Count)
+            {
+                throw new InvalidDataException(
+                    "The target reference preflight must contain exactly one result for every dependency action.");
+            }
+
+            var byId = results.ToDictionary(value => value.SnapshotDependencyId, StringComparer.Ordinal);
+            var snapshots = snapshot.Dependencies.ToDictionary(value => value.Id, StringComparer.Ordinal);
+            var conflict = plan.DependencyActions
+                .Where(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget)
+                .GroupBy(value => value.TargetServerRelativeUrl, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(group => group
+                    .Select(value => snapshots[value.SnapshotDependencyId])
+                    .Select(value => $"{value.ContentLength}:{value.ContentSha256}")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count() > 1);
+            if (conflict != null)
+            {
+                throw new InvalidDataException(
+                    $"Conflicting dependency payloads map to target path '{conflict.Key}'.");
+            }
+            foreach (var action in plan.DependencyActions)
+            {
+                if (!byId.TryGetValue(action.SnapshotDependencyId, out var result)
+                    || result.Disposition != action.Disposition
+                    || !string.Equals(
+                        result.TargetServerRelativeUrl,
+                        action.TargetServerRelativeUrl,
+                        StringComparison.OrdinalIgnoreCase)
+                    || result.Diagnostics == null
+                    || result.TargetRead != null && result.TargetRead.Diagnostics == null
+                    || plan.IsExecutable && !result.Passed)
+                {
+                    throw new InvalidDataException(
+                        $"The target reference preflight does not verify dependency action '{action.SnapshotDependencyId}'.");
+                }
+
+                var source = snapshots[action.SnapshotDependencyId];
+                var expected = PageReferenceVerification.InspectPlan(
+                    source,
+                    action,
+                    (_, __) => result.TargetRead,
+                    new Uri(plan.TargetWebUrl));
+                if (!PublishingPageValidationCanonical.Equals(expected, result))
+                {
+                    throw new InvalidDataException(
+                        $"The target reference preflight was not derived from dependency action '{action.SnapshotDependencyId}'.");
+                }
+                if (action.Disposition == PageReferenceDisposition.RewriteToTarget
+                    && source.IsRenderableResource
+                    && plan.IsExecutable
+                    && (result.TargetRead == null || !result.TargetRead.EvidenceComplete))
+                {
+                    throw new InvalidDataException(
+                        $"Renderable RewriteToTarget action '{action.SnapshotDependencyId}' requires complete fresh target evidence.");
+                }
             }
         }
 

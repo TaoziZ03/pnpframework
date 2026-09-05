@@ -75,6 +75,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts.Packaging
             {
                 throw new InvalidDataException("The Page Layout resource-reference inventory contains a missing or duplicate entry.");
             }
+            if (layout.ResourceReferences.Any(value => value.IsUnresolvedDynamic
+                && string.IsNullOrWhiteSpace(value.Diagnostic)))
+            {
+                throw new InvalidDataException("An unresolved dynamic Page Layout resource must retain an explicit diagnostic.");
+            }
 
             if (layout.Registrations.Any(item => item == null)
                 || layout.Controls.Any(item => item == null)
@@ -103,6 +108,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts.Packaging
                 if (resource.Diagnostics == null || resource.Sources == null)
                 {
                     throw new InvalidDataException($"The Page Layout resource '{resource.Reference.Value}' contains a null evidence collection.");
+                }
+
+                if (resource.Reference.IsUnresolvedDynamic
+                    && (resource.EvidenceState != PublishingPageLayoutResourceEvidenceState.Unsupported
+                        || resource.Artifact != null
+                        || resource.ContentBase64 != null))
+                {
+                    throw new InvalidDataException(
+                        $"Unresolved dynamic Page Layout resource '{resource.Reference.Value}' must retain unsupported evidence without payload bytes.");
                 }
 
                 if (resource.EvidenceState == PublishingPageLayoutResourceEvidenceState.Readable)
@@ -208,6 +222,22 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts.Packaging
                 && layout.ResourceMaterializations.Count != layout.ResourceReferences.Count)
             {
                 throw new InvalidDataException("A readable custom Page Layout plan must contain exactly one resource action for every captured reference.");
+            }
+
+            foreach (var unresolved in layout.ResourceReferences.Where(value => value.IsUnresolvedDynamic))
+            {
+                var actions = layout.ResourceMaterializations
+                    .Where(value => string.Equals(
+                        value.SourceReference,
+                        unresolved.Value,
+                        StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                if (actions.Length == 0
+                    || actions.Any(value => value.Disposition != PublishingPageLayoutResourceMaterializationDisposition.Block))
+                {
+                    throw new InvalidDataException(
+                        $"Unresolved dynamic Page Layout resource '{unresolved.Value}' must map only to an explicit Block action.");
+                }
             }
 
             var conflictingTarget = layout.ResourceMaterializations

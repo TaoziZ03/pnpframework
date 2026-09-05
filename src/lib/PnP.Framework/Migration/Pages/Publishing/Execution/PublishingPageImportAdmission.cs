@@ -177,6 +177,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 freshProbe = PublishingPageTargetInspector.Inspect(
                     targetContext,
                     package.Plan.TargetPageServerRelativeUrl,
+                    package.Snapshot.Dependencies,
                     executionScope.ReferenceActions(package),
                     executionScope.Lifecycle
                         ? package.Plan.TargetLifecycle

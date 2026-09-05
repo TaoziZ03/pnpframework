@@ -11,7 +11,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace PnP.Framework.Migration.Pages.References
 {
@@ -29,12 +31,15 @@ namespace PnP.Framework.Migration.Pages.References
             IEnumerable<ClassicWebPartSnapshot> webParts,
             PageCaptureOptions options,
             ICollection<string> warnings,
-            IEnumerable<PageFieldValueSnapshot> fields = null)
+            IEnumerable<PageFieldValueSnapshot> fields = null,
+            Func<Web, ClientContext, string, long, byte[]> payloadReader = null)
         {
             var candidates = ExtractHtmlReferences(pageContent);
             foreach (var webPart in webParts ?? Array.Empty<ClassicWebPartSnapshot>())
             {
-                candidates.AddRange(ExtractTextReferences(webPart.ExportXml, $"webpart:{webPart.Id}"));
+                var consumer = $"webpart:{webPart.Id}";
+                candidates.AddRange(ExtractClassicScriptEditorReferences(webPart.ExportXml, consumer));
+                candidates.AddRange(ExtractTextReferences(webPart.ExportXml, consumer));
             }
 
             if (fields != null)
@@ -70,7 +75,8 @@ namespace PnP.Framework.Migration.Pages.References
                         continue;
                     }
 
-                    var htmlRefs = ExtractHtmlReferences(fieldValue).ToList();
+                    var fieldConsumer = $"field:{field.InternalName}";
+                    var htmlRefs = ExtractHtmlReferences(fieldValue, fieldConsumer).ToList();
                     candidates.AddRange(htmlRefs);
                     if (htmlRefs.Count == 0 && IsImageField(field.InternalName) && LooksLikeReference(fieldValue))
                     {
@@ -83,7 +89,7 @@ namespace PnP.Framework.Migration.Pages.References
                         });
                     }
                     var htmlValues = new HashSet<string>(htmlRefs.Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
-                    candidates.AddRange(ExtractTextReferences(fieldValue, $"field:{field.InternalName}").Where(r => !htmlValues.Contains(r.Value)));
+                    candidates.AddRange(ExtractTextReferences(fieldValue, fieldConsumer).Where(r => !htmlValues.Contains(r.Value)));
                 }
             }
 
@@ -94,7 +100,12 @@ namespace PnP.Framework.Migration.Pages.References
                          .GroupBy(item => $"{item.Consumer}\n{item.Value}", StringComparer.OrdinalIgnoreCase)
                          .Select(group => group.First()))
             {
-                if (!TryResolveUri(sourcePageUri, candidate.Value, out var absoluteUri))
+                if (!TryResolveUri(
+                    sourcePageUri,
+                    sourceWebUri,
+                    sourceTopology?.SiteCollectionUrl,
+                    candidate.Value,
+                    out var absoluteUri))
                 {
                     continue;
                 }
@@ -107,7 +118,8 @@ namespace PnP.Framework.Migration.Pages.References
                     candidate,
                     absoluteUri,
                     options,
-                    warnings));
+                    warnings,
+                    payloadReader));
             }
 
             return result;
@@ -115,10 +127,15 @@ namespace PnP.Framework.Migration.Pages.References
 
         public static bool IsSharePointRuntimePath(string serverRelativeUrl)
         {
-            return serverRelativeUrl.StartsWith("/_layouts/", StringComparison.OrdinalIgnoreCase)
-                || serverRelativeUrl.StartsWith("/_vti_bin/", StringComparison.OrdinalIgnoreCase)
-                || serverRelativeUrl.StartsWith("/_api/", StringComparison.OrdinalIgnoreCase)
-                || serverRelativeUrl.IndexOf("/_catalogs/masterpage/", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (string.IsNullOrWhiteSpace(serverRelativeUrl))
+            {
+                return false;
+            }
+
+            return serverRelativeUrl.IndexOf("/_layouts/", StringComparison.OrdinalIgnoreCase) >= 0
+                || serverRelativeUrl.IndexOf("/_controltemplates/", StringComparison.OrdinalIgnoreCase) >= 0
+                || serverRelativeUrl.IndexOf("/_vti_bin/", StringComparison.OrdinalIgnoreCase) >= 0
+                || serverRelativeUrl.IndexOf("/_api/", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static PageReferenceSnapshot Capture(
@@ -129,7 +146,8 @@ namespace PnP.Framework.Migration.Pages.References
             ReferenceCandidate candidate,
             Uri absoluteUri,
             PageCaptureOptions options,
-            ICollection<string> warnings)
+            ICollection<string> warnings,
+            Func<Web, ClientContext, string, long, byte[]> payloadReader)
         {
             var reference = new PageReferenceSnapshot
             {
@@ -143,14 +161,25 @@ namespace PnP.Framework.Migration.Pages.References
             };
             if (!string.Equals(sourceWebUri.Host, absoluteUri.Host, StringComparison.OrdinalIgnoreCase))
             {
+                MarkMissingRenderablePayload(
+                    reference,
+                    "The external renderable resource is retained by URL only; no source payload was captured.");
                 return reference;
             }
 
             var sourcePath = Uri.UnescapeDataString(absoluteUri.AbsolutePath);
             var sourceWebPath = Uri.UnescapeDataString(sourceWebUri.AbsolutePath).TrimEnd('/');
             reference.SourceServerRelativeUrl = sourcePath;
-            if (!candidate.IsRenderableResource || IsSharePointRuntimePath(sourcePath))
+            if (!candidate.IsRenderableResource)
             {
+                return reference;
+            }
+
+            if (IsSharePointRuntimePath(sourcePath))
+            {
+                MarkMissingRenderablePayload(
+                    reference,
+                    "The reference is supplied by the SharePoint runtime; no source payload was captured.");
                 return reference;
             }
 
@@ -191,7 +220,15 @@ namespace PnP.Framework.Migration.Pages.References
                     var ownerWeb = owner.WebId == source.WebId
                         ? sourceContext.Web
                         : sourceContext.Site.OpenWebById(owner.WebId);
-                    var payload = ReadFile(ownerWeb, sourceContext, sourcePath, options.MaximumDependencyBytes);
+                    var payload = (payloadReader ?? ReadFile)(
+                        ownerWeb,
+                        sourceContext,
+                        sourcePath,
+                        options.MaximumDependencyBytes);
+                    if (payload == null)
+                    {
+                        throw new IOException("The source dependency reader returned no payload bytes.");
+                    }
                     reference.ContentBase64 = Convert.ToBase64String(payload);
                     reference.ContentLength = payload.LongLength;
                     reference.ContentSha256 = PageDigest.ComputeSha256(payload);
@@ -200,7 +237,7 @@ namespace PnP.Framework.Migration.Pages.References
                 {
                     reference.CaptureStatus = PageCaptureStatus.Failed;
                     reference.Diagnostics.Add(exception.Message);
-                    warnings.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
+                    warnings?.Add($"Resource '{absoluteUri}' could not be captured and may block a later plan: {exception.Message}");
                 }
             }
             else
@@ -264,6 +301,11 @@ namespace PnP.Framework.Migration.Pages.References
 
         private static List<ReferenceCandidate> ExtractHtmlReferences(string html)
         {
+            return ExtractHtmlReferences(html, null);
+        }
+
+        private static List<ReferenceCandidate> ExtractHtmlReferences(string html, string consumer)
+        {
             var result = new List<ReferenceCandidate>();
             if (string.IsNullOrWhiteSpace(html))
             {
@@ -273,10 +315,10 @@ namespace PnP.Framework.Migration.Pages.References
             var document = new HtmlParser().ParseDocument(html);
             foreach (var element in document.All)
             {
-                AddAttributeReference(result, element, "href", GetKind(element, "href"));
-                AddAttributeReference(result, element, "src", GetKind(element, "src"));
-                AddAttributeReference(result, element, "poster", PageReferenceKind.Media);
-                AddAttributeReference(result, element, "data", PageReferenceKind.Object);
+                AddAttributeReference(result, element, "href", GetKind(element, "href"), consumer);
+                AddAttributeReference(result, element, "src", GetKind(element, "src"), consumer);
+                AddAttributeReference(result, element, "poster", PageReferenceKind.Media, consumer);
+                AddAttributeReference(result, element, "data", PageReferenceKind.Object, consumer);
                 var style = element.GetAttribute("style");
                 if (!string.IsNullOrWhiteSpace(style))
                 {
@@ -284,7 +326,7 @@ namespace PnP.Framework.Migration.Pages.References
                     {
                         result.Add(new ReferenceCandidate
                         {
-                            Consumer = $"{element.LocalName}[style]",
+                            Consumer = consumer ?? $"{element.LocalName}[style]",
                             Kind = PageReferenceKind.Image,
                             Value = match.Groups["url"].Value.Trim(),
                             IsRenderableResource = true
@@ -296,30 +338,131 @@ namespace PnP.Framework.Migration.Pages.References
             return result;
         }
 
-        private static IEnumerable<ReferenceCandidate> ExtractTextReferences(string text, string consumer)
+        private static IEnumerable<ReferenceCandidate> ExtractClassicScriptEditorReferences(
+            string exportXml,
+            string consumer)
+        {
+            if (string.IsNullOrWhiteSpace(exportXml))
+            {
+                return Array.Empty<ReferenceCandidate>();
+            }
+
+            try
+            {
+                var document = XDocument.Parse(exportXml, LoadOptions.PreserveWhitespace);
+                return document
+                    .Descendants()
+                    .Where(element => string.Equals(element.Name.LocalName, "webPart", StringComparison.OrdinalIgnoreCase))
+                    .Where(IsScriptEditorWebPart)
+                    .SelectMany(element => element
+                        .Descendants()
+                        .Where(property => string.Equals(property.Name.LocalName, "property", StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(AttributeValue(property, "name"), "Content", StringComparison.OrdinalIgnoreCase))
+                        .SelectMany(property =>
+                        {
+                            var content = WebUtility.HtmlDecode(property.Value ?? string.Empty);
+                            return ExtractHtmlReferences(content, consumer)
+                                .Concat(ExtractTextReferences(content, consumer, inferSafeRenderableKind: true));
+                        }))
+                    .GroupBy(candidate => candidate.Value, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .ToArray();
+            }
+            catch (System.Xml.XmlException)
+            {
+                return Array.Empty<ReferenceCandidate>();
+            }
+        }
+
+        private static bool IsScriptEditorWebPart(XElement webPart)
+        {
+            return webPart.Descendants()
+                .Where(element => string.Equals(element.Name.LocalName, "type", StringComparison.OrdinalIgnoreCase))
+                .Select(element => AttributeValue(element, "name"))
+                .Any(value => !string.IsNullOrWhiteSpace(value)
+                    && string.Equals(
+                        value.Split(',')[0].Trim(),
+                        "Microsoft.SharePoint.WebPartPages.ScriptEditorWebPart",
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string AttributeValue(XElement element, string localName)
+        {
+            return element?.Attributes()
+                .FirstOrDefault(attribute => string.Equals(
+                    attribute.Name.LocalName,
+                    localName,
+                    StringComparison.OrdinalIgnoreCase))?.Value;
+        }
+
+        private static IEnumerable<ReferenceCandidate> ExtractTextReferences(
+            string text,
+            string consumer,
+            bool inferSafeRenderableKind = false)
         {
             if (string.IsNullOrWhiteSpace(text))
             {
                 return Array.Empty<ReferenceCandidate>();
             }
 
-            return Regex.Matches(text, @"https?://[^\s'""<>]+|(?<quote>['""])(?<path>/[^'""<>\s]+)\k<quote>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+            return Regex.Matches(
+                    text,
+                    @"(?<quote>['""])(?<path>(?:https?://|/|~site(?:collection)?/|~/)[^'""<>\r\n]+)\k<quote>|https?://[^\s'""<>]+",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
                 .Cast<Match>()
-                .Select(match => new ReferenceCandidate
+                .Select(match => (match.Groups["path"].Success ? match.Groups["path"].Value : match.Value)
+                    .Trim()
+                    .TrimEnd('.', ',', ';', ')'))
+                .Select(value =>
                 {
-                    Consumer = consumer,
-                    Kind = PageReferenceKind.Unknown,
-                    Value = (match.Groups["path"].Success ? match.Groups["path"].Value : match.Value).TrimEnd('.', ',', ';', ')'),
-                    IsRenderableResource = false
+                    var kind = inferSafeRenderableKind
+                        ? InferSafeRenderableKind(value)
+                        : PageReferenceKind.Unknown;
+                    return new ReferenceCandidate
+                    {
+                        Consumer = consumer,
+                        Kind = kind,
+                        Value = value,
+                        IsRenderableResource = kind == PageReferenceKind.Script
+                            || kind == PageReferenceKind.StyleSheet
+                    };
                 })
                 .ToArray();
+        }
+
+        private static PageReferenceKind InferSafeRenderableKind(string value)
+        {
+            var path = value ?? string.Empty;
+            if (Uri.TryCreate(path, UriKind.Absolute, out var absolute))
+            {
+                path = absolute.AbsolutePath;
+            }
+            else
+            {
+                var delimiter = path.IndexOfAny(new[] { '?', '#' });
+                if (delimiter >= 0)
+                {
+                    path = path.Substring(0, delimiter);
+                }
+            }
+
+            if (path.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
+            {
+                return PageReferenceKind.Script;
+            }
+            if (path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+            {
+                return PageReferenceKind.StyleSheet;
+            }
+            return PageReferenceKind.Unknown;
         }
 
         private static void AddAttributeReference(
             ICollection<ReferenceCandidate> result,
             IElement element,
             string attributeName,
-            PageReferenceKind kind)
+            PageReferenceKind kind,
+            string consumer)
         {
             var value = element.GetAttribute(attributeName);
             if (string.IsNullOrWhiteSpace(value))
@@ -329,12 +472,25 @@ namespace PnP.Framework.Migration.Pages.References
 
             result.Add(new ReferenceCandidate
             {
-                Consumer = $"{element.LocalName}[{attributeName}]",
+                Consumer = consumer ?? $"{element.LocalName}[{attributeName}]",
                 Kind = kind,
                 Value = value.Trim(),
                 IsRenderableResource = kind != PageReferenceKind.Anchor
                     && kind != PageReferenceKind.Unknown
             });
+        }
+
+        private static void MarkMissingRenderablePayload(
+            PageReferenceSnapshot reference,
+            string diagnostic)
+        {
+            if (reference == null || !reference.IsRenderableResource)
+            {
+                return;
+            }
+
+            reference.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+            reference.Diagnostics.Add(diagnostic);
         }
 
         private static PageReferenceKind GetKind(IElement element, string attributeName)
@@ -365,7 +521,12 @@ namespace PnP.Framework.Migration.Pages.References
             }
         }
 
-        private static bool TryResolveUri(Uri sourcePageUri, string value, out Uri result)
+        private static bool TryResolveUri(
+            Uri sourcePageUri,
+            Uri sourceWebUri,
+            string sourceSiteCollectionUrl,
+            string value,
+            out Uri result)
         {
             result = null;
             if (string.IsNullOrWhiteSpace(value)
@@ -378,7 +539,30 @@ namespace PnP.Framework.Migration.Pages.References
                 return false;
             }
 
-            return Uri.TryCreate(sourcePageUri, value, out result)
+            var normalized = value.Trim().Replace('\\', '/');
+            if (normalized.StartsWith("~sitecollection/", StringComparison.OrdinalIgnoreCase))
+            {
+                var owner = Uri.TryCreate(sourceSiteCollectionUrl, UriKind.Absolute, out var siteCollection)
+                    ? siteCollection
+                    : sourceWebUri;
+                normalized = new Uri(
+                    new Uri(UrlUtility.EnsureTrailingSlash(owner.AbsoluteUri)),
+                    normalized.Substring("~sitecollection/".Length)).AbsoluteUri;
+            }
+            else if (normalized.StartsWith("~site/", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = new Uri(
+                    new Uri(UrlUtility.EnsureTrailingSlash(sourceWebUri.AbsoluteUri)),
+                    normalized.Substring("~site/".Length)).AbsoluteUri;
+            }
+            else if (normalized.StartsWith("~/", StringComparison.Ordinal))
+            {
+                normalized = new Uri(
+                    new Uri(UrlUtility.EnsureTrailingSlash(sourceWebUri.AbsoluteUri)),
+                    normalized.Substring(2)).AbsoluteUri;
+            }
+
+            return Uri.TryCreate(sourcePageUri, normalized, out result)
                 && (result.Scheme == Uri.UriSchemeHttps || result.Scheme == Uri.UriSchemeHttp);
         }
 

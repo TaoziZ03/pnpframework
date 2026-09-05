@@ -30,8 +30,9 @@ namespace PnP.Framework.Migration.Pages.References
             var targetSitePath = siteMapping == null
                 ? null
                 : Uri.UnescapeDataString(new Uri(siteMapping.TargetSiteCollectionUrl).AbsolutePath).TrimEnd('/');
+            var dependencyArray = (dependencies ?? Array.Empty<PageReferenceSnapshot>()).ToArray();
             var result = new List<PageReferenceAction>();
-            foreach (var reference in dependencies)
+            foreach (var reference in dependencyArray)
             {
                 var action = new PageReferenceAction
                 {
@@ -65,6 +66,24 @@ namespace PnP.Framework.Migration.Pages.References
                 var insideSourceWeb = PagePath.IsWithin(sourcePath, sourceWebPath);
                 var insideSourceSite = !string.IsNullOrWhiteSpace(sourceSitePath)
                     && PagePath.IsWithin(sourcePath, sourceSitePath);
+                if (PageReferenceSnapshotReader.IsSharePointRuntimePath(sourcePath)
+                    && reference.Kind != PageReferenceKind.IFrame)
+                {
+                    action.TargetServerRelativeUrl = insideSourceWeb
+                        ? targetWebPath + sourcePath.Substring(sourceWebPath.Length)
+                        : insideSourceSite
+                            ? targetSitePath + sourcePath.Substring(sourceSitePath.Length)
+                            : sourcePath;
+                    action.TargetAbsoluteUrl = targetWebUri.GetLeftPart(UriPartial.Authority)
+                        + PagePath.Encode(action.TargetServerRelativeUrl)
+                        + sourceUri.Query
+                        + sourceUri.Fragment;
+                    action.Disposition = PageReferenceDisposition.RewriteToTarget;
+                    action.Diagnostics.Add(
+                        "Rewrite the recognized SharePoint runtime path only after a fresh target HTTP probe verifies the exact resource.");
+                    continue;
+                }
+
                 if (!insideSourceWeb && !insideSourceSite)
                 {
                     action.Diagnostics.Add(
@@ -81,7 +100,7 @@ namespace PnP.Framework.Migration.Pages.References
                     + sourceUri.Query
                     + sourceUri.Fragment;
                 action.Disposition = PageReferenceDisposition.RewriteToTarget;
-                if (!reference.IsRenderableResource || PageReferenceSnapshotReader.IsSharePointRuntimePath(sourcePath))
+                if (!reference.IsRenderableResource)
                 {
                     continue;
                 }
@@ -95,7 +114,7 @@ namespace PnP.Framework.Migration.Pages.References
                 }
 
                 if (reference.CaptureStatus == PageCaptureStatus.Failed
-                    || string.IsNullOrWhiteSpace(reference.ContentBase64)
+                    || reference.ContentBase64 == null
                     || string.IsNullOrWhiteSpace(reference.ContentSha256))
                 {
                     if (options.AllowExternalResourceReferences)
@@ -115,6 +134,33 @@ namespace PnP.Framework.Migration.Pages.References
                 }
 
                 action.Disposition = PageReferenceDisposition.MaterializeAtTarget;
+            }
+
+            var dependencyById = dependencyArray
+                .GroupBy(value => value.Id, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+            foreach (var group in result
+                         .Where(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget)
+                         .GroupBy(value => value.TargetServerRelativeUrl, StringComparer.OrdinalIgnoreCase))
+            {
+                var payloads = group
+                    .Select(value => dependencyById[value.SnapshotDependencyId])
+                    .Select(value => $"{value.ContentLength}:{value.ContentSha256}")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                if (payloads.Length <= 1)
+                {
+                    continue;
+                }
+
+                foreach (var action in group)
+                {
+                    action.Disposition = PageReferenceDisposition.Block;
+                    action.Diagnostics.Add(
+                        "Multiple captured payloads map to the same target dependency path with different length or SHA-256 evidence.");
+                }
+                blockers.Add(
+                    $"Conflicting dependency payloads map to target path '{group.Key}'.");
             }
 
             return result.OrderBy(action => action.SnapshotDependencyId, StringComparer.Ordinal).ToList();
