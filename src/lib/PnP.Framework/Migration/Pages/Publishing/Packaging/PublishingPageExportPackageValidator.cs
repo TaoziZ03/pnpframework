@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Lists.Packaging;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages;
+using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Markup;
 using PnP.Framework.Migration.Pages.Profiles;
@@ -349,8 +350,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             {
                 throw new InvalidDataException($"The dependency inventory contains a missing or duplicate ID '{duplicateDependency.Key}'.");
             }
-            foreach (var dependency in snapshot.Dependencies.Where(item => !string.IsNullOrWhiteSpace(item.ContentBase64)))
+            foreach (var dependency in snapshot.Dependencies)
             {
+                if (dependency.IsRenderableResource
+                    && dependency.CaptureStatus == PageCaptureStatus.Captured
+                    && dependency.ContentBase64 == null)
+                {
+                    throw new InvalidDataException(
+                        $"Renderable dependency '{dependency.Id}' cannot claim Captured without retained payload bytes.");
+                }
+                if (dependency.ContentBase64 == null)
+                {
+                    if (!string.IsNullOrWhiteSpace(dependency.ContentSha256)
+                        || dependency.ContentLength != 0)
+                    {
+                        throw new InvalidDataException(
+                            $"Dependency '{dependency.Id}' has payload metadata without retained payload bytes.");
+                    }
+                    continue;
+                }
+
                 byte[] payload;
                 try
                 {

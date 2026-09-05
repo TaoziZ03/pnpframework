@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PnP.Framework.Migration.Pages.References;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Verification
 {
@@ -45,5 +46,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
         public bool TargetPageExists { get; set; }
 
         public IList<string> ExistingDependencyPaths { get; set; } = new List<string>();
+
+        public IList<PageReferenceVerificationResult> ReferenceVerifications { get; set; } = new List<PageReferenceVerificationResult>();
     }
 }

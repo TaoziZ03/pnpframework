@@ -220,10 +220,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
             }
             catch (ServerException exception)
             {
-                var accessDenied = exception.ServerErrorCode == -2147024891
-                    || exception.Message.IndexOf("Access denied", StringComparison.OrdinalIgnoreCase) >= 0;
-                var missing = exception.ServerErrorCode == -2147024894
-                    || string.Equals(exception.ServerErrorTypeName, "System.IO.FileNotFoundException", StringComparison.Ordinal);
+                var missing = PublishingPageLayoutServerFailure.IsMissing(
+                    exception.ServerErrorCode,
+                    exception.ServerErrorTypeName);
+                var accessDenied = PublishingPageLayoutServerFailure.IsAccessDenied(
+                    exception.ServerErrorCode,
+                    exception.ServerErrorTypeName);
                 var state = accessDenied ? PublishingPageLayoutEvidenceState.AccessDenied
                     : missing ? PublishingPageLayoutEvidenceState.Missing
                     : PublishingPageLayoutEvidenceState.Failed;

@@ -64,7 +64,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 || !reference.IsRenderableResource
                 || reference.Kind == PageReferenceKind.IFrame
                 || reference.CaptureStatus == PageCaptureStatus.Failed
-                || string.IsNullOrWhiteSpace(reference.ContentBase64)
+                || reference.ContentBase64 == null
                 || string.IsNullOrWhiteSpace(reference.ContentSha256)
                 || PageReferenceSnapshotReader.IsSharePointRuntimePath(
                     reference.SourceServerRelativeUrl))

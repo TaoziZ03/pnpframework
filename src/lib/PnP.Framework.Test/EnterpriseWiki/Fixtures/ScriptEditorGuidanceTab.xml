@@ -1,0 +1,13 @@
+<webParts>
+  <webPart xmlns="http://schemas.microsoft.com/WebPart/v3">
+    <metaData>
+      <type name="Microsoft.SharePoint.WebPartPages.ScriptEditorWebPart" />
+    </metaData>
+    <data>
+      <properties>
+        <property name="Content" type="string">&amp;lt;script type=&amp;quot;text/javascript&amp;quot; src=&amp;quot;~site/SiteAssets/Scripts/ipkitguidancetab.js&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;</property>
+        <property name="Title" type="string">Guidance tab script</property>
+      </properties>
+    </data>
+  </webPart>
+</webParts>

@@ -83,9 +83,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 .Contains("protectedAssets", StringComparison.Ordinal));
             Assert.IsFalse(PublishingPagePackageSerializer.SerializeCanonical(new ListDocumentSnapshot())
                 .Contains("captureDecision", StringComparison.Ordinal));
-            Assert.AreEqual("pnp-publishing-page-export/v2", PublishingPagePackageContract.ExportSchemaVersion);
-            Assert.AreEqual("pnp-publishing-page-migration-package/v2", PublishingPagePackageContract.MigrationSchemaVersion);
-            Assert.AreEqual("pnp-publishing-page-import-receipt/v4", PublishingPagePackageContract.ReceiptSchemaVersion);
+            Assert.AreEqual("pnp-publishing-page-export/v3", PublishingPagePackageContract.ExportSchemaVersion);
+            Assert.AreEqual("pnp-publishing-page-migration-package/v3", PublishingPagePackageContract.MigrationSchemaVersion);
+            Assert.AreEqual("pnp-publishing-page-import-receipt/v5", PublishingPagePackageContract.ReceiptSchemaVersion);
         }
 
         [TestMethod]
@@ -1166,9 +1166,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             Assert.IsNull(options.ProtectedAssets);
             Assert.AreEqual(golden, PublishingPagePackageSerializer.SerializeCanonical(options));
-            Assert.AreEqual("pnp-publishing-page-export/v2", PublishingPagePackageContract.ExportSchemaVersion);
-            Assert.AreEqual("pnp-publishing-page-migration-package/v2", PublishingPagePackageContract.MigrationSchemaVersion);
-            Assert.AreEqual("pnp-publishing-page-import-receipt/v4", PublishingPagePackageContract.ReceiptSchemaVersion);
+            Assert.AreEqual("pnp-publishing-page-export/v3", PublishingPagePackageContract.ExportSchemaVersion);
+            Assert.AreEqual("pnp-publishing-page-migration-package/v3", PublishingPagePackageContract.MigrationSchemaVersion);
+            Assert.AreEqual("pnp-publishing-page-import-receipt/v5", PublishingPagePackageContract.ReceiptSchemaVersion);
         }
 
         [TestMethod]

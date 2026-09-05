@@ -1,0 +1,15 @@
+<webParts>
+  <webPart xmlns="http://schemas.microsoft.com/WebPart/v3">
+    <metaData>
+      <type name="Microsoft.SharePoint.WebPartPages.ScriptEditorWebPart" />
+    </metaData>
+    <data>
+      <properties>
+        <property name="Content" type="string">&lt;div id="IPKitUsage"&gt;&lt;/div&gt;
+&lt;iframe id="campusFrame" src=" https://service.example.net" width="0px" height="0px"&gt;&lt;/iframe&gt;
+&lt;script src="https://source.example/sites/ipkit/SiteAssets/Scripts/IPKitUsageData.js" type="text/javascript"&gt;&lt;/script&gt;</property>
+        <property name="Title" type="string">IPKit Usage</property>
+      </properties>
+    </data>
+  </webPart>
+</webParts>

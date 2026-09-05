@@ -314,14 +314,35 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 {
                     receiptWarnings.Add($"Target Content Type mismatch. Expected '{expectedContentTypeId ?? "unavailable"}'; actual '{contentTypeId}'.");
                 }
-                var expectedMaterializedDependencies = executionScope.ReferenceActions(package)
-                    .Count(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget);
-                var dependenciesMatched = materializedDependencyCount == expectedMaterializedDependencies;
-                if (!dependenciesMatched)
+                var executableReferences = executionScope.ReferenceActions(package);
+                var referenceVerifications = PageReferenceVerification.Verify(
+                    package.Snapshot.Dependencies,
+                    executableReferences,
+                    reference => ReferenceConsumerMatched(
+                        package,
+                        executionScope,
+                        reference,
+                        storageContentEqual,
+                        freshFieldResults,
+                        webPartResults),
+                    (reference, action) => ReadTargetReference(
+                        verificationContext,
+                        package,
+                        topologyReceipt,
+                        reference,
+                        action),
+                    new Uri(package.Plan.TargetWebUrl));
+                var expectedMaterializedDependencies = PageReferenceVerification.ExpectedMaterializationCount(executableReferences);
+                var materializationCountMatched = materializedDependencyCount == expectedMaterializedDependencies;
+                var dependenciesMatched = materializationCountMatched
+                    && referenceVerifications.Count == executableReferences.Count
+                    && referenceVerifications.All(value => value.Passed);
+                if (!materializationCountMatched)
                 {
                     receiptWarnings.Add(
                         $"Materialized dependency count differs. Expected {expectedMaterializedDependencies}; observed {materializedDependencyCount}.");
                 }
+                AddReferenceWarnings(receiptWarnings, referenceVerifications);
                 var readbackPassed = contentTypeMatched
                     && storageContentEqual
                     && webPartsMatched
@@ -357,6 +378,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                         TaxonomyRelationshipsMatched = taxonomyRelationshipsMatched,
                         TopologyMatched = topologyMatched,
                         DependenciesMatched = dependenciesMatched,
+                        ReferenceResults = referenceVerifications,
                         RuntimeVerificationRequired = runtimeVerificationRequired,
                         FieldResults = freshFieldResults,
                         WebPartResults = webPartResults,
@@ -408,6 +430,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     WebPartsMatched = webPartsMatched,
                     WebPartResults = webPartResults,
                     MaterializedDependencyCount = materializedDependencyCount,
+                    ReferenceVerifications = referenceVerifications,
                     TopologyMaterialization = topologyReceipt,
                     SharedTopologyMaterialization = sharedTopologyProof?.Receipt,
                     TopologyMatched = topologyMatched,
@@ -512,11 +535,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 package.Plan.LayoutMaterialization?.TargetServerRelativeUrl);
             var topologyMatched = TopologyMatched(package, executionScope, topologyReceipt, sharedTopologyProof);
             var listsMatched = ListsMatched(executionScope, listReceipts);
-            var expectedMaterializedDependencies = executionScope.ReferenceActions(package)
-                .Count(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget);
-            var dependenciesMatched = materializedDependencyCount == expectedMaterializedDependencies;
             var webPartsMatched = executionScope.WebPartActions(package).Count == 0;
             var taxonomyRelationshipsMatched = executionScope.TaxonomyActions(package).Count == 0;
+            var executableReferences = executionScope.ReferenceActions(package);
+            var referenceVerifications = PageReferenceVerification.Verify(
+                package.Snapshot.Dependencies,
+                executableReferences,
+                reference => ReferenceConsumerMatched(
+                    package,
+                    executionScope,
+                    reference,
+                    storageContentEqual,
+                    freshFieldResults,
+                    Array.Empty<PublishingPageWebPartVerificationResult>()),
+                executionSeam.ReadTargetReference,
+                new Uri(package.Plan.TargetWebUrl));
+            var expectedMaterializedDependencies = PageReferenceVerification.ExpectedMaterializationCount(executableReferences);
+            var materializationCountMatched = materializedDependencyCount == expectedMaterializedDependencies;
+            var dependenciesMatched = materializationCountMatched
+                && referenceVerifications.Count == executableReferences.Count
+                && referenceVerifications.All(value => value.Passed);
             var readbackPassed = storageContentEqual
                 && contentTypeMatched
                 && lifecycleMatched
@@ -543,7 +581,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             if (!plannedFieldsPassed) receiptWarnings.Add("Fresh page field readback did not verify every executable field value.");
             if (!topologyMatched) receiptWarnings.Add("Fresh topology evidence did not verify every target Web mapping.");
             if (!listsMatched) receiptWarnings.Add("Fresh List evidence did not verify every executable List transaction.");
-            if (!dependenciesMatched) receiptWarnings.Add("Materialized dependency count differs from the admitted dependency frontier.");
+            if (!materializationCountMatched) receiptWarnings.Add("Materialized dependency count differs from the admitted dependency frontier.");
+            AddReferenceWarnings(receiptWarnings, referenceVerifications);
             if (!webPartsMatched) receiptWarnings.Add("The controlled target storage session does not support executable Web Part verification.");
             if (!taxonomyRelationshipsMatched) receiptWarnings.Add("The controlled target storage session does not support executable taxonomy relationship verification.");
 
@@ -563,6 +602,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     TaxonomyRelationshipsMatched = taxonomyRelationshipsMatched,
                     TopologyMatched = topologyMatched,
                     DependenciesMatched = dependenciesMatched,
+                    ReferenceResults = referenceVerifications,
                     RuntimeVerificationRequired = runtimeVerificationRequired,
                     FieldResults = freshFieldResults,
                     WebPartResults = new List<PublishingPageWebPartVerificationResult>(),
@@ -605,6 +645,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 StorageContentEqual = storageContentEqual,
                 WebPartsMatched = webPartsMatched,
                 MaterializedDependencyCount = materializedDependencyCount,
+                ReferenceVerifications = referenceVerifications,
                 TopologyMaterialization = topologyReceipt,
                 TopologyMatched = topologyMatched,
                 ListMaterializations = listReceipts,
@@ -639,6 +680,105 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 : (int?)null;
         }
 
+        private static bool ReferenceConsumerMatched(
+            PublishingPageMigrationPackage package,
+            PublishingPageExecutionScope executionScope,
+            PageReferenceSnapshot reference,
+            bool publishingContentMatched,
+            IEnumerable<PageFieldImportResult> fieldResults,
+            IEnumerable<PublishingPageWebPartVerificationResult> webPartResults)
+        {
+            var consumer = reference?.Consumer ?? string.Empty;
+            const string webPartPrefix = "webpart:";
+            if (consumer.StartsWith(webPartPrefix, StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(consumer.Substring(webPartPrefix.Length), out var webPartId))
+            {
+                var selected = executionScope.WebPartActions(package)
+                    .Any(value => value.SourceWebPartId == webPartId);
+                return !selected || (webPartResults ?? Array.Empty<PublishingPageWebPartVerificationResult>())
+                    .Any(value => value.SourceWebPartId == webPartId && value.Passed);
+            }
+
+            const string fieldPrefix = "field:";
+            if (consumer.StartsWith(fieldPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var fieldName = consumer.Substring(fieldPrefix.Length);
+                var selected = executionScope.PageFieldActions(package)
+                    .Any(value => string.Equals(value.SourceInternalName, fieldName, StringComparison.OrdinalIgnoreCase));
+                return !selected || (fieldResults ?? Array.Empty<PageFieldImportResult>())
+                    .Any(value => string.Equals(value.InternalName, fieldName, StringComparison.OrdinalIgnoreCase)
+                        && value.Attempted
+                        && value.Succeeded);
+            }
+
+            return !executionScope.PublishingContent || publishingContentMatched;
+        }
+
+        private static PageReferenceTargetReadState ReadTargetReference(
+            ClientContext context,
+            PublishingPageMigrationPackage package,
+            TopologyMaterializationReceipt topologyReceipt,
+            PageReferenceSnapshot reference,
+            PageReferenceAction action)
+        {
+            if (action == null || string.IsNullOrWhiteSpace(action.TargetServerRelativeUrl))
+            {
+                return new PageReferenceTargetReadState
+                {
+                    Exists = false,
+                    Diagnostics = new List<string> { "The reference action has no target server-relative path." }
+                };
+            }
+
+            Web owner = null;
+            if (PageReferenceSnapshotReader.IsSharePointRuntimePath(action.TargetServerRelativeUrl)
+                || PagePath.IsWithin(
+                action.TargetServerRelativeUrl,
+                package.Plan.TargetWebServerRelativeUrl))
+            {
+                owner = context.Web;
+            }
+            else
+            {
+                var candidate = topologyReceipt?.Webs
+                    .Where(value => value != null
+                        && value.TargetWebId != Guid.Empty
+                        && !string.IsNullOrWhiteSpace(value.TargetWebUrl)
+                        && PagePath.IsWithin(
+                            action.TargetServerRelativeUrl,
+                            Uri.UnescapeDataString(new Uri(value.TargetWebUrl).AbsolutePath)))
+                    .OrderByDescending(value => new Uri(value.TargetWebUrl).AbsolutePath.Length)
+                    .FirstOrDefault();
+                if (candidate != null)
+                {
+                    owner = context.Site.OpenWebById(candidate.TargetWebId);
+                }
+            }
+
+            return PageReferenceVerification.ReadTarget(
+                context,
+                owner,
+                action.TargetServerRelativeUrl,
+                PageReferenceVerification.TargetReadLimit(reference));
+        }
+
+        private static void AddReferenceWarnings(
+            ICollection<string> warnings,
+            IEnumerable<PageReferenceVerificationResult> results)
+        {
+            foreach (var result in (results ?? Array.Empty<PageReferenceVerificationResult>()).Where(value => !value.Passed))
+            {
+                foreach (var diagnostic in result.Diagnostics)
+                {
+                    warnings.Add($"Reference {result.SnapshotDependencyId ?? "unknown"}: {diagnostic}");
+                }
+                foreach (var diagnostic in result.TargetRead?.Diagnostics ?? Array.Empty<string>())
+                {
+                    warnings.Add($"Reference {result.SnapshotDependencyId ?? "unknown"} target probe: {diagnostic}");
+                }
+            }
+        }
+
         private static PublishingPageImportReceipt VerifyComponents(
             ClientContext targetContext,
             PublishingPageMigrationPackage package,
@@ -659,9 +799,28 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 .ToList();
             var topologyMatched = TopologyMatched(package, executionScope, topologyReceipt, sharedTopologyProof);
             var listsMatched = ListsMatched(executionScope, listReceipts);
-            var expectedMaterializedDependencies = executionScope.ReferenceActions(package)
-                .Count(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget);
-            var dependenciesMatched = materializedDependencyCount == expectedMaterializedDependencies;
+            var executableReferences = executionScope.ReferenceActions(package);
+            var independentlyVerifiableReferences = new HashSet<string>(
+                executableReferences
+                    .Where(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget)
+                    .Select(value => value.SnapshotDependencyId),
+                StringComparer.Ordinal);
+            var referenceVerifications = PageReferenceVerification.Verify(
+                package.Snapshot.Dependencies,
+                executableReferences,
+                reference => independentlyVerifiableReferences.Contains(reference.Id),
+                (reference, action) => ReadTargetReference(
+                    targetContext,
+                    package,
+                    topologyReceipt,
+                    reference,
+                    action),
+                new Uri(package.Plan.TargetWebUrl));
+            var expectedMaterializedDependencies = PageReferenceVerification.ExpectedMaterializationCount(executableReferences);
+            var materializationCountMatched = materializedDependencyCount == expectedMaterializedDependencies;
+            var dependenciesMatched = materializationCountMatched
+                && referenceVerifications.Count == executableReferences.Count
+                && referenceVerifications.All(value => value.Passed);
             var layoutMatched = true;
             if (executionScope.Layout)
             {
@@ -686,11 +845,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
             {
                 receiptWarnings.Add("Fresh List readback did not verify every List transaction in the execution frontier.");
             }
-            if (!dependenciesMatched)
+            if (!materializationCountMatched)
             {
                 receiptWarnings.Add(
                     $"Materialized dependency count differs. Expected {expectedMaterializedDependencies}; observed {materializedDependencyCount}.");
             }
+            AddReferenceWarnings(receiptWarnings, referenceVerifications);
             foreach (var listReceipt in listReceipts.Where(value => !value.FreshReadbackPassed))
             {
                 receiptWarnings.AddRange(listReceipt.Diagnostics.Select(value =>
@@ -719,6 +879,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                     TaxonomyRelationshipsMatched = true,
                     TopologyMatched = topologyMatched,
                     DependenciesMatched = dependenciesMatched,
+                    ReferenceResults = referenceVerifications,
                     RuntimeVerificationRequired = false,
                     ListReceipts = listReceipts
                 });
@@ -756,6 +917,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
                 StorageContentEqual = true,
                 WebPartsMatched = true,
                 MaterializedDependencyCount = materializedDependencyCount,
+                ReferenceVerifications = referenceVerifications,
                 TopologyMaterialization = topologyReceipt,
                 SharedTopologyMaterialization = sharedTopologyProof?.Receipt,
                 TopologyMatched = topologyMatched,

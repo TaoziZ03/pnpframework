@@ -27,9 +27,9 @@ The migration package embeds the source snapshot, so Import does not need to rec
 
 | CLR contract | Schema |
 | --- | --- |
-| `PublishingPageExportPackage` | `pnp-publishing-page-export/v2` |
-| `PublishingPageMigrationPackage` | `pnp-publishing-page-migration-package/v2` |
-| `PublishingPageImportReceipt` | `pnp-publishing-page-import-receipt/v2` |
+| `PublishingPageExportPackage` | `pnp-publishing-page-export/v3` |
+| `PublishingPageMigrationPackage` | `pnp-publishing-page-migration-package/v3` |
+| `PublishingPageImportReceipt` | `pnp-publishing-page-import-receipt/v5` |
 | `PageArtifactSnapshot` | `pnp-page-artifact/v1` |
 | `PageRuntimeSnapshot` | `pnp-page-runtime/v1` |
 | `CanonicalPageIngredientGraph` | `pnp-page-ingredient-graph/v1`; `v2` when the plan contains explicit shared external references |

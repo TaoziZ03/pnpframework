@@ -18,6 +18,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Layouts
                 throw new ArgumentNullException(nameof(resource));
             }
 
+            if (resource.Reference.IsUnresolvedDynamic)
+            {
+                return Block(
+                    resource,
+                    resource.Reference.Diagnostic
+                        ?? "The required dynamic script reference is unresolved and cannot be copied or rewritten safely.");
+            }
+
             if (resource.EvidenceState == PublishingPageLayoutResourceEvidenceState.TargetRuntime)
             {
                 return new PublishingPageLayoutResourceMaterializationPlan

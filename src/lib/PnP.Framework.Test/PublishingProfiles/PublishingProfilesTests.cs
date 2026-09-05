@@ -1258,6 +1258,14 @@ namespace PnP.Framework.Test.PublishingProfiles
                 }
             };
             package.Plan.TargetProbe.EnableModeration = true;
+            package.Plan.TargetProbe.ReferenceVerifications = new List<PageReferenceVerificationResult>
+            {
+                PageReferenceVerification.InspectPlan(
+                    dependency,
+                    package.Plan.DependencyActions.Single(),
+                    null,
+                    new Uri(package.Plan.TargetWebUrl))
+            };
             package.Plan.RuntimeVerification.Requirements.Clear();
             package.Plan.Replacements = PageReferencePlanner.BuildTextReplacements(
                 package.Snapshot.Source,
@@ -1314,10 +1322,19 @@ namespace PnP.Framework.Test.PublishingProfiles
                         [PublishingPageTargetOwnership.PlanDigestPropertyName] = package.PlanDigest
                     }
                 };
+                var referenceReadback = new PageReferenceTargetReadState
+                {
+                    Exists = true,
+                    HttpStatusCode = 200,
+                    MediaType = "image/jpeg",
+                    ContentLength = dependency.ContentLength,
+                    ContentSha256 = dependency.ContentSha256
+                };
                 var executionSeam = new PublishingPageImportExecutionSeam
                 {
                     TargetWebUrl = package.Plan.TargetWebUrl,
-                    ReadTargetPage = () => storage
+                    ReadTargetPage = () => storage,
+                    ReadTargetReference = (_, __) => referenceReadback
                 };
                 var resumed = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
                     context,
@@ -1339,6 +1356,57 @@ namespace PnP.Framework.Test.PublishingProfiles
                 Assert.IsTrue(resumed.Steps.Any(value => value.ActionId == "admission.target-storage-session"));
                 Assert.IsTrue(resumed.Steps.Any(value => value.ActionId == "topology.controlled-session"));
                 Assert.IsTrue(resumed.Steps.Any(value => value.ActionId == "page.create" && value.Outcome == MutationOutcome.AlreadySatisfied));
+
+                var sealedReferencePreflight = package.Plan.TargetProbe.ReferenceVerifications.Single();
+                package.Plan.TargetProbe.ReferenceVerifications = null;
+                package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+                Assert.ThrowsException<InvalidDataException>(() => PublishingPagePackageValidator.ValidateMigration(package));
+                package.Plan.TargetProbe.ReferenceVerifications = new List<PageReferenceVerificationResult>();
+                package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+                Assert.ThrowsException<InvalidDataException>(() => PublishingPagePackageValidator.ValidateMigration(package));
+                package.Plan.TargetProbe.ReferenceVerifications = new List<PageReferenceVerificationResult>
+                {
+                    sealedReferencePreflight,
+                    sealedReferencePreflight
+                };
+                package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+                Assert.ThrowsException<InvalidDataException>(() => PublishingPagePackageValidator.ValidateMigration(package));
+                package.Plan.TargetProbe.ReferenceVerifications = new List<PageReferenceVerificationResult>
+                {
+                    sealedReferencePreflight
+                };
+                sealedReferencePreflight.TargetMatched = false;
+                package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+                Assert.ThrowsException<InvalidDataException>(() => PublishingPagePackageValidator.ValidateMigration(package));
+                sealedReferencePreflight.TargetMatched = true;
+                package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+
+                referenceReadback.Exists = false;
+                referenceReadback.HttpStatusCode = 404;
+                var missingDependency = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
+                    context,
+                    package,
+                    package.PlanDigest,
+                    executionSeam,
+                    ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(missingDependency.FreshReadbackPassed);
+                Assert.IsFalse(missingDependency.DependenciesMatched);
+                Assert.IsTrue(missingDependency.ReferenceVerifications.Single().TargetMatched == false);
+                Assert.AreEqual(1, missingDependency.MaterializedDependencyCount);
+                referenceReadback.HttpStatusCode = 403;
+                referenceReadback.EvidenceComplete = false;
+                var accessDeniedDependency = new PublishingPageMigrationImporter().ImportWithExecutionSeam(
+                    context,
+                    package,
+                    package.PlanDigest,
+                    executionSeam,
+                    ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(accessDeniedDependency.FreshReadbackPassed);
+                Assert.AreEqual(MigrationAcceptanceStatus.Rejected, accessDeniedDependency.AcceptanceStatus);
+                Assert.AreEqual(0, accessDeniedDependency.AuthorizationBlockedIngredientCount);
+                referenceReadback.Exists = true;
+                referenceReadback.HttpStatusCode = 200;
+                referenceReadback.EvidenceComplete = true;
 
                 storage.Fields["PublishingPageImage"] = "<img src=\"https://target.sharepoint.com/sites/target/PublishingImages/drift.jpg\" />";
                 var fieldDrift = new PublishingPageMigrationImporter().ImportWithExecutionSeam(

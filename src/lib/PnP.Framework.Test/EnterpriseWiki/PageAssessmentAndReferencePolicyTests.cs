@@ -404,6 +404,20 @@ namespace PnP.Framework.Test.EnterpriseWiki
             });
             var scope = PublishingPageExecutionScope.Create(package);
 
+            var countOnly = PublishingPageIngredientVerificationProjector.Project(
+                package,
+                scope,
+                new PublishingPageIngredientVerificationEvidence
+                {
+                    StructuralMaterializersPassed = true,
+                    PublishingContentMatched = false,
+                    DependenciesMatched = true,
+                    RuntimeVerificationRequired = true
+                });
+            CollectionAssert.Contains(
+                countOnly.FailedIngredientIds.ToList(),
+                PublishingPageIngredientIds.Reference("asset-a"));
+
             var result = PublishingPageIngredientVerificationProjector.Project(
                 package,
                 scope,
@@ -412,6 +426,16 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     StructuralMaterializersPassed = true,
                     PublishingContentMatched = false,
                     DependenciesMatched = true,
+                    ReferenceResults = new List<PageReferenceVerificationResult>
+                    {
+                        new PageReferenceVerificationResult
+                        {
+                            SnapshotDependencyId = "asset-a",
+                            Disposition = PageReferenceDisposition.MaterializeAtTarget,
+                            ConsumerMatched = true,
+                            TargetMatched = true
+                        }
+                    },
                     RuntimeVerificationRequired = true
                 });
 

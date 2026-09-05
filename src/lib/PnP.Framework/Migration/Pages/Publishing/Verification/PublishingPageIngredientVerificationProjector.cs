@@ -33,6 +33,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
 
         public bool DependenciesMatched { get; set; }
 
+        public IList<PageReferenceVerificationResult> ReferenceResults { get; set; } = new List<PageReferenceVerificationResult>();
+
         public bool RuntimeVerificationRequired { get; set; }
 
         public IList<PageFieldImportResult> FieldResults { get; set; } = new List<PageFieldImportResult>();
@@ -250,10 +252,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Verification
         {
             foreach (var action in scope.ReferenceActions(package))
             {
-                var passed = action.Disposition == PageReferenceDisposition.MaterializeAtTarget
-                    ? evidence.DependenciesMatched
-                    : evidence.PublishingContentMatched;
-                if (passed)
+                var result = (evidence.ReferenceResults ?? Array.Empty<PageReferenceVerificationResult>())
+                    .SingleOrDefault(value => string.Equals(
+                        value.SnapshotDependencyId,
+                        action.SnapshotDependencyId,
+                        StringComparison.Ordinal));
+                if (result?.Passed == true)
                 {
                     verified.Add(PublishingPageIngredientIds.Reference(action.SnapshotDependencyId));
                 }

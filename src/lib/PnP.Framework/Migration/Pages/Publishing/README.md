@@ -83,9 +83,9 @@ JSON uses camel-case property names, string enum values, explicit nulls, and cas
 
 | Artifact | Schema |
 | --- | --- |
-| Source export | `pnp-publishing-page-export/v2` |
-| Target-specific migration package | `pnp-publishing-page-migration-package/v2` |
-| Import receipt | `pnp-publishing-page-import-receipt/v2` |
+| Source export | `pnp-publishing-page-export/v3` |
+| Target-specific migration package | `pnp-publishing-page-migration-package/v3` |
+| Import receipt | `pnp-publishing-page-import-receipt/v5` |
 | Nested source ASPX artifact | `pnp-page-artifact/v1` |
 | Nested page runtime resolution | `pnp-page-runtime/v1` |
 | Nested canonical ingredient graph | `pnp-page-ingredient-graph/v1` |

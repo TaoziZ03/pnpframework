@@ -161,8 +161,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             PublishingPageExecutionScope executionScope,
             MigrationExecutionRecorder recorder)
         {
-            var count = executionScope.ReferenceActions(package)
-                .Count(value => value.Disposition == PageReferenceDisposition.MaterializeAtTarget);
+            var count = PageReferenceVerification.ExpectedMaterializationCount(
+                executionScope.ReferenceActions(package));
             recorder.RecordAlreadySatisfied(
                 "dependencies.controlled-session",
                 $"The controlled target storage session exposes {count} admitted dependency artifact(s) for production verification.");
