@@ -68,6 +68,25 @@ namespace PnP.Framework.Migration.Pages.Fields
                     TargetInternalName = sourceField.InternalName
                 };
                 result.Add(action);
+                if (PageTaxonomyRelationshipEvidence.IsTaxonomyField(sourceField)
+                    && !PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(sourceField))
+                {
+                    action.Disposition = PageFieldDisposition.Block;
+                    action.Reason = "The source taxonomy field has no complete SspId/TermSetId/TextField binding evidence.";
+                    blockers.Add($"Taxonomy field '{sourceField.InternalName}' has no complete source binding and cannot be planned, even when its current value is empty.");
+                    continue;
+                }
+
+                if (PageTaxonomyRelationshipEvidence.IsTaxonomyField(sourceField)
+                    && sourceField.HasValue
+                    && !IsTaxonomy(sourceField.Kind))
+                {
+                    action.Disposition = PageFieldDisposition.Block;
+                    action.Reason = "The populated taxonomy field value did not serialize as a taxonomy value or taxonomy collection.";
+                    blockers.Add($"Taxonomy field '{sourceField.InternalName}' has an unsupported captured value kind '{sourceField.Kind}' and cannot be treated as empty.");
+                    continue;
+                }
+
                 if (handledFieldNames.Contains(sourceField.InternalName))
                 {
                     action.Disposition = PageFieldDisposition.AlreadyHandled;

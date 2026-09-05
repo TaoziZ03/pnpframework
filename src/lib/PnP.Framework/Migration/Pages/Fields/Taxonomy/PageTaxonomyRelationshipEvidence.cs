@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Taxonomy;
+using PnP.Framework.Migration.Schema.Fields;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -8,6 +9,28 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
 {
     internal static class PageTaxonomyRelationshipEvidence
     {
+        public static bool IsTaxonomyField(PageFieldValueSnapshot field)
+        {
+            return field != null
+                && (field.Kind == PageFieldValueKind.Taxonomy
+                    || field.Kind == PageFieldValueKind.TaxonomyCollection
+                    || TaxonomyFieldBindingSnapshotReader.IsTaxonomyFieldType(field.TypeAsString));
+        }
+
+        public static bool HasCompleteFieldBinding(PageFieldValueSnapshot field)
+        {
+            return field != null
+                && field.TaxonomyBinding != null
+                && field.TaxonomyBinding.FieldId == field.Id
+                && string.Equals(
+                    field.TaxonomyBinding.FieldInternalName,
+                    field.InternalName,
+                    StringComparison.OrdinalIgnoreCase)
+                && field.TaxonomyBinding.TermStoreId != Guid.Empty
+                && field.TaxonomyBinding.BoundTermSetId != Guid.Empty
+                && field.TaxonomyBinding.TextFieldId != Guid.Empty;
+        }
+
         public static IReadOnlyList<string> ValidateSealedField(PageFieldValueSnapshot field)
         {
             var errors = new List<string>();

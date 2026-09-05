@@ -303,6 +303,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
             foreach (var field in snapshot.Fields.Where(item => item != null))
             {
+                PageTaxonomyFieldAuthorizationEvidence.ValidateSource(snapshot.Source, field);
                 if (field.StringValues == null
                     || field.LookupValues == null
                     || field.TaxonomyValues == null
@@ -310,8 +311,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 {
                     throw new InvalidDataException($"Field '{field.InternalName}' contains a null value or diagnostics collection.");
                 }
-                if (field.Kind != PageFieldValueKind.Taxonomy
-                    && field.Kind != PageFieldValueKind.TaxonomyCollection)
+                if (!PageTaxonomyRelationshipEvidence.IsTaxonomyField(field))
                 {
                     continue;
                 }

@@ -142,6 +142,43 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                          .OrderBy(value => value.InternalName, StringComparer.Ordinal))
             {
                 var ingredientId = PublishingPageIngredientIds.Field(field.InternalName);
+                if (PageTaxonomyRelationshipEvidence.IsTaxonomyField(field)
+                    && !PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(field))
+                {
+                    assessments.Add(
+                        ingredientId,
+                        PageIngredientAssessmentState.KnownGap,
+                        IngredientCapability.Missing,
+                        IngredientDisposition.Defer,
+                        "collect-complete-taxonomy-field-binding",
+                        "policy.field.taxonomy-binding",
+                        "The taxonomy field has no complete SspId/TermSetId/TextField binding evidence; an empty current value does not make unknown schema safe to reproduce.",
+                        mitigationCode: "TaxonomyFieldBindingUnavailable");
+                    AddTaxonomyRelationshipsAsMitigation(
+                        field,
+                        assessments,
+                        "TaxonomyFieldBindingUnavailable",
+                        "The owning taxonomy field has no complete source binding evidence.");
+                    continue;
+                }
+
+                if (PageTaxonomyRelationshipEvidence.IsTaxonomyField(field)
+                    && field.HasValue
+                    && field.Kind is not PageFieldValueKind.Taxonomy
+                    && field.Kind is not PageFieldValueKind.TaxonomyCollection)
+                {
+                    assessments.Add(
+                        ingredientId,
+                        PageIngredientAssessmentState.KnownGap,
+                        IngredientCapability.Missing,
+                        IngredientDisposition.Defer,
+                        "recapture-taxonomy-field-value",
+                        "policy.field.taxonomy-value-shape",
+                        $"The populated taxonomy field value was captured as unsupported kind '{field.Kind}' and cannot be treated as empty.",
+                        mitigationCode: "TaxonomyFieldValueCaptureUnsupported");
+                    continue;
+                }
+
                 if (context.WorkflowPolicy.FieldsHandledByPageWriter.Contains(field.InternalName))
                 {
                     assessments.Add(
@@ -176,7 +213,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
 
                 if (!field.HasValue
                     || field.Kind == PageFieldValueKind.Null
-                    || (IsTaxonomy(field.Kind) && field.TaxonomyValues.Count == 0))
+                    || ((field.Kind == PageFieldValueKind.Taxonomy
+                            || field.Kind == PageFieldValueKind.TaxonomyCollection)
+                        && field.TaxonomyValues.Count == 0))
                 {
                     assessments.Add(
                         ingredientId,
@@ -236,7 +275,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     continue;
                 }
 
-                if (IsTaxonomy(field.Kind))
+                if (PageTaxonomyRelationshipEvidence.IsTaxonomyField(field))
                 {
                     AssessTaxonomyField(context, field, assessments);
                     continue;
@@ -561,11 +600,6 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     reason,
                     mitigationCode: code);
             }
-        }
-
-        private static bool IsTaxonomy(PageFieldValueKind kind)
-        {
-            return kind is PageFieldValueKind.Taxonomy or PageFieldValueKind.TaxonomyCollection;
         }
 
         private static bool RequiresIdentityMapping(PageFieldValueKind kind)

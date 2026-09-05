@@ -1,4 +1,6 @@
 using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Pages.Fields;
+using PnP.Framework.Migration.Pages.Fields.Taxonomy;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
@@ -35,6 +37,16 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 LiteralHttpAuthorizationEvidence.Validate(layoutEvidence);
                 Add(result, PublishingPageIngredientIds.Layout, layoutEvidence);
                 Add(result, PublishingPageIngredientIds.ContentType, layoutEvidence);
+            }
+
+            foreach (var field in (snapshot?.Fields ?? Array.Empty<PageFieldValueSnapshot>())
+                         .Where(value => value?.AuthorizationEvidence != null))
+            {
+                PageTaxonomyFieldAuthorizationEvidence.ValidateSource(snapshot.Source, field);
+                Add(
+                    result,
+                    PublishingPageIngredientIds.Field(field.InternalName),
+                    field.AuthorizationEvidence.LiteralEvidence);
             }
 
             var snapshotById = (snapshot?.Dependencies ?? Array.Empty<PageReferenceSnapshot>())

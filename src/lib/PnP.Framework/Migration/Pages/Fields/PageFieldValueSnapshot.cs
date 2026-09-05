@@ -1,7 +1,9 @@
 using PnP.Framework.Migration.Pages.Capture;
+using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Taxonomy;
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Fields
 {
@@ -38,6 +40,9 @@ namespace PnP.Framework.Migration.Pages.Fields
         public IList<PageTaxonomyValueSnapshot> TaxonomyValues { get; set; } = new List<PageTaxonomyValueSnapshot>();
 
         public TaxonomyFieldRelationshipBindingSnapshot TaxonomyBinding { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public BoundLiteralHttpAuthorizationEvidence AuthorizationEvidence { get; set; }
 
         public string TaxonomyValueSetSha256 { get; set; }
 

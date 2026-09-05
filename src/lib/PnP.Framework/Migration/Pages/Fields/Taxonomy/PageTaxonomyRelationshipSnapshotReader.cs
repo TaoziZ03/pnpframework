@@ -1,5 +1,7 @@
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Taxonomy;
+using PnP.Framework.Migration.Pages.Capture;
+using PnP.Framework.Migration.Schema.Fields;
 using PnP.Framework.Migration.Taxonomy;
 using System;
 using System.Collections.Generic;
@@ -17,7 +19,7 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
             ICollection<string> warnings)
         {
             var taxonomyFields = (fields ?? Array.Empty<PageFieldValueSnapshot>())
-                .Where(IsTaxonomyField)
+                .Where(PageTaxonomyRelationshipEvidence.IsTaxonomyField)
                 .OrderBy(field => field.InternalName, StringComparer.Ordinal)
                 .ToArray();
             if (taxonomyFields.Length == 0)
@@ -57,6 +59,17 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
                     MarkConflict(field, capturedAt, taxCatchAllIds, hiddenEntries, exception.Message);
                 }
 
+                if (!PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(field))
+                {
+                    field.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+                    const string diagnostic = "TaxonomyBindingCaptureIncomplete: no complete typed or SchemaXml binding evidence is available.";
+                    if (!field.Diagnostics.Contains(diagnostic, StringComparer.Ordinal))
+                    {
+                        field.Diagnostics.Add(diagnostic);
+                    }
+                    warnings.Add($"Taxonomy field '{field.InternalName}' has incomplete binding evidence and is non-executable until that exact field ingredient is recaptured.");
+                }
+
                 PageTaxonomyRelationshipProof.Seal(field);
                 foreach (var value in field.TaxonomyValues.Where(value => value?.Relationship?.State == TaxonomyRelationshipState.Conflict))
                 {
@@ -74,30 +87,44 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
             IDictionary<int, TaxonomyHiddenListEntrySnapshot> hiddenEntries,
             DateTimeOffset capturedAt)
         {
-            var sourceField = item.ParentList.Fields.GetById(field.Id);
-            var taxonomyField = context.CastTo<TaxonomyField>(sourceField);
-            context.Load(taxonomyField,
-                value => value.Id,
-                value => value.InternalName,
-                value => value.SspId,
-                value => value.TermSetId,
-                value => value.AnchorId,
-                value => value.TextField,
-                value => value.Open);
-            context.ExecuteQueryRetry();
-            field.TaxonomyBinding = new TaxonomyFieldRelationshipBindingSnapshot
+            var bindingComplete = CaptureFieldBinding(field, context.Url, () =>
             {
-                FieldId = taxonomyField.Id,
-                FieldInternalName = taxonomyField.InternalName,
-                TermStoreId = taxonomyField.SspId,
-                BoundTermSetId = taxonomyField.TermSetId,
-                AnchorTermId = taxonomyField.AnchorId,
-                TextFieldId = taxonomyField.TextField,
-                Open = taxonomyField.Open
-            };
+                var sourceField = item.ParentList.Fields.GetById(field.Id);
+                var taxonomyField = context.CastTo<TaxonomyField>(sourceField);
+                context.Load(taxonomyField,
+                    value => value.SspId,
+                    value => value.TermSetId,
+                    value => value.AnchorId,
+                    value => value.TextField,
+                    value => value.Open);
+                context.ExecuteQueryRetry();
+                return new TaxonomyFieldBindingSnapshot
+                {
+                    SourceTermStoreId = taxonomyField.SspId,
+                    SourceTermSetId = taxonomyField.TermSetId,
+                    AnchorTermId = taxonomyField.AnchorId,
+                    HiddenTextFieldId = taxonomyField.TextField,
+                    Open = taxonomyField.Open
+                };
+            });
+            if (!bindingComplete)
+            {
+                var bindingFailure = field.AuthorizationEvidence == null
+                    ? "The source taxonomy field binding is incomplete after typed and SchemaXml capture."
+                    : "The source taxonomy field binding request returned literal HTTP "
+                        + field.AuthorizationEvidence.LiteralEvidence.HttpStatusCode
+                        + "; SchemaXml fallback was not admitted for this authorization-blocked field ingredient.";
+                MarkConflict(
+                    field,
+                    capturedAt,
+                    taxCatchAllIds,
+                    hiddenEntries,
+                    bindingFailure);
+                return;
+            }
 
             var session = TaxonomySession.GetTaxonomySession(context);
-            var store = session.TermStores.GetById(taxonomyField.SspId);
+            var store = session.TermStores.GetById(field.TaxonomyBinding.TermStoreId);
             foreach (var value in field.TaxonomyValues.Where(value => value != null))
             {
                 Guid termId;
@@ -119,7 +146,7 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
                 var catchAllMatches = taxCatchAllIds
                     .Where(hiddenEntries.ContainsKey)
                     .Select(id => hiddenEntries[id])
-                    .Where(entry => entry.TermId == termId && entry.TermSetId == taxonomyField.TermSetId)
+                    .Where(entry => entry.TermId == termId && entry.TermSetId == field.TaxonomyBinding.BoundTermSetId)
                     .ToArray();
                 if (catchAllMatches.Length == 1)
                 {
@@ -130,7 +157,7 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
                     relationship.Diagnostics.Add("TaxCatchAll contains multiple bound-TermSet rows for the captured Term GUID.");
                 }
 
-                var boundTerm = store.GetTermInTermSet(taxonomyField.TermSetId, termId);
+                var boundTerm = store.GetTermInTermSet(field.TaxonomyBinding.BoundTermSetId, termId);
                 var globalTerm = store.GetTerm(termId);
                 context.Load(boundTerm,
                     term => term.Id,
@@ -148,7 +175,7 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
                 if (boundExists)
                 {
                     relationship.State = TaxonomyRelationshipState.LiveInBoundTermSet;
-                    relationship.LiveTermSetId = taxonomyField.TermSetId;
+                    relationship.LiveTermSetId = field.TaxonomyBinding.BoundTermSetId;
                     relationship.LiveTermLabel = boundTerm.Name;
                     relationship.LiveTermPath = boundTerm.PathOfTerm;
                     relationship.LiveTermAvailableForTagging = boundTerm.IsAvailableForTagging;
@@ -157,7 +184,7 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
                 {
                     context.Load(globalTerm.TermSet, set => set.Id, set => set.Name);
                     context.ExecuteQueryRetry();
-                    relationship.State = globalTerm.TermSet.Id == taxonomyField.TermSetId
+                    relationship.State = globalTerm.TermSet.Id == field.TaxonomyBinding.BoundTermSetId
                         ? TaxonomyRelationshipState.Conflict
                         : TaxonomyRelationshipState.LiveOutsideBoundTermSet;
                     relationship.LiveTermSetId = globalTerm.TermSet.Id;
@@ -186,6 +213,90 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
                     relationship.State = TaxonomyRelationshipState.Conflict;
                 }
             }
+        }
+
+        internal static bool CaptureFieldBinding(
+            PageFieldValueSnapshot field,
+            string sourceWebUrl,
+            Func<TaxonomyFieldBindingSnapshot> typedReader)
+        {
+            if (field == null)
+            {
+                throw new ArgumentNullException(nameof(field));
+            }
+
+            TaxonomyFieldBindingCaptureResult capture;
+            try
+            {
+                var typed = typedReader == null ? null : typedReader();
+                capture = TaxonomyFieldBindingSnapshotReader.Read(
+                    field.Id,
+                    field.InternalName,
+                    field.SchemaXml,
+                    () => typed);
+            }
+            catch (Exception exception)
+            {
+                if (PageTaxonomyFieldAuthorizationEvidence.TryCreate(
+                    exception,
+                    sourceWebUrl,
+                    field,
+                    out var authorizationEvidence))
+                {
+                    field.AuthorizationEvidence = authorizationEvidence;
+                    field.Diagnostics = (field.Diagnostics ?? new List<string>())
+                        .Concat(new[]
+                        {
+                            "TaxonomyBindingLiteralAuthorizationBlocked: retained direct or nested wire HTTP "
+                                + authorizationEvidence.LiteralEvidence.HttpStatusCode
+                                + " evidence for only this field ingredient."
+                        })
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList();
+                    MarkBindingIncomplete(field);
+                    return false;
+                }
+
+                capture = TaxonomyFieldBindingSnapshotReader.Read(
+                    field.Id,
+                    field.InternalName,
+                    field.SchemaXml,
+                    () => throw exception);
+            }
+
+            field.AuthorizationEvidence = null;
+            field.Diagnostics = (field.Diagnostics ?? new List<string>())
+                .Concat(capture.Diagnostics ?? new List<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            if (!capture.IsComplete || capture.Binding == null)
+            {
+                MarkBindingIncomplete(field);
+                return false;
+            }
+
+            field.TaxonomyBinding = new TaxonomyFieldRelationshipBindingSnapshot
+            {
+                FieldId = field.Id,
+                FieldInternalName = field.InternalName,
+                TermStoreId = capture.Binding.SourceTermStoreId,
+                BoundTermSetId = capture.Binding.SourceTermSetId,
+                AnchorTermId = capture.Binding.AnchorTermId,
+                TextFieldId = capture.Binding.HiddenTextFieldId,
+                Open = capture.Binding.Open
+            };
+            return true;
+        }
+
+        private static void MarkBindingIncomplete(PageFieldValueSnapshot field)
+        {
+            field.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+            field.TaxonomyBinding = new TaxonomyFieldRelationshipBindingSnapshot
+            {
+                FieldId = field.Id,
+                FieldInternalName = field.InternalName
+            };
         }
 
         private static IDictionary<int, TaxonomyHiddenListEntrySnapshot> ReadHiddenListEntries(
@@ -314,13 +425,6 @@ namespace PnP.Framework.Migration.Pages.Fields.Taxonomy
                 }
                 value.Relationship = relationship;
             }
-        }
-
-        private static bool IsTaxonomyField(PageFieldValueSnapshot field)
-        {
-            return field != null
-                && (field.Kind == PageFieldValueKind.Taxonomy
-                    || field.Kind == PageFieldValueKind.TaxonomyCollection);
         }
 
         private static IReadOnlyCollection<int> ReadLookupIds(ListItem item, string internalName)

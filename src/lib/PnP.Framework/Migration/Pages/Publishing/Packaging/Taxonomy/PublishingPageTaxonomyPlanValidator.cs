@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Pages.Fields;
+using PnP.Framework.Migration.Pages.Fields.Taxonomy;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Taxonomy;
@@ -16,7 +17,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging.Taxonomy
             PublishingPageMigrationPlan plan)
         {
             var sourceRelationships = snapshot.Fields
-                .Where(field => field.Kind == PageFieldValueKind.Taxonomy || field.Kind == PageFieldValueKind.TaxonomyCollection)
+                .Where(PageTaxonomyRelationshipEvidence.IsTaxonomyField)
                 .SelectMany(field => field.TaxonomyValues.Select(value => new
                 {
                     Field = field,
@@ -72,9 +73,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging.Taxonomy
                 ValidateSemantics(source.Field, source.Value, action, plan.PlanningPolicy.TaxonomySchemaMappings);
             }
 
-            foreach (var field in snapshot.Fields.Where(field =>
-                         field.Kind == PageFieldValueKind.Taxonomy
-                         || field.Kind == PageFieldValueKind.TaxonomyCollection))
+            foreach (var field in snapshot.Fields.Where(PageTaxonomyRelationshipEvidence.IsTaxonomyField))
             {
                 ValidateFieldAction(field, fieldActions[field.InternalName], sourceRelationships
                     .Where(value => value.Field.Id == field.Id)
@@ -112,6 +111,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging.Taxonomy
             IReadOnlyCollection<string> fieldKeys,
             IReadOnlyDictionary<string, TaxonomyRelationshipAction> actions)
         {
+            if (!PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(field)
+                && fieldAction.Disposition != PageFieldDisposition.Block)
+            {
+                throw new InvalidDataException($"Field '{field.InternalName}' has no complete source taxonomy binding and must remain blocked even when it has no current values.");
+            }
+            if (field.HasValue
+                && field.Kind != PageFieldValueKind.Taxonomy
+                && field.Kind != PageFieldValueKind.TaxonomyCollection
+                && fieldAction.Disposition != PageFieldDisposition.Block)
+            {
+                throw new InvalidDataException($"Field '{field.InternalName}' has a populated unsupported taxonomy value shape and must remain blocked.");
+            }
+
             var targetFieldBindings = fieldKeys
                 .Select(key => actions[key])
                 .Where(action => action.Disposition != TaxonomyRelationshipDisposition.RetainEvidenceOnly)
