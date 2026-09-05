@@ -1,5 +1,7 @@
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Pages.Assessment;
+using PnP.Framework.Migration.Pages.Fields;
+using PnP.Framework.Migration.Pages.Fields.Taxonomy;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.References;
@@ -20,7 +22,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             var referenceEvidence = (snapshot?.Dependencies ?? Array.Empty<PageReferenceSnapshot>())
                 .Where(value => value?.AuthorizationEvidence != null)
                 .ToArray();
-            if (layoutEvidence == null && referenceEvidence.Length == 0)
+            var fieldEvidence = (snapshot?.Fields ?? Array.Empty<PageFieldValueSnapshot>())
+                .Where(value => value?.AuthorizationEvidence != null)
+                .ToArray();
+            if (layoutEvidence == null && referenceEvidence.Length == 0 && fieldEvidence.Length == 0)
             {
                 return supplemental;
             }
@@ -48,6 +53,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                     PublishingPageIngredientIds.ContentType,
                     layoutEvidence,
                     "snapshot.layout.authorizationEvidence");
+            }
+            foreach (var field in fieldEvidence)
+            {
+                PageTaxonomyFieldAuthorizationEvidence.ValidateSource(snapshot.Source, field);
+                Add(
+                    result.AuthorizationFailures,
+                    PublishingPageIngredientIds.Field(field.InternalName),
+                    field.AuthorizationEvidence.LiteralEvidence,
+                    "snapshot.fields[].authorizationEvidence");
             }
             foreach (var reference in referenceEvidence)
             {

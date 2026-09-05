@@ -6,6 +6,19 @@ using PnP.Framework.Migration.Lists.Fields;
 using PnP.Framework.Migration.Lists.Packaging;
 using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Pages;
+using PnP.Framework.Migration.Pages.Assessment;
+using PnP.Framework.Migration.Pages.Capture;
+using PnP.Framework.Migration.Pages.Fields;
+using PnP.Framework.Migration.Pages.Fields.Taxonomy;
+using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Pages.Planning;
+using PnP.Framework.Migration.Pages.Publishing.Assessment;
+using PnP.Framework.Migration.Pages.Publishing.Capture;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Packaging.Taxonomy;
+using PnP.Framework.Migration.Pages.Publishing.Planning;
+using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Schema.ContentTypes.Packaging;
 using PnP.Framework.Migration.Schema.Fields;
@@ -14,6 +27,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
 
 namespace PnP.Framework.Test.EnterpriseWiki
@@ -25,6 +40,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         private static readonly Guid TermStoreId = new Guid("22222222-2222-2222-2222-222222222222");
         private static readonly Guid TermSetId = new Guid("33333333-3333-3333-3333-333333333333");
         private static readonly Guid TextFieldId = new Guid("44444444-4444-4444-4444-444444444444");
+        private const string SourceWebUrl = "https://source.example/sites/ipkit";
 
         [TestMethod]
         public void ValidSchemaXmlRecoversCompleteBindingAfterTypedMemberFailure()
@@ -172,6 +188,472 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     "no literal HTTP 401/403 wire evidence was captured");
                 Assert.IsFalse(result.Diagnostics.Any(value => value.Contains(status, StringComparison.Ordinal)));
             }
+        }
+
+        [TestMethod]
+        public void PageFieldTypedMemberFailureRecoversBindingFromCapturedSchemaXml()
+        {
+            var field = PageTaxonomyField(ValidPageSchemaXml());
+
+            Assert.IsTrue(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                field,
+                SourceWebUrl,
+                () => throw MemberFailure()));
+            PageTaxonomyRelationshipProof.Seal(field);
+
+            Assert.AreEqual(PageCaptureStatus.Captured, field.CaptureStatus);
+            Assert.IsTrue(PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(field));
+            Assert.AreEqual(TermStoreId, field.TaxonomyBinding.TermStoreId);
+            Assert.AreEqual(TermSetId, field.TaxonomyBinding.BoundTermSetId);
+            Assert.AreEqual(TextFieldId, field.TaxonomyBinding.TextFieldId);
+            Assert.IsTrue(field.TaxonomyBinding.Open);
+            Assert.IsTrue(field.Diagnostics.Any(value => value.StartsWith(
+                "TaxonomyBindingSchemaXmlFallbackUsed:",
+                StringComparison.Ordinal)));
+
+            var legacy = PageTaxonomyField(ValidPageSchemaXml());
+            legacy.TaxonomyBinding = ValidRelationshipBinding();
+            PageTaxonomyRelationshipProof.Seal(legacy);
+            Assert.AreEqual(legacy.TaxonomyValueSetSha256, field.TaxonomyValueSetSha256);
+        }
+
+        [TestMethod]
+        public void HealthyTypedPageBindingRetainsLegacyCanonicalShapeAndDigest()
+        {
+            var actual = PageTaxonomyField(ValidPageSchemaXml());
+            var expected = PageTaxonomyField(ValidPageSchemaXml());
+            expected.TaxonomyBinding = ValidRelationshipBinding();
+            PageTaxonomyRelationshipProof.Seal(expected);
+
+            Assert.IsTrue(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                actual,
+                SourceWebUrl,
+                ValidBinding));
+            PageTaxonomyRelationshipProof.Seal(actual);
+
+            Assert.AreEqual(0, actual.Diagnostics.Count);
+            var actualCanonical = MigrationContractSerializer.SerializeCanonical(actual);
+            var expectedCanonical = MigrationContractSerializer.SerializeCanonical(expected);
+            Assert.AreEqual(
+                expectedCanonical,
+                actualCanonical);
+            Assert.AreEqual(
+                MigrationDigest.ComputeSha256(expectedCanonical),
+                MigrationDigest.ComputeSha256(actualCanonical));
+            Assert.IsFalse(actualCanonical.Contains("authorizationEvidence", StringComparison.Ordinal));
+        }
+
+        [TestMethod]
+        public void IncompletePageBindingBlocksOnlyItsFieldEvenWhenValueIsEmpty()
+        {
+            var field = PageTaxonomyField("<Field Type=\"TaxonomyFieldTypeMulti\"><Customization /></Field>");
+            field.HasValue = false;
+            field.Kind = PageFieldValueKind.Null;
+            field.RawType = null;
+            field.RawValue = null;
+            field.RawValueJson = null;
+
+            Assert.IsTrue(PageTaxonomyRelationshipEvidence.IsTaxonomyField(field));
+
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                field,
+                SourceWebUrl,
+                () => new TaxonomyFieldBindingSnapshot()));
+            PageTaxonomyRelationshipProof.Seal(field);
+
+            Assert.AreEqual(PageCaptureStatus.CapturedWithLimitations, field.CaptureStatus);
+            Assert.IsFalse(PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(field));
+            Assert.AreEqual(FieldId, field.TaxonomyBinding.FieldId);
+            Assert.AreEqual(Guid.Empty, field.TaxonomyBinding.TermStoreId);
+            Assert.IsTrue(field.Diagnostics.Any(value => value.StartsWith(
+                "TaxonomyBindingSchemaXmlFallbackIncomplete:",
+                StringComparison.Ordinal)));
+
+            var snapshot = new PublishingPageCaptureBundle
+            {
+                Source = SourceIdentity(),
+                Fields = new List<PageFieldValueSnapshot> { field }
+            };
+            var plan = new PublishingPageMigrationPlan
+            {
+                FieldActions = new List<PageFieldAction>
+                {
+                    new PageFieldAction
+                    {
+                        SourceInternalName = field.InternalName,
+                        TargetInternalName = field.InternalName,
+                        Disposition = PageFieldDisposition.SkipEmpty
+                    }
+                }
+            };
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageTaxonomyPlanValidator.Validate(snapshot, plan));
+
+            plan.FieldActions[0].Disposition = PageFieldDisposition.Block;
+            PublishingPageTaxonomyPlanValidator.Validate(snapshot, plan);
+
+            var graph = new CanonicalPageIngredientGraph
+            {
+                Nodes = new List<PageIngredientNode>
+                {
+                    new PageIngredientNode
+                    {
+                        Id = PublishingPageIngredientIds.Field(field.InternalName),
+                        Kind = PageIngredientKind.Field,
+                        HasContent = true
+                    }
+                }
+            };
+            snapshot.IngredientGraph = graph;
+            plan.IngredientGraph = graph;
+            var mitigationActions = PublishingPageIngredientActionProjector.Project(
+                snapshot,
+                plan,
+                graph);
+            Assert.AreEqual(
+                IngredientDisposition.Defer,
+                mitigationActions.Single(value => value.IngredientId ==
+                    PublishingPageIngredientIds.Field(field.InternalName)).Disposition);
+
+            var accumulator = new PublishingPageAssessmentAccumulator(graph);
+            PublishingPageCoreAssessmentProjector.Project(
+                new PublishingPageAssessmentContext
+                {
+                    Snapshot = snapshot,
+                    WorkflowPolicy = TestWorkflowPolicy(),
+                    Options = new PagePlanningOptions(),
+                    TargetPageServerRelativeUrl = "/sites/target/Pages/page.aspx"
+                },
+                accumulator);
+            var assessment = accumulator.Complete().Single();
+            Assert.AreEqual(PageIngredientAssessmentState.KnownGap, assessment.State);
+            Assert.AreEqual(IngredientDisposition.Defer, assessment.ProposedDisposition);
+            Assert.AreEqual("TaxonomyFieldBindingUnavailable", assessment.MitigationCode);
+
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                field,
+                SourceWebUrl,
+                () => throw new HttpRequestException(
+                    "forbidden",
+                    null,
+                    HttpStatusCode.Forbidden)));
+            var authorizationActions = PublishingPageIngredientActionProjector.Project(
+                snapshot,
+                plan,
+                graph);
+            Assert.AreEqual(
+                IngredientDisposition.Block,
+                authorizationActions.Single(value => value.IngredientId ==
+                    PublishingPageIngredientIds.Field(field.InternalName)).Disposition);
+        }
+
+        [TestMethod]
+        public void PopulatedUnsupportedTaxonomyValueCannotBecomeSkipEmpty()
+        {
+            var field = PageTaxonomyField(ValidPageSchemaXml());
+            field.Kind = PageFieldValueKind.Unsupported;
+            field.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+            field.RawType = "Sanitized.UnsupportedTaxonomyValue";
+            field.RawValue = "retained-recovery-evidence";
+            field.RawValueJson = "{\"kind\":\"unsupported\"}";
+            Assert.IsTrue(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                field,
+                SourceWebUrl,
+                ValidBinding));
+
+            var snapshot = new PublishingPageCaptureBundle
+            {
+                Source = SourceIdentity(),
+                Fields = new List<PageFieldValueSnapshot> { field }
+            };
+            var plan = new PublishingPageMigrationPlan
+            {
+                FieldActions = new List<PageFieldAction>
+                {
+                    new PageFieldAction
+                    {
+                        SourceInternalName = field.InternalName,
+                        TargetInternalName = field.InternalName,
+                        Disposition = PageFieldDisposition.SkipEmpty
+                    }
+                }
+            };
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageTaxonomyPlanValidator.Validate(snapshot, plan));
+
+            plan.FieldActions[0].Disposition = PageFieldDisposition.Block;
+            PublishingPageTaxonomyPlanValidator.Validate(snapshot, plan);
+
+            var graph = new CanonicalPageIngredientGraph
+            {
+                Nodes = new List<PageIngredientNode>
+                {
+                    new PageIngredientNode
+                    {
+                        Id = PublishingPageIngredientIds.Field(field.InternalName),
+                        Kind = PageIngredientKind.Field,
+                        HasContent = true
+                    }
+                }
+            };
+            var accumulator = new PublishingPageAssessmentAccumulator(graph);
+            PublishingPageCoreAssessmentProjector.Project(
+                new PublishingPageAssessmentContext
+                {
+                    Snapshot = snapshot,
+                    WorkflowPolicy = TestWorkflowPolicy(),
+                    Options = new PagePlanningOptions(),
+                    TargetPageServerRelativeUrl = "/sites/target/Pages/page.aspx"
+                },
+                accumulator);
+            var assessment = accumulator.Complete().Single();
+            Assert.AreEqual(PageIngredientAssessmentState.KnownGap, assessment.State);
+            Assert.AreEqual(IngredientDisposition.Defer, assessment.ProposedDisposition);
+            Assert.AreEqual("TaxonomyFieldValueCaptureUnsupported", assessment.MitigationCode);
+        }
+
+        [DataTestMethod]
+        [DataRow(401)]
+        [DataRow(403)]
+        public void PageBindingRetainsDirectLiteralAuthorizationEvidenceWithoutSchemaFallback(int statusCode)
+        {
+            var field = PageTaxonomyField(ValidPageSchemaXml());
+            var requestUri = PageTaxonomyFieldAuthorizationEvidence.CsomRequestUri(SourceWebUrl);
+
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                field,
+                SourceWebUrl,
+                () => throw LiteralWebException((HttpStatusCode)statusCode, requestUri)));
+
+            Assert.AreEqual(PageCaptureStatus.CapturedWithLimitations, field.CaptureStatus);
+            Assert.IsFalse(PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(field));
+            Assert.AreEqual(statusCode, field.AuthorizationEvidence.LiteralEvidence.HttpStatusCode);
+            Assert.AreEqual(
+                PageTaxonomyFieldAuthorizationEvidence.SourceBindingCaptureOperation,
+                field.AuthorizationEvidence.LiteralEvidence.Operation);
+            Assert.AreEqual(requestUri, field.AuthorizationEvidence.LiteralEvidence.RequestUri);
+            Assert.AreEqual(
+                PublishingPageIngredientIds.Field(field.InternalName),
+                field.AuthorizationEvidence.ActionId);
+            Assert.IsFalse(field.Diagnostics.Any(value => value.StartsWith(
+                "TaxonomyBindingSchemaXmlFallbackUsed:",
+                StringComparison.Ordinal)));
+            PageTaxonomyFieldAuthorizationEvidence.ValidateSource(SourceIdentity(), field);
+        }
+
+        [TestMethod]
+        public void PageBindingFindsNestedWebAndHttpRequestAuthorizationEvidence()
+        {
+            var requestUri = PageTaxonomyFieldAuthorizationEvidence.CsomRequestUri(SourceWebUrl);
+            var nested = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                nested,
+                SourceWebUrl,
+                () => throw new IOException(
+                    "outer transport wrapper",
+                    LiteralWebException(HttpStatusCode.Forbidden, requestUri))));
+            Assert.AreEqual(403, nested.AuthorizationEvidence.LiteralEvidence.HttpStatusCode);
+
+            var httpRequest = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                httpRequest,
+                SourceWebUrl,
+                () => throw new IOException(
+                    "outer transport wrapper",
+                    new HttpRequestException(
+                        "unauthorized",
+                        null,
+                        HttpStatusCode.Unauthorized))));
+            Assert.AreEqual(401, httpRequest.AuthorizationEvidence.LiteralEvidence.HttpStatusCode);
+            Assert.AreEqual(requestUri, httpRequest.AuthorizationEvidence.LiteralEvidence.RequestUri);
+
+            var redirectedResponse = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                redirectedResponse,
+                SourceWebUrl,
+                () => throw LiteralWebException(
+                    HttpStatusCode.Forbidden,
+                    "https://login.example/redirected-response")));
+            Assert.AreEqual(403, redirectedResponse.AuthorizationEvidence.LiteralEvidence.HttpStatusCode);
+            Assert.AreEqual(requestUri, redirectedResponse.AuthorizationEvidence.LiteralEvidence.RequestUri);
+            Assert.IsFalse(redirectedResponse.Diagnostics.Any(value => value.StartsWith(
+                "TaxonomyBindingSchemaXmlFallbackUsed:",
+                StringComparison.Ordinal)));
+        }
+
+        [TestMethod]
+        public void AuthorizationTextAndNonAuthorizationResponsesStillUseSafeSchemaFallback()
+        {
+            var textOnly = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsTrue(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                textOnly,
+                SourceWebUrl,
+                () => throw CreateServerException(
+                    "The payload says HTTP 401 and 403 without a wire response.",
+                    "System.UnauthorizedAccessException",
+                    -2147024891)));
+            Assert.IsNull(textOnly.AuthorizationEvidence);
+            Assert.IsTrue(PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(textOnly));
+
+            var notFound = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsTrue(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                notFound,
+                SourceWebUrl,
+                () => throw LiteralWebException(
+                    HttpStatusCode.NotFound,
+                    PageTaxonomyFieldAuthorizationEvidence.CsomRequestUri(SourceWebUrl))));
+            Assert.IsNull(notFound.AuthorizationEvidence);
+            Assert.IsTrue(PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(notFound));
+
+            var transportFailure = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsTrue(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                transportFailure,
+                SourceWebUrl,
+                () => throw LiteralWebException(
+                    HttpStatusCode.Forbidden,
+                    PageTaxonomyFieldAuthorizationEvidence.CsomRequestUri(SourceWebUrl),
+                    WebExceptionStatus.ConnectFailure)));
+            Assert.IsNull(transportFailure.AuthorizationEvidence);
+            Assert.IsTrue(PageTaxonomyRelationshipEvidence.HasCompleteFieldBinding(transportFailure));
+        }
+
+        [TestMethod]
+        public void LiteralFieldEvidenceBlocksOnlyTheExactFieldIngredient()
+        {
+            var blocked = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                blocked,
+                SourceWebUrl,
+                () => throw new HttpRequestException(
+                    "forbidden",
+                    null,
+                    HttpStatusCode.Forbidden)));
+            PageTaxonomyRelationshipProof.Seal(blocked);
+
+            var independent = new PageFieldValueSnapshot
+            {
+                Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                InternalName = "IndependentEmptyField",
+                Title = "Independent Empty Field",
+                TypeAsString = "Text",
+                SchemaXml = "<Field Type=\"Text\" Name=\"IndependentEmptyField\" />",
+                HasValue = false,
+                Kind = PageFieldValueKind.Null,
+                CaptureStatus = PageCaptureStatus.Captured
+            };
+            var snapshot = new PublishingPageCaptureBundle
+            {
+                Source = SourceIdentity(),
+                Fields = new List<PageFieldValueSnapshot> { blocked, independent }
+            };
+            var graph = new CanonicalPageIngredientGraph
+            {
+                Nodes = snapshot.Fields.Select(field => new PageIngredientNode
+                {
+                    Id = PublishingPageIngredientIds.Field(field.InternalName),
+                    Kind = PageIngredientKind.Field,
+                    HasContent = true
+                }).ToList()
+            };
+            var accumulator = new PublishingPageAssessmentAccumulator(graph);
+            PublishingPageCoreAssessmentProjector.Project(
+                new PublishingPageAssessmentContext
+                {
+                    Snapshot = snapshot,
+                    WorkflowPolicy = TestWorkflowPolicy(),
+                    Options = new PagePlanningOptions(),
+                    TargetPageServerRelativeUrl = "/sites/target/Pages/page.aspx"
+                },
+                accumulator);
+            var assessments = accumulator.Complete();
+
+            PublishingPageAuthorizationEvidenceProjector.Apply(
+                assessments,
+                PublishingPageSnapshotAuthorizationEvidence.Merge(snapshot, null));
+
+            var blockedAssessment = assessments.Single(value => value.IngredientId ==
+                PublishingPageIngredientIds.Field(blocked.InternalName));
+            var independentAssessment = assessments.Single(value => value.IngredientId ==
+                PublishingPageIngredientIds.Field(independent.InternalName));
+            Assert.AreEqual(PageIngredientAssessmentState.AuthorizationBlocked, blockedAssessment.State);
+            Assert.AreEqual(IngredientDisposition.Block, blockedAssessment.ProposedDisposition);
+            Assert.AreEqual(403, blockedAssessment.AuthorizationEvidence.HttpStatusCode);
+            Assert.AreEqual(PageIngredientAssessmentState.Determined, independentAssessment.State);
+            Assert.AreEqual(1, assessments.Count(value =>
+                value.State == PageIngredientAssessmentState.AuthorizationBlocked));
+
+            var policyEvidence = PublishingPageIngredientAuthorizationPolicy.GetEvidence(snapshot);
+            Assert.AreEqual(1, policyEvidence.Count);
+            Assert.AreEqual(403, policyEvidence[PublishingPageIngredientIds.Field(blocked.InternalName)].HttpStatusCode);
+
+            var actions = snapshot.Fields.ToDictionary(
+                field => PublishingPageIngredientIds.Field(field.InternalName),
+                field => new PageIngredientAction
+                {
+                    IngredientId = PublishingPageIngredientIds.Field(field.InternalName),
+                    Capability = IngredientCapability.Available,
+                    Disposition = IngredientDisposition.Preserve,
+                    Realization = "preserve"
+                },
+                StringComparer.Ordinal);
+            PublishingPageIngredientAuthorizationPolicy.Apply(snapshot, null, actions);
+            Assert.AreEqual(
+                IngredientDisposition.Block,
+                actions[PublishingPageIngredientIds.Field(blocked.InternalName)].Disposition);
+            Assert.AreEqual(
+                IngredientDisposition.Preserve,
+                actions[PublishingPageIngredientIds.Field(independent.InternalName)].Disposition);
+        }
+
+        [TestMethod]
+        public void FieldAuthorizationEvidenceRejectsForgedScopeAndCompleteBinding()
+        {
+            var field = PageTaxonomyField(ValidPageSchemaXml());
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                field,
+                SourceWebUrl,
+                () => throw new HttpRequestException(
+                    "forbidden",
+                    null,
+                    HttpStatusCode.Forbidden)));
+
+            var copied = PageTaxonomyField("<Field Type=\"TaxonomyFieldTypeMulti\"><Customization /></Field>");
+            copied.Id = new Guid("88888888-8888-8888-8888-888888888888");
+            copied.InternalName = "OtherCategories";
+            Assert.IsFalse(PageTaxonomyRelationshipSnapshotReader.CaptureFieldBinding(
+                copied,
+                SourceWebUrl,
+                () => new TaxonomyFieldBindingSnapshot()));
+            copied.AuthorizationEvidence = field.AuthorizationEvidence;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageTaxonomyFieldAuthorizationEvidence.ValidateSource(SourceIdentity(), copied));
+
+            var wrongRequestUri = "https://source.example/sites/other/_vti_bin/client.svc/ProcessQuery";
+            field.AuthorizationEvidence = BoundLiteralHttpAuthorizationEvidence.Create(
+                PageTaxonomyFieldAuthorizationEvidence.FieldActionId(field),
+                PageTaxonomyFieldAuthorizationEvidence.SourceBindingCaptureOperation,
+                wrongRequestUri,
+                LiteralHttpAuthorizationEvidence.Create(
+                    PageTaxonomyFieldAuthorizationEvidence.SourceBindingCaptureOperation,
+                    wrongRequestUri,
+                    403,
+                    DateTimeOffset.UtcNow));
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageTaxonomyFieldAuthorizationEvidence.ValidateSource(SourceIdentity(), field));
+
+            var requestUri = PageTaxonomyFieldAuthorizationEvidence.CsomRequestUri(SourceWebUrl);
+            field.AuthorizationEvidence = BoundLiteralHttpAuthorizationEvidence.Create(
+                PageTaxonomyFieldAuthorizationEvidence.FieldActionId(field),
+                PageTaxonomyFieldAuthorizationEvidence.SourceBindingCaptureOperation,
+                requestUri,
+                LiteralHttpAuthorizationEvidence.Create(
+                    PageTaxonomyFieldAuthorizationEvidence.SourceBindingCaptureOperation,
+                    requestUri,
+                    403,
+                    DateTimeOffset.UtcNow));
+            field.TaxonomyBinding = ValidRelationshipBinding();
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageTaxonomyFieldAuthorizationEvidence.ValidateSource(SourceIdentity(), field));
         }
 
         [TestMethod]
@@ -374,6 +856,94 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 HiddenTextFieldId = TextFieldId,
                 Open = true
             };
+        }
+
+        private static PageFieldValueSnapshot PageTaxonomyField(string schemaXml)
+        {
+            return new PageFieldValueSnapshot
+            {
+                Id = FieldId,
+                InternalName = "Categories",
+                Title = "Categories",
+                TypeAsString = "TaxonomyFieldTypeMulti",
+                SchemaXml = schemaXml,
+                HasValue = true,
+                Kind = PageFieldValueKind.TaxonomyCollection,
+                RawType = "Microsoft.SharePoint.Client.Taxonomy.TaxonomyFieldValueCollection",
+                RawValue = "Microsoft.SharePoint.Client.Taxonomy.TaxonomyFieldValueCollection",
+                RawValueJson = "[]",
+                CaptureStatus = PageCaptureStatus.Captured
+            };
+        }
+
+        private static PnP.Framework.Migration.Taxonomy.TaxonomyFieldRelationshipBindingSnapshot ValidRelationshipBinding()
+        {
+            return new PnP.Framework.Migration.Taxonomy.TaxonomyFieldRelationshipBindingSnapshot
+            {
+                FieldId = FieldId,
+                FieldInternalName = "Categories",
+                TermStoreId = TermStoreId,
+                BoundTermSetId = TermSetId,
+                TextFieldId = TextFieldId,
+                Open = true
+            };
+        }
+
+        private static PageIdentity SourceIdentity()
+        {
+            return new PageIdentity
+            {
+                SiteId = new Guid("66666666-6666-6666-6666-666666666666"),
+                WebId = new Guid("77777777-7777-7777-7777-777777777777"),
+                WebUrl = SourceWebUrl,
+                WebServerRelativeUrl = "/sites/ipkit",
+                PageServerRelativeUrl = "/sites/ipkit/Pages/page.aspx"
+            };
+        }
+
+        private static PublishingPageWorkflowPolicy TestWorkflowPolicy()
+        {
+            return new PublishingPageWorkflowPolicy(
+                "test-workflow",
+                "Test Publishing Page",
+                "0x010100",
+                "TestLayout.aspx",
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                _ => null);
+        }
+
+        private static WebException LiteralWebException(
+            HttpStatusCode statusCode,
+            string requestUri,
+            WebExceptionStatus webExceptionStatus = WebExceptionStatus.ProtocolError)
+        {
+            var constructor = typeof(HttpWebResponse)
+                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Single(value =>
+                {
+                    var parameters = value.GetParameters();
+                    return parameters.Length == 3
+                        && parameters[0].ParameterType == typeof(HttpResponseMessage)
+                        && parameters[1].ParameterType == typeof(Uri)
+                        && parameters[2].ParameterType == typeof(CookieContainer);
+                });
+            var responseMessage = new HttpResponseMessage(statusCode)
+            {
+                RequestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri)
+            };
+            var response = (HttpWebResponse)constructor.Invoke(new object[]
+            {
+                responseMessage,
+                new Uri(requestUri),
+                new CookieContainer()
+            });
+            return new WebException(
+                "literal HTTP response",
+                null,
+                webExceptionStatus,
+                response);
         }
 
         private static ContentTypeSchemaSnapshot PartialRuntimeSchema(TaxonomyFieldBindingSnapshot binding)
@@ -608,6 +1178,13 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 + Property("TextField", TextFieldId.ToString("D"))
                 + Property("Open", "true")
                 + "</ArrayOfProperty></Customization></Field>";
+        }
+
+        private static string ValidPageSchemaXml()
+        {
+            return ValidSchemaXml().Replace(
+                "Type=\"TaxonomyFieldType\"",
+                "Type=\"TaxonomyFieldTypeMulti\"");
         }
 
         private static string Property(string name, string value)

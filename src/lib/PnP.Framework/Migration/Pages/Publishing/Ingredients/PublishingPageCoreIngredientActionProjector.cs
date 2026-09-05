@@ -154,10 +154,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case PageFieldDisposition.TargetTypeMismatch:
                 case PageFieldDisposition.RequiresMapping:
                 case PageFieldDisposition.CaptureUnavailable:
-                case PageFieldDisposition.Block:
                     return hasValue
                         ? (IngredientCapability.Incompatible, IngredientDisposition.Block, "none")
                         : (IngredientCapability.Unknown, IngredientDisposition.Drop, "discard-no-source-value");
+                case PageFieldDisposition.Block:
+                    return (IngredientCapability.Incompatible, IngredientDisposition.Block, "none");
                 default:
                     return hasValue
                         ? (IngredientCapability.Unknown, IngredientDisposition.Block, "none")
