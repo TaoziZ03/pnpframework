@@ -25,6 +25,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
                 ApprovedPlanDigest = package?.PlanDigest,
                 TargetPageServerRelativeUrl = package?.Plan?.TargetPageServerRelativeUrl,
                 Steps = recorder?.Steps != null ? new List<MigrationMutationReceipt>(recorder.Steps) : new List<MigrationMutationReceipt>(),
+                StorageVerificationStatus = StorageVerificationStatus.NotRun,
+                RuntimeVerificationStatus = RuntimeVerificationStatus.NotRun,
                 AcceptanceStatus = MigrationAcceptanceStatus.Rejected
             };
         }
@@ -46,6 +48,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
                 ApprovedPlanDigest = package?.PlanDigest,
                 TargetPageServerRelativeUrl = package?.Plan?.TargetPageServerRelativeUrl,
                 Steps = recorder?.Steps != null ? new List<MigrationMutationReceipt>(recorder.Steps) : new List<MigrationMutationReceipt>(),
+                StorageVerificationStatus = StorageVerificationStatus.NotRun,
+                RuntimeVerificationStatus = RuntimeVerificationStatus.NotRun,
                 AcceptanceStatus = MigrationAcceptanceStatus.Rejected,
                 Diagnostics = new List<string> { exception?.ToString() ?? "Unknown failure" }
             };

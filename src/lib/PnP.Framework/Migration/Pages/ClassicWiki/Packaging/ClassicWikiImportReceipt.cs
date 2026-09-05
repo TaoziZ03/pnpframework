@@ -47,6 +47,26 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
 
         public bool WebPartsMatched { get; set; }
 
+        public bool FieldsMatched { get; set; }
+
+        public bool ContentTypeMatched { get; set; }
+
+        public bool LibraryMatched { get; set; }
+
+        public bool RuntimeIdentityMatched { get; set; }
+
+        public bool OwnershipMatched { get; set; }
+
+        public bool DependenciesMatched { get; set; }
+
+        public bool LifecycleMatched { get; set; }
+
+        public bool SecurityMatched { get; set; }
+
+        public bool TargetIdentityMatched { get; set; }
+
+        public int TargetLibraryTemplate { get; set; }
+
         public bool FreshReadbackPassed { get; set; }
 
         public StorageVerificationStatus StorageVerificationStatus { get; set; }

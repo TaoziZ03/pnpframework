@@ -16,10 +16,10 @@ namespace PnP.Framework.Test.ClassicWiki
         public void ComparisonFailsOnWebPartPlacementMismatch()
         {
             var source = ClassicWikiTestFactory.CreatePackage("test content", 119);
-            source.Snapshot.WebParts.Add(new ClassicWebPartSnapshot { Id = Guid.NewGuid(), Title = "B", TypeName = "T", ZoneId = "Top", ZoneIndex = 0 });
+            source.Snapshot.WebParts.Add(CreateWebPart("Top", false, "source"));
 
             var target = ClassicWikiTestFactory.CreatePackage("test content", 119);
-            target.Snapshot.WebParts.Add(new ClassicWebPartSnapshot { Id = Guid.NewGuid(), Title = "B", TypeName = "T", ZoneId = "Bottom", ZoneIndex = 0 });
+            target.Snapshot.WebParts.Add(CreateWebPart("Bottom", false, "source"));
 
             var comparison = ClassicWikiComparison.Compare(source, target);
             Assert.IsFalse(comparison.Passed);
@@ -120,15 +120,94 @@ namespace PnP.Framework.Test.ClassicWiki
         public void ComparisonFailsOnDependencyMismatch()
         {
             var source = ClassicWikiTestFactory.CreatePackage("test", 119);
-            source.Snapshot.Dependencies.Add(new PageReferenceSnapshot { Id = "ref-1", Kind = PageReferenceKind.Image, SourceServerRelativeUrl = "/sites/demo/img/logo.png" });
+            source.Snapshot.Dependencies.Add(CreateDependency(PageReferenceKind.Image, "/sites/demo/img/logo.png"));
 
             var target = ClassicWikiTestFactory.CreatePackage("test", 119);
-            target.Snapshot.Dependencies.Add(new PageReferenceSnapshot { Id = "ref-1", Kind = PageReferenceKind.Anchor, SourceServerRelativeUrl = "/sites/demo/img/logo.png" });
+            target.Snapshot.Dependencies.Add(CreateDependency(PageReferenceKind.Anchor, "/sites/demo/img/logo.png"));
 
             var comparison = ClassicWikiComparison.Compare(source, target);
             Assert.IsFalse(comparison.Passed);
             Assert.IsFalse(comparison.DependenciesMatched);
             Assert.IsTrue(comparison.Differences.Count > 0);
+        }
+
+        [TestMethod]
+        public void ComparisonFailsWhenWebPartHiddenOrDigestIsSubstituted()
+        {
+            var source = ClassicWikiTestFactory.CreatePackage("test", 119);
+            source.Snapshot.WebParts.Add(CreateWebPart("Bottom", false, "approved"));
+            var target = ClassicWikiTestFactory.CreatePackage("test", 119);
+            target.Snapshot.WebParts.Add(CreateWebPart("Bottom", true, "substituted"));
+
+            var comparison = ClassicWikiComparison.Compare(source, target);
+
+            Assert.IsFalse(comparison.Passed);
+            Assert.IsFalse(comparison.WebPartsMatched);
+        }
+
+        [TestMethod]
+        public void ComparisonFailsWhenDependencyUrlDriftsDespiteMatchingIdentifier()
+        {
+            var source = ClassicWikiTestFactory.CreatePackage("test", 119);
+            var expected = CreateDependency(PageReferenceKind.Image, "/sites/demo/img/logo.png");
+            source.Snapshot.Dependencies.Add(expected);
+            var target = ClassicWikiTestFactory.CreatePackage("test", 119);
+            var drifted = CreateDependency(PageReferenceKind.Image, "/sites/demo/img/other.png");
+            drifted.Id = expected.Id;
+            target.Snapshot.Dependencies.Add(drifted);
+
+            var comparison = ClassicWikiComparison.Compare(source, target);
+
+            Assert.IsFalse(comparison.Passed);
+            Assert.IsFalse(comparison.DependenciesMatched);
+        }
+
+        [TestMethod]
+        public void ComparisonFailsClosedWhenLifecycleAndSecurityEvidenceAreMissing()
+        {
+            var source = ClassicWikiTestFactory.CreatePackage("test", 119);
+            var target = ClassicWikiTestFactory.CreatePackage("test", 119);
+            source.Snapshot.Lifecycle = null;
+            target.Snapshot.Lifecycle = null;
+            source.Snapshot.Security = null;
+            target.Snapshot.Security = null;
+
+            var comparison = ClassicWikiComparison.Compare(source, target);
+
+            Assert.IsFalse(comparison.Passed);
+            Assert.IsFalse(comparison.LifecycleMatched);
+            Assert.IsFalse(comparison.SecurityMatched);
+        }
+
+        private static ClassicWebPartSnapshot CreateWebPart(string zone, bool hidden, string exportMarker)
+        {
+            var xml = $"<webPart marker='{exportMarker}' />";
+            return new ClassicWebPartSnapshot
+            {
+                Id = Guid.NewGuid(),
+                Title = "B",
+                TypeName = "T",
+                ZoneId = zone,
+                ZoneIndex = 0,
+                Hidden = hidden,
+                ExportXml = xml,
+                ExportSha256 = PnP.Framework.Migration.Pages.Packaging.PageDigest.ComputeSha256(xml)
+            };
+        }
+
+        private static PageReferenceSnapshot CreateDependency(PageReferenceKind kind, string path)
+        {
+            var absolute = "https://contoso.sharepoint.com" + path;
+            const string consumer = "img[src]";
+            return new PageReferenceSnapshot
+            {
+                Id = PnP.Framework.Migration.Pages.Packaging.PageDigest.ComputeSha256(consumer + "\n" + absolute),
+                Consumer = consumer,
+                Kind = kind,
+                OriginalValue = path,
+                SourceAbsoluteUrl = absolute,
+                SourceServerRelativeUrl = path
+            };
         }
     }
 }

@@ -164,6 +164,7 @@ namespace PnP.Framework.Test.ClassicWiki
                 TargetPageServerRelativeUrl = "/sites/target/SitePages/Hello.aspx",
                 TargetLocation = new ClassicWikiTargetLocationPlan
                 {
+                    TargetWebId = Guid.NewGuid(),
                     TargetWebUrl = "https://contoso.sharepoint.com/sites/target",
                     TargetLibraryServerRelativeUrl = "/sites/target/SitePages",
                     TargetLibraryTitle = "Site Pages",
@@ -288,15 +289,19 @@ namespace PnP.Framework.Test.ClassicWiki
                 Title = "Script Editor",
                 TypeName = "MSContentEditorWebPart",
                 ZoneId = "Bottom",
-                ZoneIndex = 0
+                ZoneIndex = 0,
+                ExportXml = "<webPart type='MSContentEditorWebPart' />",
+                ExportSha256 = PageDigest.ComputeSha256("<webPart type='MSContentEditorWebPart' />")
             };
             var dep1 = new PageReferenceSnapshot
             {
-                Id = "ref-1",
+                Consumer = "img[src]",
                 OriginalValue = "/sites/demo/images/logo.png",
+                SourceAbsoluteUrl = "https://contoso.sharepoint.com/sites/demo/images/logo.png",
                 SourceServerRelativeUrl = "/sites/demo/images/logo.png",
                 Kind = PageReferenceKind.Image
             };
+            dep1.Id = PageDigest.ComputeSha256(dep1.Consumer + "\n" + dep1.SourceAbsoluteUrl);
 
             var source = CreateExportPackage("content with webpart", 119);
             source.Snapshot.WebParts.Add(wp1);
@@ -344,8 +349,10 @@ namespace PnP.Framework.Test.ClassicWiki
                 InternalName = "Title",
                 Value = "Overridden Wiki Title"
             });
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
 
             var package = ClassicWikiMigrationPlanner.PlanCore(
+                Guid.NewGuid(),
                 "https://contoso.sharepoint.com/sites/target",
                 "/sites/target",
                 export,
@@ -368,8 +375,10 @@ namespace PnP.Framework.Test.ClassicWiki
             {
                 HasUniqueRoleAssignments = true
             };
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
 
             var package = ClassicWikiMigrationPlanner.PlanCore(
+                Guid.NewGuid(),
                 "https://contoso.sharepoint.com/sites/target",
                 "/sites/target",
                 export,
@@ -390,8 +399,10 @@ namespace PnP.Framework.Test.ClassicWiki
             {
                 HasUniqueRoleAssignments = false
             };
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
 
             var package = ClassicWikiMigrationPlanner.PlanCore(
+                Guid.NewGuid(),
                 "https://contoso.sharepoint.com/sites/target",
                 "/sites/target",
                 export,
@@ -419,6 +430,12 @@ namespace PnP.Framework.Test.ClassicWiki
 
         private static ClassicWikiCaptureBundle CreateSampleBundle(string content, int libraryTemplate, string pageUrl = "/sites/demo/SitePages/Welcome.aspx")
         {
+            if (libraryTemplate == 101
+                && string.Equals(pageUrl, "/sites/demo/SitePages/Welcome.aspx", StringComparison.OrdinalIgnoreCase))
+            {
+                pageUrl = "/sites/demo/Documents/Welcome.aspx";
+            }
+
             return new ClassicWikiCaptureBundle
             {
                 Source = new PageIdentity
@@ -432,6 +449,7 @@ namespace PnP.Framework.Test.ClassicWiki
                     FileUniqueId = Guid.NewGuid(),
                     ContentTypeId = "0x010108",
                     ContentTypeName = "Wiki Page",
+                    VersionLabel = "1.0",
                     Title = PagePath.GetFileName(pageUrl)
                 },
                 PageArtifact = new PageArtifactSnapshot
@@ -450,7 +468,7 @@ namespace PnP.Framework.Test.ClassicWiki
                 WikiFieldSha256 = ClassicWikiDigest.ComputeSha256(content ?? string.Empty),
                 LibraryBaseTemplate = libraryTemplate,
                 LibraryTitle = libraryTemplate == 119 ? "Site Pages" : "Documents",
-                LibraryServerRelativeUrl = "/sites/demo/SitePages",
+                LibraryServerRelativeUrl = libraryTemplate == 119 ? "/sites/demo/SitePages" : "/sites/demo/Documents",
                 Fields = new List<PageFieldValueSnapshot>
                 {
                     new PageFieldValueSnapshot { InternalName = "Title", Value = "Test Page" },

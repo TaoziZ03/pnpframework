@@ -2,6 +2,7 @@ using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Pages.ClassicWiki.Verification;
 using PnP.Framework.Migration.Verification;
 using System;
 using System.Collections.Generic;
@@ -30,24 +31,29 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 recorder,
                 warnings);
 
-            // Fresh readback verification
-            var targetWeb = targetContext.Web;
-            var targetFile = targetWeb.GetFileByServerRelativePath(
-                ResourcePath.FromDecodedUrl(package.Plan.TargetPageServerRelativeUrl));
-            var targetItem = targetFile.ListItemAllFields;
-            targetContext.Load(targetFile, f => f.Exists, f => f.UniqueId, f => f.UIVersionLabel);
-            targetContext.Load(targetItem, i => i.Id);
-            targetContext.ExecuteQueryRetry();
+            ClassicWikiFreshTargetEvidence freshEvidence;
+            using (var freshContext = targetContext.Clone(package.Plan.TargetLocation.TargetWebUrl))
+            {
+                freshEvidence = ClassicWikiFreshTargetReader.Read(
+                    freshContext,
+                    package,
+                    artifactStore,
+                    warnings,
+                    diagnostics);
+                freshEvidence.IndependentContext = !ReferenceEquals(freshContext, targetContext);
+            }
 
-            var readbackPassed = targetFile.Exists && targetItem.Id > 0;
-            var expectedSha = package.Plan.WikiFieldPlan?.ExpectedStoredSha256;
-            var contentEqual = !string.IsNullOrEmpty(writeResult.PersistedWikiFieldSha256)
-                ? string.Equals(writeResult.PersistedWikiFieldSha256, expectedSha, StringComparison.OrdinalIgnoreCase)
-                : string.IsNullOrEmpty(expectedSha);
-
-            var expectedWebPartCount = package.Plan.WebParts?.Count ?? 0;
-            var webPartsMatched = writeResult.ImportedWebPartCount == expectedWebPartCount;
-            var runtimePassed = readbackPassed && contentEqual && webPartsMatched;
+            var comparison = ClassicWikiFreshVerification.Evaluate(package, freshEvidence);
+            diagnostics.AddRange(comparison.Differences);
+            var targetSnapshot = freshEvidence.Recapture.Snapshot;
+            var targetIdentity = targetSnapshot.Source;
+            var readbackPassed = comparison.Passed;
+            var hasExclusions = ClassicWikiFreshVerification.HasExplicitExclusions(package);
+            warnings.Add("Authenticated browser/runtime verification was not run by the storage importer.");
+            if (hasExclusions)
+            {
+                warnings.Add("The sealed plan contains explicit deferred fidelity exclusions; acceptance is partial even when storage verification passes.");
+            }
 
             var receipt = new ClassicWikiImportReceipt
             {
@@ -55,25 +61,35 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 StartedAtUtc = startedAt,
                 CompletedAtUtc = DateTimeOffset.UtcNow,
                 OperationId = operationId,
-                ExecutionStatus = runtimePassed ? MigrationExecutionStatus.Succeeded : MigrationExecutionStatus.FailedUnexpectedly,
+                ExecutionStatus = readbackPassed ? MigrationExecutionStatus.Succeeded : MigrationExecutionStatus.FailedUnexpectedly,
                 MutationStarted = true,
                 Steps = new List<MigrationMutationReceipt>(recorder.Steps),
                 ApprovedPlanDigest = approvedPlanDigest,
-                TargetWebUrl = targetWeb.Url,
+                TargetWebUrl = targetIdentity.WebUrl,
                 TargetPageServerRelativeUrl = package.Plan.TargetPageServerRelativeUrl,
-                TargetFileUniqueId = targetFile.UniqueId,
-                TargetListItemId = targetItem.Id,
-                TargetContentTypeId = ClassicWikiPackageContract.DefaultContentTypeId,
-                TargetVersionLabel = targetFile.UIVersionLabel,
-                StoredWikiFieldSha256 = writeResult.PersistedWikiFieldSha256,
-                StorageContentEqual = contentEqual,
+                TargetFileUniqueId = targetIdentity.FileUniqueId,
+                TargetListItemId = targetIdentity.ListItemId,
+                TargetContentTypeId = targetIdentity.ContentTypeId,
+                TargetVersionLabel = targetIdentity.VersionLabel,
+                StoredWikiFieldSha256 = targetSnapshot.WikiFieldSha256,
+                StorageContentEqual = comparison.WikiContentMatched,
                 ResumedExistingOwnedPage = writeResult.ResumedExistingOwnedPage,
-                ImportedWebPartCount = writeResult.ImportedWebPartCount,
-                WebPartsMatched = webPartsMatched,
+                ImportedWebPartCount = targetSnapshot.WebParts?.Count ?? 0,
+                WebPartsMatched = comparison.WebPartsMatched,
+                FieldsMatched = comparison.FieldsMatched,
+                ContentTypeMatched = comparison.ContentTypeMatched,
+                LibraryMatched = comparison.LibraryMatched,
+                RuntimeIdentityMatched = comparison.RuntimeMatched,
+                OwnershipMatched = comparison.OwnershipMatched,
+                DependenciesMatched = comparison.DependenciesMatched,
+                LifecycleMatched = comparison.LifecycleMatched,
+                SecurityMatched = comparison.SecurityMatched,
+                TargetIdentityMatched = comparison.TargetIdentityMatched,
+                TargetLibraryTemplate = targetSnapshot.LibraryBaseTemplate,
                 FreshReadbackPassed = readbackPassed,
-                StorageVerificationStatus = contentEqual ? StorageVerificationStatus.Passed : StorageVerificationStatus.Failed,
-                RuntimeVerificationStatus = runtimePassed ? RuntimeVerificationStatus.Passed : RuntimeVerificationStatus.Failed,
-                AcceptanceStatus = runtimePassed ? MigrationAcceptanceStatus.Accepted : MigrationAcceptanceStatus.Rejected,
+                StorageVerificationStatus = readbackPassed ? StorageVerificationStatus.Passed : StorageVerificationStatus.Failed,
+                RuntimeVerificationStatus = ClassicWikiImportStatusPolicy.RuntimeStatus,
+                AcceptanceStatus = ClassicWikiImportStatusPolicy.Acceptance(readbackPassed, hasExclusions),
                 Warnings = warnings,
                 Diagnostics = diagnostics
             };

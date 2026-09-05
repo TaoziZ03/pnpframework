@@ -1,5 +1,7 @@
 using PnP.Framework.Migration.Pages.ClassicWiki.Capture;
+using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Packaging;
+using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Security;
 using System;
 using System.Collections.Generic;
@@ -50,13 +52,9 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     result.Differences.Add($"Lifecycle mismatch: source (Level={sourceSnap.Lifecycle.Level}, CheckOut={sourceSnap.Lifecycle.CheckOutType}, Moderation={sourceSnap.Lifecycle.ModerationStatus}) vs target (Level={targetSnap.Lifecycle.Level}, CheckOut={targetSnap.Lifecycle.CheckOutType}, Moderation={targetSnap.Lifecycle.ModerationStatus}).");
                 }
             }
-            else if (sourceSnap.Lifecycle == null && targetSnap.Lifecycle == null)
-            {
-                result.LifecycleMatched = true;
-            }
             else
             {
-                result.Differences.Add("Lifecycle presence mismatch between source and target.");
+                result.Differences.Add("Lifecycle evidence is missing from the source or target capture.");
             }
         }
 
@@ -93,14 +91,97 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     result.Differences.Add($"Security mismatch: source unique={sourceSecurity.HasUniqueRoleAssignments} ({sRoles.Count} roles) vs target unique={targetSecurity.HasUniqueRoleAssignments} ({tRoles.Count} roles).");
                 }
             }
-            else if (sourceSecurity == null && targetSecurity == null)
+            else
             {
-                result.SecurityMatched = true;
+                result.Differences.Add("Security evidence is missing from the source or target capture.");
+            }
+        }
+
+        public static void CompareFields(IList<PageFieldValueSnapshot> sourceFields, IList<PageFieldValueSnapshot> targetFields, ClassicWikiComparisonResult result)
+        {
+            var expected = (sourceFields ?? Array.Empty<PageFieldValueSnapshot>())
+                .Where(IsPortableValueField)
+                .ToList();
+            var actual = (targetFields ?? Array.Empty<PageFieldValueSnapshot>())
+                .Where(IsPortableValueField)
+                .ToList();
+            if (expected.Count == 0 || actual.Count == 0)
+            {
+                result.Differences.Add("Portable field evidence is missing from the source or target capture.");
+                return;
+            }
+
+            foreach (var sourceField in expected)
+            {
+                var targetField = actual.FirstOrDefault(value =>
+                    ClassicWikiComparison.RequiredEquals(value.InternalName, sourceField.InternalName));
+                if (targetField == null
+                    || !string.Equals(sourceField.Value ?? string.Empty, targetField.Value ?? string.Empty, StringComparison.Ordinal))
+                {
+                    result.Differences.Add($"Field value mismatch for '{sourceField.InternalName}'.");
+                    return;
+                }
+            }
+
+            result.FieldsMatched = true;
+            result.CanariesPassed.Add("FieldValueFidelity");
+        }
+
+        public static void CompareContentType(ClassicWikiCaptureBundle sourceSnap, ClassicWikiCaptureBundle targetSnap, ClassicWikiComparisonResult result)
+        {
+            var sourceId = sourceSnap.Source?.ContentTypeId;
+            var targetId = targetSnap.Source?.ContentTypeId;
+            if (ClassicWikiComparison.RequiredEquals(sourceId, targetId)
+                && ClassicWikiComparison.RequiredEquals(sourceSnap.Source?.ContentTypeName, targetSnap.Source?.ContentTypeName))
+            {
+                result.ContentTypeMatched = true;
+                result.CanariesPassed.Add("ContentTypeFidelity");
             }
             else
             {
-                result.Differences.Add("Security presence mismatch between source and target.");
+                result.Differences.Add($"Content Type mismatch: source '{sourceId}'/'{sourceSnap.Source?.ContentTypeName}', target '{targetId}'/'{targetSnap.Source?.ContentTypeName}'.");
             }
+        }
+
+        public static void CompareLibrary(ClassicWikiCaptureBundle sourceSnap, ClassicWikiCaptureBundle targetSnap, ClassicWikiComparisonResult result)
+        {
+            if ((sourceSnap.LibraryBaseTemplate == 101 || sourceSnap.LibraryBaseTemplate == 119)
+                && sourceSnap.LibraryBaseTemplate == targetSnap.LibraryBaseTemplate
+                && ClassicWikiComparison.RequiredEquals(sourceSnap.LibraryTitle, targetSnap.LibraryTitle)
+                && !string.IsNullOrWhiteSpace(sourceSnap.LibraryServerRelativeUrl)
+                && !string.IsNullOrWhiteSpace(targetSnap.LibraryServerRelativeUrl))
+            {
+                result.LibraryMatched = true;
+                result.CanariesPassed.Add("LibraryIdentityFidelity");
+            }
+            else
+            {
+                result.Differences.Add($"Library mismatch: source template/title '{sourceSnap.LibraryBaseTemplate}:{sourceSnap.LibraryTitle}', target '{targetSnap.LibraryBaseTemplate}:{targetSnap.LibraryTitle}'.");
+            }
+        }
+
+        public static void CompareRuntime(PageRuntimeSnapshot sourceRuntime, PageRuntimeSnapshot targetRuntime, ClassicWikiComparisonResult result)
+        {
+            if (sourceRuntime != null
+                && targetRuntime != null
+                && sourceRuntime.ResolutionState == PageRuntimeResolutionState.Resolved
+                && targetRuntime.ResolutionState == PageRuntimeResolutionState.Resolved
+                && ClassicWikiComparison.RequiredEquals(sourceRuntime.AdapterId, targetRuntime.AdapterId))
+            {
+                result.RuntimeMatched = true;
+                result.CanariesPassed.Add("RuntimeIdentityFidelity");
+            }
+            else
+            {
+                result.Differences.Add("Resolved page runtime identity is missing or differs between source and target.");
+            }
+        }
+
+        private static bool IsPortableValueField(PageFieldValueSnapshot field)
+        {
+            return field != null
+                && (string.Equals(field.InternalName, "Title", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(field.InternalName, "FileLeafRef", StringComparison.OrdinalIgnoreCase));
         }
 
         private static string GetRelativeFolder(string pageUrl, string libraryUrl)

@@ -18,6 +18,18 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
 
         public bool DependenciesMatched { get; set; }
 
+        public bool FieldsMatched { get; set; }
+
+        public bool ContentTypeMatched { get; set; }
+
+        public bool LibraryMatched { get; set; }
+
+        public bool RuntimeMatched { get; set; }
+
+        public bool OwnershipMatched { get; set; }
+
+        public bool TargetIdentityMatched { get; set; }
+
         public bool LifecycleMatched { get; set; }
 
         public bool SecurityMatched { get; set; }

@@ -24,7 +24,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             var sourceContent = sourceSnap.WikiField ?? string.Empty;
             var targetContent = targetSnap.WikiField ?? string.Empty;
 
-            if (string.Equals(sourceSnap.WikiFieldSha256, targetSnap.WikiFieldSha256, StringComparison.OrdinalIgnoreCase))
+            if (RequiredEquals(sourceSnap.WikiFieldSha256, targetSnap.WikiFieldSha256))
             {
                 result.WikiContentMatched = true;
                 result.CanariesPassed.Add("ExactWikiFieldMatch");
@@ -62,16 +62,22 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             // 3. Nested folders comparison
             ClassicWikiMetadataComparison.CompareFolderHierarchy(sourceSnap, targetSnap, result);
 
-            // 4. Web Parts value-level comparison
+            // 4. Fields, Content Type, library, and runtime identity
+            ClassicWikiMetadataComparison.CompareFields(sourceSnap.Fields, targetSnap.Fields, result);
+            ClassicWikiMetadataComparison.CompareContentType(sourceSnap, targetSnap, result);
+            ClassicWikiMetadataComparison.CompareLibrary(sourceSnap, targetSnap, result);
+            ClassicWikiMetadataComparison.CompareRuntime(sourceSnap.Runtime, targetSnap.Runtime, result);
+
+            // 5. Web Parts value-level comparison
             CompareWebParts(sourceSnap.WebParts, targetSnap.WebParts, result);
 
-            // 5. Dependencies value-level comparison
+            // 6. Dependencies value-level comparison
             CompareDependencies(sourceSnap.Dependencies, targetSnap.Dependencies, result);
 
-            // 6. Lifecycle value-level comparison
+            // 7. Lifecycle value-level comparison
             ClassicWikiMetadataComparison.CompareLifecycle(sourceSnap, targetSnap, result);
 
-            // 7. Security value-level comparison
+            // 8. Security value-level comparison
             ClassicWikiMetadataComparison.CompareSecurity(sourceSnap.Security, targetSnap.Security, result);
 
             result.Passed = result.Differences.Count == 0;
@@ -93,10 +99,11 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             foreach (var exp in expectedWps)
             {
                 var match = unusedTargetWps.FirstOrDefault(act =>
-                    string.Equals(act.ZoneId, exp.ZoneId, StringComparison.OrdinalIgnoreCase)
+                    RequiredEquals(act.ZoneId, exp.ZoneId)
                     && act.ZoneIndex == exp.ZoneIndex
-                    && (string.IsNullOrEmpty(exp.TypeName) || string.IsNullOrEmpty(act.TypeName) || string.Equals(act.TypeName, exp.TypeName, StringComparison.OrdinalIgnoreCase))
-                    && (string.IsNullOrEmpty(exp.ExportSha256) || string.IsNullOrEmpty(act.ExportSha256) || string.Equals(act.ExportSha256, exp.ExportSha256, StringComparison.OrdinalIgnoreCase)));
+                    && act.Hidden == exp.Hidden
+                    && RequiredEquals(act.TypeName, exp.TypeName)
+                    && RequiredEquals(act.ExportSha256, exp.ExportSha256));
 
                 if (match != null) unusedTargetWps.Remove(match);
                 else
@@ -129,9 +136,11 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 var match = unusedDeps.FirstOrDefault(act =>
                     act.Kind == exp.Kind
-                    && (string.Equals(act.Id, exp.Id, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(act.SourceServerRelativeUrl, exp.SourceServerRelativeUrl, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(act.OriginalValue, exp.OriginalValue, StringComparison.OrdinalIgnoreCase)));
+                    && RequiredEquals(act.Id, exp.Id)
+                    && RequiredEquals(act.Consumer, exp.Consumer)
+                    && RequiredEquals(act.OriginalValue, exp.OriginalValue)
+                    && OptionalEquals(act.SourceAbsoluteUrl, exp.SourceAbsoluteUrl)
+                    && OptionalEquals(act.SourceServerRelativeUrl, exp.SourceServerRelativeUrl));
 
                 if (match != null) unusedDeps.Remove(match);
                 else
@@ -146,6 +155,23 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 result.DependenciesMatched = true;
                 result.CanariesPassed.Add("DependencyCountFidelity");
             }
+        }
+
+        internal static bool RequiredEquals(string left, string right)
+        {
+            return !string.IsNullOrWhiteSpace(left)
+                && !string.IsNullOrWhiteSpace(right)
+                && string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool OptionalEquals(string left, string right)
+        {
+            if (string.IsNullOrWhiteSpace(left) && string.IsNullOrWhiteSpace(right))
+            {
+                return true;
+            }
+
+            return RequiredEquals(left, right);
         }
     }
 }

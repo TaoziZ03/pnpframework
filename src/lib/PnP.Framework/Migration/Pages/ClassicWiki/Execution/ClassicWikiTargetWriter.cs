@@ -97,20 +97,9 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 var resumedContent = targetItem.FieldValues.TryGetValue("WikiField", out var val) ? val as string ?? string.Empty : string.Empty;
                 var resumedSha = PageDigest.ComputeSha256(resumedContent);
 
-                var webPartCount = 0;
-                try
-                {
-                    var webParts = targetWeb.GetWebParts(package.Plan.TargetPageServerRelativeUrl);
-                    webPartCount = webParts != null ? webParts.Count() : 0;
-                }
-                catch
-                {
-                    webPartCount = 0;
-                }
-
-                recorder.RecordAlreadySatisfied("wiki-field.write", "Stored WikiField verified on resumed page.");
-                recorder.RecordAlreadySatisfied("page.webparts", "Web parts verified on resumed page.");
-                recorder.RecordAlreadySatisfied("page.ownership", "Target page carries matching provenance properties.");
+                recorder.RecordAlreadySatisfied("wiki-field.write", "WikiField write is skipped for the owned resume candidate; independent fresh verification remains required.");
+                recorder.RecordAlreadySatisfied("page.webparts", "Web Part writes are skipped for the owned resume candidate; independent type/export/zone/hidden verification remains required.");
+                recorder.RecordAlreadySatisfied("page.ownership", "Initial ownership matched; independent fresh ownership verification remains required.");
                 return new ClassicWikiWriteResult
                 {
                     TargetLibrary = targetLocation.TargetLibrary,
@@ -118,7 +107,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                     TargetItem = targetItem,
                     ResumedExistingOwnedPage = true,
                     PersistedWikiFieldSha256 = resumedSha,
-                    ImportedWebPartCount = webPartCount
+                    ImportedWebPartCount = 0
                 };
             }
 

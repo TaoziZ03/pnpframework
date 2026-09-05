@@ -28,12 +28,13 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
         {
             if (targetContext == null) throw new ArgumentNullException(nameof(targetContext));
             var targetWeb = targetContext.Web;
-            targetContext.Load(targetWeb, w => w.Url, w => w.ServerRelativeUrl, w => w.Title);
+            targetContext.Load(targetWeb, w => w.Id, w => w.Url, w => w.ServerRelativeUrl, w => w.Title);
             targetContext.ExecuteQueryRetry();
-            return PlanCore(targetWeb.Url, targetWeb.ServerRelativeUrl, exportPackage, options, artifactStore);
+            return PlanCore(targetWeb.Id, targetWeb.Url, targetWeb.ServerRelativeUrl, exportPackage, options, artifactStore);
         }
 
         internal static ClassicWikiMigrationPackage PlanCore(
+            Guid targetWebId,
             string targetWebUrl,
             string targetWebServerRelativeUrl,
             ClassicWikiExportPackage exportPackage,
@@ -49,31 +50,46 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             var webServerRelativeUrl = targetWebServerRelativeUrl ?? "/";
             var snapshot = exportPackage.Snapshot;
             var targetPageUrl = options.TargetPageServerRelativeUrl;
+            var sourceLibraryPath = snapshot.LibraryServerRelativeUrl?.TrimEnd('/');
+            var sourceLibraryLeaf = !string.IsNullOrWhiteSpace(sourceLibraryPath)
+                ? PagePath.GetFileName(sourceLibraryPath)
+                : null;
+            var targetLibraryLeaf = string.IsNullOrWhiteSpace(sourceLibraryLeaf)
+                ? (string.IsNullOrWhiteSpace(snapshot.LibraryTitle) ? "SitePages" : snapshot.LibraryTitle.Replace(" ", string.Empty))
+                : sourceLibraryLeaf;
+            var sourceRelativeFolder = GetRelativeFolder(
+                PagePath.GetDirectoryName(snapshot.Source.PageServerRelativeUrl),
+                sourceLibraryPath);
+            string targetLibraryDir;
+            string targetFolderDir;
             if (string.IsNullOrWhiteSpace(targetPageUrl))
             {
-                var libraryName = string.IsNullOrWhiteSpace(snapshot.LibraryTitle) ? "SitePages" : snapshot.LibraryTitle;
                 var fileName = PagePath.GetFileName(snapshot.Source.PageServerRelativeUrl);
-                targetPageUrl = PagePath.Normalize(webServerRelativeUrl, fileName, libraryName);
+                targetLibraryDir = CombineServerRelative(webServerRelativeUrl, targetLibraryLeaf);
+                targetFolderDir = CombineServerRelative(targetLibraryDir, sourceRelativeFolder);
+                targetPageUrl = CombineServerRelative(targetFolderDir, fileName);
             }
             else
             {
                 targetPageUrl = PagePath.Normalize(webServerRelativeUrl, targetPageUrl, "SitePages");
+                targetFolderDir = PagePath.GetDirectoryName(targetPageUrl);
+                targetLibraryDir = RemoveRelativeFolder(targetFolderDir, sourceRelativeFolder);
             }
 
             var warnings = new List<string>(snapshot.Warnings);
             var blockers = new List<string>(snapshot.Blockers);
 
-            var targetLibraryDir = PagePath.GetDirectoryName(targetPageUrl);
             var fileNameOnly = PagePath.GetFileName(targetPageUrl);
 
             var targetTemplate = snapshot.LibraryBaseTemplate == 101 ? 101 : 119;
             var targetLocation = new ClassicWikiTargetLocationPlan
             {
+                TargetWebId = targetWebId,
                 TargetWebUrl = targetWebUrl.TrimEnd('/'),
                 TargetLibraryServerRelativeUrl = targetLibraryDir,
                 TargetLibraryTitle = snapshot.LibraryTitle ?? "Site Pages",
                 TargetLibraryTemplate = targetTemplate,
-                TargetFolderServerRelativeUrl = targetLibraryDir,
+                TargetFolderServerRelativeUrl = targetFolderDir,
                 FileName = fileNameOnly
             };
 
@@ -95,6 +111,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
                     ZoneId = wp.ZoneId ?? "Bottom",
                     SourceZoneIndex = wp.ZoneIndex,
                     TargetZoneIndex = wp.ZoneIndex,
+                    Hidden = wp.Hidden,
                     Xml = wp.ExportXml
                 });
             }
@@ -102,12 +119,34 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             var dependencyPlans = new List<ClassicWikiDependencyPlan>();
             foreach (var dep in snapshot.Dependencies)
             {
+                var targetOriginalValue = RewriteReferenceValue(
+                    dep.OriginalValue,
+                    snapshot.Source.WebUrl,
+                    snapshot.Source.WebServerRelativeUrl,
+                    targetWebUrl,
+                    webServerRelativeUrl);
+                var targetAbsoluteUrl = RewriteReferenceValue(
+                    dep.SourceAbsoluteUrl,
+                    snapshot.Source.WebUrl,
+                    snapshot.Source.WebServerRelativeUrl,
+                    targetWebUrl,
+                    webServerRelativeUrl);
+                var targetServerRelativeUrl = RewriteReferenceValue(
+                    dep.SourceServerRelativeUrl,
+                    snapshot.Source.WebUrl,
+                    snapshot.Source.WebServerRelativeUrl,
+                    targetWebUrl,
+                    webServerRelativeUrl);
                 dependencyPlans.Add(new ClassicWikiDependencyPlan
                 {
+                    SourceId = dep.Id,
+                    Consumer = dep.Consumer,
+                    Kind = dep.Kind,
+                    SourceOriginalValue = dep.OriginalValue,
                     SourceOriginalUrl = dep.SourceServerRelativeUrl ?? dep.SourceAbsoluteUrl ?? dep.OriginalValue,
-                    TargetServerRelativeUrl = dep.SourceServerRelativeUrl != null && webServerRelativeUrl != null
-                        ? RewriteUrl(dep.SourceServerRelativeUrl, snapshot.Source.WebServerRelativeUrl, webServerRelativeUrl)
-                        : dep.SourceServerRelativeUrl,
+                    TargetOriginalValue = targetOriginalValue,
+                    TargetAbsoluteUrl = targetAbsoluteUrl,
+                    TargetServerRelativeUrl = targetServerRelativeUrl,
                     Disposition = "Rewrite"
                 });
             }
@@ -214,12 +253,71 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             return string.Equals(src, tgt, StringComparison.OrdinalIgnoreCase) ? content : ReplaceCaseInsensitive(content, src + "/", tgt + "/");
         }
 
+        private static string GetRelativeFolder(string sourceFolder, string sourceLibraryPath)
+        {
+            if (string.IsNullOrWhiteSpace(sourceFolder)
+                || string.IsNullOrWhiteSpace(sourceLibraryPath)
+                || !PagePath.IsWithin(sourceFolder, sourceLibraryPath))
+            {
+                return string.Empty;
+            }
+
+            return sourceFolder.Substring(sourceLibraryPath.TrimEnd('/').Length).Trim('/');
+        }
+
+        private static string RemoveRelativeFolder(string targetFolder, string relativeFolder)
+        {
+            if (string.IsNullOrWhiteSpace(relativeFolder))
+            {
+                return targetFolder;
+            }
+
+            var suffix = "/" + relativeFolder.Trim('/');
+            return targetFolder.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+                ? targetFolder.Substring(0, targetFolder.Length - suffix.Length)
+                : targetFolder;
+        }
+
+        private static string CombineServerRelative(string left, string right)
+        {
+            if (string.IsNullOrWhiteSpace(right))
+            {
+                return string.IsNullOrWhiteSpace(left) ? "/" : left.TrimEnd('/');
+            }
+
+            var prefix = string.IsNullOrWhiteSpace(left) || left == "/"
+                ? string.Empty
+                : left.TrimEnd('/');
+            return prefix + "/" + right.Trim('/');
+        }
+
         private static string RewriteUrl(string url, string sourceWebUrl, string targetWebUrl)
         {
             if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(sourceWebUrl) || string.IsNullOrEmpty(targetWebUrl)) return url;
             var src = sourceWebUrl.TrimEnd('/');
             var tgt = targetWebUrl.TrimEnd('/');
             return url.StartsWith(src + "/", StringComparison.OrdinalIgnoreCase) ? tgt + "/" + url.Substring(src.Length + 1) : url;
+        }
+
+        private static string RewriteReferenceValue(
+            string value,
+            string sourceWebUrl,
+            string sourceWebServerRelativeUrl,
+            string targetWebUrl,
+            string targetWebServerRelativeUrl)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+
+            var rewritten = RewriteUrl(value, sourceWebServerRelativeUrl, targetWebServerRelativeUrl);
+            if (!string.Equals(rewritten, value, StringComparison.Ordinal))
+            {
+                return rewritten;
+            }
+
+            return RewriteUrl(value, sourceWebUrl, targetWebUrl);
         }
 
         private static string ReplaceCaseInsensitive(string input, string pattern, string replacement)

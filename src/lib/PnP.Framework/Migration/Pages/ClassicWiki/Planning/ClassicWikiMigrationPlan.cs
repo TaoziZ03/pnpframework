@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Pages.References;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -20,12 +21,26 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
 
         public int TargetZoneIndex { get; set; }
 
+        public bool Hidden { get; set; }
+
         public string Xml { get; set; }
     }
 
     public sealed class ClassicWikiDependencyPlan
     {
+        public string SourceId { get; set; }
+
+        public string Consumer { get; set; }
+
+        public PageReferenceKind Kind { get; set; }
+
+        public string SourceOriginalValue { get; set; }
+
         public string SourceOriginalUrl { get; set; }
+
+        public string TargetOriginalValue { get; set; }
+
+        public string TargetAbsoluteUrl { get; set; }
 
         public string TargetServerRelativeUrl { get; set; }
 
