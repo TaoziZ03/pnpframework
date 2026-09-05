@@ -324,6 +324,40 @@ namespace PnP.Framework.Test.PublishingProfiles
         }
 
         [TestMethod]
+        public void PublishingProfileRegistryAtomicallyReplacesWorkflowAndProfileAliases()
+        {
+            var first = new PublishingPageWorkflowPolicy(
+                "replace-workflow", "Article Page", BuiltInContentTypeId.ArticlePage, "First.aspx",
+                new[] { "First.aspx" }, new[] { "Title" }, new[] { "Comments" }, ArticlePageV1CohortPolicy.Assess);
+            var sameWorkflowNewProfile = new PublishingPageWorkflowPolicy(
+                "replace-workflow", "Article Page", BuiltInContentTypeId.ArticlePage, "Second.aspx",
+                new[] { "Second.aspx" }, new[] { "Title" }, new[] { "Comments" }, ArticlePageV1CohortPolicy.Assess);
+            var sameProfileNewWorkflow = new PublishingPageWorkflowPolicy(
+                "replacement-workflow", "Article Page", BuiltInContentTypeId.ArticlePage, "Third.aspx",
+                new[] { "Third.aspx" }, new[] { "Title" }, new[] { "Comments" }, ArticlePageV1CohortPolicy.Assess);
+
+            try
+            {
+                PublishingPageProfileRegistry.Register(first, "old-profile", "0x010100AA");
+                PublishingPageProfileRegistry.Register(sameWorkflowNewProfile, "new-profile", "0x010100BB");
+                Assert.IsFalse(PublishingPageProfileRegistry.TryGetPolicyByProfileId("old-profile", out _));
+                Assert.AreEqual("Second.aspx", PublishingPageProfileRegistry.ResolvePolicy(workflowId: "replace-workflow").PreferredTargetPageLayoutFileName);
+                Assert.AreEqual("replace-workflow", PublishingPageProfileRegistry.ResolvePolicy(profileId: "new-profile").WorkflowId);
+                Assert.IsFalse(PublishingPageProfileRegistry.TryResolvePolicyByContentType("0x010100AA01", out _));
+
+                PublishingPageProfileRegistry.Register(sameProfileNewWorkflow, "new-profile", "0x010100CC");
+                Assert.IsFalse(PublishingPageProfileRegistry.TryGetPolicyByWorkflowId("replace-workflow", out _));
+                Assert.AreEqual("replacement-workflow", PublishingPageProfileRegistry.ResolvePolicy(profileId: "new-profile").WorkflowId);
+                Assert.AreEqual("replacement-workflow", PublishingPageProfileRegistry.ResolvePolicy(contentTypeId: "0x010100CC01").WorkflowId);
+                Assert.IsFalse(PublishingPageProfileRegistry.TryResolvePolicyByContentType("0x010100BB01", out _));
+            }
+            finally
+            {
+                PublishingPageProfileRegistry.ResetToDefaults();
+            }
+        }
+
+        [TestMethod]
         public void WorkflowPoliciesDefineProfileSpecificFieldOwnership()
         {
             var article = ArticlePageV1WorkflowPolicy.Instance;
@@ -982,6 +1016,128 @@ namespace PnP.Framework.Test.PublishingProfiles
         }
 
         [TestMethod]
+        public void ReferenceReaderClosesAllReplayableStringAndUrlFieldsIncludingComments()
+        {
+            var source = new PageIdentity
+            {
+                WebId = Guid.NewGuid(),
+                WebUrl = "https://source.sharepoint.com/sites/source",
+                WebServerRelativeUrl = "/sites/source",
+                PageServerRelativeUrl = "/sites/source/Pages/article.aspx"
+            };
+            var references = PageReferenceSnapshotReader.Read(
+                null,
+                source,
+                null,
+                null,
+                null,
+                new PageCaptureOptions { SourcePageServerRelativeUrl = source.PageServerRelativeUrl },
+                new List<string>(),
+                new[]
+                {
+                    new PageFieldValueSnapshot
+                    {
+                        InternalName = "Comments",
+                        Kind = PageFieldValueKind.String,
+                        Value = "<p><img src=\"/sites/source/SiteAssets/comment.png\" /></p>"
+                    },
+                    new PageFieldValueSnapshot
+                    {
+                        InternalName = "ContosoReplayMarkup",
+                        Kind = PageFieldValueKind.String,
+                        Value = "<a href=\"/sites/source/Pages/custom.aspx\">Custom</a>"
+                    },
+                    new PageFieldValueSnapshot
+                    {
+                        InternalName = "ContosoReplayUrl",
+                        Kind = PageFieldValueKind.Url,
+                        UrlValue = new PageUrlValueSnapshot
+                        {
+                            Url = "https://source.sharepoint.com/sites/source/Pages/url.aspx",
+                            Description = "URL"
+                        }
+                    }
+                });
+
+            Assert.AreEqual(3, references.Count);
+            var commentResource = references.Single(value => value.OriginalValue.EndsWith("comment.png", StringComparison.Ordinal));
+            Assert.IsTrue(commentResource.IsRenderableResource);
+            Assert.AreEqual(PageCaptureStatus.CapturedWithLimitations, commentResource.CaptureStatus);
+            Assert.IsTrue(references.Any(value => value.OriginalValue.EndsWith("custom.aspx", StringComparison.Ordinal)));
+            Assert.IsTrue(references.Any(value => value.Consumer == "field:ContosoReplayUrl"));
+
+            var actions = PageReferencePlanner.BuildActions(
+                source,
+                references,
+                "https://target.sharepoint.com/sites/target",
+                "/sites/target",
+                new PnP.Framework.Migration.Topology.SiteCollectionMappingPlan
+                {
+                    SourceSiteCollectionUrl = "https://source.sharepoint.com/sites/source",
+                    TargetSiteCollectionUrl = "https://target.sharepoint.com/sites/target"
+                },
+                new PagePlanningOptions { AllowExternalResourceReferences = true },
+                new List<string>());
+            Assert.AreEqual(PageReferenceDisposition.PreserveExternal, actions.Single(value => value.SnapshotDependencyId == commentResource.Id).Disposition);
+            Assert.AreEqual(2, actions.Count(value => value.Disposition == PageReferenceDisposition.RewriteToTarget));
+        }
+
+        [TestMethod]
+        public void ExecutionReplacementProjectorRejectsVacuousOrIncompleteActionFrontiers()
+        {
+            var package = CreatePackage(BuiltInContentTypeId.ArticlePage, ArticlePageV1WorkflowPolicy.Instance);
+            package.Plan.Replacements = new List<PageTextReplacement>
+            {
+                new PageTextReplacement
+                {
+                    Source = package.Snapshot.Source.WebUrl,
+                    Target = package.Plan.TargetWebUrl
+                }
+            };
+            var dependencyId = "iframe-dependency";
+            package.Snapshot.Dependencies.Add(new PageReferenceSnapshot
+            {
+                Id = dependencyId,
+                OriginalValue = "https://source.sharepoint.com/sites/source/Pages/embedded.aspx",
+                SourceAbsoluteUrl = "https://source.sharepoint.com/sites/source/Pages/embedded.aspx",
+                Kind = PageReferenceKind.IFrame,
+                IsRenderableResource = true,
+                CaptureStatus = PageCaptureStatus.CapturedWithLimitations
+            });
+            package.Plan.ExecutionFrontier = new PageIngredientExecutionFrontier
+            {
+                Decisions = new List<PageIngredientExecutionDecision>
+                {
+                    new PageIngredientExecutionDecision
+                    {
+                        IngredientId = PublishingPageIngredientIds.Reference(dependencyId),
+                        State = PageIngredientExecutionState.Executable
+                    }
+                }
+            };
+
+            package.Plan.DependencyActions = new List<PageReferenceAction>
+            {
+                new PageReferenceAction
+                {
+                    SnapshotDependencyId = dependencyId,
+                    Disposition = PageReferenceDisposition.Delegate
+                }
+            };
+            var delegatedScope = PublishingPageExecutionScope.Create(package);
+            Assert.AreEqual(0, PublishingPageExecutionReplacementProjector.Project(package, delegatedScope).Count);
+
+            package.Plan.DependencyActions[0].Disposition = PageReferenceDisposition.Block;
+            var blockedScope = PublishingPageExecutionScope.Create(package);
+            Assert.AreEqual(0, PublishingPageExecutionReplacementProjector.Project(package, blockedScope).Count);
+
+            package.Plan.DependencyActions.Clear();
+            package.Plan.ExecutionFrontier.Decisions.Clear();
+            var emptyScope = PublishingPageExecutionScope.Create(package);
+            Assert.AreEqual(0, PublishingPageExecutionReplacementProjector.Project(package, emptyScope).Count);
+        }
+
+        [TestMethod]
         public void FreshFieldAndLayoutReadbackVerifiesRewrittenValuesAndRejectsDrift()
         {
             using (var context = new ClientContext("https://target.sharepoint.com/sites/target"))
@@ -1107,22 +1263,7 @@ namespace PnP.Framework.Test.PublishingProfiles
                 package.Plan.TargetWebServerRelativeUrl,
                 package.Snapshot.Dependencies,
                 package.Plan.DependencyActions);
-            package.Plan.ExecutionFrontier = new PageIngredientExecutionFrontier
-            {
-                Decisions = new List<PageIngredientExecutionDecision>
-                {
-                    new PageIngredientExecutionDecision
-                    {
-                        IngredientId = PublishingPageIngredientIds.Field("PublishingPageImage"),
-                        State = PageIngredientExecutionState.Executable
-                    },
-                    new PageIngredientExecutionDecision
-                    {
-                        IngredientId = PublishingPageIngredientIds.Reference(dependency.Id),
-                        State = PageIngredientExecutionState.Executable
-                    }
-                }
-            };
+            ResealPackage(package);
 
             var scope = PublishingPageExecutionScope.Create(package);
             var replacements = PublishingPageExecutionReplacementProjector.Project(package, scope);
@@ -1130,14 +1271,58 @@ namespace PnP.Framework.Test.PublishingProfiles
             {
                 var item = context.Web.Lists.GetByTitle("Pages").GetItemById(1);
                 item["PublishingPageImage"] = PageTextTransformer.Rewrite(field.Value, replacements);
+                item["PublishingPageContent"] = PageTextTransformer.Rewrite(package.Snapshot.PublishingPageContent, replacements);
+                item["ContentTypeId"] = package.Plan.TargetProbe.PageContentTypeId;
+                item["PublishingPageLayout"] = new FieldUrlValue
+                {
+                    Url = "https://target.sharepoint.com" + package.Plan.LayoutMaterialization.TargetServerRelativeUrl,
+                    Description = "Image on left"
+                };
                 var verified = PublishingPageFieldFreshReadbackVerifier.Verify(
                     item,
                     package.Snapshot.Fields,
                     scope.PageFieldActions(package),
                     replacements,
                     Array.Empty<PageFieldImportResult>());
+                Assert.AreEqual(1, verified.Count, string.Join(", ", package.Plan.IngredientActions.Select(value => value.IngredientId + "=" + value.Disposition)));
                 Assert.IsTrue(verified.Single().Succeeded);
                 StringAssert.Contains((string)item["PublishingPageImage"], "https://target.sharepoint.com/sites/target/PublishingImages/guide.jpg");
+
+                var resumed = new PublishingPageMigrationImporter().ImportWithExecutionContractSeam(
+                    context,
+                    package,
+                    package.PlanDigest,
+                    _ => new PublishingPageMigrationImporter.ContractExecutionObservation
+                    {
+                        TargetItem = item,
+                        ResumedExistingOwnedPage = true,
+                        ObservedLifecycle = package.Plan.TargetLifecycle
+                    },
+                    ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsTrue(resumed.MutationStarted);
+                Assert.IsTrue(resumed.FreshReadbackPassed);
+                Assert.IsTrue(resumed.PageFieldsMatched);
+                Assert.IsTrue(resumed.LayoutMatched);
+                Assert.IsTrue(resumed.StorageContentEqual);
+                Assert.IsTrue(resumed.ContentTypeMatched);
+                Assert.IsTrue(resumed.LifecycleMatched);
+                Assert.AreEqual(MigrationAcceptanceStatus.Accepted, resumed.AcceptanceStatus);
+
+                item["PublishingPageImage"] = "<img src=\"https://target.sharepoint.com/sites/target/PublishingImages/drift.jpg\" />";
+                var drifted = new PublishingPageMigrationImporter().ImportWithExecutionContractSeam(
+                    context,
+                    package,
+                    package.PlanDigest,
+                    _ => new PublishingPageMigrationImporter.ContractExecutionObservation
+                    {
+                        TargetItem = item,
+                        ResumedExistingOwnedPage = true,
+                        ObservedLifecycle = package.Plan.TargetLifecycle
+                    },
+                    ArticlePageV1WorkflowPolicy.Instance);
+                Assert.IsFalse(drifted.FreshReadbackPassed);
+                Assert.IsFalse(drifted.PageFieldsMatched);
+                Assert.AreEqual(MigrationAcceptanceStatus.Rejected, drifted.AcceptanceStatus);
             }
 
             dependency.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
@@ -1150,6 +1335,88 @@ namespace PnP.Framework.Test.PublishingProfiles
             Assert.IsFalse(withoutEvidence.Any(value =>
                 string.Equals(value.Source, package.Snapshot.Source.WebUrl, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(value.Source, package.Snapshot.Source.WebServerRelativeUrl, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        private static void ResealPackage(PublishingPageMigrationPackage package)
+        {
+            package.Snapshot.SourceTopology = new PnP.Framework.Migration.Topology.SourceSiteCollectionSnapshot
+            {
+                SiteId = package.Snapshot.Source.SiteId,
+                SiteCollectionUrl = package.Snapshot.Source.WebUrl,
+                ServerRelativeUrl = package.Snapshot.Source.WebServerRelativeUrl,
+                RootWebId = package.Snapshot.Source.WebId,
+                Webs = new List<PnP.Framework.Migration.Topology.SourceWebSnapshot>
+                {
+                    new PnP.Framework.Migration.Topology.SourceWebSnapshot
+                    {
+                        SiteId = package.Snapshot.Source.SiteId,
+                        WebId = package.Snapshot.Source.WebId,
+                        SiteCollectionUrl = package.Snapshot.Source.WebUrl,
+                        WebUrl = package.Snapshot.Source.WebUrl,
+                        ServerRelativeUrl = package.Snapshot.Source.WebServerRelativeUrl
+                    }
+                }
+            };
+            package.Snapshot.ProfileSignals = PublishingPageProfileSignalProjector.Project(
+                package.Snapshot.Source,
+                package.Snapshot.Layout,
+                package.Snapshot.Fields);
+            package.Snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(package.Snapshot);
+            package.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot);
+            package.Plan.SourceSnapshotDigest = package.SnapshotDigest;
+            package.Plan.IngredientGraph = package.Snapshot.IngredientGraph;
+            var topologyBuild = new PnP.Framework.Migration.Topology.TopologyPlanner().Build(
+                new[] { package.Snapshot.SourceTopology },
+                new[]
+                {
+                    new PnP.Framework.Migration.Topology.TargetSiteCollectionSpec
+                    {
+                        SourceSiteId = package.Snapshot.Source.SiteId,
+                        Mode = PnP.Framework.Migration.Topology.TargetSiteMode.ExistingTargetSite,
+                        TargetSiteUrl = package.Plan.TargetWebUrl,
+                        ExpectedTargetSiteId = Guid.NewGuid(),
+                        Title = "Target"
+                    }
+                });
+            Assert.IsTrue(topologyBuild.IsExecutable, string.Join(Environment.NewLine, topologyBuild.Issues.Select(value => value.Message)));
+            package.Plan.Topology = topologyBuild.Plan;
+            package.Plan.TopologyTargetAnalysis = new PnP.Framework.Migration.Topology.TopologyTargetAnalysis
+            {
+                TopologyPlanDigest = package.Plan.Topology.PlanDigest,
+                SiteCollections = new List<PnP.Framework.Migration.Topology.TopologySiteTargetProbe>
+                {
+                    new PnP.Framework.Migration.Topology.TopologySiteTargetProbe
+                    {
+                        SourceSiteId = package.Snapshot.Source.SiteId,
+                        TargetSiteCollectionUrl = package.Plan.TargetWebUrl,
+                        Exists = true,
+                        Disposition = PnP.Framework.Migration.Topology.TopologyMaterializationDisposition.ReuseApprovedHost,
+                        Webs = new List<PnP.Framework.Migration.Topology.TopologyWebTargetProbe>
+                        {
+                            new PnP.Framework.Migration.Topology.TopologyWebTargetProbe
+                            {
+                                SourceSiteId = package.Snapshot.Source.SiteId,
+                                SourceWebId = package.Snapshot.Source.WebId,
+                                TargetWebUrl = package.Plan.TargetWebUrl,
+                                TargetServerRelativeUrl = package.Plan.TargetWebServerRelativeUrl,
+                                Exists = true,
+                                Disposition = PnP.Framework.Migration.Topology.TopologyMaterializationDisposition.ReuseApprovedHost
+                            }
+                        }
+                    }
+                }
+            };
+            package.Plan.IngredientActions = PublishingPageIngredientActionProjector.Project(
+                package.Snapshot,
+                package.Plan,
+                package.Plan.IngredientGraph);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                package.Plan.IngredientGraph,
+                package.Plan.IngredientActions);
+            package.Plan.MigrationOutcome = evaluation.Outcome;
+            package.Plan.IngredientIssues = evaluation.Issues;
+            package.Plan.ExecutionFrontier = evaluation.ExecutionFrontier;
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
         }
 
         [TestMethod]

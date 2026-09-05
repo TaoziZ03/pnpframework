@@ -41,7 +41,9 @@ namespace PnP.Framework.Migration.Pages.References
             {
                 foreach (var field in fields)
                 {
-                    if (field == null || !IsReferenceBearingField(field.InternalName))
+                    if (field == null
+                        || (field.Kind != PageFieldValueKind.String
+                            && field.Kind != PageFieldValueKind.Url))
                     {
                         continue;
                     }
@@ -209,13 +211,6 @@ namespace PnP.Framework.Migration.Pages.References
             }
 
             return reference;
-        }
-
-        private static bool IsReferenceBearingField(string internalName)
-        {
-            return string.Equals(internalName, "PublishingPageDescription", StringComparison.OrdinalIgnoreCase)
-                || internalName?.StartsWith("SummaryLinks", StringComparison.OrdinalIgnoreCase) == true
-                || IsImageField(internalName);
         }
 
         private static bool LooksLikeReference(string value)

@@ -28,9 +28,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 throw new ArgumentNullException(nameof(executionScope));
             }
 
-            var actions = (package.Plan?.DependencyActions ?? Array.Empty<PageReferenceAction>())
-                .Where(IsReplacementAction)
-                .ToArray();
+            var allActions = (package.Plan?.DependencyActions ?? Array.Empty<PageReferenceAction>()).ToArray();
+            var actions = allActions.Where(IsReplacementAction).ToArray();
             var selectedIds = new HashSet<string>(
                 executionScope.ReferenceActions(package)
                     .Where(IsReplacementAction)
@@ -47,8 +46,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 && dependency.IsRenderableResource
                 && (dependency.CaptureStatus == PageCaptureStatus.Failed
                     || string.IsNullOrWhiteSpace(dependency.ContentSha256)));
-            if (!hasUnavailablePreservedSourceResource
-                && actions.All(value => selectedIds.Contains(value.SnapshotDependencyId)))
+            var completeReplacementFrontier = allActions.Length > 0
+                && actions.Length == allActions.Length
+                && actions.All(value => selectedIds.Contains(value.SnapshotDependencyId));
+            if (!hasUnavailablePreservedSourceResource && completeReplacementFrontier)
             {
                 return (package.Plan?.Replacements ?? Array.Empty<PageTextReplacement>()).ToList();
             }

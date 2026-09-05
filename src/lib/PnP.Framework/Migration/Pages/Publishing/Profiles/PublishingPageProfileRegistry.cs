@@ -71,13 +71,36 @@ namespace PnP.Framework.Migration.Pages.Publishing.Profiles
             string contentTypeIdPrefix)
         {
             var registeredPolicy = policy.Snapshot();
+            var displacedWorkflowIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                registeredPolicy.WorkflowId
+            };
+            if (!string.IsNullOrWhiteSpace(profileId)
+                && PoliciesByProfileId.TryGetValue(profileId, out var policyByExistingProfile))
+            {
+                displacedWorkflowIds.Add(policyByExistingProfile.WorkflowId);
+            }
+
+            Registrations.RemoveAll(registration =>
+                displacedWorkflowIds.Contains(registration.Policy.WorkflowId));
+            foreach (var displacedWorkflowId in displacedWorkflowIds)
+            {
+                PoliciesByWorkflowId.Remove(displacedWorkflowId);
+            }
+            foreach (var alias in PoliciesByProfileId
+                         .Where(value => displacedWorkflowIds.Contains(value.Value.WorkflowId))
+                         .Select(value => value.Key)
+                         .ToArray())
+            {
+                PoliciesByProfileId.Remove(alias);
+            }
+
             PoliciesByWorkflowId[registeredPolicy.WorkflowId] = registeredPolicy;
             if (!string.IsNullOrWhiteSpace(profileId))
             {
                 PoliciesByProfileId[profileId] = registeredPolicy;
             }
 
-            Registrations.RemoveAll(r => string.Equals(r.Policy.WorkflowId, registeredPolicy.WorkflowId, StringComparison.OrdinalIgnoreCase));
             Registrations.Add(new PublishingProfileRegistration
             {
                 Policy = registeredPolicy,
