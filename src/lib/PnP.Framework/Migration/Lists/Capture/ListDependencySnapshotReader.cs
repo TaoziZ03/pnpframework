@@ -162,7 +162,7 @@ namespace PnP.Framework.Migration.Lists.Capture
             var contentTypeDiagnostics = new List<string>();
             var listContentTypes = ListContentTypeSnapshotReader.Read(list.ContentTypes, contentTypeDiagnostics);
             var siteContentTypes = ContentTypeClosureSnapshotReader.Read(context, sourceWeb, listContentTypes, contentTypeDiagnostics);
-            var fields = ListFieldSnapshotReader.Read(context, list.Fields);
+            var fields = ListFieldSnapshotReader.Read(context, sourceWeb.Url, list.Id, list.Fields);
             var availability = EvidenceAvailability.Captured;
             if (items.Count != list.ItemCount || items.Any(value => value.Availability != EvidenceAvailability.Captured))
             {

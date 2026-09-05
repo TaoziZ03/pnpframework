@@ -559,9 +559,9 @@ namespace PnP.Framework.Migration.Lists.Planning
             IEnumerable<TaxonomyTargetMapping> taxonomyMappings,
             ICollection<MigrationIssue> issues)
         {
-            if (field.Availability == EvidenceAvailability.Unavailable || field.Availability == EvidenceAvailability.Conflict)
+            if (field.Availability != EvidenceAvailability.Captured)
             {
-                return Block(field, issues, "ListFieldEvidenceUnavailable", "Field schema evidence is unavailable or conflicting.");
+                return Block(field, issues, "ListFieldEvidenceIncomplete", "Field schema evidence is not completely captured.");
             }
             var hasValue = HasBusinessValue(source, field.InternalName);
             var requiredBySurface = source.Views.Any(view => view.ViewFields.Contains(field.InternalName, StringComparer.OrdinalIgnoreCase))

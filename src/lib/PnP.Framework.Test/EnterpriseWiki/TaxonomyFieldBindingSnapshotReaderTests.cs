@@ -1,6 +1,8 @@
 using Microsoft.SharePoint.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Lists.Fields;
+using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Schema.ContentTypes;
 using PnP.Framework.Migration.Schema.Fields;
 using System;
@@ -34,7 +36,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(TextFieldId, result.Binding.HiddenTextFieldId);
             Assert.IsTrue(result.Binding.Open);
             Assert.AreEqual("Field.SchemaXml/Customization/ArrayOfProperty", result.Sources.Single().Selector);
-            StringAssert.Contains(string.Join(" ", result.Diagnostics), "Parameter name: member");
+            StringAssert.Contains(
+                string.Join(" ", result.Diagnostics),
+                "exceptionType=Microsoft.SharePoint.Client.ServerException");
+            Assert.IsFalse(result.Diagnostics.Any(value => value.Contains("Parameter name: member", StringComparison.Ordinal)));
         }
 
         [TestMethod]
@@ -47,11 +52,18 @@ namespace PnP.Framework.Test.EnterpriseWiki
             AssertFallbackFailure(ValidSchemaXml().Replace(
                 "</ArrayOfProperty>",
                 Property("Open", "true") + "</ArrayOfProperty>"));
+            AssertFallbackFailure(ValidSchemaXml().Replace(
+                Property("SspId", TermStoreId.ToString("D")),
+                "<Property><Name>SspId</Name><Name>Ambiguous</Name><Value>"
+                    + TermStoreId.ToString("D") + "</Value></Property>"
+                    + Property("SspId", TermStoreId.ToString("D"))));
         }
 
         [TestMethod]
         public void PerFieldBatchIsolationPreservesOtherTaxonomyBindings()
         {
+            var batchRequestCount = 0;
+            var isolatedRequestCount = 0;
             var bad = new FieldInput
             {
                 Id = FieldId,
@@ -72,7 +84,16 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 field => field.Id,
                 field => field.Name,
                 field => field.SchemaXml,
-                field => field.ReadTyped());
+                fields =>
+                {
+                    batchRequestCount++;
+                    throw MemberFailure();
+                },
+                field =>
+                {
+                    isolatedRequestCount++;
+                    return field.ReadTyped();
+                });
 
             Assert.AreEqual(2, results.Count);
             Assert.IsFalse(results[bad.Id].IsComplete);
@@ -81,6 +102,41 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.AreEqual(TermSetId, results[good.Id].Binding.SourceTermSetId);
             Assert.AreEqual(1, bad.ReadCount);
             Assert.AreEqual(1, good.ReadCount);
+            Assert.AreEqual(1, batchRequestCount);
+            Assert.AreEqual(2, isolatedRequestCount);
+        }
+
+        [TestMethod]
+        public void HealthyBatchUsesOneRequestAndNoIsolatedRoundTrips()
+        {
+            var batchRequestCount = 0;
+            var isolatedRequestCount = 0;
+            var fields = new[]
+            {
+                new FieldInput { Id = FieldId, Name = "Categories", SchemaXml = ValidSchemaXml(), Binding = ValidBinding() },
+                new FieldInput { Id = new Guid("55555555-5555-5555-5555-555555555555"), Name = "Topics", SchemaXml = ValidSchemaXml(), Binding = ValidBinding() }
+            };
+
+            var results = TaxonomyFieldBindingSnapshotReader.ReadAll(
+                fields,
+                field => field.Id,
+                field => field.Name,
+                field => field.SchemaXml,
+                batch =>
+                {
+                    batchRequestCount++;
+                    return batch.ToDictionary(field => field.Id, field => field.Binding);
+                },
+                field =>
+                {
+                    isolatedRequestCount++;
+                    return field.ReadTyped();
+                });
+
+            Assert.AreEqual(2, results.Count);
+            Assert.IsTrue(results.Values.All(value => value.IsComplete && !value.UsedSchemaXmlFallback));
+            Assert.AreEqual(1, batchRequestCount);
+            Assert.AreEqual(0, isolatedRequestCount);
         }
 
         [TestMethod]
@@ -99,10 +155,12 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
                 Assert.IsFalse(result.IsComplete);
                 Assert.IsNull(result.Binding);
-                Assert.AreEqual(0, result.Sources.Count);
+                Assert.AreEqual(1, result.Sources.Count);
+                Assert.AreEqual("Field.SchemaXml/Customization/ArrayOfProperty", result.Sources.Single().Selector);
                 StringAssert.Contains(
                     string.Join(" ", result.Diagnostics),
-                    "No literal HTTP 401/403 wire evidence was captured");
+                    "no literal HTTP 401/403 wire evidence was captured");
+                Assert.IsFalse(result.Diagnostics.Any(value => value.Contains(status, StringComparison.Ordinal)));
             }
         }
 
@@ -141,6 +199,58 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.IsNull(plan);
         }
 
+        [TestMethod]
+        public void MissingHiddenTextCompanionMarksContentTypeClosurePartial()
+        {
+            var field = new FieldSchemaSnapshot
+            {
+                Id = FieldId,
+                InternalName = "Categories",
+                TypeAsString = "TaxonomyFieldType",
+                Taxonomy = ValidBinding()
+            };
+            var diagnostics = new System.Collections.Generic.List<string>();
+
+            Assert.IsFalse(ContentTypeSchemaSnapshotReader.ValidateTaxonomyCompanionClosure(new[] { field }, diagnostics));
+            Assert.IsTrue(field.Diagnostics.Any(value => value.StartsWith("TaxonomyBindingHiddenTextCompanionMissing:", StringComparison.Ordinal)));
+            Assert.AreEqual(1, diagnostics.Count);
+
+            var listField = new ListFieldSnapshot
+            {
+                Id = FieldId,
+                InternalName = "Categories",
+                TypeAsString = "TaxonomyFieldType",
+                Taxonomy = ValidBinding()
+            };
+            Assert.IsFalse(ListFieldSnapshotReader.ValidateTaxonomyCompanionClosure(new[] { listField }));
+            Assert.AreEqual(EvidenceAvailability.Partial, listField.Availability);
+            Assert.IsTrue(listField.Diagnostics.Any(value => value.StartsWith("TaxonomyBindingHiddenTextCompanionMissing:", StringComparison.Ordinal)));
+        }
+
+        [TestMethod]
+        public void PartialContentTypeWithIncompleteBindingOrMissingCompanionCannotBecomeRuntimePlan()
+        {
+            var incomplete = PartialRuntimeSchema(ValidBinding());
+            incomplete.RequiredFieldClosure[0].Taxonomy.SourceTermStoreId = Guid.Empty;
+            Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(incomplete, out _));
+
+            var missingCompanion = PartialRuntimeSchema(ValidBinding());
+            Assert.IsFalse(ContentTypeSchemaPlanner.TryCreateTargetRuntimeRequirement(missingCompanion, out _));
+        }
+
+        [TestMethod]
+        public void LegacyV1ListFieldJsonRetainsItsDigestWhenOptionalSourcesAreAbsent()
+        {
+            const string legacyJson = "{\"id\":\"11111111-1111-1111-1111-111111111111\",\"internalName\":\"Title\",\"title\":\"Title\",\"typeAsString\":\"Text\",\"group\":\"_Hidden\",\"schemaXml\":\"<Field Type=\\\"Text\\\" Name=\\\"Title\\\" />\",\"schemaXmlSha256\":\"schema\",\"portableSchemaSha256\":\"portable\",\"hidden\":false,\"readOnly\":false,\"required\":false,\"fromBaseType\":true,\"sealed\":false,\"sourceLookupWebId\":null,\"sourceLookupListId\":null,\"lookupField\":null,\"taxonomy\":null,\"availability\":\"Captured\",\"diagnostics\":[]}";
+            var legacyDigest = MigrationDigest.ComputeSha256(legacyJson);
+            var field = MigrationContractSerializer.Deserialize<ListFieldSnapshot>(legacyJson);
+            var canonical = MigrationContractSerializer.SerializeCanonical(field);
+
+            Assert.IsNull(field.Sources);
+            Assert.AreEqual(legacyJson, canonical);
+            Assert.AreEqual(legacyDigest, MigrationDigest.ComputeSha256(canonical));
+        }
+
         private static void AssertFallbackFailure(string schemaXml)
         {
             TaxonomyFieldBindingSnapshot binding;
@@ -177,6 +287,38 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 AnchorTermId = Guid.Empty,
                 HiddenTextFieldId = TextFieldId,
                 Open = true
+            };
+        }
+
+        private static ContentTypeSchemaSnapshot PartialRuntimeSchema(TaxonomyFieldBindingSnapshot binding)
+        {
+            var field = new FieldSchemaSnapshot
+            {
+                Id = FieldId,
+                InternalName = "Categories",
+                TypeAsString = "TaxonomyFieldType",
+                SchemaXml = ValidSchemaXml(),
+                Role = FieldSchemaRole.DirectBinding,
+                Ownership = FieldOwnership.TargetRuntime,
+                Taxonomy = binding
+            };
+            return new ContentTypeSchemaSnapshot
+            {
+                EvidenceState = ContentTypeSchemaEvidenceState.Partial,
+                Availability = EvidenceAvailability.Partial,
+                ContentTypeId = "0x010100AABB",
+                Name = "Documents",
+                ParentContentTypeId = "0x0101",
+                RequiredFieldLinks = new[]
+                {
+                    new ContentTypeFieldLinkSnapshot
+                    {
+                        FieldId = FieldId,
+                        Name = "Categories",
+                        Role = FieldSchemaRole.DirectBinding
+                    }
+                },
+                RequiredFieldClosure = new[] { field }
             };
         }
 

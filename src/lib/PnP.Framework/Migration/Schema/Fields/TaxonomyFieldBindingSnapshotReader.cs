@@ -42,53 +42,18 @@ namespace PnP.Framework.Migration.Schema.Fields
             try
             {
                 var typed = typedReader == null ? null : typedReader();
-                string typedDiagnostic;
-                if (TryValidate(typed, out typedDiagnostic))
-                {
-                    result.Binding = typed;
-                    result.IsComplete = true;
-                    result.Sources.Add(new EvidenceSource
-                    {
-                        ExchangeId = "csom-taxonomy-field:" + fieldId.ToString("D"),
-                        Selector = "TaxonomyField.{SspId,TermSetId,AnchorId,TextField,Open}"
-                    });
-                    return result;
-                }
-
-                result.Diagnostics.Add(
-                    "Typed CSOM taxonomy binding evidence was incomplete for field "
-                    + FieldLabel(fieldId, fieldInternalName) + ": " + typedDiagnostic);
+                return FromTypedOrSchemaXml(fieldId, fieldInternalName, schemaXml, typed, null);
             }
             catch (Exception exception)
             {
                 result.Diagnostics.Add(
-                    "Typed CSOM taxonomy binding read failed for field "
-                    + FieldLabel(fieldId, fieldInternalName) + " ("
-                    + exception.GetType().Name + "): " + exception.Message);
+                    "TaxonomyBindingTypedReadFailed: field="
+                    + FieldLabel(fieldId, fieldInternalName) + "; exceptionType="
+                    + exception.GetType().FullName + ".");
                 result.Diagnostics.Add(
-                    "No literal HTTP 401/403 wire evidence was captured for this field failure; no authorization classification was produced.");
+                    "TaxonomyBindingAuthorizationUnclassified: no literal HTTP 401/403 wire evidence was captured.");
             }
-
-            TaxonomyFieldBindingSnapshot fallback;
-            string fallbackDiagnostic;
-            if (TryReadSchemaXml(schemaXml, out fallback, out fallbackDiagnostic))
-            {
-                result.Binding = fallback;
-                result.IsComplete = true;
-                result.UsedSchemaXmlFallback = true;
-                result.Sources.Add(new EvidenceSource
-                {
-                    ExchangeId = "field-schema:" + fieldId.ToString("D"),
-                    PayloadSha256 = MigrationDigest.ComputeSha256(schemaXml),
-                    Selector = "Field.SchemaXml/Customization/ArrayOfProperty"
-                });
-                result.Diagnostics.Add(
-                    "Complete taxonomy binding evidence was recovered from the captured Field.SchemaXml.");
-                return result;
-            }
-
-            result.Diagnostics.Add(
-                "Captured Field.SchemaXml did not provide a complete taxonomy binding: " + fallbackDiagnostic);
+            AddSchemaXmlFallback(result, fieldId, schemaXml);
             return result;
         }
 
@@ -97,19 +62,51 @@ namespace PnP.Framework.Migration.Schema.Fields
             Func<T, Guid> fieldId,
             Func<T, string> fieldInternalName,
             Func<T, string> schemaXml,
-            Func<T, TaxonomyFieldBindingSnapshot> typedReader)
+            Func<IEnumerable<T>, IDictionary<Guid, TaxonomyFieldBindingSnapshot>> batchReader,
+            Func<T, TaxonomyFieldBindingSnapshot> isolatedReader)
         {
+            var values = (fields ?? Enumerable.Empty<T>()).ToArray();
             var results = new Dictionary<Guid, TaxonomyFieldBindingCaptureResult>();
-            foreach (var field in fields ?? Enumerable.Empty<T>())
+            try
             {
-                var id = fieldId(field);
-                results[id] = Read(
-                    id,
-                    fieldInternalName(field),
-                    schemaXml(field),
-                    () => typedReader(field));
+                var typed = batchReader(values) ?? new Dictionary<Guid, TaxonomyFieldBindingSnapshot>();
+                foreach (var field in values)
+                {
+                    var id = fieldId(field);
+                    typed.TryGetValue(id, out var binding);
+                    results[id] = FromTypedOrSchemaXml(
+                        id,
+                        fieldInternalName(field),
+                        schemaXml(field),
+                        binding,
+                        binding == null ? "TaxonomyBindingBatchResultMissing" : null);
+                }
+                return results;
+            }
+            catch (Exception exception)
+            {
+                foreach (var field in values)
+                {
+                    var id = fieldId(field);
+                    var isolated = Read(
+                        id,
+                        fieldInternalName(field),
+                        schemaXml(field),
+                        () => isolatedReader(field));
+                    isolated.Diagnostics.Insert(
+                        0,
+                        "TaxonomyBindingBatchReadFailed: exceptionType="
+                        + exception.GetType().FullName + "; isolatedRetry=true.");
+                    results[id] = isolated;
+                }
             }
             return results;
+        }
+
+        internal static bool IsComplete(TaxonomyFieldBindingSnapshot binding)
+        {
+            string ignored;
+            return TryValidate(binding, out ignored);
         }
 
         internal static bool TryReadSchemaXml(
@@ -130,9 +127,9 @@ namespace PnP.Framework.Migration.Schema.Fields
             {
                 root = XDocument.Parse(schemaXml, LoadOptions.None).Root;
             }
-            catch (XmlException exception)
+            catch (XmlException)
             {
-                diagnostic = "SchemaXml is malformed: " + exception.Message;
+                diagnostic = "SchemaXml is malformed.";
                 return false;
             }
             if (root == null || !string.Equals(root.Name.LocalName, "Field", StringComparison.Ordinal))
@@ -160,11 +157,17 @@ namespace PnP.Framework.Migration.Schema.Fields
             {
                 var names = property.Elements().Where(value => value.Name.LocalName == "Name").ToArray();
                 var values = property.Elements().Where(value => value.Name.LocalName == "Value").ToArray();
-                if (names.Length != 1 || string.IsNullOrWhiteSpace(names[0].Value))
+                if (names.Length != 1)
                 {
-                    continue;
+                    diagnostic = "SchemaXml contains a Property with an ambiguous Name element count.";
+                    return false;
                 }
                 var name = names[0].Value.Trim();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    diagnostic = "SchemaXml contains a Property with an empty Name.";
+                    return false;
+                }
                 if (!RequiredProperties.Contains(name, StringComparer.OrdinalIgnoreCase))
                 {
                     continue;
@@ -229,6 +232,60 @@ namespace PnP.Framework.Migration.Schema.Fields
                 Open = open
             };
             return true;
+        }
+
+        private static TaxonomyFieldBindingCaptureResult FromTypedOrSchemaXml(
+            Guid fieldId,
+            string fieldInternalName,
+            string schemaXml,
+            TaxonomyFieldBindingSnapshot typed,
+            string typedFailureCode)
+        {
+            var result = new TaxonomyFieldBindingCaptureResult();
+            string typedDiagnostic;
+            if (TryValidate(typed, out typedDiagnostic))
+            {
+                result.Binding = typed;
+                result.IsComplete = true;
+                return result;
+            }
+
+            result.Diagnostics.Add(
+                (typedFailureCode ?? "TaxonomyBindingTypedResultIncomplete")
+                + ": field=" + FieldLabel(fieldId, fieldInternalName)
+                + "; reason=" + typedDiagnostic);
+            AddSchemaXmlFallback(result, fieldId, schemaXml);
+            return result;
+        }
+
+        private static void AddSchemaXmlFallback(
+            TaxonomyFieldBindingCaptureResult result,
+            Guid fieldId,
+            string schemaXml)
+        {
+            if (!string.IsNullOrWhiteSpace(schemaXml))
+            {
+                result.Sources.Add(new EvidenceSource
+                {
+                    ExchangeId = "field-schema:" + fieldId.ToString("D"),
+                    PayloadSha256 = MigrationDigest.ComputeSha256(schemaXml),
+                    Selector = "Field.SchemaXml/Customization/ArrayOfProperty"
+                });
+            }
+
+            TaxonomyFieldBindingSnapshot fallback;
+            string fallbackDiagnostic;
+            if (TryReadSchemaXml(schemaXml, out fallback, out fallbackDiagnostic))
+            {
+                result.Binding = fallback;
+                result.IsComplete = true;
+                result.UsedSchemaXmlFallback = true;
+                result.Diagnostics.Add("TaxonomyBindingSchemaXmlFallbackUsed: complete binding recovered.");
+                return;
+            }
+
+            result.Diagnostics.Add(
+                "TaxonomyBindingSchemaXmlFallbackIncomplete: " + fallbackDiagnostic);
         }
 
         private static bool TryValidate(TaxonomyFieldBindingSnapshot binding, out string diagnostic)

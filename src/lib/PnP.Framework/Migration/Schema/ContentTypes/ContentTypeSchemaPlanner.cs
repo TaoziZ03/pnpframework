@@ -63,7 +63,7 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
                     || string.IsNullOrWhiteSpace(value.TypeAsString)
                     || string.IsNullOrWhiteSpace(value.SchemaXml)
                     || (value.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
-                        && value.Taxonomy == null)))
+                        && !TaxonomyFieldBindingSnapshotReader.IsComplete(value.Taxonomy))))
             {
                 return false;
             }
@@ -72,7 +72,9 @@ namespace PnP.Framework.Migration.Schema.ContentTypes
             var closureIds = new HashSet<Guid>(closure.Select(value => value.Id));
             if (closureIds.Count != closure.Length
                 || schema.RequiredFieldLinks.Select(value => value.FieldId).Distinct().Count() != schema.RequiredFieldLinks.Count
-                || schema.RequiredFieldLinks.Any(value => !closureIds.Contains(value.FieldId)))
+                || schema.RequiredFieldLinks.Any(value => !closureIds.Contains(value.FieldId))
+                || closure.Any(value => value.TypeAsString.StartsWith("TaxonomyFieldType", StringComparison.OrdinalIgnoreCase)
+                    && !closureIds.Contains(value.Taxonomy.HiddenTextFieldId)))
             {
                 return false;
             }

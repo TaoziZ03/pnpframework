@@ -106,7 +106,12 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 "TaxonomyFieldTypeMulti",
                 FieldSchemaRole.InheritedFromParent,
                 "<Field ID=\"{e1a5b98c-dd71-426d-acb6-e478c7a5882f}\" Name=\"Wiki_x0020_Page_x0020_Categories\" Type=\"TaxonomyFieldTypeMulti\" />");
-            taxonomy.Taxonomy = new TaxonomyFieldBindingSnapshot { HiddenTextFieldId = companion.Id };
+            taxonomy.Taxonomy = new TaxonomyFieldBindingSnapshot
+            {
+                SourceTermStoreId = Guid.Parse("9d8e750d-e37c-462b-a1f0-449f3cae45d6"),
+                SourceTermSetId = Guid.Parse("0e176830-bfc8-4bee-ab3f-7ad966c41e27"),
+                HiddenTextFieldId = companion.Id
+            };
             schema.RequiredFieldLinks.Add(Link(taxonomy));
             schema.RequiredFieldClosure.Add(companion);
             schema.RequiredFieldClosure.Add(taxonomy);

@@ -143,7 +143,6 @@ namespace PnP.Framework.Migration.Lists.Packaging
             }
             var duplicateField = dependency.Fields.GroupBy(value => value == null ? Guid.Empty : value.Id).FirstOrDefault(group => group.Key == Guid.Empty || group.Count() > 1);
             if (duplicateField != null || dependency.Fields.Any(value => string.IsNullOrWhiteSpace(value.InternalName)
-                || value.Sources == null
                 || value.Diagnostics == null
                 || !string.Equals(MigrationDigest.ComputeSha256(value.SchemaXml ?? string.Empty), value.SchemaXmlSha256, StringComparison.OrdinalIgnoreCase)))
             {
