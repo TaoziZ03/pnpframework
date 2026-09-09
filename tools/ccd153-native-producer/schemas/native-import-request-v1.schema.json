@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ccd153.native-import-request/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "caseId",
+    "implementationRef",
+    "targetWebUrl",
+    "packagePath",
+    "admittedPlanPath",
+    "artifactStorePath",
+    "outputDirectory"
+  ],
+  "properties": {
+    "schema": { "const": "ccd153.native-import-request/v1" },
+    "caseId": { "type": "string", "minLength": 1 },
+    "implementationRef": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "targetWebUrl": {
+      "type": "string",
+      "pattern": "^https://a830edad9050849cupcollect\\.sharepoint\\.com(?:/|$)"
+    },
+    "packagePath": { "type": "string", "minLength": 1 },
+    "admittedPlanPath": { "type": "string", "minLength": 1 },
+    "artifactStorePath": { "type": "string", "minLength": 1 },
+    "outputDirectory": { "type": "string", "minLength": 1 },
+    "targetCookieEnvironmentVariable": { "type": ["string", "null"] }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ccd153.native-reconcile-request/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "caseId",
+    "implementationRef",
+    "packagePath",
+    "admittedPlanPath",
+    "importReceiptPath",
+    "runtimeReceiptPath",
+    "assessmentHandoffPath",
+    "sourceVersionComparisonPath",
+    "actualMeasurementsPath",
+    "artifactStorePath",
+    "outputDirectory",
+    "manifestDigestSha256",
+    "sourceCaptureReceiptDigestSha256"
+  ],
+  "properties": {
+    "schema": { "const": "ccd153.native-reconcile-request/v1" },
+    "caseId": { "type": "string", "minLength": 1 },
+    "implementationRef": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "packagePath": { "type": "string", "minLength": 1 },
+    "admittedPlanPath": { "type": "string", "minLength": 1 },
+    "importReceiptPath": { "type": "string", "minLength": 1 },
+    "runtimeReceiptPath": { "type": "string", "minLength": 1 },
+    "assessmentHandoffPath": { "type": "string", "minLength": 1 },
+    "sourceVersionComparisonPath": { "type": "string", "minLength": 1 },
+    "actualMeasurementsPath": { "type": "string", "minLength": 1 },
+    "artifactStorePath": { "type": "string", "minLength": 1 },
+    "outputDirectory": { "type": "string", "minLength": 1 },
+    "manifestDigestSha256": { "$ref": "#/$defs/sha256" },
+    "sourceCaptureReceiptDigestSha256": { "$ref": "#/$defs/sha256" },
+    "sourceAuthState": { "enum": ["valid", "expired", null] }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+  }
+}

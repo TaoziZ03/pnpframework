@@ -4150,6 +4150,38 @@ namespace PnP.Framework.Test.EnterpriseWiki
             partialReceipt.Bindings.RuntimeReceiptDigestSha256 = partialReceipt.RuntimeReceiptDigestSha256;
             Assert.ThrowsException<InvalidDataException>(() =>
                 PublishingPageCompareReconciler.Reconcile(partialReceipt, new PermissiveArtifactStore()));
+
+            var emptySteps = CreateCompareRequest();
+            emptySteps.ImportReceipt.Steps.Clear();
+            ResealAdmittedChain(emptySteps);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(emptySteps, new PermissiveArtifactStore()));
+
+            var duplicateStep = CreateCompareRequest();
+            duplicateStep.ImportReceipt.Steps.Add(new MigrationMutationReceipt
+            {
+                OperationId = duplicateStep.ImportReceipt.OperationId,
+                PlanDigest = duplicateStep.ImportReceipt.ApprovedPlanDigest,
+                ActionId = duplicateStep.ImportReceipt.Steps[0].ActionId,
+                Sequence = duplicateStep.ImportReceipt.Steps[0].Sequence,
+                CompletedAtUtc = duplicateStep.ImportReceipt.Steps[0].CompletedAtUtc,
+                Outcome = MutationOutcome.AlreadySatisfied
+            });
+            ResealAdmittedChain(duplicateStep);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(duplicateStep, new PermissiveArtifactStore()));
+
+            var orphanStep = CreateCompareRequest();
+            orphanStep.ImportReceipt.Steps[0].Sequence = 1;
+            ResealAdmittedChain(orphanStep);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(orphanStep, new PermissiveArtifactStore()));
+
+            var foreignStep = CreateCompareRequest();
+            foreignStep.ImportReceipt.Steps[0].OperationId = Guid.NewGuid();
+            ResealAdmittedChain(foreignStep);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(foreignStep, new PermissiveArtifactStore()));
         }
 
         [TestMethod]
@@ -4616,6 +4648,8 @@ namespace PnP.Framework.Test.EnterpriseWiki
             var admittedPlanDigest = ContractDigest(admittedPlan);
             var importReceiptValue = new PublishingPageImportReceipt
             {
+                StartedAtUtc = new DateTimeOffset(2026, 9, 8, 11, 59, 10, TimeSpan.Zero),
+                CompletedAtUtc = new DateTimeOffset(2026, 9, 8, 11, 59, 20, TimeSpan.Zero),
                 OperationId = operations.MutationOperationId,
                 AdmittedPlanDigestSha256 = admittedPlanDigest,
                 SourceVersion = sourceVersion,
@@ -4628,6 +4662,20 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 TargetVersionLabel = "1.0",
                 ExecutionStatus = MigrationExecutionStatus.Succeeded,
                 PartialExecution = false,
+                MutationStarted = true,
+                Steps = new List<MigrationMutationReceipt>
+                {
+                    new MigrationMutationReceipt
+                    {
+                        OperationId = operations.MutationOperationId,
+                        PlanDigest = package.PlanDigest,
+                        ActionId = "page.create",
+                        Sequence = 0,
+                        CompletedAtUtc = new DateTimeOffset(2026, 9, 8, 11, 59, 15, TimeSpan.Zero),
+                        Outcome = MutationOutcome.Applied,
+                        Message = "Created the admitted page."
+                    }
+                },
                 FreshReadbackPassed = storageStatus == StorageVerificationStatus.Passed,
                 StorageVerificationStatus = storageStatus,
                 RuntimeVerificationStatus = includeRuntimeReceipt
