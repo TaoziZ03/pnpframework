@@ -103,3 +103,39 @@ mise dotnet-root，未安装依赖、未修改 TargetFramework 或全局配置�
 Independent Verification、live CUPCollect、M5、release 与 customer acceptance 均未声明。
 CCD-165 hardening 与 CCD-167 immutable-contribution 条件保持 deferred，不因本修订被
 改写为 PASS。
+
+## Revision 3 — v1 no-required aggregate compatibility remediation
+
+本节只追加，不改写 CCD-256 修复及其后续 adverse history。Architect 复审任务
+CCD-288 对 exact ref `64009526d1683aeb2156cfcec1f328f45d3dc1ec` 确认原 P1
+mixed-outcome 缺陷已修复，同时发现 P2 v1 reader compatibility regression：v1 manifest
+没有 required runtime evidence 时，既有 Compare reader 可接受的 `Passed` receipt 被新的
+aggregate validator 拒绝。该 review 只暂停受影响的 v1 receipt compatibility/admission path，
+不停止独立 ingredient claims、discovery、fixtures 或 lane-local implementation。
+
+修复以 adverse ref 为直接 first parent：
+
+| 来源 | product commit | 路径 | conflict/path analysis | disposition |
+| --- | --- | --- | --- | --- |
+| CCD-288 P2 remediation | `de8091b89f1cc254de5e9b6c3e86f40664363bbb` | shared runtime validator、Publishing Compare permanent tests | 只修改唯一 aggregate rule 和其 public-Compare tests；未新增 Compare status 算法，未触碰 serializer/digest、action journal/receipt、owner resolver、registry/guard、target client 或 lane paths；无 cherry-pick conflict | candidate admitted for exact-ref re-review |
+
+`RuntimeVerificationContractValidator.ValidateAggregateStatus` 继续作为唯一 aggregate rule。
+有 required legacy result 或 v2 assertion 时，aggregate 仍严格由全部 required evidence 导出
+`Passed` / `Failed`；没有 required evidence 时，v1 保留既有 `Passed` 或 `NotRequired`
+两种 reader representation，二者都投影为 Compare runtime `not-required`。该兼容分支明确
+绑定 `ManifestSchemaV1`，不会放宽 v2 assertion aggregation，也不会重写历史 receipt/digest。
+
+永久 public-Compare test 新增 optional-only pass、optional-only fail、optional-only
+`NotRequired`、empty `Passed`、empty `NotRequired` 五个边界。Windows host `.NET SDK
+10.0.400` / `net10.0` 本轮结果：
+
+```text
+Runtime validator + Publishing Compare focused cohort: 17 passed, 0 failed, 0 skipped
+Permanent combined cohort + CCD-256 probes + CCD-288 v1 probes: 34 passed, 0 failed, 0 skipped
+```
+
+现有 package/advisory、obsolete API、resource 与 analyzer warnings 保留为 warning；未改写为
+本修复 PASS 或新增产品失败。最终含本 append-only ledger 的 exact shared ref 记录在
+CCD-162 issue document `rolling-integration-baseline` 的新 revision，并再次交 Architect
+exact-ref review。Independent Verification、live CUPCollect、M5、release 与 customer
+acceptance 仍未声明；本轮没有 source/target tenant 访问或 mutation。
