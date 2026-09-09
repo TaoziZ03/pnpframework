@@ -1,6 +1,9 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Pages.ClassicWiki.Execution;
+using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Pages.Comparison;
 using PnP.Framework.Migration.Pages.Publishing.Comparison;
 using PnP.Framework.Migration.Pages.Publishing.Execution;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
@@ -40,17 +43,34 @@ static void RunValidateImport(string requestPath, JsonSerializerOptions options,
     Require(request.Schema == "ccd153.native-import-validation-request/v1", "native_import_validation_request_schema_unsupported");
     ValidateImplementationRef(request.ImplementationRef);
     var admittedPlan = Read<AdmittedReproExecutionPlan>(Resolve(requestPath, request.AdmittedPlanPath), options);
-    var importReceipt = Read<PublishingPageImportReceipt>(Resolve(requestPath, request.ImportReceiptPath), options);
+    var pageFamily = NormalizePageFamily(request.PageFamily);
+    NativePageImportReceiptAggregate aggregate;
+    if (!string.IsNullOrWhiteSpace(request.ReceiptAggregatePath))
+    {
+        aggregate = Read<NativePageImportReceiptAggregate>(Resolve(requestPath, request.ReceiptAggregatePath), options);
+        pageFamily = aggregate.PageFamily;
+    }
+    else if (pageFamily == NativePageImportReceiptContract.ClassicWikiFamily)
+    {
+        aggregate = NativePageImportReceiptAggregateFactory.Create(
+            Read<ClassicWikiImportReceipt>(Resolve(requestPath, request.ImportReceiptPath), options));
+    }
+    else
+    {
+        aggregate = NativePageImportReceiptAggregateFactory.Create(
+            Read<PublishingPageImportReceipt>(Resolve(requestPath, request.ImportReceiptPath), options));
+    }
     var admittedDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
         admittedPlan,
         admittedPlan.PlanDigest,
         admittedPlan.TargetIdentity);
     string verdict;
     string reason = null;
+    NativePageImportCompareBinding compareBinding = null;
     try
     {
-        PublishingPageImportReceiptValidator.ValidateAdmittedExecution(
-            importReceipt,
+        compareBinding = NativePageImportReceiptAggregateValidator.ValidateForCompare(
+            aggregate,
             admittedPlan,
             admittedDigest);
         verdict = "admitted";
@@ -67,9 +87,14 @@ static void RunValidateImport(string requestPath, JsonSerializerOptions options,
         request.CaseId,
         producer = new { id = ProducerContract.Id, version = ProducerContract.Version, implementationRef = request.ImplementationRef },
         binarySha256 = CurrentBinarySha256(),
+        pageFamily,
         admittedPlanDigestSha256 = admittedDigest,
-        importReceiptDigestSha256 = ContractDigest(importReceipt, options),
-        stepCount = importReceipt.Steps?.Count ?? 0,
+        importReceiptDigestSha256 = aggregate.ReceiptDigestSha256,
+        stepCount = compareBinding?.NativeStepCount
+            ?? aggregate.ClassicWikiReceipt?.Steps?.Count
+            ?? aggregate.PublishingReceipt?.Steps?.Count
+            ?? 0,
+        compareBinding,
         verdict,
         reason
     };
@@ -82,11 +107,8 @@ static void RunImport(string requestPath, JsonSerializerOptions options, JsonSer
     Require(request.Schema == "ccd153.native-import-request/v1", "native_import_request_schema_unsupported");
     ValidateImplementationRef(request.ImplementationRef);
     ValidateTargetWeb(request.TargetWebUrl);
-
-    var package = Read<PublishingPageMigrationPackage>(Resolve(requestPath, request.PackagePath), options);
     var admittedPlan = Read<AdmittedReproExecutionPlan>(Resolve(requestPath, request.AdmittedPlanPath), options);
-    Require(UriEquals(package.Plan?.TargetWebUrl, request.TargetWebUrl), "target_web_mismatch");
-    Require(string.Equals(package.PlanDigest, admittedPlan.PlanDigest, StringComparison.OrdinalIgnoreCase), "admitted_plan_package_mismatch");
+    var pageFamily = NormalizePageFamily(request.PageFamily);
 
     var cookieEnvironmentVariable = string.IsNullOrWhiteSpace(request.TargetCookieEnvironmentVariable)
         ? "CCD153_TARGET_COOKIE_HEADER"
@@ -98,16 +120,84 @@ static void RunImport(string requestPath, JsonSerializerOptions options, JsonSer
     Directory.CreateDirectory(outputDirectory);
     var artifactStore = new DirectoryMigrationArtifactStore(Resolve(requestPath, request.ArtifactStorePath));
     var journal = new NativeExecutionJournal();
-    PublishingPageImportReceipt receipt;
-    using (var context = new ClientContext(package.Plan.TargetWebUrl))
+    NativeImportOutcome outcome;
+    if (pageFamily == NativePageImportReceiptContract.ClassicWikiFamily)
     {
-        context.RequestTimeout = 180000;
-        context.ExecutingWebRequest += (_, eventArgs) =>
-        {
-            eventArgs.WebRequestExecutor.RequestHeaders["Cookie"] = cookieHeader;
-            eventArgs.WebRequestExecutor.RequestHeaders["Cache-Control"] = "no-cache, no-store";
-            eventArgs.WebRequestExecutor.RequestHeaders["Pragma"] = "no-cache";
-        };
+        outcome = ImportClassicWiki(
+            requestPath,
+            request,
+            admittedPlan,
+            cookieHeader,
+            artifactStore,
+            journal,
+            options,
+            indented,
+            outputDirectory);
+    }
+    else
+    {
+        outcome = ImportPublishing(
+            requestPath,
+            request,
+            admittedPlan,
+            cookieHeader,
+            artifactStore,
+            journal,
+            options,
+            indented,
+            outputDirectory);
+    }
+
+    var aggregatePath = Path.Combine(outputDirectory, "native-page-import-receipt-aggregate-v1.json");
+    var compareBindingPath = Path.Combine(outputDirectory, "native-page-import-compare-binding-v1.json");
+    var ledgerPath = Path.Combine(outputDirectory, "operation-ledger.json");
+    Write(aggregatePath, outcome.Aggregate, indented);
+    if (outcome.CompareBinding != null)
+    {
+        Write(compareBindingPath, outcome.CompareBinding, indented);
+    }
+    Write(ledgerPath, journal.ToDocument(request.CaseId, request.ImplementationRef), indented);
+    var manifest = new
+    {
+        schema = "ccd153.native-import-result/v1",
+        request.CaseId,
+        producer = new { id = ProducerContract.Id, version = ProducerContract.Version, implementationRef = request.ImplementationRef },
+        binarySha256 = CurrentBinarySha256(),
+        pageFamily,
+        admittedPlanDigestSha256 = outcome.AdmittedPlanDigestSha256,
+        importReceiptDigestSha256 = outcome.Aggregate.ReceiptDigestSha256,
+        outcome.ExecutionStatus,
+        outcome.MutationStarted,
+        stepCount = outcome.NativeStepCount,
+        operationId = outcome.MutationOperationId,
+        operations = admittedPlan.Operations,
+        receiptPath = Path.GetFileName(outcome.ReceiptPath),
+        aggregatePath = Path.GetFileName(aggregatePath),
+        compareBindingPath = outcome.CompareBinding == null ? null : Path.GetFileName(compareBindingPath),
+        ledgerPath = Path.GetFileName(ledgerPath)
+    };
+    Write(Path.Combine(outputDirectory, "import-manifest.json"), manifest, indented);
+    Console.WriteLine(JsonSerializer.Serialize(manifest, indented));
+    Environment.ExitCode = outcome.ExecutionStatus == MigrationExecutionStatus.Succeeded ? 0 : 2;
+}
+
+static NativeImportOutcome ImportPublishing(
+    string requestPath,
+    NativeImportRequest request,
+    AdmittedReproExecutionPlan admittedPlan,
+    string cookieHeader,
+    IMigrationArtifactStore artifactStore,
+    NativeExecutionJournal journal,
+    JsonSerializerOptions options,
+    JsonSerializerOptions indented,
+    string outputDirectory)
+{
+    var package = Read<PublishingPageMigrationPackage>(Resolve(requestPath, request.PackagePath), options);
+    Require(UriEquals(package.Plan?.TargetWebUrl, request.TargetWebUrl), "target_web_mismatch");
+    Require(string.Equals(package.PlanDigest, admittedPlan.PlanDigest, StringComparison.OrdinalIgnoreCase), "admitted_plan_package_mismatch");
+    PublishingPageImportReceipt receipt;
+    using (var context = CreateTargetContext(package.Plan.TargetWebUrl, cookieHeader))
+    {
         receipt = new PublishingPageMigrationImporter().ImportAdmitted(
             context,
             package,
@@ -116,42 +206,68 @@ static void RunImport(string requestPath, JsonSerializerOptions options, JsonSer
             journal: journal,
             artifactStore: artifactStore);
     }
-
     var admittedDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
         admittedPlan,
         package.PlanDigest,
         admittedPlan.TargetIdentity);
-    if (receipt.ExecutionStatus == MigrationExecutionStatus.Succeeded)
-    {
-        PublishingPageImportReceiptValidator.ValidateAdmittedExecution(
-            receipt,
-            admittedPlan,
-            admittedDigest);
-    }
-
+    var aggregate = NativePageImportReceiptAggregateFactory.Create(receipt);
+    var binding = receipt.ExecutionStatus == MigrationExecutionStatus.Succeeded
+        ? NativePageImportReceiptAggregateValidator.ValidateForCompare(aggregate, admittedPlan, admittedDigest)
+        : null;
     var receiptPath = Path.Combine(outputDirectory, "publishing-page-import-receipt-v5.json");
-    var ledgerPath = Path.Combine(outputDirectory, "operation-ledger.json");
     Write(receiptPath, receipt, indented);
-    Write(ledgerPath, journal.ToDocument(request.CaseId, request.ImplementationRef), indented);
-    var manifest = new
+    return NativeImportOutcome.Create(receipt, aggregate, binding, admittedDigest, receiptPath);
+}
+
+static NativeImportOutcome ImportClassicWiki(
+    string requestPath,
+    NativeImportRequest request,
+    AdmittedReproExecutionPlan admittedPlan,
+    string cookieHeader,
+    IMigrationArtifactStore artifactStore,
+    NativeExecutionJournal journal,
+    JsonSerializerOptions options,
+    JsonSerializerOptions indented,
+    string outputDirectory)
+{
+    var package = Read<ClassicWikiMigrationPackage>(Resolve(requestPath, request.PackagePath), options);
+    var targetWebUrl = package.Plan?.TargetLocation?.TargetWebUrl;
+    Require(UriEquals(targetWebUrl, request.TargetWebUrl), "target_web_mismatch");
+    Require(string.Equals(package.PlanDigest, admittedPlan.PlanDigest, StringComparison.OrdinalIgnoreCase), "admitted_plan_package_mismatch");
+    ClassicWikiImportReceipt receipt;
+    using (var context = CreateTargetContext(targetWebUrl, cookieHeader))
     {
-        schema = "ccd153.native-import-result/v1",
-        request.CaseId,
-        producer = new { id = ProducerContract.Id, version = ProducerContract.Version, implementationRef = request.ImplementationRef },
-        binarySha256 = CurrentBinarySha256(),
-        admittedPlanDigestSha256 = admittedDigest,
-        importReceiptDigestSha256 = ContractDigest(receipt, options),
-        receipt.ExecutionStatus,
-        receipt.MutationStarted,
-        stepCount = receipt.Steps?.Count ?? 0,
-        receipt.OperationId,
-        operations = admittedPlan.Operations,
-        receiptPath = Path.GetFileName(receiptPath),
-        ledgerPath = Path.GetFileName(ledgerPath)
+        receipt = new ClassicWikiMigrationImporter().ImportAdmitted(
+            context,
+            package,
+            package.PlanDigest,
+            admittedPlan,
+            journal: journal,
+            artifactStore: artifactStore);
+    }
+    var admittedDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+        admittedPlan,
+        package.PlanDigest,
+        admittedPlan.TargetIdentity);
+    var aggregate = NativePageImportReceiptAggregateFactory.Create(receipt);
+    var binding = receipt.ExecutionStatus == MigrationExecutionStatus.Succeeded
+        ? NativePageImportReceiptAggregateValidator.ValidateForCompare(aggregate, admittedPlan, admittedDigest)
+        : null;
+    var receiptPath = Path.Combine(outputDirectory, "classic-wiki-import-receipt-v1.json");
+    Write(receiptPath, receipt, indented);
+    return NativeImportOutcome.Create(receipt, aggregate, binding, admittedDigest, receiptPath);
+}
+
+static ClientContext CreateTargetContext(string targetWebUrl, string cookieHeader)
+{
+    var context = new ClientContext(targetWebUrl) { RequestTimeout = 180000 };
+    context.ExecutingWebRequest += (_, eventArgs) =>
+    {
+        eventArgs.WebRequestExecutor.RequestHeaders["Cookie"] = cookieHeader;
+        eventArgs.WebRequestExecutor.RequestHeaders["Cache-Control"] = "no-cache, no-store";
+        eventArgs.WebRequestExecutor.RequestHeaders["Pragma"] = "no-cache";
     };
-    Write(Path.Combine(outputDirectory, "import-manifest.json"), manifest, indented);
-    Console.WriteLine(JsonSerializer.Serialize(manifest, indented));
-    Environment.ExitCode = receipt.ExecutionStatus == MigrationExecutionStatus.Succeeded ? 0 : 2;
+    return context;
 }
 
 static void RunReconcile(string requestPath, JsonSerializerOptions options, JsonSerializerOptions indented)
@@ -178,8 +294,12 @@ static void RunReconcile(string requestPath, JsonSerializerOptions options, Json
         admittedPlan,
         package.PlanDigest,
         admittedPlan.TargetIdentity);
-    PublishingPageImportReceiptValidator.ValidateAdmittedExecution(importReceipt, admittedPlan, admittedDigest);
-    var importDigest = ContractDigest(importReceipt, options);
+    var importAggregate = NativePageImportReceiptAggregateFactory.Create(importReceipt);
+    var nativeImportBinding = NativePageImportReceiptAggregateValidator.ValidateForCompare(
+        importAggregate,
+        admittedPlan,
+        admittedDigest);
+    var importDigest = nativeImportBinding.ReceiptDigestSha256;
     var runtimeDigest = ContractDigest(runtimeReceipt, options);
     var observations = measurements.Ingredients.Select(value => ToObservation(value, artifactStore)).ToList();
 
@@ -213,10 +333,10 @@ static void RunReconcile(string requestPath, JsonSerializerOptions options, Json
             MigrationPackageSchemaVersion = package.SchemaVersion,
             PlanDigestSha256 = package.PlanDigest,
             AdmittedPlanDigestSha256 = admittedDigest,
-            SourceVersionDigestSha256 = admittedPlan.SourceVersion.VersionDigestSha256,
-            Operations = admittedPlan.Operations,
-            ImportReceiptSchemaVersion = importReceipt.SchemaVersion,
-            ImportReceiptDigestSha256 = importDigest,
+            SourceVersionDigestSha256 = nativeImportBinding.SourceVersionDigestSha256,
+            Operations = nativeImportBinding.Operations,
+            ImportReceiptSchemaVersion = nativeImportBinding.ReceiptSchemaVersion,
+            ImportReceiptDigestSha256 = nativeImportBinding.ReceiptDigestSha256,
             RuntimeReceiptSchemaVersion = runtimeReceipt.SchemaVersion,
             RuntimeReceiptDigestSha256 = runtimeDigest
         },
@@ -244,6 +364,8 @@ static void RunReconcile(string requestPath, JsonSerializerOptions options, Json
         request.CaseId,
         producer = compareRequest.Producer,
         binarySha256 = CurrentBinarySha256(),
+        nativeImportAggregateSchemaVersion = nativeImportBinding.AggregateSchemaVersion,
+        pageFamily = nativeImportBinding.PageFamily,
         admittedPlanDigestSha256 = admittedDigest,
         importReceiptDigestSha256 = importDigest,
         runtimeReceiptDigestSha256 = runtimeDigest,
@@ -346,6 +468,17 @@ static bool UriEquals(string left, string right) =>
     && Uri.TryCreate(right, UriKind.Absolute, out var rightUri)
     && string.Equals(leftUri.AbsoluteUri.TrimEnd('/'), rightUri.AbsoluteUri.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
 
+static string NormalizePageFamily(string pageFamily)
+{
+    var value = string.IsNullOrWhiteSpace(pageFamily)
+        ? NativePageImportReceiptContract.PublishingFamily
+        : pageFamily.Trim();
+    Require(value == NativePageImportReceiptContract.PublishingFamily
+        || value == NativePageImportReceiptContract.ClassicWikiFamily,
+        "page_family_unsupported");
+    return value;
+}
+
 static T Read<T>(string path, JsonSerializerOptions options)
 {
     Require(IOFile.Exists(path), "input_missing:" + path);
@@ -407,6 +540,7 @@ sealed class NativeImportRequest
     public string Schema { get; set; }
     public string CaseId { get; set; }
     public string ImplementationRef { get; set; }
+    public string PageFamily { get; set; }
     public string TargetWebUrl { get; set; }
     public string PackagePath { get; set; }
     public string AdmittedPlanPath { get; set; }
@@ -420,8 +554,42 @@ sealed class NativeImportValidationRequest
     public string Schema { get; set; }
     public string CaseId { get; set; }
     public string ImplementationRef { get; set; }
+    public string PageFamily { get; set; }
     public string AdmittedPlanPath { get; set; }
     public string ImportReceiptPath { get; set; }
+    public string ReceiptAggregatePath { get; set; }
+}
+
+sealed class NativeImportOutcome
+{
+    public NativePageImportReceiptAggregate Aggregate { get; init; }
+    public NativePageImportCompareBinding CompareBinding { get; init; }
+    public string AdmittedPlanDigestSha256 { get; init; }
+    public string ReceiptPath { get; init; }
+    public MigrationExecutionStatus ExecutionStatus { get; init; }
+    public bool MutationStarted { get; init; }
+    public int NativeStepCount { get; init; }
+    public Guid MutationOperationId { get; init; }
+
+    public static NativeImportOutcome Create(
+        IAdmittedPageImportReceipt receipt,
+        NativePageImportReceiptAggregate aggregate,
+        NativePageImportCompareBinding compareBinding,
+        string admittedPlanDigestSha256,
+        string receiptPath)
+    {
+        return new NativeImportOutcome
+        {
+            Aggregate = aggregate,
+            CompareBinding = compareBinding,
+            AdmittedPlanDigestSha256 = admittedPlanDigestSha256,
+            ReceiptPath = receiptPath,
+            ExecutionStatus = receipt.ExecutionStatus,
+            MutationStarted = receipt.MutationStarted,
+            NativeStepCount = receipt.Steps?.Count ?? 0,
+            MutationOperationId = receipt.OperationId
+        };
+    }
 }
 
 sealed class NativeReconcileRequest

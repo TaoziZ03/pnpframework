@@ -2,6 +2,7 @@ using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Verification;
 using System;
 using System.IO;
 
@@ -33,10 +34,58 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
             IMigrationExecutionJournal journal,
             IMigrationArtifactStore artifactStore)
         {
+            return ImportCore(
+                targetContext,
+                package,
+                approvedPlanDigest,
+                journal,
+                artifactStore,
+                null,
+                null);
+        }
+
+        public ClassicWikiImportReceipt ImportAdmitted(
+            ClientContext targetContext,
+            ClassicWikiMigrationPackage package,
+            string approvedPlanDigest,
+            AdmittedReproExecutionPlan admittedPlan,
+            IMigrationExecutionJournal journal = null,
+            IMigrationArtifactStore artifactStore = null)
+        {
+            if (package == null)
+            {
+                throw new ArgumentNullException(nameof(package));
+            }
+            var targetIdentity = ClassicWikiImportReceiptBinder.CanonicalTargetIdentity(
+                package.Plan?.TargetLocation?.TargetWebUrl,
+                package.Plan?.TargetPageServerRelativeUrl);
+            var admittedPlanDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+                admittedPlan,
+                package.PlanDigest,
+                targetIdentity);
+            return ImportCore(
+                targetContext,
+                package,
+                approvedPlanDigest,
+                journal,
+                artifactStore,
+                admittedPlan,
+                admittedPlanDigest);
+        }
+
+        private static ClassicWikiImportReceipt ImportCore(
+            ClientContext targetContext,
+            ClassicWikiMigrationPackage package,
+            string approvedPlanDigest,
+            IMigrationExecutionJournal journal,
+            IMigrationArtifactStore artifactStore,
+            AdmittedReproExecutionPlan admittedPlan,
+            string admittedPlanDigestSha256)
+        {
             if (targetContext == null) throw new ArgumentNullException(nameof(targetContext));
             if (package == null) throw new ArgumentNullException(nameof(package));
 
-            var operationId = Guid.NewGuid();
+            var operationId = admittedPlan?.Operations?.MutationOperationId ?? Guid.NewGuid();
             var startedAt = DateTimeOffset.UtcNow;
             var recorder = new MigrationExecutionRecorder(operationId, package.PlanDigest, journal);
 
@@ -52,12 +101,16 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                     Subject = package.Plan?.TargetPageServerRelativeUrl,
                     Message = exception.Message
                 };
-                return ClassicWikiImportReceiptFactory.AdmissionFailure(
+                return ClassicWikiImportReceiptBinder.Bind(
+                    ClassicWikiImportReceiptFactory.AdmissionFailure(
+                        package,
+                        operationId,
+                        startedAt,
+                        failure,
+                        recorder),
                     package,
-                    operationId,
-                    startedAt,
-                    failure,
-                    recorder);
+                    admittedPlan,
+                    admittedPlanDigestSha256);
             }
 
             if (!string.Equals(package.PlanDigest, approvedPlanDigest, StringComparison.OrdinalIgnoreCase))
@@ -68,34 +121,46 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                     Subject = package.Plan.TargetPageServerRelativeUrl,
                     Message = $"Plan digest mismatch: package has '{package.PlanDigest}', approved is '{approvedPlanDigest}'."
                 };
-                return ClassicWikiImportReceiptFactory.AdmissionFailure(
+                return ClassicWikiImportReceiptBinder.Bind(
+                    ClassicWikiImportReceiptFactory.AdmissionFailure(
+                        package,
+                        operationId,
+                        startedAt,
+                        failure,
+                        recorder),
                     package,
-                    operationId,
-                    startedAt,
-                    failure,
-                    recorder);
+                    admittedPlan,
+                    admittedPlanDigestSha256);
             }
 
             try
             {
-                return ClassicWikiMutationExecutor.Execute(
-                    targetContext,
+                return ClassicWikiImportReceiptBinder.Bind(
+                    ClassicWikiMutationExecutor.Execute(
+                        targetContext,
+                        package,
+                        approvedPlanDigest,
+                        operationId,
+                        startedAt,
+                        recorder,
+                        artifactStore),
                     package,
-                    approvedPlanDigest,
-                    operationId,
-                    startedAt,
-                    recorder,
-                    artifactStore);
+                    admittedPlan,
+                    admittedPlanDigestSha256);
             }
             catch (Exception ex)
             {
                 recorder.RecordState(MigrationExecutionStatus.FailedUnexpectedly, ex.Message);
-                return ClassicWikiImportReceiptFactory.UnexpectedFailure(
+                return ClassicWikiImportReceiptBinder.Bind(
+                    ClassicWikiImportReceiptFactory.UnexpectedFailure(
+                        package,
+                        operationId,
+                        startedAt,
+                        ex,
+                        recorder),
                     package,
-                    operationId,
-                    startedAt,
-                    ex,
-                    recorder);
+                    admittedPlan,
+                    admittedPlanDigestSha256);
             }
         }
     }
