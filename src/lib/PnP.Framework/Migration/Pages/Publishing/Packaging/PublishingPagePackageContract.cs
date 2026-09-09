@@ -22,6 +22,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
         public const string MigrationSchemaVersion = "pnp-publishing-page-migration-package/v3";
 
+        public const string IngredientExtensionExportSchemaVersion = "pnp-publishing-page-export/v4";
+
+        public const string IngredientExtensionMigrationSchemaVersion = "pnp-publishing-page-migration-package/v4";
+
         public const string ReceiptSchemaVersion = "pnp-publishing-page-import-receipt/v5";
+
+        public static string ExportSchemaFor(bool hasIngredientExtensions)
+        {
+            return hasIngredientExtensions ? IngredientExtensionExportSchemaVersion : ExportSchemaVersion;
+        }
+
+        public static string MigrationSchemaFor(bool hasIngredientExtensions)
+        {
+            return hasIngredientExtensions ? IngredientExtensionMigrationSchemaVersion : MigrationSchemaVersion;
+        }
     }
 }

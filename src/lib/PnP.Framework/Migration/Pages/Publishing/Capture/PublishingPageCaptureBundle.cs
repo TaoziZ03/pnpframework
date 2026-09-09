@@ -14,6 +14,7 @@ using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Profiles;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -32,6 +33,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
         public IList<PageProfileSignal> ProfileSignals { get; set; } = new List<PageProfileSignal>();
 
         public CanonicalPageIngredientGraph IngredientGraph { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<PublishingPageIngredientEvidenceEnvelope> IngredientEvidence { get; set; }
 
         public PublishingPageLayoutSnapshot Layout { get; set; }
 

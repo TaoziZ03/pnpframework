@@ -16,7 +16,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         CurrentV7 = 7
     }
 
-    internal static class PublishingPageIngredientGraphProjector
+    public static class PublishingPageIngredientGraphProjector
     {
         public const string ProjectionVersionV2 = "pnp-publishing-page-ingredient-projection/v2";
 
@@ -30,12 +30,41 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
 
         public const string CurrentProjectionVersion = "pnp-publishing-page-ingredient-projection/v7";
 
+        public const string IngredientExtensionProjectionVersion = "pnp-publishing-page-ingredient-projection/v8";
+
         public static CanonicalPageIngredientGraph Project(PublishingPageCaptureBundle snapshot)
         {
             return Project(
                 snapshot,
                 PublishingPageIngredientGraphProjectionRevision.CurrentV7,
                 CurrentProjectionVersion);
+        }
+
+        public static CanonicalPageIngredientGraph Project(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageIngredientHandlerCatalog catalog)
+        {
+            if (catalog == null)
+            {
+                throw new ArgumentNullException(nameof(catalog));
+            }
+            if (snapshot?.IngredientEvidence == null || snapshot.IngredientEvidence.Count == 0)
+            {
+                return Project(snapshot);
+            }
+
+            var graph = Project(
+                snapshot,
+                PublishingPageIngredientGraphProjectionRevision.CurrentV7,
+                IngredientExtensionProjectionVersion);
+            graph.SchemaVersion = CanonicalPageIngredientGraph.SchemaVersionV2;
+            foreach (var node in graph.Nodes)
+            {
+                node.KindId = PageIngredientKindIdentity.FromLegacyKind(node.Kind);
+            }
+            catalog.Project(snapshot, graph);
+            ValidateExtensionGraph(graph);
+            return graph;
         }
 
         internal static CanonicalPageIngredientGraph ProjectLegacy(PublishingPageCaptureBundle snapshot)
@@ -104,6 +133,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             throw new ArgumentException($"Unsupported Publishing Page ingredient projection '{projectionVersion}'.", nameof(projectionVersion));
         }
 
+        internal static CanonicalPageIngredientGraph ProjectForVersion(
+            PublishingPageCaptureBundle snapshot,
+            string projectionVersion,
+            PublishingPageIngredientHandlerCatalog catalog)
+        {
+            if (string.Equals(projectionVersion, IngredientExtensionProjectionVersion, StringComparison.Ordinal))
+            {
+                return Project(snapshot, catalog);
+            }
+            return ProjectForVersion(snapshot, projectionVersion);
+        }
+
         internal static bool UsesTransactionDependencies(PublishingPageIngredientGraphProjectionRevision revision)
         {
             return revision == PublishingPageIngredientGraphProjectionRevision.Version4
@@ -150,6 +191,24 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 .Select(group => group.First())
                 .ToList();
             return graph;
+        }
+
+        private static void ValidateExtensionGraph(CanonicalPageIngredientGraph graph)
+        {
+            if (graph.Edges.Any(edge => edge == null))
+            {
+                throw new System.IO.InvalidDataException("Extension projection produced a null dependency edge.");
+            }
+            var nodeIds = new System.Collections.Generic.HashSet<string>(
+                graph.Nodes.Select(value => value.Id),
+                StringComparer.Ordinal);
+            var disconnected = graph.Edges.FirstOrDefault(edge => !nodeIds.Contains(edge.FromIngredientId ?? string.Empty)
+                || !nodeIds.Contains(edge.ToIngredientId ?? string.Empty));
+            if (disconnected != null)
+            {
+                throw new System.IO.InvalidDataException(
+                    $"Extension projection produced an undeclared dependency edge '{disconnected.FromIngredientId}' -> '{disconnected.ToIngredientId}'.");
+            }
         }
     }
 }

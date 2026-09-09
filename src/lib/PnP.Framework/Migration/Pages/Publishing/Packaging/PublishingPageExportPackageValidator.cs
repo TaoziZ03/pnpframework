@@ -27,13 +27,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
     {
         public static void Validate(
             PublishingPageExportPackage package,
-            IMigrationArtifactStore artifactStore)
+            IMigrationArtifactStore artifactStore,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
         {
             if (package == null)
             {
                 throw new InvalidDataException("The publishing-page export is empty.");
             }
-            if (!string.Equals(package.SchemaVersion, PublishingPagePackageContract.ExportSchemaVersion, StringComparison.Ordinal))
+            var hasExtensions = package.Snapshot?.IngredientEvidence != null
+                && package.Snapshot.IngredientEvidence.Count > 0;
+            if (package.Snapshot?.IngredientEvidence != null && !hasExtensions)
+            {
+                throw new InvalidDataException("An empty ingredient evidence collection is not canonical; omit it from legacy packages.");
+            }
+            var expectedSchema = PublishingPagePackageContract.ExportSchemaFor(hasExtensions);
+            if (!string.Equals(package.SchemaVersion, expectedSchema, StringComparison.Ordinal))
             {
                 throw new InvalidDataException($"Unsupported publishing-page export schema '{package.SchemaVersion}'.");
             }
@@ -52,7 +60,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             ValidatePageArtifact(snapshot.PageArtifact, snapshot.Source, artifactStore);
             ValidateRuntime(snapshot.Runtime);
             ValidateProfileSignals(snapshot.ProfileSignals);
-            ValidateIngredientGraph(snapshot.IngredientGraph);
+            ValidateIngredientGraph(snapshot.IngredientGraph, hasExtensions);
+            if (hasExtensions)
+            {
+                (handlerCatalog ?? throw new InvalidDataException("An ingredient handler catalog is required for extension evidence."))
+                    .ValidateEvidence(snapshot.IngredientEvidence);
+            }
             ValidateDerivedRuntime(snapshot);
             ValidateDerivedProfileSignals(snapshot);
             ProtectedAssetCaptureGate.ValidatePolicy(snapshot.CapturePolicy.ProtectedAssets);
@@ -76,7 +89,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 snapshot.CapturePolicy.ProtectedAssets);
             ValidateDependencies(snapshot);
             ValidateTopologyEvidence(snapshot);
-            ValidateDerivedIngredientGraph(snapshot);
+            ValidateDerivedIngredientGraph(snapshot, handlerCatalog);
 
             var snapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot);
             if (!string.Equals(snapshotDigest, package.SnapshotDigest, StringComparison.OrdinalIgnoreCase))
@@ -224,10 +237,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
         }
 
-        private static void ValidateIngredientGraph(CanonicalPageIngredientGraph graph)
+        private static void ValidateIngredientGraph(CanonicalPageIngredientGraph graph, bool hasExtensions)
         {
-            if (!string.Equals(graph.SchemaVersion, "pnp-page-ingredient-graph/v1", StringComparison.Ordinal)
+            var expectedSchema = hasExtensions
+                ? CanonicalPageIngredientGraph.SchemaVersionV2
+                : CanonicalPageIngredientGraph.SchemaVersionV1;
+            var expectedExtensionProjection = hasExtensions
+                && string.Equals(
+                    graph.ProjectionVersion,
+                    PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                    StringComparison.Ordinal);
+            if (!string.Equals(graph.SchemaVersion, expectedSchema, StringComparison.Ordinal)
+                || (hasExtensions && !expectedExtensionProjection)
                 || (!string.IsNullOrWhiteSpace(graph.ProjectionVersion)
+                    && !expectedExtensionProjection
                     && !string.Equals(
                         graph.ProjectionVersion,
                         PublishingPageIngredientGraphProjector.CurrentProjectionVersion,
@@ -264,6 +287,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             if (duplicateNode != null || nodes.Any(value => value == null || value.EvidenceReferences == null))
             {
                 throw new InvalidDataException($"The ingredient graph contains a null, missing, or duplicate node ID '{duplicateNode?.Key}'.");
+            }
+            if (hasExtensions
+                && nodes.Any(value => string.IsNullOrWhiteSpace(value.KindId)
+                    || (value.Kind != 0 && !string.Equals(
+                        value.KindId,
+                        PageIngredientKindIdentity.FromLegacyKind(value.Kind),
+                        StringComparison.Ordinal))))
+            {
+                throw new InvalidDataException("Every graph v2 ingredient node must have one stable, non-contradictory kindId.");
+            }
+            if (!hasExtensions && nodes.Any(value => !string.IsNullOrWhiteSpace(value.KindId)))
+            {
+                throw new InvalidDataException("A graph v1 node cannot declare the graph v2 kindId property.");
             }
             var nodeIds = new HashSet<string>(nodes.Select(value => value.Id), StringComparer.Ordinal);
             if (graph.Edges.Any(edge => edge == null))
@@ -416,13 +452,16 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
         }
 
-        private static void ValidateDerivedIngredientGraph(PublishingPageCaptureBundle snapshot)
+        private static void ValidateDerivedIngredientGraph(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
         {
             if (!string.IsNullOrWhiteSpace(snapshot.IngredientGraph.ProjectionVersion))
             {
                 var expected = PublishingPageIngredientGraphProjector.ProjectForVersion(
                     snapshot,
-                    snapshot.IngredientGraph.ProjectionVersion);
+                    snapshot.IngredientGraph.ProjectionVersion,
+                    handlerCatalog);
                 if (!PublishingPageValidationCanonical.Equals(expected, snapshot.IngredientGraph))
                 {
                     throw new InvalidDataException("The sealed canonical ingredient graph does not match the typed source evidence for its declared projection version.");

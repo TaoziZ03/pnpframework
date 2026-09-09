@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Ingredients
 {
@@ -6,7 +7,11 @@ namespace PnP.Framework.Migration.Pages.Ingredients
     {
         public string Id { get; set; }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public PageIngredientKind Kind { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string KindId { get; set; }
 
         public string Label { get; set; }
 

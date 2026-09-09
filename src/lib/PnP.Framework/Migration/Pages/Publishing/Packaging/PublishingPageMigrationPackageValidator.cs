@@ -25,7 +25,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
     {
         public static void Validate(
             PublishingPageMigrationPackage package,
-            IMigrationArtifactStore artifactStore)
+            IMigrationArtifactStore artifactStore,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
         {
             ValidateEnvelope(package);
             PublishingPageExportPackageValidator.Validate(new PublishingPageExportPackage
@@ -36,7 +37,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 SelectionDigest = package.SelectionDigest,
                 Snapshot = package.Snapshot,
                 SnapshotDigest = package.SnapshotDigest
-            }, artifactStore);
+            }, artifactStore, handlerCatalog);
 
             var plan = package.Plan;
             ValidatePlanShape(package.Snapshot, plan);
@@ -58,7 +59,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 plan.ListMigration,
                 plan.PlanningPolicy.DroppedLookupValueDecisions);
             ValidateRuntimeVerification(plan);
-            ValidatePlanningIngredientGraph(package.Snapshot, plan);
+            ValidatePlanningIngredientGraph(package.Snapshot, plan, handlerCatalog);
             if (!string.Equals(plan.SourceSnapshotDigest, package.SnapshotDigest, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("The migration plan does not reference the sealed snapshot in this package.");
@@ -92,11 +93,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             {
                 throw new InvalidDataException("The publishing-page migration package is empty.");
             }
-            if (!string.Equals(package.SchemaVersion, PublishingPagePackageContract.MigrationSchemaVersion, StringComparison.Ordinal))
+            var hasExtensions = package.Snapshot?.IngredientEvidence != null
+                && package.Snapshot.IngredientEvidence.Count > 0;
+            if (!string.Equals(
+                package.SchemaVersion,
+                PublishingPagePackageContract.MigrationSchemaFor(hasExtensions),
+                StringComparison.Ordinal))
             {
                 throw new InvalidDataException($"Unsupported publishing-page migration schema '{package.SchemaVersion}'.");
             }
-            if (!string.Equals(package.ExportSchemaVersion, PublishingPagePackageContract.ExportSchemaVersion, StringComparison.Ordinal))
+            if (!string.Equals(
+                package.ExportSchemaVersion,
+                PublishingPagePackageContract.ExportSchemaFor(hasExtensions),
+                StringComparison.Ordinal))
             {
                 throw new InvalidDataException($"Unsupported embedded publishing-page export schema '{package.ExportSchemaVersion}'.");
             }
@@ -290,7 +299,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
         private static void ValidatePlanningIngredientGraph(
             PublishingPageCaptureBundle snapshot,
-            PublishingPageMigrationPlan plan)
+            PublishingPageMigrationPlan plan,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
         {
             if (plan.SharedTopologyReference != null)
             {
@@ -299,6 +309,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
             var projectionVersion = plan.IngredientGraph.ProjectionVersion;
             var supportedProjection = string.Equals(
+                    projectionVersion,
+                    PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                    StringComparison.Ordinal)
+                || string.Equals(
                     projectionVersion,
                     PublishingPageIngredientGraphProjector.CurrentProjectionVersion,
                     StringComparison.Ordinal)
@@ -323,9 +337,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                     PublishingPageIngredientGraphProjector.ProjectionVersionV2,
                     StringComparison.Ordinal);
             var expected = supportedProjection
-                ? PublishingPageIngredientGraphProjector.ProjectForVersion(snapshot, projectionVersion)
+                ? PublishingPageIngredientGraphProjector.ProjectForVersion(snapshot, projectionVersion, handlerCatalog)
                 : null;
-            if (!string.Equals(plan.IngredientGraph.SchemaVersion, "pnp-page-ingredient-graph/v1", StringComparison.Ordinal)
+            var expectedGraphSchema = string.Equals(
+                projectionVersion,
+                PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                StringComparison.Ordinal)
+                ? CanonicalPageIngredientGraph.SchemaVersionV2
+                : CanonicalPageIngredientGraph.SchemaVersionV1;
+            if (!string.Equals(plan.IngredientGraph.SchemaVersion, expectedGraphSchema, StringComparison.Ordinal)
                 || !supportedProjection
                 || !PublishingPageValidationCanonical.Equals(expected, plan.IngredientGraph))
             {

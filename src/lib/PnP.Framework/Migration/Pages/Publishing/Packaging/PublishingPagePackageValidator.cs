@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 {
@@ -6,26 +7,56 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
     {
         public static void ValidateExport(PublishingPageExportPackage package)
         {
-            PublishingPageExportPackageValidator.Validate(package, null);
+            PublishingPageExportPackageValidator.Validate(package, null, PublishingPageIngredientHandlerCatalog.Default);
         }
 
         public static void ValidateExport(
             PublishingPageExportPackage package,
             IMigrationArtifactStore artifactStore)
         {
-            PublishingPageExportPackageValidator.Validate(package, artifactStore);
+            PublishingPageExportPackageValidator.Validate(package, artifactStore, PublishingPageIngredientHandlerCatalog.Default);
+        }
+
+        public static void ValidateExport(
+            PublishingPageExportPackage package,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            PublishingPageExportPackageValidator.Validate(package, null, handlerCatalog);
+        }
+
+        public static void ValidateExport(
+            PublishingPageExportPackage package,
+            IMigrationArtifactStore artifactStore,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            PublishingPageExportPackageValidator.Validate(package, artifactStore, handlerCatalog);
         }
 
         public static void ValidateMigration(PublishingPageMigrationPackage package)
         {
-            PublishingPageMigrationPackageValidator.Validate(package, null);
+            PublishingPageMigrationPackageValidator.Validate(package, null, PublishingPageIngredientHandlerCatalog.Default);
         }
 
         public static void ValidateMigration(
             PublishingPageMigrationPackage package,
             IMigrationArtifactStore artifactStore)
         {
-            PublishingPageMigrationPackageValidator.Validate(package, artifactStore);
+            PublishingPageMigrationPackageValidator.Validate(package, artifactStore, PublishingPageIngredientHandlerCatalog.Default);
+        }
+
+        public static void ValidateMigration(
+            PublishingPageMigrationPackage package,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            PublishingPageMigrationPackageValidator.Validate(package, null, handlerCatalog);
+        }
+
+        public static void ValidateMigration(
+            PublishingPageMigrationPackage package,
+            IMigrationArtifactStore artifactStore,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            PublishingPageMigrationPackageValidator.Validate(package, artifactStore, handlerCatalog);
         }
     }
 }
