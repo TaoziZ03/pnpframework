@@ -13,10 +13,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using IOFile = System.IO.File;
 
-if (args.Length != 2 || (args[0] != "import" && args[0] != "reconcile"))
+if (args.Length != 2 || (args[0] != "import" && args[0] != "reconcile" && args[0] != "validate-import"))
 {
     throw new ArgumentException(
-        "usage: ccd153-native-producer <import|reconcile> <request.json>");
+        "usage: ccd153-native-producer <import|reconcile|validate-import> <request.json>");
 }
 
 var options = CreateJsonOptions(writeIndented: false);
@@ -25,9 +25,55 @@ if (args[0] == "import")
 {
     RunImport(Path.GetFullPath(args[1]), options, indented);
 }
-else
+else if (args[0] == "reconcile")
 {
     RunReconcile(Path.GetFullPath(args[1]), options, indented);
+}
+else
+{
+    RunValidateImport(Path.GetFullPath(args[1]), options, indented);
+}
+
+static void RunValidateImport(string requestPath, JsonSerializerOptions options, JsonSerializerOptions indented)
+{
+    var request = Read<NativeImportValidationRequest>(requestPath, options);
+    Require(request.Schema == "ccd153.native-import-validation-request/v1", "native_import_validation_request_schema_unsupported");
+    ValidateImplementationRef(request.ImplementationRef);
+    var admittedPlan = Read<AdmittedReproExecutionPlan>(Resolve(requestPath, request.AdmittedPlanPath), options);
+    var importReceipt = Read<PublishingPageImportReceipt>(Resolve(requestPath, request.ImportReceiptPath), options);
+    var admittedDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+        admittedPlan,
+        admittedPlan.PlanDigest,
+        admittedPlan.TargetIdentity);
+    string verdict;
+    string reason = null;
+    try
+    {
+        PublishingPageImportReceiptValidator.ValidateAdmittedExecution(
+            importReceipt,
+            admittedPlan,
+            admittedDigest);
+        verdict = "admitted";
+    }
+    catch (InvalidDataException exception)
+    {
+        verdict = "rejected";
+        reason = exception.Message;
+        Environment.ExitCode = 2;
+    }
+    var result = new
+    {
+        schema = "ccd153.native-import-validation-result/v1",
+        request.CaseId,
+        producer = new { id = ProducerContract.Id, version = ProducerContract.Version, implementationRef = request.ImplementationRef },
+        binarySha256 = CurrentBinarySha256(),
+        admittedPlanDigestSha256 = admittedDigest,
+        importReceiptDigestSha256 = ContractDigest(importReceipt, options),
+        stepCount = importReceipt.Steps?.Count ?? 0,
+        verdict,
+        reason
+    };
+    Console.WriteLine(JsonSerializer.Serialize(result, indented));
 }
 
 static void RunImport(string requestPath, JsonSerializerOptions options, JsonSerializerOptions indented)
@@ -365,6 +411,15 @@ sealed class NativeImportRequest
     public string ArtifactStorePath { get; set; }
     public string OutputDirectory { get; set; }
     public string TargetCookieEnvironmentVariable { get; set; }
+}
+
+sealed class NativeImportValidationRequest
+{
+    public string Schema { get; set; }
+    public string CaseId { get; set; }
+    public string ImplementationRef { get; set; }
+    public string AdmittedPlanPath { get; set; }
+    public string ImportReceiptPath { get; set; }
 }
 
 sealed class NativeReconcileRequest
