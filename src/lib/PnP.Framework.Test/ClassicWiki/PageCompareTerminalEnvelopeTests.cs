@@ -200,12 +200,261 @@ namespace PnP.Framework.Test.ClassicWiki
                 ClassicWikiPackageContract.MigrationSchemaVersion);
         }
 
+        [TestMethod]
+        public void TerminalV2RoundTripsMutationStartedAdverseDeniedAndUnsupportedCasesLosslessly()
+        {
+            var store = new RuntimeArtifactStore();
+            var envelope = CreateEnvelopeV2(store);
+
+            var json = PageCompareTerminalEnvelopeSerializerV2.SerializeCanonical(envelope, ImplementationRef, store);
+            var roundTrip = PageCompareTerminalEnvelopeSerializerV2.DeserializeStrict(json, ImplementationRef, store);
+            var projection = PageCompareTerminalConsumerAdapterV2.Consume(roundTrip, ImplementationRef, store);
+            var projectionJson = PageCompareTerminalConsumerAdapterV2.SerializeProjectionCanonical(
+                projection,
+                ImplementationRef,
+                store);
+            var transported = PageCompareTerminalConsumerAdapterV2.DeserializeProjectionStrict(
+                projectionJson,
+                ImplementationRef,
+                store);
+            var reconstructed = PageCompareTerminalConsumerAdapterV2.Reconstruct(transported, ImplementationRef, store);
+
+            CollectionAssert.AreEqual(
+                new[] { "ccd35-03", "ccd35-08", "ccd35-06" },
+                projection.Cases.Select(value => value.CaseId).ToArray());
+            CollectionAssert.AreEqual(
+                new[] { "conditional", "fail", "unverified" },
+                projection.Cases.Select(value => value.AcceptanceVerdict).ToArray());
+            Assert.AreEqual(0, projection.Cases[1].CanonicalMaterialRows.Count);
+            Assert.AreEqual(PageCompareTerminalContractV2.TerminalKinds.NativeExecutionAdverse,
+                projection.Cases[1].Terminal.Terminal.TerminalKind);
+            Assert.AreEqual(MigrationExecutionStatus.FailedUnexpectedly,
+                projection.Cases[1].Terminal.Terminal.NativeReceipt.ClassicWikiReceipt.ExecutionStatus);
+            Assert.IsTrue(projection.Cases[1].Terminal.Terminal.NativeReceipt.ClassicWikiReceipt.MutationStarted);
+            Assert.IsTrue(projection.Cases[1].Terminal.Terminal.NativeReceipt.ClassicWikiReceipt.PartialExecution);
+            Assert.AreEqual(4, projection.Cases[1].Terminal.Terminal.NativeReceipt.ClassicWikiReceipt.Steps.Count);
+            Assert.AreEqual(RuntimeVerificationStatus.Pending,
+                projection.Cases[1].Terminal.Terminal.NativeReceipt.ClassicWikiReceipt.RuntimeVerificationStatus);
+            Assert.AreEqual(
+                envelope.Cases[1].CleanupReceipt.ReceiptJson,
+                reconstructed.Cases[1].CleanupReceipt.ReceiptJson);
+            var adverse = roundTrip.Cases[1].Terminal;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                NativePageImportReceiptAggregateValidator.ValidateForCompare(
+                    adverse.NativeReceipt,
+                    adverse.AdmittedPlan,
+                    adverse.AdmittedPlanDigestSha256));
+            var adverseBinding = NativePageImportReceiptAggregateValidator.ValidateForTerminalEvidence(
+                adverse.NativeReceipt,
+                adverse.AdmittedPlan,
+                adverse.AdmittedPlanDigestSha256);
+            Assert.AreEqual(MigrationExecutionStatus.FailedUnexpectedly, adverseBinding.ExecutionStatus);
+            Assert.AreEqual(envelope.EnvelopeDigestSha256, reconstructed.EnvelopeDigestSha256);
+            Assert.AreEqual(MigrationContractSerializer.SerializeCanonical(envelope),
+                MigrationContractSerializer.SerializeCanonical(reconstructed));
+            Assert.AreEqual("pnp-page-compare-terminal-envelope/v1", PageCompareTerminalContract.SchemaVersion);
+            Assert.AreEqual("pnp-page-compare-consumer-projection/v1", PageCompareTerminalContract.ConsumerProjectionSchemaVersion);
+        }
+
+        [TestMethod]
+        public void TerminalV2MaterialPendingUnknownAndSourceDriftCannotPassAndFalseExactFailsClosed()
+        {
+            foreach (var result in new[]
+            {
+                PublishingPageCompareContract.ResultClasses.RuntimePending,
+                PublishingPageCompareContract.ResultClasses.Unknown,
+                PublishingPageCompareContract.ResultClasses.SourceVersionChanged
+            })
+            {
+                var store = new RuntimeArtifactStore();
+                var envelope = CreateSuccessfulEnvelopeV2(store);
+                envelope.Cases[0].Terminal.Ingredients[0].Result = result;
+                Reseal(envelope);
+                var projection = PageCompareTerminalConsumerAdapterV2.Consume(envelope, ImplementationRef, store);
+                Assert.AreEqual("unverified", projection.Cases[0].AcceptanceVerdict, result);
+            }
+
+            var mismatchStore = new RuntimeArtifactStore();
+            var mismatch = CreateSuccessfulEnvelopeV2(mismatchStore);
+            mismatch.Cases[0].Terminal.Ingredients[0].Actual.RawDigestSha256 = Hash("different-actual-raw");
+            mismatch.Cases[0].Terminal.Ingredients[0].Actual.CanonicalDigestSha256 = Hash("different-actual-canonical");
+            Reseal(mismatch);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageCompareTerminalEnvelopeValidatorV2.Validate(mismatch, ImplementationRef, mismatchStore));
+        }
+
+        [TestMethod]
+        public void TerminalV2ProjectionPublicFieldTamperingFailsEvenAfterProjectionIsResealed()
+        {
+            var store = new RuntimeArtifactStore();
+            var projection = PageCompareTerminalConsumerAdapterV2.Consume(
+                CreateEnvelopeV2(store),
+                ImplementationRef,
+                store);
+            projection.Cases[0].CaseId = "forged-consumer-case";
+            projection.Cases[0].TerminalKind = PageCompareTerminalContract.TerminalKinds.WikiNativeExecuted;
+            projection.Cases[0].AcceptanceVerdict = "pass";
+            projection.Cases[0].CanonicalMaterialRows = Clone(projection.Cases[1].CanonicalMaterialRows);
+            projection.Cases[1].CanonicalMaterialRows.Clear();
+            projection.ProjectionDigestSha256 = MigrationDigest.ComputeSha256(
+                MigrationContractSerializer.SerializeCanonicalWithNullRootProperty(
+                    projection,
+                    nameof(PageCompareConsumerProjectionV2.ProjectionDigestSha256)));
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageCompareTerminalConsumerAdapterV2.Reconstruct(projection, ImplementationRef, store));
+        }
+
+        [TestMethod]
+        public void TerminalV2RejectsUnknownFieldsWrongVersionAndCorruptCleanupEvidence()
+        {
+            var store = new RuntimeArtifactStore();
+            var envelope = CreateEnvelopeV2(store);
+            var json = PageCompareTerminalEnvelopeSerializerV2.SerializeCanonical(envelope, ImplementationRef, store);
+            var unknown = json.Replace("\"generatedAtUtc\"", "\"futureField\":true,\"generatedAtUtc\"");
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageCompareTerminalEnvelopeSerializerV2.DeserializeStrict(unknown, ImplementationRef, store));
+
+            var wrongVersion = Clone(envelope);
+            wrongVersion.SchemaVersion = "pnp-page-compare-terminal-envelope/v3";
+            Reseal(wrongVersion);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageCompareTerminalEnvelopeValidatorV2.Validate(wrongVersion, ImplementationRef, store));
+
+            var corruptCleanup = Clone(envelope);
+            corruptCleanup.Cases.Single(value => value.Terminal.CaseId == "ccd35-08").CleanupReceipt.ReceiptJson += " ";
+            Reseal(corruptCleanup);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageCompareTerminalEnvelopeValidatorV2.Validate(corruptCleanup, ImplementationRef, store));
+        }
+
         private static PageCompareTerminalEnvelope CreateEnvelope(RuntimeArtifactStore store)
         {
             return PageCompareTerminalEnvelopeFactory.Create(
                 new DateTimeOffset(2026, 9, 9, 19, 30, 0, TimeSpan.Zero),
                 Array.Empty<PublishingPageCompareReport>(),
                 new[] { CreateDeniedCase(), CreateExecutedWikiCase(store), CreateUnsupportedCase() });
+        }
+
+        private static PageCompareTerminalEnvelopeV2 CreateEnvelopeV2(RuntimeArtifactStore store)
+        {
+            return PageCompareTerminalEnvelopeFactoryV2.Create(
+                new DateTimeOffset(2026, 9, 9, 19, 30, 0, TimeSpan.Zero),
+                Array.Empty<PublishingPageCompareReport>(),
+                new[]
+                {
+                    new PageCompareTerminalCaseV2 { Terminal = CreateDeniedCase() },
+                    CreateAdverseWikiCase(store),
+                    new PageCompareTerminalCaseV2 { Terminal = CreateUnsupportedCase() }
+                });
+        }
+
+        private static PageCompareTerminalEnvelopeV2 CreateSuccessfulEnvelopeV2(RuntimeArtifactStore store)
+        {
+            return PageCompareTerminalEnvelopeFactoryV2.Create(
+                new DateTimeOffset(2026, 9, 9, 19, 30, 0, TimeSpan.Zero),
+                Array.Empty<PublishingPageCompareReport>(),
+                new[] { new PageCompareTerminalCaseV2 { Terminal = CreateExecutedWikiCase(store) } });
+        }
+
+        private static PageCompareTerminalCaseV2 CreateAdverseWikiCase(RuntimeArtifactStore store)
+        {
+            var terminal = CreateExecutedWikiCase(store);
+            var receipt = terminal.NativeReceipt.ClassicWikiReceipt;
+            receipt.ExecutionStatus = MigrationExecutionStatus.FailedUnexpectedly;
+            receipt.PartialExecution = true;
+            receipt.FreshReadbackPassed = false;
+            receipt.StorageVerificationStatus = StorageVerificationStatus.Failed;
+            receipt.RuntimeVerificationStatus = RuntimeVerificationStatus.Pending;
+            receipt.DependenciesMatched = false;
+            receipt.Diagnostics.Add("Dependency count mismatch: expected 0, observed 5.");
+            receipt.Steps = new List<MigrationMutationReceipt>
+            {
+                CreateAdverseStep(receipt, "folder.ensure", 0, MutationOutcome.AlreadySatisfied, 1),
+                CreateAdverseStep(receipt, "page.create", 1, MutationOutcome.Applied, 2),
+                CreateAdverseStep(receipt, "wiki-field.exact", 2, MutationOutcome.Applied, 3),
+                CreateAdverseStep(receipt, "page.ownership", 3, MutationOutcome.Applied, 4)
+            };
+            terminal.NativeReceipt = NativePageImportReceiptAggregateFactory.Create(receipt);
+            terminal.TerminalKind = PageCompareTerminalContractV2.TerminalKinds.NativeExecutionAdverse;
+            terminal.RuntimeManifest = null;
+            terminal.RuntimeReceipt = null;
+            terminal.RuntimeReceiptDigestSha256 = null;
+            terminal.MutationStatus = PageCompareTerminalContract.Statuses.Partial;
+            terminal.ReadbackStatus = PageCompareTerminalContractV2.Statuses.Failed;
+            terminal.RuntimeStatus = PageCompareTerminalContractV2.Statuses.Pending;
+            terminal.ReconcileStatus = PageCompareTerminalContract.Statuses.Partial;
+            terminal.ReasonCode = PageCompareTerminalContractV2.ReasonCodes.NativeExecutionFailed;
+            var ingredient = terminal.Ingredients.Single();
+            ingredient.ExecutionStatus = PageCompareTerminalContract.Statuses.Partial;
+            ingredient.Result = PublishingPageCompareContract.ResultClasses.Unknown;
+            ingredient.ReasonCode = PageCompareTerminalContractV2.ReasonCodes.NativeExecutionFailed;
+            ingredient.ActualEvidenceDigestSha256 = null;
+            ingredient.Actual = new CompareDigestPair();
+            ingredient.Lineage.TargetIdentity = null;
+            ingredient.Lineage.EvidenceRefs = new List<string> { "sha256:" + ingredient.SourceEvidenceDigestSha256 };
+            terminal.DependentObligations = new List<PageCompareDependentObligation>
+            {
+                new PageCompareDependentObligation
+                {
+                    ObligationId = "obligation:page-artifact:readback",
+                    IngredientId = ingredient.IngredientId,
+                    Required = true,
+                    Status = PageCompareTerminalContract.ObligationStatuses.Unverified,
+                    ReasonCode = "DEPENDENCY_COUNT_MISMATCH"
+                },
+                new PageCompareDependentObligation
+                {
+                    ObligationId = "obligation:page-artifact:runtime",
+                    IngredientId = ingredient.IngredientId,
+                    Required = true,
+                    Status = PageCompareTerminalContract.ObligationStatuses.NotExecuted,
+                    ReasonCode = PageCompareTerminalContractV2.ReasonCodes.NativeExecutionFailed
+                },
+                new PageCompareDependentObligation
+                {
+                    ObligationId = "obligation:page-artifact:cleanup",
+                    IngredientId = ingredient.IngredientId,
+                    Required = true,
+                    Status = PageCompareTerminalContract.ObligationStatuses.Satisfied,
+                    ReasonCode = "OWNERSHIP_GUARDED_CLEANUP_OBSERVED"
+                }
+            };
+            ingredient.DependentObligationIds = terminal.DependentObligations.Select(value => value.ObligationId).ToList();
+
+            var cleanupJson = "{\"schema\":\"ccd243.ownership-cleanup/v1\",\"operationId\":\""
+                + terminal.Operations.CleanupOperationId.ToString("D")
+                + "\",\"verdict\":\"pass\"}";
+            return new PageCompareTerminalCaseV2
+            {
+                Terminal = terminal,
+                CleanupReceipt = new PageCompareCleanupReceiptEvidence
+                {
+                    SchemaVersion = "ccd243.ownership-cleanup/v1",
+                    OperationId = terminal.Operations.CleanupOperationId,
+                    ArtifactLocator = "receipts/ccd35-08-cleanup.json",
+                    ReceiptDigestSha256 = MigrationDigest.ComputeSha256(Encoding.UTF8.GetBytes(cleanupJson)),
+                    ReceiptJson = cleanupJson
+                }
+            };
+        }
+
+        private static MigrationMutationReceipt CreateAdverseStep(
+            ClassicWikiImportReceipt receipt,
+            string actionId,
+            int sequence,
+            MutationOutcome outcome,
+            int completedSecond)
+        {
+            return new MigrationMutationReceipt
+            {
+                OperationId = receipt.OperationId,
+                PlanDigest = receipt.ApprovedPlanDigest,
+                ActionId = actionId,
+                Sequence = sequence,
+                CompletedAtUtc = receipt.StartedAtUtc.AddSeconds(completedSecond),
+                Outcome = outcome
+            };
         }
 
         private static PageCompareTerminalCase CreateExecutedWikiCase(RuntimeArtifactStore store)
@@ -739,6 +988,11 @@ namespace PnP.Framework.Test.ClassicWiki
         private static void Reseal(PageCompareTerminalEnvelope envelope)
         {
             envelope.EnvelopeDigestSha256 = PageCompareTerminalEnvelopeFactory.ComputeDigest(envelope);
+        }
+
+        private static void Reseal(PageCompareTerminalEnvelopeV2 envelope)
+        {
+            envelope.EnvelopeDigestSha256 = PageCompareTerminalEnvelopeFactoryV2.ComputeDigest(envelope);
         }
 
         private static T Clone<T>(T value)

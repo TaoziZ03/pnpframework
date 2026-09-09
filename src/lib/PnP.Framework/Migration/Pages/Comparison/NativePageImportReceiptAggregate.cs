@@ -131,7 +131,47 @@ namespace PnP.Framework.Migration.Pages.Comparison
             AdmittedReproExecutionPlan admittedPlan,
             string admittedPlanDigestSha256)
         {
+            var receipt = ValidateCarrier(aggregate, admittedPlan);
+            if (aggregate.ClassicWikiReceipt != null)
+            {
+                ClassicWikiImportReceiptValidator.ValidateAdmittedExecution(
+                    aggregate.ClassicWikiReceipt,
+                    admittedPlan,
+                    admittedPlanDigestSha256);
+            }
+            else
+            {
+                PublishingPageImportReceiptValidator.ValidateAdmittedExecution(
+                    aggregate.PublishingReceipt,
+                    admittedPlan,
+                    admittedPlanDigestSha256);
+            }
+            return CreateBinding(aggregate, receipt, admittedPlan, admittedPlanDigestSha256);
+        }
+
+        /// <summary>
+        /// Validates a typed native receipt as immutable terminal evidence without
+        /// granting successful Compare admission.
+        /// </summary>
+        internal static NativePageImportCompareBinding ValidateForTerminalEvidence(
+            NativePageImportReceiptAggregate aggregate,
+            AdmittedReproExecutionPlan admittedPlan,
+            string admittedPlanDigestSha256)
+        {
+            var receipt = ValidateCarrier(aggregate, admittedPlan);
+            AdmittedPageImportReceiptValidator.ValidateExecutionEvidence(
+                receipt,
+                admittedPlan,
+                admittedPlanDigestSha256);
+            return CreateBinding(aggregate, receipt, admittedPlan, admittedPlanDigestSha256);
+        }
+
+        private static IAdmittedPageImportReceipt ValidateCarrier(
+            NativePageImportReceiptAggregate aggregate,
+            AdmittedReproExecutionPlan admittedPlan)
+        {
             Require(aggregate != null, "A native page import receipt aggregate is required.");
+            Require(admittedPlan != null, "A target-admitted repro plan is required.");
             Require(string.Equals(
                     aggregate.SchemaVersion,
                     NativePageImportReceiptContract.AggregateSchemaVersion,
@@ -146,38 +186,18 @@ namespace PnP.Framework.Migration.Pages.Comparison
             IAdmittedPageImportReceipt receipt;
             if (hasClassicWiki)
             {
-                Require(string.Equals(
-                        aggregate.PageFamily,
-                        NativePageImportReceiptContract.ClassicWikiFamily,
-                        StringComparison.Ordinal),
+                Require(string.Equals(aggregate.PageFamily, NativePageImportReceiptContract.ClassicWikiFamily, StringComparison.Ordinal),
                     "The native page import receipt family is foreign to its typed Wiki receipt.");
-                Require(string.Equals(
-                        aggregate.ReceiptSchemaVersion,
-                        ClassicWikiPackageContract.ReceiptSchemaVersion,
-                        StringComparison.Ordinal),
+                Require(string.Equals(aggregate.ReceiptSchemaVersion, ClassicWikiPackageContract.ReceiptSchemaVersion, StringComparison.Ordinal),
                     "The classic wiki receipt schema binding is unsupported.");
-                ClassicWikiImportReceiptValidator.ValidateAdmittedExecution(
-                    aggregate.ClassicWikiReceipt,
-                    admittedPlan,
-                    admittedPlanDigestSha256);
                 receipt = aggregate.ClassicWikiReceipt;
             }
             else
             {
-                Require(string.Equals(
-                        aggregate.PageFamily,
-                        NativePageImportReceiptContract.PublishingFamily,
-                        StringComparison.Ordinal),
+                Require(string.Equals(aggregate.PageFamily, NativePageImportReceiptContract.PublishingFamily, StringComparison.Ordinal),
                     "The native page import receipt family is foreign to its typed Publishing receipt.");
-                Require(string.Equals(
-                        aggregate.ReceiptSchemaVersion,
-                        PublishingPagePackageContract.ReceiptSchemaVersion,
-                        StringComparison.Ordinal),
+                Require(string.Equals(aggregate.ReceiptSchemaVersion, PublishingPagePackageContract.ReceiptSchemaVersion, StringComparison.Ordinal),
                     "The publishing receipt schema binding is unsupported.");
-                PublishingPageImportReceiptValidator.ValidateAdmittedExecution(
-                    aggregate.PublishingReceipt,
-                    admittedPlan,
-                    admittedPlanDigestSha256);
                 receipt = aggregate.PublishingReceipt;
             }
 
@@ -196,13 +216,21 @@ namespace PnP.Framework.Migration.Pages.Comparison
                     admittedPlan.TargetIdentity,
                     StringComparison.Ordinal),
                 "The native import receipt target identity is foreign to the admitted plan.");
+            return receipt;
+        }
 
+        private static NativePageImportCompareBinding CreateBinding(
+            NativePageImportReceiptAggregate aggregate,
+            IAdmittedPageImportReceipt receipt,
+            AdmittedReproExecutionPlan admittedPlan,
+            string admittedPlanDigestSha256)
+        {
             return new NativePageImportCompareBinding
             {
                 AggregateSchemaVersion = aggregate.SchemaVersion,
                 PageFamily = aggregate.PageFamily,
                 ReceiptSchemaVersion = receipt.SchemaVersion,
-                ReceiptDigestSha256 = computedDigest,
+                ReceiptDigestSha256 = aggregate.ReceiptDigestSha256,
                 AdmittedPlanDigestSha256 = admittedPlanDigestSha256,
                 SourceVersionDigestSha256 = admittedPlan.SourceVersion.VersionDigestSha256,
                 Operations = Copy(receipt.Operations),

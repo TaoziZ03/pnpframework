@@ -16,6 +16,29 @@ namespace PnP.Framework.Migration.Verification
             AdmittedReproExecutionPlan admittedPlan,
             string admittedPlanDigestSha256)
         {
+            ValidateExecutionEvidence(receipt, admittedPlan, admittedPlanDigestSha256);
+
+            Require(receipt.ExecutionStatus == MigrationExecutionStatus.Succeeded
+                && !receipt.PartialExecution,
+                "A partial or incomplete import receipt cannot enter admitted compare.");
+            Require(receipt.Steps.All(value => value.Outcome != MutationOutcome.Failed),
+                "A successful import receipt cannot contain a failed native execution step.");
+            Require(receipt.StorageVerificationStatus != StorageVerificationStatus.Passed
+                || receipt.FreshReadbackPassed,
+                "Storage cannot pass without a successful fresh readback.");
+        }
+
+        /// <summary>
+        /// Validates the immutable lineage and native step ledger without asserting
+        /// successful Compare admission. Versioned terminal contracts use this for
+        /// mutation-started failed or partial executions that must remain evidence,
+        /// while <see cref="ValidateSuccessfulExecution"/> remains the success gate.
+        /// </summary>
+        internal static void ValidateExecutionEvidence(
+            IAdmittedPageImportReceipt receipt,
+            AdmittedReproExecutionPlan admittedPlan,
+            string admittedPlanDigestSha256)
+        {
             if (receipt == null)
             {
                 throw new ArgumentNullException(nameof(receipt));
@@ -29,9 +52,6 @@ namespace PnP.Framework.Migration.Verification
                 throw new InvalidDataException("The admitted import receipt digest is required.");
             }
 
-            Require(receipt.ExecutionStatus == MigrationExecutionStatus.Succeeded
-                && !receipt.PartialExecution,
-                "A partial or incomplete import receipt cannot enter admitted compare.");
             Require(receipt.OperationId != Guid.Empty
                 && receipt.OperationId == admittedPlan.Operations.MutationOperationId,
                 "The import receipt mutation operation ID is missing or foreign.");
@@ -89,13 +109,7 @@ namespace PnP.Framework.Migration.Verification
                     && step.CompletedAtUtc >= receipt.StartedAtUtc
                     && step.CompletedAtUtc <= receipt.CompletedAtUtc,
                     "The import receipt contains a step outside its execution timeline.");
-                Require(step.Outcome != MutationOutcome.Failed,
-                    "A successful import receipt cannot contain a failed native execution step.");
             }
-
-            Require(receipt.StorageVerificationStatus != StorageVerificationStatus.Passed
-                || receipt.FreshReadbackPassed,
-                "Storage cannot pass without a successful fresh readback.");
         }
 
         private static void Require(bool condition, string message)

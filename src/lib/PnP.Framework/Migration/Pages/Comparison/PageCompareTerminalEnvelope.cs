@@ -391,6 +391,30 @@ namespace PnP.Framework.Migration.Pages.Comparison
             string expectedImplementationRef,
             IMigrationArtifactStore artifactStore)
         {
+            ValidateCommonCase(terminalCase, expectedImplementationRef);
+
+            if (string.Equals(terminalCase.TerminalKind, PageCompareTerminalContract.TerminalKinds.WikiNativeExecuted, StringComparison.Ordinal))
+            {
+                ValidateExecutedWiki(terminalCase, artifactStore);
+            }
+            else if (string.Equals(terminalCase.TerminalKind, PageCompareTerminalContract.TerminalKinds.PreWriteDenied, StringComparison.Ordinal))
+            {
+                ValidatePreWriteDenied(terminalCase);
+            }
+            else if (string.Equals(terminalCase.TerminalKind, PageCompareTerminalContract.TerminalKinds.UnsupportedNoExecution, StringComparison.Ordinal))
+            {
+                ValidateUnsupported(terminalCase);
+            }
+            else
+            {
+                throw new InvalidDataException("The terminal case kind is unsupported.");
+            }
+        }
+
+        internal static void ValidateCommonCase(
+            PageCompareTerminalCase terminalCase,
+            string expectedImplementationRef)
+        {
             RequireNoExtensions(terminalCase.ExtensionData, "terminal case");
             Require(terminalCase.Source != null, "The terminal source identity is required.");
             RequireNoExtensions(terminalCase.Source.ExtensionData, "terminal source identity");
@@ -411,23 +435,6 @@ namespace PnP.Framework.Migration.Pages.Comparison
                 "The terminal case implementation ref is foreign.");
             ValidatePackageSchema(terminalCase);
             ValidateIngredientLedger(terminalCase);
-
-            if (string.Equals(terminalCase.TerminalKind, PageCompareTerminalContract.TerminalKinds.WikiNativeExecuted, StringComparison.Ordinal))
-            {
-                ValidateExecutedWiki(terminalCase, artifactStore);
-            }
-            else if (string.Equals(terminalCase.TerminalKind, PageCompareTerminalContract.TerminalKinds.PreWriteDenied, StringComparison.Ordinal))
-            {
-                ValidatePreWriteDenied(terminalCase);
-            }
-            else if (string.Equals(terminalCase.TerminalKind, PageCompareTerminalContract.TerminalKinds.UnsupportedNoExecution, StringComparison.Ordinal))
-            {
-                ValidateUnsupported(terminalCase);
-            }
-            else
-            {
-                throw new InvalidDataException("The terminal case kind is unsupported.");
-            }
         }
 
         private static void ValidatePackageSchema(PageCompareTerminalCase terminalCase)
@@ -705,7 +712,7 @@ namespace PnP.Framework.Migration.Pages.Comparison
                 || string.Equals(ingredient.ReasonCode, PageCompareTerminalContract.ReasonCodes.AccessDeniedSkipped, StringComparison.Ordinal);
         }
 
-        private static void ValidateClassicWikiPackageArtifact(
+        internal static void ValidateClassicWikiPackageArtifact(
             PageCompareTerminalCase terminalCase,
             IMigrationArtifactStore artifactStore)
         {

@@ -45,6 +45,8 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
 | `PageCompareTerminalEnvelope` | `pnp-page-compare-terminal-envelope/v1` |
+| `PageCompareTerminalEnvelopeV2` | `pnp-page-compare-terminal-envelope/v2`; adds lossless mutation-started adverse native evidence without changing v1 |
+| `PageCompareConsumerProjectionV2` | `pnp-page-compare-consumer-projection/v2` |
 | `MigrationActionSignature` | `pnp-migration-action-signature/v1` |
 | `MigrationExecutionJournalRecord` | `pnp-migration-execution-journal-record/v1` |
 | `MigrationMutationVerificationReceipt` | `pnp-migration-mutation-verification/v1` |

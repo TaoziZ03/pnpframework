@@ -501,7 +501,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
             return result;
         }
 
-        private static CompareAcceptance DeriveAcceptance(
+        internal static CompareAcceptance DeriveAcceptance(
             string storageStatus,
             string runtimeStatus,
             IList<IngredientCompareResult> ingredients)

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pnp.github.io/schemas/pnp-page-compare-terminal-envelope-v2.schema.json",
+  "title": "PnP Page Compare Terminal Envelope v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAtUtc", "canonicalReports", "cases", "envelopeDigestSha256"],
+  "properties": {
+    "schemaVersion": { "const": "pnp-page-compare-terminal-envelope/v2" },
+    "generatedAtUtc": { "type": "string", "format": "date-time" },
+    "canonicalReports": {
+      "type": "array",
+      "items": { "$ref": "pnp-page-compare-report-v1.schema.json" }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/caseWrapper" }
+    },
+    "envelopeDigestSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nullableSha256": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256" },
+        { "type": "null" }
+      ]
+    },
+    "caseWrapper": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terminal", "cleanupReceipt"],
+      "properties": {
+        "terminal": { "$ref": "#/$defs/terminal" },
+        "cleanupReceipt": {
+          "oneOf": [
+            { "$ref": "#/$defs/cleanupReceipt" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "terminal": {
+                "properties": { "terminalKind": { "const": "native-execution-adverse" } },
+                "required": ["terminalKind"]
+              }
+            }
+          },
+          "then": { "properties": { "cleanupReceipt": { "$ref": "#/$defs/cleanupReceipt" } } },
+          "else": { "properties": { "cleanupReceipt": { "type": "null" } } }
+        }
+      ]
+    },
+    "cleanupReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "operationId", "artifactLocator", "receiptDigestSha256", "receiptJson"],
+      "properties": {
+        "schemaVersion": { "type": "string", "minLength": 1 },
+        "operationId": { "type": "string", "format": "uuid" },
+        "artifactLocator": { "type": "string", "minLength": 1 },
+        "receiptDigestSha256": { "$ref": "#/$defs/sha256" },
+        "receiptJson": { "type": "string", "minLength": 2 }
+      }
+    },
+    "terminal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseId", "terminalKind", "pageFamily", "migrationPackageSchemaVersion",
+        "migrationPackageArtifactLocator", "migrationPackageArtifactDigestSha256",
+        "migrationPackageArtifactLength", "source", "planDigestSha256", "implementationRef",
+        "evidenceDigestSha256", "admittedPlan", "admittedPlanDigestSha256", "operations",
+        "nativeReceipt", "runtimeManifest", "runtimeReceipt", "runtimeReceiptDigestSha256",
+        "mutationStatus", "readbackStatus", "runtimeStatus", "reconcileStatus", "reasonCode",
+        "ingredients", "dependentObligations"
+      ],
+      "properties": {
+        "caseId": { "type": "string", "minLength": 1 },
+        "terminalKind": {
+          "enum": ["wiki-native-executed", "pre-write-denied", "unsupported-no-execution", "native-execution-adverse"]
+        },
+        "pageFamily": { "enum": ["classic-wiki", "publishing"] },
+        "migrationPackageSchemaVersion": {
+          "enum": ["pnp-classic-wiki-page-migration-package/v1", "pnp-publishing-page-migration-package/v3"]
+        },
+        "migrationPackageArtifactLocator": { "type": ["string", "null"] },
+        "migrationPackageArtifactDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "migrationPackageArtifactLength": { "type": "integer", "minimum": 0 },
+        "source": { "type": "object" },
+        "planDigestSha256": { "$ref": "#/$defs/sha256" },
+        "implementationRef": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "evidenceDigestSha256": { "$ref": "#/$defs/sha256" },
+        "admittedPlan": { "type": ["object", "null"] },
+        "admittedPlanDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "operations": { "type": ["object", "null"] },
+        "nativeReceipt": { "type": ["object", "null"] },
+        "runtimeManifest": { "type": ["object", "null"] },
+        "runtimeReceipt": { "type": ["object", "null"] },
+        "runtimeReceiptDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "mutationStatus": { "enum": ["succeeded", "partial", "not-executed"] },
+        "readbackStatus": { "enum": ["passed", "failed", "not-executed"] },
+        "runtimeStatus": { "enum": ["passed", "failed", "pending", "not-executed"] },
+        "reconcileStatus": { "enum": ["passed", "partial", "not-executed"] },
+        "reasonCode": { "type": "string", "minLength": 1 },
+        "ingredients": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+        "dependentObligations": { "type": "array", "items": { "type": "object" } }
+      }
+    }
+  }
+}

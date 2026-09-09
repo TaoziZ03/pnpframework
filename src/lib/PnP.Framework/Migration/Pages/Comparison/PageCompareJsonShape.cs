@@ -85,10 +85,11 @@ namespace PnP.Framework.Migration.Pages.Comparison
             var result = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (var property in value.EnumerateObject())
             {
-                if (!result.TryAdd(property.Name, property.Value))
+                if (result.ContainsKey(property.Name))
                 {
                     return null;
                 }
+                result.Add(property.Name, property.Value);
             }
             return result;
         }
