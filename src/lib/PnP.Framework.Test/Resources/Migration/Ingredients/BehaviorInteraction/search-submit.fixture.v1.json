@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "pnp-ingredient-fixture/v1",
+  "fixtureId": "behavior-interaction-search-submit-try-in-place-v1",
+  "workItemType": "runtime-verification",
+  "claimId": "cfa6f409e9d3ec2f7a8789cce24100b2cfb189545889fb20cc9520a9119f40b3",
+  "lane": "behavior.interaction",
+  "subtype": "interaction.search-submit",
+  "semanticRole": "interaction-state-transition",
+  "sourcePredicate": {
+    "id": "interaction.search-box.try-in-place",
+    "version": "1"
+  },
+  "sourceBinding": {
+    "pageOrListItemIdentity": "urn:sha256:ea214daa09222c86deaf0aa4b6d91a86748450a124799a5716c8239fbb7c4f7b",
+    "sourceVersionIdentity": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
+    "sourceEvidenceDigestSha256": "d6c02c537d8941c84ef718c42d37949418027dca0e3c725b18ed5df7c1b591da",
+    "freshNormalizedSemanticDigestSha256": "abbb2e44d523ea9e6ccacc5f8e30849f0339d7e01e73c38b855c6867b5521156",
+    "freshRawWebPartResponseDigestSha256": "3c5cc89313bcb0908519d21624b3b98f87ac9e4a2880be882cedce58852c22e8",
+    "controlledSourceObservationArtifactSha256": "ab4701cfce26db17e11d9c7bc69d82ef3f0c4fb70744ad9ab6687e9d94aad06f"
+  },
+  "assertion": {
+    "assertionId": "ccd.runtime-verification.interaction/v1:ff758937-6594-4e7d-be6a-e9f22d541889:search-submit",
+    "stableAssertionId": "assertion:ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:e156d14d-d3b9-4b0e-8a54-6ed38a7180fe/search-submit",
+    "stableAssertionKey": "search-submit",
+    "assertionOwnerLane": "behavior.interaction",
+    "targetProfileId": "cupcollect-classic-page/v1",
+    "attachedActionReferences": [
+      {
+        "ingredientId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+        "actionId": "action:ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+        "dependencyRole": "read-only-runtime-projection"
+      },
+      {
+        "ingredientId": "ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
+        "actionId": "action:ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
+        "dependencyRole": "read-only-interaction-container"
+      }
+    ],
+    "trigger": {
+      "canonicalOwnerInstanceId": "e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
+      "logicalControlRole": "search-query-input",
+      "sourceObservationLocator": "#WebPartWPQ3",
+      "locatorIsCanonicalIdentity": false
+    },
+    "target": {
+      "canonicalOwnerInstanceId": "f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "logicalRegionRole": "search-results",
+      "sourceObservationLocator": "#WebPartWPQ4",
+      "locatorIsCanonicalIdentity": false
+    },
+    "initialState": {
+      "stateId": "search-input-ready",
+      "predicate": "input.enabled && input.value == '' && no-owned-submit-in-flight",
+      "evidenceKind": "dom-state-plus-network-baseline"
+    },
+    "action": {
+      "actionId": "action:ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
+      "kind": "replace-text-and-submit-once",
+      "selector": "webpart-instance:e156d14d-d3b9-4b0e-8a54-6ed38a7180fe role:search-query-input",
+      "input": "ccd-interaction-canary",
+      "timeoutMilliseconds": 15000,
+      "maximumAttempts": 2
+    },
+    "expectedFinalState": {
+      "stateId": "in-place-search-transition-observed",
+      "predicate": "same-page && submitted-query == 'ccd-interaction-canary' && (result-region-state-changed || explicit-empty-result-state)",
+      "evidenceKind": "ordered-dom-network-navigation-state"
+    },
+    "runtimeBoundary": {
+      "allowed": [
+        "same-origin GET search request",
+        "in-page result-region redraw",
+        "same-page query-state update"
+      ],
+      "forbidden": [
+        "source mutation",
+        "cross-origin navigation",
+        "download",
+        "dialog",
+        "destructive form submission",
+        "external-service mutation"
+      ]
+    },
+    "typedVerdictPolicy": {
+      "pass": "Bound initial, action, and final evidence proves the expected in-page transition.",
+      "conditional": "The safe action ran, but permission, index, user, or time dependent result content prevents an exact product assertion.",
+      "unsupported": "The target Search Box does not expose an admitted safe replay path.",
+      "unknown": "Evidence is partial, stale, corrupt, or cannot be bound to this execution.",
+      "fail": "The wrong trigger or target ran, the transition did not occur, or a forbidden boundary was crossed."
+    }
+  },
+  "sourceConfiguration": {
+    "allowEmptySearch": false,
+    "maintainQueryState": false,
+    "queryGroupNames": [
+      "Default"
+    ],
+    "resultsPageAddress": null,
+    "tryInplaceQuery": true,
+    "updatePageTitle": false,
+    "msBeforeShowingProgress": 500
+  },
+  "redaction": {
+    "rawSourceHtmlIncluded": false,
+    "credentialsIncluded": false,
+    "reason": "The permanent hermetic fixture retains the complete behavior semantics and content-addressed source bindings without publishing tenant page content."
+  }
+}
