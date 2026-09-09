@@ -189,12 +189,15 @@ namespace PnP.Framework.Migration.Verification
                 result.AssertionId,
                 assertion.AssertionId,
                 StringComparison.Ordinal)).Passed);
-            var expectedStatus = !hasRequiredEvidence
-                ? RuntimeVerificationStatus.NotRequired
-                : allRequiredPassed && allAssertionsPassed
+            var aggregatePassed = allRequiredPassed && allAssertionsPassed;
+            var validStatus = hasRequiredEvidence
+                ? receipt.Status == (aggregatePassed
                     ? RuntimeVerificationStatus.Passed
-                    : RuntimeVerificationStatus.Failed;
-            if (receipt.Status != expectedStatus)
+                    : RuntimeVerificationStatus.Failed)
+                : receipt.Status == RuntimeVerificationStatus.NotRequired
+                    || (string.Equals(manifest.SchemaVersion, ManifestSchemaV1, StringComparison.Ordinal)
+                        && receipt.Status == RuntimeVerificationStatus.Passed);
+            if (!validStatus)
             {
                 throw new InvalidDataException("The runtime receipt status does not agree with required results and assertion results.");
             }
