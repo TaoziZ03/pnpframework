@@ -113,6 +113,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             return "reference:" + (id ?? string.Empty);
         }
 
+        public static string PageReferencedAsset(Guid pageFileUniqueId, string sourceServerRelativeUrl)
+        {
+            return "asset:page-reference:" + pageFileUniqueId.ToString("D") + ":" + sourceServerRelativeUrl;
+        }
+
         private static string NormalizeScope(string value)
         {
             var normalized = (value ?? string.Empty).Replace('\\', '/').TrimEnd('/');
