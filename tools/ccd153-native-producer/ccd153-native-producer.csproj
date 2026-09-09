@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <SourceRevisionId Condition="'$(SourceRevisionId)' == ''">unbound</SourceRevisionId>
+    <InformationalVersion>1.0.0+$(SourceRevisionId)</InformationalVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/lib/PnP.Framework/PnP.Framework.csproj" />
+  </ItemGroup>
+</Project>

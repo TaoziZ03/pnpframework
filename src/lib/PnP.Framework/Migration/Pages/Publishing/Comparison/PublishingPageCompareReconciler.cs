@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Execution;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Verification;
 using System;
@@ -149,6 +150,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
             Require(!request.ImportReceipt.PartialExecution
                 && request.ImportReceipt.ExecutionStatus == PnP.Framework.Migration.Execution.MigrationExecutionStatus.Succeeded,
                 "A partial or incomplete import receipt cannot enter admitted compare.");
+            PublishingPageImportReceiptValidator.ValidateAdmittedExecution(
+                request.ImportReceipt,
+                request.AdmittedPlan,
+                admittedPlanDigest);
             Require(request.ImportReceipt.StorageVerificationStatus != StorageVerificationStatus.Passed
                 || request.ImportReceipt.FreshReadbackPassed,
                 "Storage cannot pass without a successful fresh readback.");

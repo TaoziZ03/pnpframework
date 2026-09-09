@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ccd153.actual-ingredient-measurements/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "caseId", "readbackOperationId", "capturedAtUtc", "ingredients"],
+  "properties": {
+    "schema": { "const": "ccd153.actual-ingredient-measurements/v1" },
+    "caseId": { "type": "string", "minLength": 1 },
+    "readbackOperationId": { "type": "string", "format": "uuid" },
+    "capturedAtUtc": { "type": "string", "format": "date-time" },
+    "ingredients": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ingredient" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-fA-F]{64}$" },
+    "digestPair": {
+      "type": ["object", "null"],
+      "properties": {
+        "rawDigestSha256": { "$ref": "#/$defs/sha256" },
+        "canonicalDigestSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "ingredient": {
+      "type": "object",
+      "required": [
+        "ingredientId",
+        "kind",
+        "sourceIngredientId",
+        "requestedUrlHashSha256",
+        "sourceArtifactDigestSha256"
+      ],
+      "properties": {
+        "ingredientId": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "material": { "type": "boolean" },
+        "assertionApplicable": { "type": "boolean" },
+        "sourceVersionSensitive": { "type": "boolean" },
+        "targetEvidenceComplete": { "type": "boolean" },
+        "targetPresent": { "type": "boolean" },
+        "unexpectedExtra": { "type": "boolean" },
+        "runtimeRequirementId": { "type": ["string", "null"] },
+        "unknownReasonCode": { "type": ["string", "null"] },
+        "requestedUrlHashSha256": { "$ref": "#/$defs/sha256" },
+        "sourceArtifactDigestSha256": { "$ref": "#/$defs/sha256" },
+        "sourceIngredientId": { "type": "string", "minLength": 1 },
+        "actionId": { "type": ["string", "null"] },
+        "targetIdentity": { "type": ["string", "null"] },
+        "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+        "causeIngredientIds": { "type": "array", "items": { "type": "string" } },
+        "expected": { "$ref": "#/$defs/digestPair" },
+        "actualRawArtifactSha256": { "$ref": "#/$defs/sha256" },
+        "actualCanonicalArtifactSha256": { "$ref": "#/$defs/sha256" },
+        "approvedTransformedCanonicalDigestSha256": { "$ref": "#/$defs/sha256" },
+        "message": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
