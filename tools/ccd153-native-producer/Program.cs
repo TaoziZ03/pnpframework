@@ -87,6 +87,7 @@ static void RunValidateImport(string requestPath, JsonSerializerOptions options,
         request.CaseId,
         producer = new { id = ProducerContract.Id, version = ProducerContract.Version, implementationRef = request.ImplementationRef },
         binarySha256 = CurrentBinarySha256(),
+        targetTransport = Environment.GetEnvironmentVariable("CCD153_TARGET_TRANSPORT") ?? "direct-csom",
         pageFamily,
         admittedPlanDigestSha256 = admittedDigest,
         importReceiptDigestSha256 = aggregate.ReceiptDigestSha256,
@@ -261,9 +262,18 @@ static NativeImportOutcome ImportClassicWiki(
 static ClientContext CreateTargetContext(string targetWebUrl, string cookieHeader)
 {
     var context = new ClientContext(targetWebUrl) { RequestTimeout = 180000 };
+    var transport = Environment.GetEnvironmentVariable("CCD153_TARGET_TRANSPORT");
+    var useCdp = string.Equals(transport, "edge-cdp", StringComparison.Ordinal);
+    if (useCdp)
+    {
+        context.WebRequestExecutorFactory = new CdpWebRequestExecutorFactory();
+    }
     context.ExecutingWebRequest += (_, eventArgs) =>
     {
-        eventArgs.WebRequestExecutor.RequestHeaders["Cookie"] = cookieHeader;
+        if (!useCdp)
+        {
+            eventArgs.WebRequestExecutor.RequestHeaders["Cookie"] = cookieHeader;
+        }
         eventArgs.WebRequestExecutor.RequestHeaders["Cache-Control"] = "no-cache, no-store";
         eventArgs.WebRequestExecutor.RequestHeaders["Pragma"] = "no-cache";
     };
