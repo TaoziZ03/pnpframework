@@ -14,6 +14,7 @@ using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Verification;
 using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Verification;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -58,7 +59,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 package.Snapshot.ListLookupDependencies,
                 plan.ListMigration,
                 plan.PlanningPolicy.DroppedLookupValueDecisions);
-            ValidateRuntimeVerification(plan);
+            RuntimeVerificationContractValidator.ValidateManifest(
+                plan.RuntimeVerification,
+                plan.IngredientGraph,
+                plan.IngredientActions);
             ValidatePlanningIngredientGraph(package.Snapshot, plan, handlerCatalog);
             if (!string.Equals(plan.SourceSnapshotDigest, package.SnapshotDigest, StringComparison.OrdinalIgnoreCase))
             {
@@ -256,17 +260,6 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                 || !new HashSet<Guid>(plannedSiteIds).SetEquals(probedSiteIds))
             {
                 throw new InvalidDataException("The target topology analysis must cover every planned Web exactly once.");
-            }
-        }
-
-        private static void ValidateRuntimeVerification(PublishingPageMigrationPlan plan)
-        {
-            var duplicate = plan.RuntimeVerification.Requirements
-                .GroupBy(item => item?.Id, StringComparer.Ordinal)
-                .FirstOrDefault(group => string.IsNullOrWhiteSpace(group.Key) || group.Count() > 1);
-            if (duplicate != null || plan.RuntimeVerification.Requirements.Any(item => item == null))
-            {
-                throw new InvalidDataException($"The runtime verification manifest contains a missing or duplicate requirement ID '{duplicate?.Key}'.");
             }
         }
 

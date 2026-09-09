@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Verification
 {
@@ -14,6 +15,9 @@ namespace PnP.Framework.Migration.Verification
         public DateTimeOffset CompletedAtUtc { get; set; }
 
         public IList<RuntimeVerificationResult> Results { get; set; } = new List<RuntimeVerificationResult>();
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IList<RuntimeVerificationAssertionResult> AssertionResults { get; set; }
 
         public RuntimeVerificationStatus Status { get; set; }
     }
