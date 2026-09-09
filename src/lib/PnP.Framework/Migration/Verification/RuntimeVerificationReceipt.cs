@@ -15,11 +15,17 @@ namespace PnP.Framework.Migration.Verification
 
         public string ImportReceiptDigestSha256 { get; set; }
 
+        public string RequirementsManifestDigestSha256 { get; set; }
+
+        public string ImplementationRef { get; set; }
+
         public CurrentSourceVersionIdentity SourceVersion { get; set; }
 
         public ReproOperationIds Operations { get; set; }
 
         public string TargetIdentity { get; set; }
+
+        public RuntimeBrowserContextIdentity BrowserContext { get; set; }
 
         public DateTimeOffset CompletedAtUtc { get; set; }
 

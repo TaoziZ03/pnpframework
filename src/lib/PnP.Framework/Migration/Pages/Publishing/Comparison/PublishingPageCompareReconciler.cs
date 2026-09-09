@@ -364,6 +364,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
             Require(string.Equals(request.RuntimeReceipt.TargetIdentity, request.PlannedTargetIdentity.CanonicalIdentity, StringComparison.Ordinal),
                 "The runtime receipt is not bound to the planned target identity.");
 
+            RuntimeVerificationReceiptValidator.ValidateEvidence(
+                request.RuntimeReceipt,
+                manifest,
+                request.Producer.ImplementationRef,
+                artifactStore);
+
             var results = request.RuntimeReceipt.Results ?? new List<RuntimeVerificationResult>();
             var duplicate = results.GroupBy(value => value?.RequirementId, StringComparer.Ordinal)
                 .FirstOrDefault(group => string.IsNullOrWhiteSpace(group.Key) || group.Count() != 1);
@@ -377,8 +383,6 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
             foreach (var result in results)
             {
                 ValidateDigest(result.EvidenceArtifactSha256, "runtime evidence digest");
-                Require(artifactStore != null && artifactStore.Contains(result.EvidenceArtifactSha256),
-                    "Runtime evidence is not available from the exact artifact resolver.");
             }
             var allRequiredPassed = required.All(requirement =>
                 results.Single(result => string.Equals(result.RequirementId, requirement.Id, StringComparison.Ordinal)).Passed);
