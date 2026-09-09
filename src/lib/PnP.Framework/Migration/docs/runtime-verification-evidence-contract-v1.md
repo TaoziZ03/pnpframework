@@ -10,7 +10,8 @@ The receipt binds:
   identity, and native import receipt;
 - the canonical `RuntimeVerificationManifest` SHA-256;
 - a full Git implementation SHA, repeated by each result;
-- a fresh incognito browser context identity and creation/navigation timeline;
+- a fresh isolated browser context identity, isolation-mode flag, and
+  creation/navigation timeline;
 - per-result HTTP request/response observations and a `cache: no-store`
   request policy (`CacheDisabled`, `Cache-Control`, `Pragma`, and cache-source
   flags);
