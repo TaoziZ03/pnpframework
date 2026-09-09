@@ -112,7 +112,6 @@ namespace PnP.Framework.Migration.Verification
         {
             Require(browserContext != null
                 && browserContext.FreshContext
-                && browserContext.IsIncognito
                 && !string.IsNullOrWhiteSpace(browserContext.BrowserProduct)
                 && !string.IsNullOrWhiteSpace(browserContext.BrowserVersion)
                 && !string.IsNullOrWhiteSpace(browserContext.ProtocolVersion)
