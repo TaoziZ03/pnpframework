@@ -16,7 +16,7 @@ using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 {
-    public sealed class PublishingPageImportReceipt
+    public sealed class PublishingPageImportReceipt : IAdmittedPageImportReceipt
     {
         public string SchemaVersion { get; set; } = PublishingPagePackageContract.ReceiptSchemaVersion;
 

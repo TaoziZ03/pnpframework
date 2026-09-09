@@ -62,6 +62,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 CompletedAtUtc = DateTimeOffset.UtcNow,
                 OperationId = operationId,
                 ExecutionStatus = readbackPassed ? MigrationExecutionStatus.Succeeded : MigrationExecutionStatus.FailedUnexpectedly,
+                PartialExecution = !readbackPassed,
                 MutationStarted = true,
                 Steps = new List<MigrationMutationReceipt>(recorder.Steps),
                 ApprovedPlanDigest = approvedPlanDigest,

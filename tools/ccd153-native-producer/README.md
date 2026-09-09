@@ -1,16 +1,19 @@
 # CCD-153 native producer
 
-This executable is the clean-ref entry point for an admitted publishing-page
-import and strict page compare. It does not construct an import receipt or
-compare report as a sidecar.
+This executable is the clean-ref entry point for admitted native page import
+and strict page compare. It does not construct a family receipt or compare
+report as a sidecar.
 
-`import` deserializes a sealed `PublishingPageMigrationPackage` and
-`AdmittedReproExecutionPlan`, connects only to the CUPCollect target, and calls
-`PublishingPageMigrationImporter.ImportAdmitted`. The native execution journal,
-receipt steps, operation IDs, source-version binding, plan digest, binary hash,
-and full implementation ref are written together. Target authentication is
-accepted only through the named process environment variable and is never
-serialized or printed.
+`import` uses `pageFamily` (`publishing` by default, or `classic-wiki`) to
+deserialize the matching sealed package. It connects only to the CUPCollect
+target and calls the matching native `ImportAdmitted` method. Classic Wiki
+remains a `ClassicWikiImportReceipt`; it is never projected into a
+`PublishingPageImportReceipt`. The producer writes the typed receipt, a lossless
+`pnp-native-page-import-receipt-aggregate/v1`, a validated family-neutral compare
+binding, the native execution journal, operation IDs, source-version binding,
+plan digest, binary hash, and full implementation ref together. Target
+authentication is accepted only through the named process environment variable
+and is never serialized or printed.
 
 `reconcile` deserializes the native import receipt and the runtime receipt,
 recomputes every supplied actual-ingredient artifact through
@@ -20,9 +23,10 @@ recomputes every supplied actual-ingredient artifact through
 screenshot bytes and validates requirements-manifest, implementation-ref,
 browser-context, timeline, HTTP, and no-store evidence.
 
-`validate-import` applies the same native step-lineage gate to an existing
-receipt. It is intended for independent negative verification and never opens a
-tenant connection.
+`validate-import` applies the same native step-lineage gate to an existing typed
+receipt or receipt aggregate. Set `pageFamily: classic-wiki` when validating a
+Wiki receipt. It is intended for independent negative verification and never
+opens a tenant connection.
 
 Build from an immutable commit and bind the binary to that exact ref:
 
@@ -37,7 +41,7 @@ the package and admitted plan:
 ```powershell
 $env:CCD153_TARGET_COOKIE_HEADER = <provider-managed-cookie-header>
 dotnet .\tools\ccd153-native-producer\bin\Release\net10.0\ccd153-native-producer.dll `
-  import .\run\ccd35-06.import-request.json
+  import .\run\ccd35-03.import-request.json
 Remove-Item Env:CCD153_TARGET_COOKIE_HEADER
 ```
 
@@ -45,5 +49,7 @@ Never write the cookie value to the request, ledger, receipt, console, or
 artifact bundle. `microsoft*.sharepoint.com` remains read-only; this producer
 admits only `a830edad9050849cupcollect.sharepoint.com` as a target authority.
 
-The request schemas are under `schemas/`. Missing, stale, foreign, corrupt,
-partial, duplicate, and orphaned native execution lineage fails closed.
+The request schemas are under `schemas/`. `ccd35-03` and `ccd35-08` use
+`pageFamily: classic-wiki`; `ccd35-06` remains an explicit unsupported
+Publishing error shell and is not converted to Wiki. Missing, stale, foreign,
+corrupt, partial, duplicate, and orphaned native execution lineage fails closed.

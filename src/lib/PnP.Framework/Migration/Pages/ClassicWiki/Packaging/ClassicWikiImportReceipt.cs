@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
 {
-    public sealed class ClassicWikiImportReceipt
+    public sealed class ClassicWikiImportReceipt : IAdmittedPageImportReceipt
     {
         public string SchemaVersion { get; set; } = ClassicWikiPackageContract.ReceiptSchemaVersion;
 
@@ -15,7 +15,15 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
 
         public Guid OperationId { get; set; }
 
+        public string AdmittedPlanDigestSha256 { get; set; }
+
+        public CurrentSourceVersionIdentity SourceVersion { get; set; }
+
+        public ReproOperationIds Operations { get; set; }
+
         public MigrationExecutionStatus ExecutionStatus { get; set; }
+
+        public bool PartialExecution { get; set; }
 
         public ExecutionAdmissionFailure AdmissionFailure { get; set; }
 
