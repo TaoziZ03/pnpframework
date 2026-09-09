@@ -458,10 +458,7 @@ static void ValidateImplementationRef(string implementationRef)
     Require(IsSha1(implementationRef), "implementation_ref_invalid");
     var informational = Assembly.GetExecutingAssembly()
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-    var embeddedRefs = (informational ?? string.Empty)
-        .Split(new[] { '+', '.' }, StringSplitOptions.RemoveEmptyEntries)
-        .Where(IsSha1);
-    Require(embeddedRefs.Contains(implementationRef, StringComparer.OrdinalIgnoreCase),
+    Require((informational ?? string.Empty).IndexOf(implementationRef, StringComparison.OrdinalIgnoreCase) >= 0,
         "binary_implementation_ref_mismatch");
 }
 
