@@ -156,6 +156,98 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     DateTimeOffset.Parse("2026-09-09T10:00:00Z")));
         }
 
+        [TestMethod]
+        public void V2ReceiptAggregatesRequiredResultsAndAssertionsTogether()
+        {
+            foreach (var requirementPassed in new[] { true, false })
+            {
+                foreach (var assertionPassed in new[] { true, false })
+                {
+                    var manifest = Manifest();
+                    manifest.Requirements.Add(new RuntimeVerificationRequirement
+                    {
+                        Id = "page-reachability",
+                        Required = true
+                    });
+                    var receipt = Receipt();
+                    receipt.Results.Add(new RuntimeVerificationResult
+                    {
+                        RequirementId = "page-reachability",
+                        Passed = requirementPassed,
+                        EvidenceArtifactSha256 = DigestA
+                    });
+                    receipt.AssertionResults[0].Passed = assertionPassed;
+                    receipt.AssertionResults[0].FailureReasonCode = assertionPassed
+                        ? null
+                        : "ASSERTION_FAILED";
+                    receipt.Status = requirementPassed && assertionPassed
+                        ? RuntimeVerificationStatus.Passed
+                        : RuntimeVerificationStatus.Failed;
+
+                    RuntimeVerificationContractValidator.ValidateReceipt(
+                        manifest,
+                        receipt,
+                        PlanDigest,
+                        TargetIdentity,
+                        DateTimeOffset.Parse("2026-09-09T10:00:00Z"));
+                }
+            }
+        }
+
+        [TestMethod]
+        public void V2OnlyAndOptionalLegacyResultsUseRequiredEvidenceSemantics()
+        {
+            var manifest = Manifest();
+            var failedAssertionReceipt = Receipt();
+            failedAssertionReceipt.AssertionResults[0].Passed = false;
+            failedAssertionReceipt.AssertionResults[0].FailureReasonCode = "ASSERTION_FAILED";
+            failedAssertionReceipt.Status = RuntimeVerificationStatus.Failed;
+            RuntimeVerificationContractValidator.ValidateReceipt(
+                manifest,
+                failedAssertionReceipt,
+                PlanDigest,
+                TargetIdentity,
+                DateTimeOffset.Parse("2026-09-09T10:00:00Z"));
+
+            manifest.Requirements.Add(new RuntimeVerificationRequirement
+            {
+                Id = "optional-screenshot",
+                Required = false
+            });
+            var optionalFailureReceipt = Receipt();
+            optionalFailureReceipt.Results.Add(new RuntimeVerificationResult
+            {
+                RequirementId = "optional-screenshot",
+                Passed = false,
+                EvidenceArtifactSha256 = DigestA
+            });
+            RuntimeVerificationContractValidator.ValidateReceipt(
+                manifest,
+                optionalFailureReceipt,
+                PlanDigest,
+                TargetIdentity,
+                DateTimeOffset.Parse("2026-09-09T10:00:00Z"));
+        }
+
+        [TestMethod]
+        public void V2ReceiptRejectsMissingRequiredResultBeforeAggregatingStatus()
+        {
+            var manifest = Manifest();
+            manifest.Requirements.Add(new RuntimeVerificationRequirement
+            {
+                Id = "page-reachability",
+                Required = true
+            });
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                RuntimeVerificationContractValidator.ValidateReceipt(
+                    manifest,
+                    Receipt(),
+                    PlanDigest,
+                    TargetIdentity,
+                    DateTimeOffset.Parse("2026-09-09T10:00:00Z")));
+        }
+
         private static RuntimeVerificationManifest Manifest()
         {
             return new RuntimeVerificationManifest

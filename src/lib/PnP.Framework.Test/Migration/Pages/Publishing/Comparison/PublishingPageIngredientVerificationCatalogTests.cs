@@ -245,6 +245,47 @@ namespace PnP.Framework.Test.Migration.Pages.Publishing.Comparison
             Assert.AreEqual(PublishingPageCompareContract.ResultClasses.RuntimePending, pending.Assertions[0].ResultClass);
         }
 
+        [TestMethod]
+        public void V2RequirementAndAssertionOutcomeMatrixReachesCompare()
+        {
+            foreach (var requirementPassed in new[] { true, false })
+            {
+                foreach (var assertionPassed in new[] { true, false })
+                {
+                    var request = CreateRequest(runtimePassed: requirementPassed);
+                    UpgradeToV2Assertion(request);
+                    request.RuntimeReceipt.AssertionResults[0].Passed = assertionPassed;
+                    request.RuntimeReceipt.AssertionResults[0].FailureReasonCode = assertionPassed
+                        ? null
+                        : "ASSERTION_FAILED";
+                    request.RuntimeReceipt.Status = requirementPassed && assertionPassed
+                        ? RuntimeVerificationStatus.Passed
+                        : RuntimeVerificationStatus.Failed;
+                    request.ImportReceipt.RuntimeVerificationStatus = request.RuntimeReceipt.Status;
+                    request.ImportReceiptDigestSha256 = ContractDigest(request.ImportReceipt);
+                    request.Bindings.ImportReceiptDigestSha256 = request.ImportReceiptDigestSha256;
+                    request.RuntimeReceiptDigestSha256 = ContractDigest(request.RuntimeReceipt);
+                    request.Bindings.RuntimeReceiptDigestSha256 = request.RuntimeReceiptDigestSha256;
+
+                    var report = PublishingPageCompareReconciler.ReconcileWithContributors(
+                        request,
+                        new PublishingPageIngredientVerificationCatalog(
+                            PublishingPageIngredientHandlerCatalog.Empty,
+                            Array.Empty<IPublishingPageIngredientVerificationContributor>()),
+                        new PermissiveArtifactStore());
+
+                    Assert.AreEqual(
+                        requirementPassed && assertionPassed ? "passed" : "failed",
+                        report.Runtime.Status);
+                    Assert.AreEqual(
+                        assertionPassed
+                            ? PublishingPageCompareContract.ResultClasses.Exact
+                            : PublishingPageCompareContract.ResultClasses.Mismatch,
+                        report.Assertions.Single().ResultClass);
+                }
+            }
+        }
+
         private static IngredientCompareObservation FreshObservation(
             PublishingPageIngredientVerificationContext context,
             IngredientCompareObservation template,

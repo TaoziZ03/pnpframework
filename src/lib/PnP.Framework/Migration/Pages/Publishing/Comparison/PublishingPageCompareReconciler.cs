@@ -482,12 +482,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
                         "Runtime assertion evidence is not available from the exact artifact resolver.");
                 }
             }
-            var allRequiredPassed = required.All(requirement =>
-                results.Single(result => string.Equals(result.RequirementId, requirement.Id, StringComparison.Ordinal)).Passed);
-            Require((allRequiredPassed && request.RuntimeReceipt.Status == RuntimeVerificationStatus.Passed)
-                || (!allRequiredPassed && request.RuntimeReceipt.Status == RuntimeVerificationStatus.Failed)
-                || (required.Count == 0 && request.RuntimeReceipt.Status == RuntimeVerificationStatus.NotRequired),
-                "The runtime receipt status does not agree with required results.");
+            RuntimeVerificationContractValidator.ValidateAggregateStatus(manifest, request.RuntimeReceipt);
         }
 
         internal static IngredientCompareResult Classify(
