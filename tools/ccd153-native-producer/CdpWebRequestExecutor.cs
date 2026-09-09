@@ -65,7 +65,11 @@ sealed class CdpWebRequestExecutor : WebRequestExecutor
             headers,
             bodyBase64 = Convert.ToBase64String(requestStream.ToArray())
         });
-        var expression = "(async()=>{const p=" + payload + ";const h={...p.headers};"
+        var expression = "(async()=>{const p=" + payload + ";const h={...p.headers};const u=new URL(p.url);"
+            + "if((p.method||'POST').toUpperCase()!=='GET'&&!h['X-RequestDigest']){const base=u.pathname.includes('/_vti_bin/')?u.pathname.split('/_vti_bin/')[0]:'';"
+            + "const c=await fetch(u.origin+base+'/_api/contextinfo',{method:'POST',headers:{Accept:'application/json;odata=nometadata'},credentials:'include',cache:'no-store'});"
+            + "const j=await c.json();h['X-RequestDigest']=j.FormDigestValue||j.d?.GetContextWebInformation?.FormDigestValue;}"
+            + "h['X-FORMS_BASED_AUTH_ACCEPTED']='f';"
             + "const b=p.bodyBase64?Uint8Array.from(atob(p.bodyBase64),c=>c.charCodeAt(0)):undefined;"
             + "const r=await fetch(p.url,{method:p.method,headers:h,body:b,credentials:'include',cache:'no-store',redirect:'follow'});"
             + "const a=new Uint8Array(await r.arrayBuffer());let s='';for(let i=0;i<a.length;i+=32768)s+=String.fromCharCode(...a.subarray(i,i+32768));"
@@ -102,6 +106,11 @@ sealed class CdpWebRequestExecutor : WebRequestExecutor
             if (!string.IsNullOrWhiteSpace(result.RequestGuid)) responseHeaders["SPRequestGuid"] = result.RequestGuid;
             responseStream.Dispose();
             responseStream = new MemoryStream(string.IsNullOrWhiteSpace(result.BodyBase64) ? Array.Empty<byte>() : Convert.FromBase64String(result.BodyBase64));
+            if (result.Status >= 400)
+            {
+                var bodyText = Encoding.UTF8.GetString(responseStream.ToArray());
+                throw new InvalidOperationException("cdp_http_error:" + result.Status + ":" + bodyText.Substring(0, Math.Min(bodyText.Length, 800)));
+            }
         }
         finally
         {
