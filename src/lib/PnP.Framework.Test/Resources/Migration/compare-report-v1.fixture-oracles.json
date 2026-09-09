@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "pnp-page-compare-fixture-oracles/v1",
+  "contractRevisions": {
+    "compareBaseline": "CCD-34:c2bf2799-f083-4589-ae43-75ade2610d3e",
+    "assessmentProducer": "CCD-33:fa6aa144-2abe-41dc-b25d-740e2230070e",
+    "assessmentConformance": "CCD-42:f8366f5a-8012-4b4c-93d0-25150849dc8e"
+  },
+  "implementationRef": "2dea1bbcc44bfcfe0fe5c3dd32e32bd28b79cc0c",
+  "cases": [
+    { "id": "compare.exact.v1", "expectedResult": "exact", "expectedAcceptance": "pass" },
+    { "id": "compare.canonical-equivalent.v1", "expectedResult": "canonical-equivalent", "expectedAcceptance": "pass", "retainsRawDigests": true },
+    { "id": "compare.transformed.v1", "expectedResult": "transformed-as-planned", "expectedAcceptance": "pass" },
+    { "id": "compare.partial-unknown.v1", "expectedResult": "unknown", "expectedAcceptance": "unverified", "mustNotBecome": "missing" },
+    { "id": "compare.authorization-blocked.v1", "expectedResult": "authorization-blocked", "expectedAcceptance": "conditional" },
+    { "id": "compare.auth-expired.v1", "expectedResult": "auth-expired", "expectedAcceptance": "unverified" },
+    { "id": "compare.source-drift.v1", "expectedResult": "source-version-changed", "expectedAcceptance": "unverified", "precedes": "mismatch" },
+    { "id": "compare.missing.v1", "expectedResult": "missing", "expectedAcceptance": "fail", "requiresCompleteTargetEvidence": true },
+    { "id": "compare.unexpected-extra.v1", "expectedResult": "unexpected-extra", "expectedAcceptance": "fail", "requiresCompleteTargetEvidence": true },
+    { "id": "compare.runtime-pending.v1", "expectedResult": "runtime-pending", "expectedAcceptance": "unverified" },
+    { "id": "compare.runtime-mismatch.v1", "expectedRuntime": "failed", "expectedAcceptance": "fail" },
+    { "id": "compare.runtime-pass-storage-fail.v1", "expectedRuntime": "passed", "expectedStorage": "failed", "expectedAcceptance": "fail" },
+    { "id": "compare.dependency-list-closure.v1", "expectedResult": "unknown", "expectedAcceptance": "unverified", "mustRetainCauseIngredientIds": true },
+    { "id": "corrupt.unbound-runtime-receipt.v1", "expectedFailure": "runtime receipt is not bound to the approved plan" },
+    { "id": "corrupt.duplicate-runtime-requirement.v1", "expectedFailure": "duplicate requirement ID" },
+    { "id": "determinism.order-permuted.v1", "expectedReportDigestInvariant": true },
+    {
+      "id": "C42-ACTUAL-SHAPE-OK",
+      "fixture": "assessment-capture-handoff-v1.actual-shaped.json",
+      "expectedResult": "exact",
+      "expectedAssessmentClaims": "unavailable_by_producer_contract",
+      "sourceAccessCount": 0,
+      "networkEgressCount": 0
+    },
+    { "id": "C42-MISSING-DISCOVERY-CLAIMS", "expectedAssessmentClaims": "unavailable_by_producer_contract", "mustNotInvent": ["discoveryObservationId", "producerAttestation", "coverage"] },
+    { "id": "C42-MISSING-CAPTURE-PROVENANCE", "expectedFailure": "Assessment capture handoff identity is incomplete" },
+    { "id": "C42-DENIED", "permissionSignal": "known_forbidden", "expectedResult": "authorization-blocked", "expectedAcceptance": "conditional" },
+    { "id": "C42-UNKNOWN", "permissionSignal": "inherited_unknown", "expectedResult": "unknown", "expectedAcceptance": "unverified" },
+    { "id": "C42-CORRUPT", "expectedFailure": "Assessment handoff digest does not match its payload", "networkEgressCount": 0 },
+    { "id": "C42-UNSUPPORTED-VERSION", "expectedFailure": "Assessment capture handoff schema is unsupported", "networkEgressCount": 0 },
+    { "id": "C42-EXPECTED-ACTUAL", "retainsRawDigests": true, "canonicalRulesVersionBound": true, "runtimePassMustNotOverrideStorageFail": true }
+  ]
+}

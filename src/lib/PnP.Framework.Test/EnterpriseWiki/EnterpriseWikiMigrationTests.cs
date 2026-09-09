@@ -6,6 +6,7 @@ using PnP.Framework.Migration.Pages.Publishing.EnterpriseWiki;
 using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Lifecycle;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
+using PnP.Framework.Migration.Pages.Publishing.Comparison;
 using PnP.Framework.Migration.Pages.Publishing.Execution;
 using PnP.Framework.Migration.Pages.Publishing.Lifecycle;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
@@ -3907,9 +3908,873 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
         }
 
-        private static PublishingPageMigrationPackage CreateMigrationPackage()
+        [TestMethod]
+        public void CompareReportIsDeterministicAndPreservesOneResultPerIngredient()
+        {
+            var request = CreateCompareRequest();
+            var forward = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+            request.Ingredients = request.Ingredients.Reverse().ToList();
+            var reverse = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+            var replay = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+
+            Assert.AreEqual(
+                "pass",
+                forward.Acceptance.Verdict,
+                string.Join(",", forward.Ingredients.Select(value => value.IngredientId + "=" + value.ResultClass)));
+            Assert.AreEqual(request.Package.Plan.IngredientGraph.Nodes.Count, forward.Ingredients.Count);
+            Assert.IsTrue(forward.Ingredients.Where(value => value.Material).All(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.Exact));
+            Assert.IsTrue(forward.Ingredients.Where(value => !value.Material).All(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.Deferred));
+            Assert.AreEqual(forward.ReportDigestSha256, reverse.ReportDigestSha256);
+            Assert.AreEqual(reverse.ReportDigestSha256, replay.ReportDigestSha256);
+            CollectionAssert.AreEqual(
+                forward.Ingredients.Select(value => value.IngredientId).ToArray(),
+                reverse.Ingredients.Select(value => value.IngredientId).ToArray());
+        }
+
+        [TestMethod]
+        public void CompareReportRetainsRawDigestsForKnownCanonicalNormalization()
+        {
+            var request = CreateCompareRequest();
+            var observation = ExecutableObservation(request);
+            observation.Expected.RawDigestSha256 = Hash("raw-before-normalization");
+            observation.Actual.RawDigestSha256 = Hash("raw-after-normalization");
+            observation.Expected.CanonicalDigestSha256 = Hash("canonical-form");
+            observation.Actual.CanonicalDigestSha256 = Hash("canonical-form");
+
+            var report = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+            var result = report.Ingredients.Single(value => value.IngredientId == observation.IngredientId);
+
+            Assert.AreEqual(PublishingPageCompareContract.ResultClasses.CanonicalEquivalent, result.ResultClass);
+            Assert.AreEqual(Hash("raw-before-normalization"), result.Expected.RawDigestSha256);
+            Assert.AreEqual(Hash("raw-after-normalization"), result.Actual.RawDigestSha256);
+        }
+
+        [TestMethod]
+        public void SourceVersionDriftPrecedesTargetMismatch()
+        {
+            var request = CreateCompareRequest();
+            request.AdmittedPlan.SourceVersion.VersionDigestSha256 = Hash("new-source-version");
+            request.SourceVersionComparison.ObservedCompositeDigestSha256 = request.AdmittedPlan.SourceVersion.VersionDigestSha256;
+            request.SourceVersionComparison.Status = "changed";
+            ResealAdmittedChain(request);
+            var observation = ExecutableObservation(request);
+            observation.Actual.RawDigestSha256 = Hash("mismatching-target");
+            observation.Actual.CanonicalDigestSha256 = Hash("mismatching-target-canonical");
+
+            var report = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+
+            Assert.AreEqual("unverified", report.Acceptance.Verdict);
+            Assert.IsTrue(report.Ingredients.All(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.SourceVersionChanged));
+            Assert.IsFalse(report.Ingredients.Any(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.Mismatch));
+        }
+
+        [TestMethod]
+        public void PartialTargetEvidenceIsUnknownAndCannotFalseComplete()
+        {
+            var request = CreateCompareRequest();
+            var observation = ExecutableObservation(request);
+            observation.TargetEvidenceComplete = false;
+            observation.TargetPresent = false;
+
+            var report = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+            var result = report.Ingredients.Single(value => value.IngredientId == observation.IngredientId);
+
+            Assert.AreEqual(PublishingPageCompareContract.ResultClasses.Unknown, result.ResultClass);
+            Assert.AreEqual("unverified", report.Acceptance.Verdict);
+        }
+
+        [TestMethod]
+        public void ExpiredSourceAuthorizationCannotBecomeMissingOrExact()
+        {
+            var request = CreateCompareRequest();
+            request.SourceAuthState = "expired";
+
+            var report = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+
+            Assert.AreEqual("unverified", report.Acceptance.Verdict);
+            Assert.IsTrue(report.Ingredients.All(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.AuthExpired));
+        }
+
+        [TestMethod]
+        public void AuthorizationBlockedDependencyRetainsItsSealedCause()
+        {
+            var request = CreateCompareRequest();
+            var observation = ExecutableObservation(request);
+            var decision = request.Package.Plan.ExecutionFrontier.Decisions.Single(value =>
+                value.IngredientId == observation.IngredientId);
+            decision.State = PageIngredientExecutionState.SkippedByAuthorizationDependency;
+            decision.CauseIngredientIds = new List<string> { "ingredient.authorization-owner" };
+
+            var result = PublishingPageCompareReconciler.Classify(request, observation, "passed");
+
+            Assert.AreEqual(PublishingPageCompareContract.ResultClasses.AuthorizationBlocked, result.ResultClass);
+            CollectionAssert.AreEqual(
+                new[] { "ingredient.authorization-owner" },
+                result.Lineage.CauseIngredientIds.ToArray());
+        }
+
+        [TestMethod]
+        public void MissingRuntimeReceiptIsPendingAndStorageFailureStillWinsOverRuntimePass()
+        {
+            var pending = CreateCompareRequest(includeRuntimeReceipt: false);
+            ExecutableObservation(pending).RuntimeRequirementId = pending.Package.Plan.RuntimeVerification.Requirements.First().Id;
+            var pendingReport = PublishingPageCompareReconciler.Reconcile(pending, new PermissiveArtifactStore());
+            Assert.AreEqual("pending", pendingReport.Runtime.Status);
+            Assert.AreEqual("unverified", pendingReport.Acceptance.Verdict);
+            Assert.IsTrue(pendingReport.Ingredients.Any(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.RuntimePending));
+
+            var storageFailure = CreateCompareRequest(storageStatus: StorageVerificationStatus.Failed);
+            var failedReport = PublishingPageCompareReconciler.Reconcile(storageFailure, new PermissiveArtifactStore());
+            Assert.AreEqual("passed", failedReport.Runtime.Status);
+            Assert.AreEqual("failed", failedReport.Storage.Status);
+            Assert.AreEqual("fail", failedReport.Acceptance.Verdict);
+
+            var runtimeFailure = CreateCompareRequest(runtimePassed: false);
+            var runtimeFailedReport = PublishingPageCompareReconciler.Reconcile(runtimeFailure, new PermissiveArtifactStore());
+            Assert.AreEqual("failed", runtimeFailedReport.Runtime.Status);
+            Assert.AreEqual("fail", runtimeFailedReport.Acceptance.Verdict);
+        }
+
+        [TestMethod]
+        public void RuntimeReceiptBindingCoverageAndDigestFailClosed()
+        {
+            var unbound = CreateCompareRequest();
+            unbound.RuntimeReceipt.PlanDigest = Hash("different-plan");
+            unbound.RuntimeReceiptDigestSha256 = ContractDigest(unbound.RuntimeReceipt);
+            unbound.Bindings.RuntimeReceiptDigestSha256 = unbound.RuntimeReceiptDigestSha256;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(unbound, new PermissiveArtifactStore()));
+
+            var duplicate = CreateCompareRequest();
+            duplicate.RuntimeReceipt.Results.Add(duplicate.RuntimeReceipt.Results[0]);
+            duplicate.RuntimeReceiptDigestSha256 = ContractDigest(duplicate.RuntimeReceipt);
+            duplicate.Bindings.RuntimeReceiptDigestSha256 = duplicate.RuntimeReceiptDigestSha256;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(duplicate, new PermissiveArtifactStore()));
+
+            var tampered = CreateCompareRequest();
+            tampered.RuntimeReceipt.Results[0].Message = "changed after sealing";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(tampered, new PermissiveArtifactStore()));
+        }
+
+        [TestMethod]
+        public void AdmittedPlanSourceOperationsAndNativeReceiptsFailClosed()
+        {
+            var wrongPlan = CreateCompareRequest();
+            wrongPlan.AdmittedPlan.PlanDigest = Hash("foreign-plan");
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(wrongPlan, new PermissiveArtifactStore()));
+
+            var wrongSource = CreateCompareRequest();
+            wrongSource.SourceVersionComparison.ObservedCompositeDigestSha256 = Hash("stale-source");
+            wrongSource.SourceVersionComparison.Status = "changed";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(wrongSource, new PermissiveArtifactStore()));
+
+            var missingOperation = CreateCompareRequest();
+            missingOperation.AdmittedPlan.Operations.CleanupOperationId = Guid.Empty;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(missingOperation, new PermissiveArtifactStore()));
+
+            var corruptReceipt = CreateCompareRequest();
+            corruptReceipt.ImportReceipt.TargetVersionLabel = "changed-after-sealing";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(corruptReceipt, new PermissiveArtifactStore()));
+
+            var partialReceipt = CreateCompareRequest();
+            partialReceipt.ImportReceipt.PartialExecution = true;
+            partialReceipt.ImportReceiptDigestSha256 = ContractDigest(partialReceipt.ImportReceipt);
+            partialReceipt.Bindings.ImportReceiptDigestSha256 = partialReceipt.ImportReceiptDigestSha256;
+            partialReceipt.RuntimeReceipt.ImportReceiptDigestSha256 = partialReceipt.ImportReceiptDigestSha256;
+            partialReceipt.RuntimeReceiptDigestSha256 = ContractDigest(partialReceipt.RuntimeReceipt);
+            partialReceipt.Bindings.RuntimeReceiptDigestSha256 = partialReceipt.RuntimeReceiptDigestSha256;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(partialReceipt, new PermissiveArtifactStore()));
+        }
+
+        [TestMethod]
+        public void DuplicateOrMissingIngredientRowsFailClosed()
+        {
+            var duplicate = CreateCompareRequest();
+            duplicate.Ingredients.Add(duplicate.Ingredients[0]);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(duplicate, new PermissiveArtifactStore()));
+
+            var missing = CreateCompareRequest();
+            missing.Ingredients.RemoveAt(0);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(missing, new PermissiveArtifactStore()));
+        }
+
+        [TestMethod]
+        public void AssessmentActualShapeIsRevisionBoundWithoutInventingDiscoveryClaims()
+        {
+            var request = CreateCompareRequest();
+
+            var report = PublishingPageCompareReconciler.Reconcile(request, new PermissiveArtifactStore());
+            var json = MigrationContractSerializer.SerializeCanonical(report);
+            var handoffJson = MigrationContractSerializer.SerializeCanonical(request.AssessmentHandoff);
+            var roundTrip = MigrationContractSerializer.Deserialize<AssessmentCaptureHandoff>(handoffJson);
+
+            Assert.AreEqual(PublishingPageCompareContract.AssessmentHandoffSchemaVersion, report.AssessmentHandoff.SchemaVersion);
+            Assert.AreEqual(PublishingPageCompareContract.AssessmentProducerRevisionId, report.AssessmentHandoff.ProducerRevisionId);
+            Assert.AreEqual(PublishingPageCompareContract.AssessmentConformanceRevisionId, report.AssessmentHandoff.ConformanceRevisionId);
+            Assert.AreEqual(request.AssessmentHandoffDigestSha256, report.AssessmentHandoff.HandoffDigestSha256);
+            Assert.AreEqual(PublishingPageCompareContract.UnavailableByProducerContract, report.AssessmentHandoff.DiscoveryObservationStatus);
+            Assert.AreEqual(PublishingPageCompareContract.UnavailableByProducerContract, report.AssessmentHandoff.ProducerAttestationStatus);
+            Assert.AreEqual(PublishingPageCompareContract.UnavailableByProducerContract, report.AssessmentHandoff.CoverageStatus);
+            Assert.IsFalse(json.Contains(request.AssessmentHandoff.CanonicalLocatorRef));
+            Assert.IsFalse(json.Contains("discoveryObservationId"));
+            Assert.IsTrue(handoffJson.Contains("\"manifest_revision_id\""));
+            Assert.IsTrue(handoffJson.Contains("\"request_policy\""));
+            Assert.AreEqual(request.AssessmentHandoff.SampleId, roundTrip.SampleId);
+        }
+
+        [TestMethod]
+        public void AssessmentMissingUnsupportedOrTamperedProvenanceFailsClosed()
+        {
+            var missing = CreateCompareRequest();
+            missing.AssessmentHandoff.SampleId = null;
+            missing.AssessmentHandoffDigestSha256 = ContractDigest(missing.AssessmentHandoff);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(missing, new PermissiveArtifactStore()));
+
+            var unsupported = CreateCompareRequest();
+            unsupported.AssessmentHandoff.Schema = "ccd-aspx-capture-handoff/2.0.0";
+            unsupported.AssessmentHandoffDigestSha256 = ContractDigest(unsupported.AssessmentHandoff);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(unsupported, new PermissiveArtifactStore()));
+
+            var wrongRevision = CreateCompareRequest();
+            wrongRevision.AssessmentProducerRevisionId = Guid.Empty.ToString();
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(wrongRevision, new PermissiveArtifactStore()));
+
+            var tampered = CreateCompareRequest();
+            tampered.AssessmentHandoff.StratumId = "S2-after-seal";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(tampered, new PermissiveArtifactStore()));
+        }
+
+        [TestMethod]
+        public void AssessmentDeniedAndUnknownPermissionSignalsCannotFalseComplete()
+        {
+            var denied = CreateCompareRequest();
+            denied.AssessmentHandoff.PermissionSignal = "known_forbidden";
+            denied.AssessmentHandoffDigestSha256 = ContractDigest(denied.AssessmentHandoff);
+            var deniedReport = PublishingPageCompareReconciler.Reconcile(denied, new PermissiveArtifactStore());
+            Assert.AreEqual("conditional", deniedReport.Acceptance.Verdict);
+            Assert.IsTrue(deniedReport.Ingredients.All(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.AuthorizationBlocked));
+
+            var unknown = CreateCompareRequest();
+            unknown.AssessmentHandoff.PermissionSignal = "inherited_unknown";
+            unknown.AssessmentHandoffDigestSha256 = ContractDigest(unknown.AssessmentHandoff);
+            var unknownReport = PublishingPageCompareReconciler.Reconcile(unknown, new PermissiveArtifactStore());
+            Assert.AreEqual("unverified", unknownReport.Acceptance.Verdict);
+            Assert.IsTrue(unknownReport.Ingredients.All(value =>
+                value.ResultClass == PublishingPageCompareContract.ResultClasses.Unknown));
+        }
+
+        [TestMethod]
+        public void ActualArchiveIntakeAdmitsCcd35OracleAndPreservesBothLocatorDigests()
+        {
+            var raw = ReadActualArchiveFixture();
+
+            var projection = PublishingPageActualArchiveIntake.AdmitCanonicalBundle(
+                raw,
+                CreateActualArchiveBindings());
+
+            Assert.AreEqual("ccd35-03", projection.CaseId);
+            Assert.AreEqual("Wiki Page", projection.Family);
+            Assert.AreEqual(5413, projection.RawBundleLength);
+            Assert.AreEqual("2730972faf1e81d9f9134e07568f87e65b80ded28a9da9ffcbbc51ccbc0354f6", projection.RawBundleDigestSha256);
+            Assert.AreEqual(3980, projection.CanonicalLength);
+            Assert.AreEqual("cd0805a08b1480b62537019d5b2d516b2c6f4ea54138f5a6401c790c01b86d88", projection.CanonicalDigestSha256);
+            Assert.AreEqual("6d72a70363112b758d0e6e5df04be9a601b281b5ca914f9ee7a5d401a87bf0f6", projection.RawLocatorDigestSha256);
+            Assert.AreEqual("22c8b73670cf11249b150bdd0ae55e31f1bc3817e0d5d34dea90bd36bf6f9af1", projection.TransportLocatorDigestSha256);
+            Assert.AreNotEqual(projection.RawLocatorDigestSha256, projection.TransportLocatorDigestSha256);
+            Assert.AreEqual(PublishingPageCompareContract.UnavailableByProducerContract, projection.DiscoveryObservationStatus);
+            Assert.AreEqual(PublishingPageCompareContract.UnavailableByProducerContract, projection.ProducerAttestationStatus);
+            Assert.AreEqual(PublishingPageCompareContract.UnavailableByProducerContract, projection.CoverageStatus);
+            Assert.AreEqual(5, projection.Ingredients.Count);
+            Assert.IsTrue(projection.Ingredients.Any(value =>
+                value.IngredientId == "node:wiki-content"
+                && value.EvidenceDigestSha256 == "deed1ebc8fac43e0a9af5e2a740dd2c159f15aa8f0589fa6bc502d9e1615b12d"));
+        }
+
+        [TestMethod]
+        public void ActualArchiveIntakeRejectsRawRewriteBeforeSemanticNormalization()
+        {
+            var raw = ReadActualArchiveFixture();
+            var rewritten = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(raw).Replace("  \"schema\"", " \"schema\""));
+
+            Assert.AreEqual(5412, rewritten.Length);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageActualArchiveIntake.AdmitCanonicalBundle(
+                    rewritten,
+                    CreateActualArchiveBindings()));
+        }
+
+        [TestMethod]
+        public void ActualArchiveIntakeRejectsSemanticTamperEvenWhenRawBindingIsResealed()
+        {
+            var raw = ReadActualArchiveFixture();
+            var tampered = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(raw).Replace("ccd35-03", "ccd35-04"));
+            var bindings = CreateActualArchiveBindings();
+            bindings.ExpectedCaseId = "ccd35-04";
+            bindings.RawBundleDigestSha256 = MigrationDigest.ComputeSha256(tampered);
+
+            Assert.AreEqual(raw.Length, tampered.Length);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageActualArchiveIntake.AdmitCanonicalBundle(tampered, bindings));
+        }
+
+        [TestMethod]
+        public void ActualArchiveIntakeRejectsMissingOrOverwrittenLocatorLineage()
+        {
+            var raw = ReadActualArchiveFixture();
+            var missing = CreateActualArchiveBindings();
+            missing.RawLocatorDigestSha256 = null;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageActualArchiveIntake.AdmitCanonicalBundle(raw, missing));
+
+            var overwritten = CreateActualArchiveBindings();
+            overwritten.TransportLocatorDigestSha256 = overwritten.RawLocatorDigestSha256;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageActualArchiveIntake.AdmitCanonicalBundle(raw, overwritten));
+        }
+
+        [TestMethod]
+        public void ActualArchiveReceiptRequiresIndependentlyDeserializedNativeReceipts()
+        {
+            var captures = new[]
+            {
+                AdmitActualCapture("ccd35-03"),
+                AdmitActualCapture("ccd35-06"),
+                AdmitActualCapture("ccd35-08")
+            };
+            var rawReceipt = ReadMigrationResource("ccd35-live-thin-slice-final-receipt.actual.json");
+            var nativeReceipts = CreateActualArchiveNativeReceipts(captures);
+
+            var result = PublishingPageActualArchiveIntake.AdmitThinSliceReceipt(
+                rawReceipt,
+                new ActualArchiveReceiptBindings
+                {
+                    RawReceiptDigestSha256 = "3740a146a66eb0f9c1a1e2d99f882d9906f36e4fa4a4be930c940cff70980e5b",
+                    RawReceiptLength = 22413,
+                    SourceArchiveDigestSha256 = "788b0d54f8a4e5521dcd5060db732f2f0fcd4d8b1ac759e777ad3ec0eb9956ef",
+                    SourceArchiveLength = 38702,
+                    ExpectedTargetOrigin = "https://a830edad9050849cupcollect.sharepoint.com"
+                },
+                captures,
+                nativeReceipts);
+            var replay = PublishingPageActualArchiveIntake.AdmitThinSliceReceipt(
+                rawReceipt,
+                new ActualArchiveReceiptBindings
+                {
+                    RawReceiptDigestSha256 = "3740a146a66eb0f9c1a1e2d99f882d9906f36e4fa4a4be930c940cff70980e5b",
+                    RawReceiptLength = 22413,
+                    SourceArchiveDigestSha256 = "788b0d54f8a4e5521dcd5060db732f2f0fcd4d8b1ac759e777ad3ec0eb9956ef",
+                    SourceArchiveLength = 38702,
+                    ExpectedTargetOrigin = "https://a830edad9050849cupcollect.sharepoint.com"
+                },
+                captures.Reverse(),
+                nativeReceipts.AsEnumerable().Reverse());
+
+            Assert.AreEqual(PublishingPageActualArchiveIntake.ReconciliationProjectionSchemaVersion, result.SchemaVersion);
+            Assert.AreEqual(MigrationContractSerializer.SerializeCanonical(result), MigrationContractSerializer.SerializeCanonical(replay));
+            Assert.AreEqual("conditional", result.Verdict);
+            Assert.AreEqual("native_deserialized", result.NativeImportReceiptStatus);
+            Assert.AreEqual("native_deserialized", result.NativeRuntimeReceiptStatus);
+            Assert.AreEqual(3, result.Cases.Count);
+            Assert.AreEqual(2, result.Cases.Count(value => value.IngredientVerdict == "pass"));
+            Assert.AreEqual(1, result.Cases.Count(value => value.IngredientVerdict == "conditional"));
+            Assert.IsTrue(result.Cases.All(value => value.StorageStatus == "passed" && value.RuntimeStatus == "passed"));
+            Assert.IsTrue(result.Cases.Single(value => value.CaseId == "ccd35-06").Reason.Contains("BaseTemplate 101"));
+        }
+
+        [TestMethod]
+        public void ActualArchiveReceiptRejectsResealedStorageMismatch()
+        {
+            var captures = new[]
+            {
+                AdmitActualCapture("ccd35-03"),
+                AdmitActualCapture("ccd35-06"),
+                AdmitActualCapture("ccd35-08")
+            };
+            var rawReceipt = ReadMigrationResource("ccd35-live-thin-slice-final-receipt.actual.json");
+            var tampered = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(rawReceipt).Replace(
+                "\"actualSha256\": \"d0a48786489fb7cfc244b423ec32f4767e0e8aea8d200e97ea0f44174caffb6a\"",
+                "\"actualSha256\": \"0000000000000000000000000000000000000000000000000000000000000000\""));
+            var bindings = new ActualArchiveReceiptBindings
+            {
+                RawReceiptDigestSha256 = MigrationDigest.ComputeSha256(tampered),
+                RawReceiptLength = tampered.Length,
+                SourceArchiveDigestSha256 = "788b0d54f8a4e5521dcd5060db732f2f0fcd4d8b1ac759e777ad3ec0eb9956ef",
+                SourceArchiveLength = 38702,
+                ExpectedTargetOrigin = "https://a830edad9050849cupcollect.sharepoint.com"
+            };
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageActualArchiveIntake.AdmitThinSliceReceipt(
+                    tampered,
+                    bindings,
+                    captures,
+                    CreateActualArchiveNativeReceipts(captures)));
+        }
+
+        [TestMethod]
+        public void ActualArchiveReceiptRejectsMissingOrCorruptNativeReceipt()
+        {
+            var captures = new[]
+            {
+                AdmitActualCapture("ccd35-03"),
+                AdmitActualCapture("ccd35-06"),
+                AdmitActualCapture("ccd35-08")
+            };
+            var rawReceipt = ReadMigrationResource("ccd35-live-thin-slice-final-receipt.actual.json");
+            var bindings = new ActualArchiveReceiptBindings
+            {
+                RawReceiptDigestSha256 = "3740a146a66eb0f9c1a1e2d99f882d9906f36e4fa4a4be930c940cff70980e5b",
+                RawReceiptLength = 22413,
+                SourceArchiveDigestSha256 = "788b0d54f8a4e5521dcd5060db732f2f0fcd4d8b1ac759e777ad3ec0eb9956ef",
+                SourceArchiveLength = 38702,
+                ExpectedTargetOrigin = "https://a830edad9050849cupcollect.sharepoint.com"
+            };
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageActualArchiveIntake.AdmitThinSliceReceipt(
+                    rawReceipt,
+                    bindings,
+                    captures,
+                    CreateActualArchiveNativeReceipts(captures).Take(2)));
+
+            var corrupt = CreateActualArchiveNativeReceipts(captures);
+            corrupt[0].RuntimeReceiptJson[0] ^= 0x01;
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageActualArchiveIntake.AdmitThinSliceReceipt(rawReceipt, bindings, captures, corrupt));
+        }
+
+        private static byte[] ReadActualArchiveFixture()
+        {
+            return ReadMigrationResource("ccd35-03-canonical-bundle.actual.json");
+        }
+
+        private static byte[] ReadMigrationResource(string fileName)
+        {
+            return System.IO.File.ReadAllBytes(Path.Combine(
+                AppContext.BaseDirectory,
+                "Resources",
+                "Migration",
+                fileName));
+        }
+
+        private static ActualArchiveCaptureProjection AdmitActualCapture(string caseId)
+        {
+            var bindings = caseId switch
+            {
+                "ccd35-03" => CreateActualArchiveBindings(),
+                "ccd35-06" => new ActualArchiveCaptureBindings
+                {
+                    ExpectedCaseId = caseId,
+                    RawBundleDigestSha256 = "9f3900ba51ca0ed3e27ac7199eb0039ee4890e90b16b51f6aca0674efc576184",
+                    RawBundleLength = 6348,
+                    RawLocatorDigestSha256 = "cae0ebe1e31d82c980dc34f907368b8d1439275cb774bfdfc99273d62eb01d75",
+                    TransportLocatorDigestSha256 = "cae0ebe1e31d82c980dc34f907368b8d1439275cb774bfdfc99273d62eb01d75",
+                    ExpectedCaptureReportDigestSha256 = "c701f00950d3bb162a8dead17bcc297c8e0dd0964c9fafce1e58bf3b3b9edc59"
+                },
+                "ccd35-08" => new ActualArchiveCaptureBindings
+                {
+                    ExpectedCaseId = caseId,
+                    RawBundleDigestSha256 = "4d6a584da895176b3b2ea1e24b2777e99b8dd63b51ce89eebf412906db03331b",
+                    RawBundleLength = 5409,
+                    RawLocatorDigestSha256 = "6592e68e17dc4deb3bdbe292716a26cf251759a6cd7e1d24f3908a14a7c3c788",
+                    TransportLocatorDigestSha256 = "b87657506f7c2e4ba3007e174987d07c01feab6d087c758f4c37d80ae46137ce",
+                    ExpectedCaptureReportDigestSha256 = "c701f00950d3bb162a8dead17bcc297c8e0dd0964c9fafce1e58bf3b3b9edc59"
+                },
+                _ => throw new ArgumentOutOfRangeException(nameof(caseId))
+            };
+            return PublishingPageActualArchiveIntake.AdmitCanonicalBundle(
+                ReadMigrationResource(caseId + "-canonical-bundle.actual.json"),
+                bindings);
+        }
+
+        private static ActualArchiveCaptureBindings CreateActualArchiveBindings()
+        {
+            return new ActualArchiveCaptureBindings
+            {
+                ExpectedCaseId = "ccd35-03",
+                RawBundleDigestSha256 = "2730972faf1e81d9f9134e07568f87e65b80ded28a9da9ffcbbc51ccbc0354f6",
+                RawBundleLength = 5413,
+                RawLocatorDigestSha256 = "6d72a70363112b758d0e6e5df04be9a601b281b5ca914f9ee7a5d401a87bf0f6",
+                TransportLocatorDigestSha256 = "22c8b73670cf11249b150bdd0ae55e31f1bc3817e0d5d34dea90bd36bf6f9af1",
+                ExpectedCaptureReportDigestSha256 = "c701f00950d3bb162a8dead17bcc297c8e0dd0964c9fafce1e58bf3b3b9edc59"
+            };
+        }
+
+        private static List<ActualArchiveNativeReceiptSet> CreateActualArchiveNativeReceipts(
+            IEnumerable<ActualArchiveCaptureProjection> captures)
+        {
+            var targetPaths = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["ccd35-03"] = "/teams/mswikis-gbi/Getfit/Getfit Program/Home.aspx",
+                ["ccd35-06"] = "/teams/campusipkits/industryipkitcybersecurity/Pages/Settings.aspx",
+                ["ccd35-08"] = "/teams/office_rdx/rm/SitePages/Mac Office Release Wiki.aspx"
+            };
+            var index = 0;
+            return captures.OrderBy(value => value.CaseId, StringComparer.Ordinal).Select(capture =>
+            {
+                index++;
+                var operations = new ReproOperationIds
+                {
+                    MutationOperationId = Guid.Parse($"20000000-0000-0000-0000-{index:000000000000}"),
+                    ReadbackOperationId = Guid.Parse($"30000000-0000-0000-0000-{index:000000000000}"),
+                    RuntimeOperationId = Guid.Parse($"40000000-0000-0000-0000-{index:000000000000}"),
+                    CleanupOperationId = Guid.Parse($"50000000-0000-0000-0000-{index:000000000000}")
+                };
+                var sourceVersion = new CurrentSourceVersionIdentity
+                {
+                    IdentityDigestSha256 = capture.RawLocatorDigestSha256,
+                    VersionDigestSha256 = capture.CanonicalDigestSha256,
+                    ETag = "\"" + capture.CaseId + ",1\"",
+                    LastModifiedUtc = new DateTimeOffset(2026, 9, 8, 12, index, 0, TimeSpan.Zero),
+                    VersionLabel = "1.0",
+                    ObservedAtUtc = new DateTimeOffset(2026, 9, 9, 5, index, 0, TimeSpan.Zero)
+                };
+                var targetIdentity = "https://a830edad9050849cupcollect.sharepoint.com" + targetPaths[capture.CaseId];
+                var admittedPlan = new AdmittedReproExecutionPlan
+                {
+                    PlanDigest = Hash("live-plan:" + capture.CaseId),
+                    TargetIdentity = targetIdentity,
+                    SourceVersion = sourceVersion,
+                    Operations = operations
+                };
+                var admittedPlanDigest = ContractDigest(admittedPlan);
+                var importReceipt = new PublishingPageImportReceipt
+                {
+                    OperationId = operations.MutationOperationId,
+                    AdmittedPlanDigestSha256 = admittedPlanDigest,
+                    SourceVersion = sourceVersion,
+                    Operations = operations,
+                    ExecutionStatus = MigrationExecutionStatus.Succeeded,
+                    PartialExecution = false,
+                    ApprovedPlanDigest = admittedPlan.PlanDigest,
+                    TargetWebUrl = "https://a830edad9050849cupcollect.sharepoint.com",
+                    TargetPageServerRelativeUrl = targetPaths[capture.CaseId],
+                    FreshReadbackPassed = true,
+                    StorageVerificationStatus = StorageVerificationStatus.Passed,
+                    RuntimeVerificationStatus = RuntimeVerificationStatus.Passed
+                };
+                var importJson = Encoding.UTF8.GetBytes(MigrationContractSerializer.SerializeCanonical(importReceipt));
+                var importDigest = ContractDigest(importReceipt);
+                var manifest = new RuntimeVerificationManifest
+                {
+                    Requirements = new List<RuntimeVerificationRequirement>
+                    {
+                        new RuntimeVerificationRequirement { Id = "runtime:" + capture.CaseId, Required = true }
+                    }
+                };
+                var runtimeReceipt = RuntimeVerificationReceiptFactory.Create(
+                    admittedPlan,
+                    admittedPlanDigest,
+                    importDigest,
+                    targetIdentity,
+                    manifest,
+                    new[]
+                    {
+                        new RuntimeVerificationResult
+                        {
+                            RequirementId = "runtime:" + capture.CaseId,
+                            Passed = true,
+                            EvidenceArtifactSha256 = Hash("runtime-evidence:" + capture.CaseId)
+                        }
+                    },
+                    new DateTimeOffset(2026, 9, 9, 5, 30 + index, 0, TimeSpan.Zero));
+                var runtimeJson = Encoding.UTF8.GetBytes(MigrationContractSerializer.SerializeCanonical(runtimeReceipt));
+                return new ActualArchiveNativeReceiptSet
+                {
+                    CaseId = capture.CaseId,
+                    AdmittedPlan = admittedPlan,
+                    AdmittedPlanDigestSha256 = admittedPlanDigest,
+                    ImportReceiptJson = importJson,
+                    ImportReceiptDigestSha256 = importDigest,
+                    RuntimeReceiptJson = runtimeJson,
+                    RuntimeReceiptDigestSha256 = ContractDigest(runtimeReceipt)
+                };
+            }).ToList();
+        }
+
+        private static PublishingPageCompareRequest CreateCompareRequest(
+            bool includeRuntimeReceipt = true,
+            StorageVerificationStatus storageStatus = StorageVerificationStatus.Passed,
+            bool runtimePassed = true)
+        {
+            var package = CreateMigrationPackage(includeDeferredField: false);
+            var fileId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+            var canonicalTarget = "https://target.sharepoint.com/sites/target/pages/source.aspx";
+            var operations = new ReproOperationIds
+            {
+                MutationOperationId = Guid.Parse("10000000-0000-0000-0000-000000000001"),
+                ReadbackOperationId = Guid.Parse("10000000-0000-0000-0000-000000000002"),
+                RuntimeOperationId = Guid.Parse("10000000-0000-0000-0000-000000000003"),
+                CleanupOperationId = Guid.Parse("10000000-0000-0000-0000-000000000004")
+            };
+            var sourceVersion = new CurrentSourceVersionIdentity
+            {
+                IdentityDigestSha256 = Hash("source-identity"),
+                VersionDigestSha256 = Hash("source-version"),
+                ETag = "\"source-etag,1\"",
+                LastModifiedUtc = new DateTimeOffset(2026, 9, 8, 11, 55, 0, TimeSpan.Zero),
+                VersionLabel = "7.0",
+                ObservedAtUtc = new DateTimeOffset(2026, 9, 8, 11, 59, 0, TimeSpan.Zero)
+            };
+            var admittedPlan = new AdmittedReproExecutionPlan
+            {
+                PlanDigest = package.PlanDigest,
+                TargetIdentity = canonicalTarget,
+                SourceVersion = sourceVersion,
+                Operations = operations
+            };
+            var admittedPlanDigest = ContractDigest(admittedPlan);
+            var importReceiptValue = new PublishingPageImportReceipt
+            {
+                OperationId = operations.MutationOperationId,
+                AdmittedPlanDigestSha256 = admittedPlanDigest,
+                SourceVersion = sourceVersion,
+                Operations = operations,
+                ApprovedPlanDigest = package.PlanDigest,
+                TargetWebUrl = package.Plan.TargetWebUrl,
+                TargetPageServerRelativeUrl = package.Plan.TargetPageServerRelativeUrl,
+                TargetFileUniqueId = fileId,
+                TargetListItemId = 42,
+                TargetVersionLabel = "1.0",
+                ExecutionStatus = MigrationExecutionStatus.Succeeded,
+                PartialExecution = false,
+                FreshReadbackPassed = storageStatus == StorageVerificationStatus.Passed,
+                StorageVerificationStatus = storageStatus,
+                RuntimeVerificationStatus = includeRuntimeReceipt
+                    ? (runtimePassed ? RuntimeVerificationStatus.Passed : RuntimeVerificationStatus.Failed)
+                    : RuntimeVerificationStatus.Pending
+            };
+            var importReceipt = MigrationContractSerializer.Deserialize<PublishingPageImportReceipt>(
+                MigrationContractSerializer.SerializeCanonical(importReceiptValue));
+            var importDigest = ContractDigest(importReceipt);
+            RuntimeVerificationReceipt runtimeReceipt = null;
+            string runtimeDigest = null;
+            if (includeRuntimeReceipt)
+            {
+                var producedRuntimeReceipt = RuntimeVerificationReceiptFactory.Create(
+                    admittedPlan,
+                    admittedPlanDigest,
+                    importDigest,
+                    canonicalTarget,
+                    package.Plan.RuntimeVerification,
+                    package.Plan.RuntimeVerification.Requirements.Select(requirement =>
+                        new RuntimeVerificationResult
+                        {
+                            RequirementId = requirement.Id,
+                            Passed = runtimePassed,
+                            EvidenceArtifactSha256 = Hash("runtime-evidence:" + requirement.Id),
+                            Message = "synthetic fixed evidence"
+                        }),
+                    new DateTimeOffset(2026, 9, 8, 12, 0, 0, TimeSpan.Zero));
+                runtimeReceipt = MigrationContractSerializer.Deserialize<RuntimeVerificationReceipt>(
+                    MigrationContractSerializer.SerializeCanonical(producedRuntimeReceipt));
+                runtimeDigest = ContractDigest(runtimeReceipt);
+            }
+
+            var request = new PublishingPageCompareRequest
+            {
+                GeneratedAtUtc = new DateTimeOffset(2026, 9, 8, 12, 5, 0, TimeSpan.Zero),
+                Producer = new CompareProducer
+                {
+                    Id = "pnp-compare",
+                    Version = "1.0.0-test",
+                    ImplementationRef = "2dea1bbcc44bfcfe0fe5c3dd32e32bd28b79cc0c"
+                },
+                AssessmentHandoff = CreateAssessmentHandoff(),
+                AssessmentProducerRevisionId = PublishingPageCompareContract.AssessmentProducerRevisionId,
+                Package = package,
+                AdmittedPlan = admittedPlan,
+                AdmittedPlanDigestSha256 = admittedPlanDigest,
+                ImportReceipt = importReceipt,
+                ImportReceiptDigestSha256 = importDigest,
+                RuntimeReceipt = runtimeReceipt,
+                RuntimeReceiptDigestSha256 = runtimeDigest,
+                Bindings = new CompareBindings
+                {
+                    ManifestDigestSha256 = Hash("manifest"),
+                    SourceCaptureReceiptDigestSha256 = Hash("capture-receipt"),
+                    ExportSchemaVersion = package.ExportSchemaVersion,
+                    SnapshotDigestSha256 = package.SnapshotDigest,
+                    IngredientGraphSchemaVersion = package.Plan.IngredientGraph.SchemaVersion,
+                    IngredientProjectionVersion = package.Plan.IngredientGraph.ProjectionVersion,
+                    MigrationPackageSchemaVersion = package.SchemaVersion,
+                    PlanDigestSha256 = package.PlanDigest,
+                    AdmittedPlanDigestSha256 = admittedPlanDigest,
+                    SourceVersionDigestSha256 = sourceVersion.VersionDigestSha256,
+                    Operations = operations,
+                    ImportReceiptSchemaVersion = importReceipt.SchemaVersion,
+                    ImportReceiptDigestSha256 = importDigest,
+                    RuntimeReceiptSchemaVersion = runtimeReceipt?.SchemaVersion,
+                    RuntimeReceiptDigestSha256 = runtimeDigest
+                },
+                SourceVersionComparison = new SourceVersionComparison
+                {
+                    IdentityDigestSha256 = sourceVersion.IdentityDigestSha256,
+                    ExpectedCompositeDigestSha256 = Hash("source-version"),
+                    ObservedCompositeDigestSha256 = Hash("source-version"),
+                    ObservedETag = sourceVersion.ETag,
+                    ObservedLastModifiedUtc = sourceVersion.LastModifiedUtc,
+                    ObservedVersionLabel = sourceVersion.VersionLabel,
+                    ObservedAtUtc = sourceVersion.ObservedAtUtc,
+                    Status = "matched"
+                },
+                PlannedTargetIdentity = new CompareTargetIdentity
+                {
+                    WebUrlHashSha256 = Hash(package.Plan.TargetWebUrl.ToLowerInvariant()),
+                    PageServerRelativeUrlHashSha256 = Hash(package.Plan.TargetPageServerRelativeUrl.ToLowerInvariant()),
+                    FileUniqueId = fileId,
+                    ListItemId = 42,
+                    VersionLabel = "1.0",
+                    CanonicalIdentity = canonicalTarget
+                }
+            };
+            request.AssessmentHandoffDigestSha256 = ContractDigest(request.AssessmentHandoff);
+            request.Ingredients = package.Plan.IngredientGraph.Nodes.Select(node =>
+            {
+                var action = package.Plan.IngredientActions.SingleOrDefault(value => value.IngredientId == node.Id);
+                var executionState = package.Plan.ExecutionFrontier.GetState(node.Id);
+                var digest = Hash("ingredient:" + node.Id);
+                return new IngredientCompareObservation
+                {
+                    IngredientId = node.Id,
+                    Kind = node.Kind.ToString(),
+                    Material = executionState == PageIngredientExecutionState.Executable,
+                    RuntimeRequirementId = node.RuntimeRequirement,
+                    Lineage = new IngredientCompareLineage
+                    {
+                        RequestedUrlHashSha256 = Hash("requested-url"),
+                        SourceArtifactDigestSha256 = Hash("source-artifact:" + node.Id),
+                        SourceIngredientId = node.Id,
+                        ActionId = action?.ActionId,
+                        TargetIdentity = action?.TargetIdentity,
+                        EvidenceRefs = new List<string> { "sha256:" + Hash("evidence:" + node.Id) }
+                    },
+                    Expected = new CompareDigestPair { RawDigestSha256 = digest, CanonicalDigestSha256 = digest },
+                    Actual = new CompareDigestPair { RawDigestSha256 = digest, CanonicalDigestSha256 = digest }
+                };
+            }).ToList();
+            return request;
+        }
+
+        private static AssessmentCaptureHandoff CreateAssessmentHandoff()
+        {
+            return new AssessmentCaptureHandoff
+            {
+                Schema = PublishingPageCompareContract.AssessmentHandoffSchemaVersion,
+                ManifestRevisionId = "sha256:" + Hash("assessment-manifest-revision"),
+                AllowlistRevisionId = "sha256:" + Hash("assessment-allowlist-revision"),
+                SampleId = "A1-001",
+                StageMembership = new List<string> { "A0", "A1" },
+                CanonicalLocatorRef = "restricted://inventory/A1-001",
+                CanonicalLocatorHash = "sha256:" + Hash("assessment-canonical-locator"),
+                ResourceIdentityHash = "sha256:" + Hash("assessment-resource-identity"),
+                ApprovedHostHash = "hmac-sha256:" + Hash("assessment-approved-host"),
+                StratumId = "S1-known-classic",
+                ExpectedProfile = "publishing_page",
+                PermissionSignal = "known_readable",
+                RedirectSignal = "none_observed",
+                UnknownSignals = new List<string>(),
+                RequestPolicy = new AssessmentCaptureRequestPolicy
+                {
+                    Methods = new List<string> { "HEAD", "GET" },
+                    AutoDiscovery = false,
+                    FollowRedirects = "same-approved-host-only",
+                    MaxRedirects = 3,
+                    MutationAllowed = false
+                }
+            };
+        }
+
+        private static IngredientCompareObservation ExecutableObservation(PublishingPageCompareRequest request)
+        {
+            return request.Ingredients.First(value =>
+            {
+                var state = request.Package.Plan.ExecutionFrontier.GetState(value.IngredientId);
+                return state != PageIngredientExecutionState.Deferred
+                    && state != PageIngredientExecutionState.SkippedByDeferredDependency
+                    && state != PageIngredientExecutionState.AuthorizationBlocked
+                    && state != PageIngredientExecutionState.SkippedByAuthorizationDependency;
+            });
+        }
+
+        private static void ResealAdmittedChain(PublishingPageCompareRequest request)
+        {
+            request.AdmittedPlanDigestSha256 = ContractDigest(request.AdmittedPlan);
+            request.Bindings.AdmittedPlanDigestSha256 = request.AdmittedPlanDigestSha256;
+            request.Bindings.SourceVersionDigestSha256 = request.AdmittedPlan.SourceVersion.VersionDigestSha256;
+            request.ImportReceipt.AdmittedPlanDigestSha256 = request.AdmittedPlanDigestSha256;
+            request.ImportReceipt.SourceVersion = request.AdmittedPlan.SourceVersion;
+            request.ImportReceipt.Operations = request.AdmittedPlan.Operations;
+            request.ImportReceiptDigestSha256 = ContractDigest(request.ImportReceipt);
+            request.Bindings.ImportReceiptDigestSha256 = request.ImportReceiptDigestSha256;
+            if (request.RuntimeReceipt != null)
+            {
+                request.RuntimeReceipt.AdmittedPlanDigestSha256 = request.AdmittedPlanDigestSha256;
+                request.RuntimeReceipt.ImportReceiptDigestSha256 = request.ImportReceiptDigestSha256;
+                request.RuntimeReceipt.SourceVersion = request.AdmittedPlan.SourceVersion;
+                request.RuntimeReceipt.Operations = request.AdmittedPlan.Operations;
+                request.RuntimeReceiptDigestSha256 = ContractDigest(request.RuntimeReceipt);
+                request.Bindings.RuntimeReceiptDigestSha256 = request.RuntimeReceiptDigestSha256;
+            }
+        }
+
+        private static string Hash(string value)
+        {
+            return MigrationDigest.ComputeSha256(value);
+        }
+
+        private static string ContractDigest<T>(T value)
+        {
+            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(value));
+        }
+
+        private sealed class PermissiveArtifactStore : IMigrationArtifactStore
+        {
+            public bool Contains(string sha256) => true;
+
+            public Stream OpenRead(string sha256)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ArtifactReference Put(Stream content, string mediaType = null, string originalName = null)
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        private static PublishingPageMigrationPackage CreateMigrationPackage(bool includeDeferredField = true)
         {
             var snapshot = CreateSnapshot();
+            if (!includeDeferredField)
+            {
+                snapshot.Fields = new List<PageFieldValueSnapshot>();
+                snapshot.ProfileSignals = PublishingPageProfileSignalProjector.Project(
+                    snapshot.Source,
+                    snapshot.Layout,
+                    snapshot.Fields);
+                snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot);
+            }
             var snapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot);
             var layoutPlan = PublishingPageLayoutPlanFactory.Create(
                 snapshot.Layout,
@@ -3960,16 +4825,18 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 LayoutMaterialization = layoutPlan,
                 LayoutTargetProbe = layoutProbe,
                 LayoutAdmission = layoutAdmission,
-                FieldActions = new List<PageFieldAction>
-                {
-                    new PageFieldAction
+                FieldActions = includeDeferredField
+                    ? new List<PageFieldAction>
                     {
-                        SourceInternalName = "OOCLReference",
-                        TargetInternalName = "OOCLReference",
-                        Disposition = PageFieldDisposition.EvidenceOnly,
-                        Reason = "The field is retained for a future mapper."
+                        new PageFieldAction
+                        {
+                            SourceInternalName = "OOCLReference",
+                            TargetInternalName = "OOCLReference",
+                            Disposition = PageFieldDisposition.EvidenceOnly,
+                            Reason = "The field is retained for a future mapper."
+                        }
                     }
-                },
+                    : new List<PageFieldAction>(),
                 ExpectedPublishingPageContentSha256 = snapshot.PublishingPageContentSha256,
                 RuntimeVerification = new RuntimeVerificationManifest
                 {
