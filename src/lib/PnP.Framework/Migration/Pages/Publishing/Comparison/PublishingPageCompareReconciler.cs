@@ -477,28 +477,38 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
                 Set(result, PublishingPageCompareContract.ResultClasses.Missing, PublishingPageCompareContract.ReasonCodes.TargetMissing);
                 return result;
             }
-            if (DigestEquals(ingredient.Expected.RawDigestSha256, ingredient.Actual.RawDigestSha256))
+            ClassifyObservedMaterialEvidence(
+                result,
+                ingredient.ApprovedTransformedCanonicalDigestSha256,
+                ingredient.AssertionApplicable);
+            return result;
+        }
+
+        internal static void ClassifyObservedMaterialEvidence(
+            IngredientCompareResult result,
+            string approvedTransformedCanonicalDigestSha256,
+            bool assertionApplicable)
+        {
+            if (DigestEquals(result.Expected.RawDigestSha256, result.Actual.RawDigestSha256))
             {
                 Set(result, PublishingPageCompareContract.ResultClasses.Exact, PublishingPageCompareContract.ReasonCodes.ExactRawDigest);
-                return result;
             }
-            if (DigestEquals(ingredient.Expected.CanonicalDigestSha256, ingredient.Actual.CanonicalDigestSha256))
+            else if (DigestEquals(result.Expected.CanonicalDigestSha256, result.Actual.CanonicalDigestSha256))
             {
                 Set(result, PublishingPageCompareContract.ResultClasses.CanonicalEquivalent, PublishingPageCompareContract.ReasonCodes.CanonicalRulesEquivalent);
-                return result;
             }
-            if (DigestEquals(ingredient.ApprovedTransformedCanonicalDigestSha256, ingredient.Actual.CanonicalDigestSha256))
+            else if (DigestEquals(approvedTransformedCanonicalDigestSha256, result.Actual.CanonicalDigestSha256))
             {
                 Set(result, PublishingPageCompareContract.ResultClasses.TransformedAsPlanned, PublishingPageCompareContract.ReasonCodes.ApprovedTransformMatched);
-                return result;
             }
-            if (!ingredient.AssertionApplicable)
+            else if (!assertionApplicable)
             {
                 Set(result, PublishingPageCompareContract.ResultClasses.NotApplicable, PublishingPageCompareContract.ReasonCodes.AssertionNotApplicable);
-                return result;
             }
-            Set(result, PublishingPageCompareContract.ResultClasses.Mismatch, PublishingPageCompareContract.ReasonCodes.TargetMismatch);
-            return result;
+            else
+            {
+                Set(result, PublishingPageCompareContract.ResultClasses.Mismatch, PublishingPageCompareContract.ReasonCodes.TargetMismatch);
+            }
         }
 
         internal static CompareAcceptance DeriveAcceptance(

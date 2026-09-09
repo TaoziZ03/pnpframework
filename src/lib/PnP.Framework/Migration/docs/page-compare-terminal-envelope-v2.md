@@ -25,8 +25,9 @@ one unsatisfied required obligation.
 
 Cleanup evidence stores the exact receipt JSON text plus its UTF-8 SHA-256,
 schema, operation ID, and relative artifact locator. The operation ID must be
-the admitted cleanup operation. This is a lossless evidence carrier, not a new
-cleanup receipt or outcome engine.
+the admitted cleanup operation, and the embedded JSON must not contain
+duplicate property names at any depth. This is a lossless evidence carrier,
+not a new cleanup receipt or outcome engine.
 
 ## Acceptance and projection integrity
 
@@ -35,7 +36,17 @@ acceptance authority for executed material rows. Therefore material
 `runtime-pending`, `unknown`, and `source-version-changed` results are
 `unverified`, and storage/runtime failure cannot pass. V2 also validates that
 `exact` means equal non-empty raw digests and `canonical-equivalent` means equal
-non-empty canonical digests.
+non-empty canonical digests through the same final classification seam used by
+the Publishing reconciler. The terminal ingredient shape does not carry an
+approved transformed digest or a typed non-applicability decision. It therefore
+rejects `transformed-as-planned` and `not-applicable` declarations instead of
+allowing an unsupported result label to produce `pass`.
+
+The shared terminal ingredient ledger rejects unknown availability, execution,
+disposition, and result values. An adverse native case may retain an
+ingredient-level access denial, but that ingredient must satisfy the same
+bounded-attempt and no-target-evidence invariant as every other denied terminal
+case.
 
 The consumer projection is digest sealed. Reverse adaptation rebuilds the
 terminal envelope, validates its source digest, re-derives every public case
@@ -53,4 +64,3 @@ Nested admitted plan, typed receipt, runtime, canonical report, ingredient, and
 digest semantics remain enforced by the existing product validators. Unknown
 JSON fields and unsupported versions fail closed during strict native
 deserialization.
-

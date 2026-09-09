@@ -350,6 +350,36 @@ namespace PnP.Framework.Migration.Pages.Comparison
             PublishingPageCompareContract.ResultClasses.SourceVersionChanged
         }, StringComparer.Ordinal);
 
+        private static readonly HashSet<string> TerminalResults = new HashSet<string>(
+            CanonicalResults.Concat(new[]
+            {
+                PageCompareTerminalContract.TerminalResults.AccessDenied,
+                PageCompareTerminalContract.TerminalResults.Unsupported
+            }),
+            StringComparer.Ordinal);
+
+        private static readonly HashSet<string> IngredientAvailabilities = new HashSet<string>(new[]
+        {
+            PageCompareTerminalContract.Availability.Captured,
+            PageCompareTerminalContract.Availability.AccessDenied,
+            PageCompareTerminalContract.Availability.Unsupported
+        }, StringComparer.Ordinal);
+
+        private static readonly HashSet<string> IngredientExecutionStatuses = new HashSet<string>(new[]
+        {
+            PageCompareTerminalContract.Statuses.Succeeded,
+            PageCompareTerminalContract.Statuses.Partial,
+            PageCompareTerminalContract.Statuses.NotExecuted
+        }, StringComparer.Ordinal);
+
+        private static readonly HashSet<string> IngredientDispositions = new HashSet<string>(new[]
+        {
+            PageCompareTerminalContract.Dispositions.Preserve,
+            PageCompareTerminalContract.Dispositions.Transform,
+            PageCompareTerminalContract.Dispositions.Drop,
+            PageCompareTerminalContract.Dispositions.Delegate
+        }, StringComparer.Ordinal);
+
         public static void Validate(
             PageCompareTerminalEnvelope envelope,
             string expectedImplementationRef,
@@ -500,6 +530,11 @@ namespace PnP.Framework.Migration.Pages.Comparison
                     && ingredient.Expected != null
                     && ingredient.Actual != null,
                     "The terminal ingredient shape is incomplete.");
+                Require(IngredientAvailabilities.Contains(ingredient.Availability)
+                    && IngredientExecutionStatuses.Contains(ingredient.ExecutionStatus)
+                    && IngredientDispositions.Contains(ingredient.Disposition)
+                    && TerminalResults.Contains(ingredient.Result),
+                    "The terminal ingredient availability, execution status, disposition, or result is unsupported.");
                 RequireNoExtensions(ingredient.Lineage.ExtensionData, "terminal ingredient lineage");
                 RequireNoExtensions(ingredient.Expected.ExtensionData, "terminal expected digest");
                 RequireNoExtensions(ingredient.Actual.ExtensionData, "terminal actual digest");
@@ -688,7 +723,7 @@ namespace PnP.Framework.Migration.Pages.Comparison
                 "The no-execution terminal statuses are inconsistent.");
         }
 
-        private static void ValidateDeniedIngredient(PageCompareTerminalIngredient ingredient)
+        internal static void ValidateDeniedIngredient(PageCompareTerminalIngredient ingredient)
         {
             Require(string.Equals(ingredient.Availability, PageCompareTerminalContract.Availability.AccessDenied, StringComparison.Ordinal)
                 && string.Equals(ingredient.ExecutionStatus, PageCompareTerminalContract.Statuses.NotExecuted, StringComparison.Ordinal)
@@ -706,7 +741,7 @@ namespace PnP.Framework.Migration.Pages.Comparison
                 "The access-denied ingredient is incomplete or success-shaped.");
         }
 
-        private static bool IsDeniedIngredient(PageCompareTerminalIngredient ingredient)
+        internal static bool IsDeniedIngredient(PageCompareTerminalIngredient ingredient)
         {
             return string.Equals(ingredient.Availability, PageCompareTerminalContract.Availability.AccessDenied, StringComparison.Ordinal)
                 || string.Equals(ingredient.ReasonCode, PageCompareTerminalContract.ReasonCodes.AccessDeniedSkipped, StringComparison.Ordinal);

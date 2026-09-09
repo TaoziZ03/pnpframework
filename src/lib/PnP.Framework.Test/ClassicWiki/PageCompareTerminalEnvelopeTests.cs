@@ -284,6 +284,89 @@ namespace PnP.Framework.Test.ClassicWiki
         }
 
         [TestMethod]
+        public void TerminalV2RejectsUnprovedTransformAndNonApplicabilityClassifications()
+        {
+            foreach (var classification in new[]
+            {
+                new
+                {
+                    Result = PublishingPageCompareContract.ResultClasses.TransformedAsPlanned,
+                    Reason = PublishingPageCompareContract.ReasonCodes.ApprovedTransformMatched
+                },
+                new
+                {
+                    Result = PublishingPageCompareContract.ResultClasses.NotApplicable,
+                    Reason = PublishingPageCompareContract.ReasonCodes.AssertionNotApplicable
+                }
+            })
+            {
+                var store = new RuntimeArtifactStore();
+                var envelope = CreateSuccessfulEnvelopeV2(store);
+                var ingredient = envelope.Cases[0].Terminal.Ingredients[0];
+                ingredient.Actual.RawDigestSha256 = Hash("different-actual-raw:" + classification.Result);
+                ingredient.Actual.CanonicalDigestSha256 = Hash("different-actual-canonical:" + classification.Result);
+                ingredient.Result = classification.Result;
+                ingredient.ReasonCode = classification.Reason;
+                Reseal(envelope);
+
+                Assert.ThrowsException<InvalidDataException>(() =>
+                    PageCompareTerminalEnvelopeSerializerV2.SerializeCanonical(envelope, ImplementationRef, store),
+                    classification.Result);
+            }
+        }
+
+        [TestMethod]
+        public void TerminalV2AdverseIngredientVocabularyAndDeniedTargetEvidenceFailClosed()
+        {
+            foreach (var mutation in new Action<PageCompareTerminalIngredient>[]
+            {
+                ingredient => ingredient.Result = "future-result",
+                ingredient => ingredient.ExecutionStatus = "future-execution",
+                ingredient => ingredient.Availability = "future-availability",
+                ingredient => ingredient.Disposition = "future-disposition",
+                ingredient =>
+                {
+                    ingredient.Availability = PageCompareTerminalContract.Availability.AccessDenied;
+                    ingredient.SemanticAccessDenied = true;
+                    ingredient.HttpStatus = 403;
+                    ingredient.AttemptCount = 1;
+                    ingredient.Disposition = PageCompareTerminalContract.Dispositions.Delegate;
+                    ingredient.Result = PageCompareTerminalContract.TerminalResults.AccessDenied;
+                    ingredient.ExecutionStatus = PageCompareTerminalContract.Statuses.NotExecuted;
+                    ingredient.ReasonCode = PageCompareTerminalContract.ReasonCodes.AccessDeniedSkipped;
+                    ingredient.ActualEvidenceDigestSha256 = Hash("invented-denied-target-evidence");
+                    ingredient.Actual.RawDigestSha256 = Hash("invented-denied-target-bytes");
+                    ingredient.Lineage.TargetIdentity = "target:invented-denied";
+                }
+            })
+            {
+                var store = new RuntimeArtifactStore();
+                var envelope = CreateEnvelopeV2(store);
+                mutation(envelope.Cases.Single(value => value.Terminal.CaseId == "ccd35-08").Terminal.Ingredients[0]);
+                Reseal(envelope);
+
+                Assert.ThrowsException<InvalidDataException>(() =>
+                    PageCompareTerminalEnvelopeSerializerV2.SerializeCanonical(envelope, ImplementationRef, store));
+            }
+        }
+
+        [TestMethod]
+        public void TerminalV2CleanupReceiptRejectsDuplicateOperationIdentity()
+        {
+            var store = new RuntimeArtifactStore();
+            var envelope = CreateEnvelopeV2(store);
+            var cleanup = envelope.Cases.Single(value => value.Terminal.CaseId == "ccd35-08").CleanupReceipt;
+            cleanup.ReceiptJson = cleanup.ReceiptJson.Insert(
+                1,
+                "\"operationId\":\"11111111-1111-1111-1111-111111111111\",");
+            cleanup.ReceiptDigestSha256 = MigrationDigest.ComputeSha256(Encoding.UTF8.GetBytes(cleanup.ReceiptJson));
+            Reseal(envelope);
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PageCompareTerminalEnvelopeSerializerV2.SerializeCanonical(envelope, ImplementationRef, store));
+        }
+
+        [TestMethod]
         public void TerminalV2ProjectionPublicFieldTamperingFailsEvenAfterProjectionIsResealed()
         {
             var store = new RuntimeArtifactStore();

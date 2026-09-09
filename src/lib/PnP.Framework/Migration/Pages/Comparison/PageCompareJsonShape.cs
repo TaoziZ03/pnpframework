@@ -29,6 +29,19 @@ namespace PnP.Framework.Migration.Pages.Comparison
             }
         }
 
+        public static bool HasNoDuplicateProperties(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                throw new ArgumentException("Page compare contract JSON is required.", nameof(json));
+            }
+
+            using (var document = JsonDocument.Parse(json))
+            {
+                return HasNoDuplicateProperties(document.RootElement);
+            }
+        }
+
         private static bool HasSameShape(JsonElement source, JsonElement roundTrip)
         {
             if (source.ValueKind != roundTrip.ValueKind)
@@ -92,6 +105,32 @@ namespace PnP.Framework.Migration.Pages.Comparison
                 result.Add(property.Name, property.Value);
             }
             return result;
+        }
+
+        private static bool HasNoDuplicateProperties(JsonElement value)
+        {
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                var names = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var property in value.EnumerateObject())
+                {
+                    if (!names.Add(property.Name) || !HasNoDuplicateProperties(property.Value))
+                    {
+                        return false;
+                    }
+                }
+            }
+            else if (value.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in value.EnumerateArray())
+                {
+                    if (!HasNoDuplicateProperties(item))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
     }
 }

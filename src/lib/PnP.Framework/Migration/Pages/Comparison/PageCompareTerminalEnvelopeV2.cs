@@ -282,6 +282,10 @@ namespace PnP.Framework.Migration.Pages.Comparison
                     !IsSuccessResult(item.Result)
                     && !string.Equals(item.ExecutionStatus, PageCompareTerminalContract.Statuses.Succeeded, StringComparison.Ordinal)),
                 "A native adverse case cannot emit success-shaped material equality.");
+            foreach (var ingredient in terminal.Ingredients.Where(PageCompareTerminalEnvelopeValidator.IsDeniedIngredient))
+            {
+                PageCompareTerminalEnvelopeValidator.ValidateDeniedIngredient(ingredient);
+            }
             Require(terminal.DependentObligations.Any(item => item.Required
                     && !string.Equals(item.Status, PageCompareTerminalContract.ObligationStatuses.Satisfied, StringComparison.Ordinal)),
                 "A native adverse case must retain an unsatisfied required obligation.");
@@ -301,6 +305,8 @@ namespace PnP.Framework.Migration.Pages.Comparison
             ValidateDigest(cleanup.ReceiptDigestSha256, "cleanup receipt digest");
             Require(string.Equals(MigrationDigest.ComputeSha256(Encoding.UTF8.GetBytes(cleanup.ReceiptJson)), cleanup.ReceiptDigestSha256, StringComparison.OrdinalIgnoreCase),
                 "The cleanup receipt text and digest are inconsistent.");
+            Require(PageCompareJsonShape.HasNoDuplicateProperties(cleanup.ReceiptJson),
+                "The cleanup receipt payload contains duplicate JSON properties.");
             using (var document = JsonDocument.Parse(cleanup.ReceiptJson))
             {
                 Require(document.RootElement.ValueKind == JsonValueKind.Object
@@ -317,15 +323,23 @@ namespace PnP.Framework.Migration.Pages.Comparison
         {
             foreach (var ingredient in terminal.Ingredients.Where(value => value.Material))
             {
-                if (string.Equals(ingredient.Result, PublishingPageCompareContract.ResultClasses.Exact, StringComparison.Ordinal))
+                if (string.Equals(ingredient.Result, PublishingPageCompareContract.ResultClasses.Exact, StringComparison.Ordinal)
+                    || string.Equals(ingredient.Result, PublishingPageCompareContract.ResultClasses.CanonicalEquivalent, StringComparison.Ordinal)
+                    || string.Equals(ingredient.Result, PublishingPageCompareContract.ResultClasses.TransformedAsPlanned, StringComparison.Ordinal)
+                    || string.Equals(ingredient.Result, PublishingPageCompareContract.ResultClasses.NotApplicable, StringComparison.Ordinal))
                 {
-                    Require(DigestEquals(ingredient.Expected.RawDigestSha256, ingredient.Actual.RawDigestSha256),
-                        "An exact material result requires equal expected and actual raw digests.");
-                }
-                else if (string.Equals(ingredient.Result, PublishingPageCompareContract.ResultClasses.CanonicalEquivalent, StringComparison.Ordinal))
-                {
-                    Require(DigestEquals(ingredient.Expected.CanonicalDigestSha256, ingredient.Actual.CanonicalDigestSha256),
-                        "A canonical-equivalent material result requires equal canonical digests.");
+                    var classified = new IngredientCompareResult
+                    {
+                        Expected = ingredient.Expected,
+                        Actual = ingredient.Actual
+                    };
+                    PublishingPageCompareReconciler.ClassifyObservedMaterialEvidence(
+                        classified,
+                        approvedTransformedCanonicalDigestSha256: null,
+                        assertionApplicable: true);
+                    Require(string.Equals(classified.ResultClass, ingredient.Result, StringComparison.Ordinal)
+                        && string.Equals(classified.ReasonCode, ingredient.ReasonCode, StringComparison.Ordinal),
+                        "The material result is not supported by its typed classification evidence.");
                 }
             }
         }
@@ -335,13 +349,6 @@ namespace PnP.Framework.Migration.Pages.Comparison
             return string.Equals(result, PublishingPageCompareContract.ResultClasses.Exact, StringComparison.Ordinal)
                 || string.Equals(result, PublishingPageCompareContract.ResultClasses.CanonicalEquivalent, StringComparison.Ordinal)
                 || string.Equals(result, PublishingPageCompareContract.ResultClasses.TransformedAsPlanned, StringComparison.Ordinal);
-        }
-
-        private static bool DigestEquals(string left, string right)
-        {
-            return !string.IsNullOrWhiteSpace(left)
-                && !string.IsNullOrWhiteSpace(right)
-                && string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsSafeRelativeLocator(string value)
