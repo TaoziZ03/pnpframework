@@ -20,6 +20,10 @@ recomputes every supplied actual-ingredient artifact through
 screenshot bytes and validates requirements-manifest, implementation-ref,
 browser-context, timeline, HTTP, and no-store evidence.
 
+`validate-import` applies the same native step-lineage gate to an existing
+receipt. It is intended for independent negative verification and never opens a
+tenant connection.
+
 Build from an immutable commit and bind the binary to that exact ref:
 
 ```powershell
