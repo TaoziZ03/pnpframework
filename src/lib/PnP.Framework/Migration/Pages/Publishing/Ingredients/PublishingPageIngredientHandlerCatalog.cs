@@ -130,11 +130,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             foreach (var envelope in evidence)
             {
                 var handler = handlersById[envelope.HandlerId];
+                ValidatePageFamily(snapshot, handler.Descriptor);
                 var context = new PublishingPageIngredientGraphProjectionContext(
                     snapshot,
                     graph,
                     handler.Descriptor,
-                    PrimaryOwnerRegistry);
+                    PrimaryOwnerRegistry,
+                    envelope);
                 handler.ValidateAndProject(context, envelope);
             }
         }
@@ -149,6 +151,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             foreach (var envelope in evidence)
             {
                 var handler = handlersById[envelope.HandlerId];
+                ValidatePageFamily(snapshot, handler.Descriptor);
                 handler.ValidateAndProjectActions(
                     new PublishingPageIngredientActionProjectionContext(snapshot, plan, graph, actions, handler.Descriptor),
                     envelope);
@@ -161,10 +164,30 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             PnP.Framework.Migration.Pages.Publishing.Assessment.PublishingPageAssessmentAccumulator accumulator)
         {
             var evidence = ValidateAndOrderEvidence(snapshot.IngredientEvidence);
-            var context = new PublishingPageIngredientAssessmentContext(snapshot, graph, accumulator);
             foreach (var envelope in evidence)
             {
-                handlersById[envelope.HandlerId].ValidateAndContributeAssessment(context, envelope);
+                var handler = handlersById[envelope.HandlerId];
+                ValidatePageFamily(snapshot, handler.Descriptor);
+                handler.ValidateAndContributeAssessment(
+                    new PublishingPageIngredientAssessmentContext(
+                        snapshot,
+                        graph,
+                        accumulator,
+                        handler.Descriptor),
+                    envelope);
+            }
+        }
+
+        private static void ValidatePageFamily(
+            PublishingPageCaptureBundle snapshot,
+            PageIngredientHandlerDescriptor descriptor)
+        {
+            var pageFamily = PublishingPageIngredientPageFamily.Resolve(snapshot);
+            if (pageFamily == null
+                || !descriptor.Lane.SupportedPageFamilies.Contains(pageFamily, StringComparer.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Ingredient handler '{descriptor.HandlerId}' does not support source page family '{pageFamily ?? "unknown"}'.");
             }
         }
 

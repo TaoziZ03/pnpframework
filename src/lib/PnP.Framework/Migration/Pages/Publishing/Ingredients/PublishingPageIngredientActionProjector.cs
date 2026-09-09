@@ -43,22 +43,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 snapshot,
                 plan,
                 actions,
-                string.Equals(
-                     ingredientGraph?.ProjectionVersion,
-                     PublishingPageIngredientGraphProjector.CurrentProjectionVersion,
-                     StringComparison.Ordinal)
-                || string.Equals(
-                    ingredientGraph?.ProjectionVersion,
-                    PublishingPageIngredientGraphProjector.ProjectionVersionV6,
-                    StringComparison.Ordinal)
-                || string.Equals(
-                    ingredientGraph?.ProjectionVersion,
-                    PublishingPageIngredientGraphProjector.ProjectionVersionV5,
-                    StringComparison.Ordinal)
-                || string.Equals(
-                    ingredientGraph?.ProjectionVersion,
-                    PublishingPageIngredientGraphProjector.ProjectionVersionV4,
-                    StringComparison.Ordinal));
+                UsesTransactionDependencyProjection(ingredientGraph?.ProjectionVersion));
             PublishingPageReferenceIngredientActionProjector.Project(plan, actions, ingredientGraph);
             if ((snapshot?.IngredientEvidence?.Count ?? 0) > 0)
             {
@@ -92,6 +77,16 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             PublishingPageIngredientAuthorizationPolicy.Apply(snapshot, plan, actions);
 
             return actions.Values.OrderBy(value => value.IngredientId, StringComparer.Ordinal).ToList();
+        }
+
+        private static bool UsesTransactionDependencyProjection(string projectionVersion)
+        {
+            return string.Equals(projectionVersion, PublishingPageIngredientGraphProjector.CurrentProjectionVersion, StringComparison.Ordinal)
+                || string.Equals(projectionVersion, PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion, StringComparison.Ordinal)
+                || string.Equals(projectionVersion, PublishingPagePathDerivedTopologyIngredientGraphProjector.ProjectionVersion, StringComparison.Ordinal)
+                || string.Equals(projectionVersion, PublishingPageIngredientGraphProjector.ProjectionVersionV6, StringComparison.Ordinal)
+                || string.Equals(projectionVersion, PublishingPageIngredientGraphProjector.ProjectionVersionV5, StringComparison.Ordinal)
+                || string.Equals(projectionVersion, PublishingPageIngredientGraphProjector.ProjectionVersionV4, StringComparison.Ordinal);
         }
     }
 }

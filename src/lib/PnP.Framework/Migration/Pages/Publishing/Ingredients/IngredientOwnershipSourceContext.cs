@@ -18,7 +18,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         public PageIngredientNode Node { get; }
 
         public bool HasBoundSourceIdentity =>
-            !string.IsNullOrWhiteSpace(Node?.SourcePageOrListItemIdentity)
-            && !string.IsNullOrWhiteSpace(Node?.SourceVersionIdentity);
+            PublishingPageIngredientSourceBinding.HasExactSourceBinding(Snapshot, Node);
+
+        public bool HasBoundEvidence =>
+            PublishingPageIngredientSourceBinding.HasBoundEvidence(Snapshot, Node);
     }
 }

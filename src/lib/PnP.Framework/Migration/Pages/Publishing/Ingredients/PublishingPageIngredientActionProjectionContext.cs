@@ -19,9 +19,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             IDictionary<string, PageIngredientAction> actions,
             PageIngredientHandlerDescriptor descriptor)
         {
-            Snapshot = snapshot;
-            Plan = plan;
-            IngredientGraph = graph;
+            Snapshot = PublishingPageIngredientReadOnlyView.Clone(snapshot);
+            Plan = PublishingPageIngredientReadOnlyView.Clone(plan);
+            IngredientGraph = PublishingPageIngredientReadOnlyView.Clone(graph);
+            PageFamily = PublishingPageIngredientPageFamily.Resolve(snapshot);
+            HandlerId = descriptor?.HandlerId;
+            LaneId = descriptor?.Lane?.LaneId;
             this.actions = actions;
             this.descriptor = descriptor;
         }
@@ -31,6 +34,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         public PublishingPageMigrationPlan Plan { get; }
 
         public CanonicalPageIngredientGraph IngredientGraph { get; }
+
+        public string PageFamily { get; }
+
+        public string HandlerId { get; }
+
+        public string LaneId { get; }
 
         public void AddAction(PageIngredientAction action)
         {

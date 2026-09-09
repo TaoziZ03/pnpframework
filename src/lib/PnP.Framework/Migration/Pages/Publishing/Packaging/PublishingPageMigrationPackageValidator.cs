@@ -358,7 +358,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             }
         }
 
-        private static void ValidatePathDerivedPlanningIngredientGraph(
+        internal static void ValidatePathDerivedPlanningIngredientGraph(
             PublishingPageCaptureBundle snapshot,
             PublishingPageMigrationPlan plan)
         {
@@ -408,7 +408,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
                     || !string.Equals(actual.AuthorizationOperation, expected.AuthorizationOperation, StringComparison.Ordinal)
                     || !string.Equals(actual.AuthorizationRequestUri, expected.AuthorizationRequestUri, StringComparison.Ordinal)
                     || !string.Equals(actual.EvidenceDigest, expected.EvidenceDigest, StringComparison.OrdinalIgnoreCase)
-                    || !PublishingPageValidationCanonical.Equals(actual.AuthorizationEvidence, expected.AuthorizationEvidence))
+                    || (actual.AuthorizationEvidence == null) != (expected.AuthorizationEvidence == null)
+                    || (actual.AuthorizationEvidence != null
+                        && !PublishingPageValidationCanonical.Equals(actual.AuthorizationEvidence, expected.AuthorizationEvidence)))
                 {
                     throw new InvalidDataException("A page source-fidelity reference differs from the retained partial topology evidence.");
                 }

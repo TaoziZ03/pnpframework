@@ -4,7 +4,6 @@ using PnP.Framework.Migration.Pages.References;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -97,8 +96,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             node.Subtype = tuple.Subtype;
             node.SemanticRole = tuple.SemanticRole;
             node.SourcePredicateId = tuple.PredicateId;
-            node.SourcePageOrListItemIdentity = SourceIdentity(snapshot, node);
-            node.SourceVersionIdentity = SourceVersionIdentity(snapshot);
+            node.SourcePageOrListItemIdentity = PublishingPageIngredientSourceBinding.SourceIdentity(snapshot, node.Id);
+            node.SourceVersionIdentity = PublishingPageIngredientSourceBinding.SourceVersionIdentity(snapshot);
+            node.EvidenceDigest = PublishingPageIngredientSourceBinding.BindBuiltInEvidence(snapshot, node);
+            if (!PublishingPageIngredientSourceBinding.IsSha256(node.EvidenceDigest))
+            {
+                throw new InvalidDataException(
+                    $"Ingredient '{node.Id}' cannot bind primary ownership without typed source evidence.");
+            }
         }
 
         private static (string Subtype, string SemanticRole, string PredicateId) Classify(
@@ -135,7 +140,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case PageIngredientKind.View:
                     return ("view.generic", "dependency-provider", "view.captured-list-view");
                 case PageIngredientKind.Asset:
-                    return ("asset.other", "unassigned-typed-asset", "asset.non-image-file-script");
+                    return AssetTuple(snapshot, node);
                 case PageIngredientKind.Taxonomy:
                     return ("taxonomy.generic", "taxonomy-binding-or-term-relationship", "taxonomy.typed-relationship");
                 case PageIngredientKind.Reference:
@@ -193,46 +198,41 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             }
         }
 
-        private static string SourceIdentity(PublishingPageCaptureBundle snapshot, PageIngredientNode node)
+        private static (string Subtype, string SemanticRole, string PredicateId) AssetTuple(
+            PublishingPageCaptureBundle snapshot,
+            PageIngredientNode node)
         {
-            var source = snapshot?.Source;
-            if (source == null
-                || source.SiteId == Guid.Empty
-                || source.WebId == Guid.Empty
-                || source.FileUniqueId == Guid.Empty
-                || string.IsNullOrWhiteSpace(source.PageServerRelativeUrl))
+            if (node.Id?.StartsWith("view-rendering-resource:", StringComparison.Ordinal) == true)
             {
-                throw new InvalidDataException(
-                    $"Ingredient '{node?.Id}' cannot bind primary ownership without exact source page/list-item identity.");
+                var resource = (snapshot?.ListDependencies ?? Array.Empty<Lists.Capture.ListDependencySnapshot>())
+                    .Where(value => value != null)
+                    .SelectMany(value => (value.ViewRenderingResources ?? Array.Empty<Lists.Views.ListViewRenderingResourceSnapshot>())
+                        .Select(resourceValue => new { List = value, Resource = resourceValue }))
+                    .FirstOrDefault(value => value.Resource != null
+                        && string.Equals(
+                            PublishingPageIngredientIds.ViewRenderingResource(value.List.SourceSiteId, value.Resource.Id),
+                            node.Id,
+                            StringComparison.Ordinal));
+                if (resource?.Resource.Kind == Lists.Views.ListViewRenderingResourceKind.JavaScript)
+                {
+                    return ("asset.script", "script-bytes-or-inline-binding", "asset.script-source");
+                }
             }
-            return string.Join("/", new[]
+            if (node.Id?.StartsWith("layout-resource:", StringComparison.Ordinal) == true)
             {
-                source.SiteId.ToString("D"),
-                source.WebId.ToString("D"),
-                source.ListItemId.ToString(CultureInfo.InvariantCulture),
-                source.FileUniqueId.ToString("D"),
-                source.PageServerRelativeUrl,
-                node?.Id ?? string.Empty
-            });
-        }
-
-        private static string SourceVersionIdentity(PublishingPageCaptureBundle snapshot)
-        {
-            var fence = snapshot?.SourceFence;
-            var source = snapshot?.Source;
-            var versionLabel = fence?.VersionLabel ?? source?.VersionLabel;
-            var modifiedUtc = fence?.ModifiedUtc ?? source?.ModifiedUtc ?? DateTime.MinValue;
-            var length = fence?.Length ?? source?.Length ?? -1;
-            if (string.IsNullOrWhiteSpace(versionLabel)
-                || modifiedUtc == DateTime.MinValue
-                || length < 0)
-            {
-                throw new InvalidDataException(
-                    "Primary ownership requires the exact source VersionLabel, ModifiedUtc, and Length fence.");
+                var value = node.Label ?? node.Id;
+                if (value.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ("asset.script", "script-bytes-or-inline-binding", "asset.script-source");
+                }
+                if (new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico" }
+                    .Any(value.EndsWith))
+                {
+                    return ("asset.image", "rendered-image-bytes", "asset.typed-image");
+                }
+                return ("asset.page-referenced-file", "page-referenced-file-bytes", "asset.direct-page-file");
             }
-            return "version=" + versionLabel
-                + ";modified=" + modifiedUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)
-                + ";length=" + length.ToString(CultureInfo.InvariantCulture);
+            return ("asset.other", "unassigned-typed-asset", "asset.non-image-file-script");
         }
 
         private static PublishingPageIngredientPrimaryOwnerRegistry CreateDefault()
@@ -291,6 +291,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             string predicateId)
         {
             if (!context.HasBoundSourceIdentity
+                || !context.HasBoundEvidence
                 || !string.Equals(context.Node.SourcePredicateId, predicateId, StringComparison.Ordinal))
             {
                 return false;
@@ -303,8 +304,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case "runtime.page.capture":
                     return !string.IsNullOrWhiteSpace(snapshot?.Runtime?.AdapterId);
                 case "runtime.dynamic-region.typed-provider-binding":
-                    return node.Id?.StartsWith("dynamic-region:", StringComparison.Ordinal) == true
-                        && !string.IsNullOrWhiteSpace(node.EvidenceDigest);
+                    return HasDynamicRegionIdentity(node)
+                        && PublishingPageIngredientSourceBinding.MatchesExtensionEnvelope(snapshot, node);
                 case "page-artifact.captured-spfile":
                     return snapshot?.PageArtifact != null
                         && snapshot.PageArtifact.FileUniqueId == snapshot.Source.FileUniqueId;
@@ -313,6 +314,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case "content-type.page-binding":
                     return !string.IsNullOrWhiteSpace(snapshot?.Source?.ContentTypeId)
                         && string.Equals(node.Id, PublishingPageIngredientIds.ContentType, StringComparison.Ordinal);
+                case "content-type.generic-schema":
+                    return node.Id?.StartsWith("site-content-type:", StringComparison.Ordinal) == true
+                        || node.Id?.StartsWith("list-content-type:", StringComparison.Ordinal) == true;
                 case "content.publishing-page-field":
                     return snapshot?.PublishingPageContent != null
                         && string.Equals(node.Id, PublishingPageIngredientIds.PublishingContent, StringComparison.Ordinal);
@@ -322,9 +326,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case "field.page-content-type-closure":
                     return node.Id?.StartsWith("page-content-type-field:", StringComparison.Ordinal) == true;
                 case "field.non-body":
-                    return node.Id?.StartsWith("field:", StringComparison.Ordinal) == true
-                        || node.Id?.StartsWith("site-field:", StringComparison.Ordinal) == true
-                        || node.Id?.StartsWith("list-field:", StringComparison.Ordinal) == true;
+                    return !string.Equals(node.Id, "field:WikiField", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(node.Id, "field:PublishingPageContent", StringComparison.OrdinalIgnoreCase)
+                        && (node.Id?.StartsWith("field:", StringComparison.Ordinal) == true
+                            || node.Id?.StartsWith("site-field:", StringComparison.Ordinal) == true
+                            || node.Id?.StartsWith("list-field:", StringComparison.Ordinal) == true);
                 case "webpart.classic-export":
                     return node.Id?.StartsWith("webpart:", StringComparison.Ordinal) == true;
                 case "list.captured-closure":
@@ -334,6 +340,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case "asset.non-image-file-script":
                     return node.Id?.StartsWith("layout-resource:", StringComparison.Ordinal) == true
                         || node.Id?.StartsWith("view-rendering-resource:", StringComparison.Ordinal) == true;
+                case "asset.typed-image":
+                    return node.Id?.StartsWith("layout-resource:", StringComparison.Ordinal) == true
+                        || PublishingPageIngredientSourceBinding.MatchesExtensionEnvelope(snapshot, node);
+                case "asset.direct-page-file":
+                    return node.Id?.StartsWith("layout-resource:", StringComparison.Ordinal) == true
+                        || PublishingPageIngredientSourceBinding.MatchesExtensionEnvelope(snapshot, node);
+                case "asset.script-source":
+                    return node.Id?.StartsWith("layout-resource:", StringComparison.Ordinal) == true
+                        || node.Id?.StartsWith("view-rendering-resource:", StringComparison.Ordinal) == true
+                        || PublishingPageIngredientSourceBinding.MatchesExtensionEnvelope(snapshot, node);
+                case "content.classic-wiki-field":
+                case "service.typed-contract":
+                    return PublishingPageIngredientSourceBinding.MatchesExtensionEnvelope(snapshot, node);
                 case "taxonomy.typed-relationship":
                     return node.Id?.StartsWith("taxonomy-relationship:", StringComparison.Ordinal) == true;
                 case "reference.kind-image":
@@ -357,11 +376,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case "list-item.captured-current-state":
                     return node.Id?.StartsWith("list-item:", StringComparison.Ordinal) == true;
                 case "document.direct-page-reference":
-                    return node.Id?.StartsWith("document:page-reference:", StringComparison.Ordinal) == true;
+                    return node.Id?.StartsWith("document:page-reference:", StringComparison.Ordinal) == true
+                        && PublishingPageIngredientSourceBinding.FindDirectReference(snapshot, node) != null
+                        && PublishingPageIngredientSourceBinding.MatchesExtensionEnvelope(snapshot, node);
                 case "document.list-item-member":
                     return node.Id?.StartsWith("list-document:", StringComparison.Ordinal) == true;
                 case "attachment.direct-page-reference":
-                    return node.Id?.StartsWith("attachment:page-reference:", StringComparison.Ordinal) == true;
+                    return node.Id?.StartsWith("attachment:page-reference:", StringComparison.Ordinal) == true
+                        && PublishingPageIngredientSourceBinding.FindDirectReference(snapshot, node) != null
+                        && PublishingPageIngredientSourceBinding.MatchesExtensionEnvelope(snapshot, node);
                 case "attachment.list-item-member":
                     return node.Id?.StartsWith("list-attachment:", StringComparison.Ordinal) == true;
                 case "platform-feature.typed-requirement":
@@ -370,8 +393,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     return node.Id?.StartsWith("policy:", StringComparison.Ordinal) == true
                         || node.Id?.StartsWith("list-document-information-protection:", StringComparison.Ordinal) == true;
                 default:
-                    return node.Id != null;
+                    return false;
             }
+        }
+
+        private static bool HasDynamicRegionIdentity(PageIngredientNode node)
+        {
+            if (node?.Id?.StartsWith("dynamic-region:", StringComparison.Ordinal) != true)
+            {
+                return false;
+            }
+            var parts = node.Id.Substring("dynamic-region:".Length)
+                .Split(new[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length >= 1;
         }
 
         private static bool ReferenceKind(

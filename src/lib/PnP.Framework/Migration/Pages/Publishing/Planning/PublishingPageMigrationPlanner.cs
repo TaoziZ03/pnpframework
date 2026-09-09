@@ -222,9 +222,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 targetFieldsLoaded: targetPages != null);
             var expectedContent = PageTextTransformer.Rewrite(snapshot.PublishingPageContent, replacements);
             var expectedContentDigest = PublishingPageDigest.ComputeSha256(expectedContent);
-            var planningIngredientGraph = (snapshot.IngredientEvidence?.Count ?? 0) > 0
-                ? ProjectIngredientGraph(snapshot)
-                : dependencyPlan.IngredientGraph ?? ProjectIngredientGraph(snapshot);
+            var planningIngredientGraph = SelectPlanningIngredientGraph(snapshot, dependencyPlan);
             var plan = new PublishingPageMigrationPlan
             {
                 SourceSnapshotDigest = exportPackage.SnapshotDigest,
@@ -305,6 +303,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             return (snapshot?.IngredientEvidence?.Count ?? 0) > 0
                 ? PublishingPageIngredientGraphProjector.Project(snapshot, handlerCatalog)
                 : PublishingPageIngredientGraphProjector.Project(snapshot);
+        }
+
+        internal CanonicalPageIngredientGraph SelectPlanningIngredientGraph(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageDependencyPlan dependencyPlan)
+        {
+            return dependencyPlan?.IngredientGraph ?? ProjectIngredientGraph(snapshot);
         }
 
     }

@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -12,20 +13,27 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         private readonly PageIngredientHandlerDescriptor descriptor;
         private readonly PublishingPageCaptureBundle snapshot;
         private readonly PublishingPageIngredientPrimaryOwnerRegistry primaryOwnerRegistry;
+        private readonly PublishingPageIngredientEvidenceEnvelope envelope;
 
         internal PublishingPageIngredientGraphProjectionContext(
             PublishingPageCaptureBundle snapshot,
             CanonicalPageIngredientGraph graph,
             PageIngredientHandlerDescriptor descriptor,
-            PublishingPageIngredientPrimaryOwnerRegistry primaryOwnerRegistry)
+            PublishingPageIngredientPrimaryOwnerRegistry primaryOwnerRegistry,
+            PublishingPageIngredientEvidenceEnvelope envelope)
         {
             SourceContentTypeId = snapshot?.Source?.ContentTypeId;
             RuntimeAdapterId = snapshot?.Runtime?.AdapterId;
             ProjectionVersion = graph?.ProjectionVersion;
+            PageFamily = PublishingPageIngredientPageFamily.Resolve(snapshot);
+            SourceVersionIdentity = PublishingPageIngredientSourceBinding.SourceVersionIdentity(snapshot);
+            EvidenceDigest = envelope?.EvidenceDigest;
+            EvidenceReferences = (envelope?.EvidenceReferences ?? Array.Empty<string>()).ToArray();
             this.graph = graph;
             this.descriptor = descriptor;
             this.snapshot = snapshot;
             this.primaryOwnerRegistry = primaryOwnerRegistry;
+            this.envelope = envelope;
         }
 
         public string SourceContentTypeId { get; }
@@ -33,6 +41,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         public string RuntimeAdapterId { get; }
 
         public string ProjectionVersion { get; }
+
+        public string PageFamily { get; }
+
+        public string SourceVersionIdentity { get; }
+
+        public string EvidenceDigest { get; }
+
+        public IReadOnlyList<string> EvidenceReferences { get; }
+
+        public string SourceIdentity(string ingredientId)
+        {
+            return PublishingPageIngredientSourceBinding.SourceIdentity(snapshot, ingredientId);
+        }
 
         public void AddNode(PageIngredientNode node)
         {
@@ -70,6 +91,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             {
                 throw new InvalidDataException(
                     $"Extension ingredient '{node.Id}' has an incomplete primary-owner source envelope.");
+            }
+            if (!string.Equals(node.SourcePageOrListItemIdentity, SourceIdentity(node.Id), StringComparison.Ordinal)
+                || !string.Equals(node.SourceVersionIdentity, SourceVersionIdentity, StringComparison.Ordinal)
+                || !string.Equals(node.EvidenceDigest, envelope.EvidenceDigest, StringComparison.OrdinalIgnoreCase)
+                || !(node.EvidenceReferences ?? Array.Empty<string>()).SequenceEqual(EvidenceReferences, StringComparer.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Extension ingredient '{node.Id}' does not bind the current handler evidence and source fence.");
             }
             var owner = primaryOwnerRegistry.Resolve(snapshot, node);
             if (!string.Equals(owner.PrimaryOwnerLane, descriptor.Lane.LaneId, StringComparison.Ordinal)

@@ -1,4 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PnP.Framework.Migration.Diagnostics;
+using PnP.Framework.Migration.Lists.Capture;
+using PnP.Framework.Migration.Lists.Planning;
 using PnP.Framework.Migration.Pages;
 using PnP.Framework.Migration.Pages.Assessment;
 using PnP.Framework.Migration.Pages.Ingredients;
@@ -7,6 +10,8 @@ using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
+using PnP.Framework.Migration.Pages.References;
+using PnP.Framework.Migration.Topology;
 using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
@@ -118,6 +123,249 @@ namespace PnP.Framework.Test.EnterpriseWiki
             Assert.ThrowsException<InvalidDataException>(() => overlapping.Resolve(null, node));
             node.SourcePredicateId = "predicate.unknown";
             Assert.ThrowsException<InvalidDataException>(() => overlapping.Resolve(null, node));
+        }
+
+        [DataTestMethod]
+        [DataRow("runtime.dynamic-region", "dynamic-region:missing-provider")]
+        [DataRow("content.wiki-field", "content:missing-wiki-field")]
+        [DataRow("asset.script", "asset:script:missing-binding")]
+        [DataRow("webpart.classic-instance", "webpart:11111111-1111-1111-1111-111111111111")]
+        [DataRow("document.page-referenced", "document:page-reference:missing-edge")]
+        [DataRow("attachment.page-referenced", "attachment:page-reference:missing-edge")]
+        public void DefaultOwnerRejectsClaimsWithoutBoundTypedSource(string entryId, string ingredientId)
+        {
+            var entry = PublishingPageIngredientPrimaryOwnerRegistry.Default.Entries
+                .Single(value => value.Id == entryId);
+            var node = new PageIngredientNode
+            {
+                Id = ingredientId,
+                Kind = entry.Kind,
+                KindId = PageIngredientKindIdentity.FromLegacyKind(entry.Kind),
+                Subtype = entry.Subtype,
+                SemanticRole = entry.SemanticRole,
+                SourcePredicateId = entry.SourcePredicateId,
+                SourcePageOrListItemIdentity = "unrelated/source/page",
+                SourceVersionIdentity = "unrelated-version",
+                PrimaryOwnerLane = entry.PrimaryOwnerLane,
+                EvidenceDigest = "not-a-sha256-digest"
+            };
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(null, node));
+        }
+
+        [TestMethod]
+        public void OwnerResolutionRejectsWrongSourceVersionSubtypeAndRole()
+        {
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            var snapshot = CreateValidProjectionSnapshot();
+            snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            var node = PublishingPageIngredientGraphProjector.Project(
+                    snapshot,
+                    new PublishingPageIngredientHandlerCatalog(new[] { handler }))
+                .Nodes.Single(value => value.Id == "dynamic-region:hero");
+
+            node.SourcePageOrListItemIdentity += "/wrong";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, node));
+            node.SourcePageOrListItemIdentity = PublishingPageIngredientSourceBinding.SourceIdentity(snapshot, node.Id);
+            node.SourceVersionIdentity += "/wrong";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, node));
+            node.SourceVersionIdentity = PublishingPageIngredientSourceBinding.SourceVersionIdentity(snapshot);
+            node.Subtype = "runtime.page";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, node));
+            node.Subtype = "runtime.dynamic-region";
+            node.SemanticRole = "persisted-instance";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, node));
+        }
+
+        [TestMethod]
+        public void BodyFieldCannotClaimGenericSchemaLane()
+        {
+            var snapshot = CreateValidProjectionSnapshot();
+            var node = new PageIngredientNode
+            {
+                Id = "field:WikiField",
+                Kind = PageIngredientKind.Field,
+                KindId = PageIngredientKindIdentity.FromLegacyKind(PageIngredientKind.Field),
+                Subtype = "field.generic-value-or-schema",
+                SemanticRole = "non-body-field",
+                SourcePredicateId = "field.non-body",
+                SourcePageOrListItemIdentity = PublishingPageIngredientSourceBinding.SourceIdentity(snapshot, "field:WikiField"),
+                SourceVersionIdentity = PublishingPageIngredientSourceBinding.SourceVersionIdentity(snapshot),
+                PrimaryOwnerLane = "shared.pnp-framework",
+                EvidenceDigest = PublishingPageDigest.ComputeSha256("unsupported generic WikiField claim")
+            };
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, node));
+        }
+
+        [TestMethod]
+        public void DirectPageReferencesAndListClosureSelectDifferentOwners()
+        {
+            var snapshot = CreateValidProjectionSnapshot();
+            var siteId = snapshot.Source.SiteId;
+            var webId = snapshot.Source.WebId;
+            var listId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+            var list = (ListDependencySnapshot)Fixture("CreateListSnapshot", siteId, webId, listId, "Documents");
+            list.Items.Add(new PnP.Framework.Migration.Lists.Items.ListItemSnapshot
+            {
+                SourceItemId = 7,
+                Document = new PnP.Framework.Migration.Lists.Items.ListDocumentSnapshot
+                {
+                    Name = "source.docx",
+                    ServerRelativeUrl = "/sites/source/Documents/source.docx"
+                },
+                Attachments = new List<PnP.Framework.Migration.Lists.Items.ListAttachmentSnapshot>
+                {
+                    new PnP.Framework.Migration.Lists.Items.ListAttachmentSnapshot
+                    {
+                        FileName = "evidence.txt",
+                        ServerRelativeUrl = "/sites/source/Lists/Documents/Attachments/7/evidence.txt"
+                    }
+                }
+            });
+            snapshot.ListDependencies = new List<ListDependencySnapshot> { list };
+
+            var listDocument = OwnershipNode(
+                snapshot,
+                PublishingPageIngredientIds.ListDocument(webId, listId, 7),
+                PageIngredientKind.Document,
+                "document.list-closure",
+                "generic-list-document",
+                "document.list-item-member",
+                "shared.cross-site-repro-integration");
+            var listAttachment = OwnershipNode(
+                snapshot,
+                PublishingPageIngredientIds.ListAttachment(webId, listId, 7, "evidence.txt"),
+                PageIngredientKind.Attachment,
+                "attachment.list-closure",
+                "generic-list-attachment",
+                "attachment.list-item-member",
+                "shared.cross-site-repro-integration");
+
+            var directHandler = new TestHandler(new PageIngredientHandlerDescriptor(
+                "pnp.direct-file/v1",
+                Lane("resource.image"),
+                new[] { TestHandler.EvidenceSchema },
+                PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                10,
+                new[] { new PageIngredientIdOwnership(PageIngredientIdOwnershipKind.Prefix, "document:page-reference:") }));
+            var attachmentHandler = new TestHandler(new PageIngredientHandlerDescriptor(
+                "pnp.direct-attachment/v1",
+                Lane("resource.image"),
+                new[] { TestHandler.EvidenceSchema },
+                PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                20,
+                new[] { new PageIngredientIdOwnership(PageIngredientIdOwnershipKind.Prefix, "attachment:page-reference:") }));
+            snapshot.Dependencies.Add(new PageReferenceSnapshot
+            {
+                Id = "direct-file",
+                Kind = PageReferenceKind.Anchor,
+                Consumer = "PublishingPageContent",
+                IsRenderableResource = true,
+                ContentSha256 = PublishingPageDigest.ComputeSha256("direct file")
+            });
+            snapshot.Dependencies.Add(new PageReferenceSnapshot
+            {
+                Id = "direct-attachment",
+                Kind = PageReferenceKind.Anchor,
+                Consumer = "PublishingPageContent",
+                IsRenderableResource = true,
+                ContentSha256 = PublishingPageDigest.ComputeSha256("direct attachment")
+            });
+            var documentEnvelope = PublishingPageIngredientEvidenceEnvelope.Create(
+                directHandler,
+                TestHandler.EvidenceSchema,
+                "direct-file",
+                new TestEvidence { NodeId = "document:page-reference:direct-file", Value = "direct" },
+                new[] { PublishingPageIngredientIds.Reference("direct-file") });
+            var attachmentEnvelope = PublishingPageIngredientEvidenceEnvelope.Create(
+                attachmentHandler,
+                TestHandler.EvidenceSchema,
+                "direct-attachment",
+                new TestEvidence { NodeId = "attachment:page-reference:direct-attachment", Value = "direct" },
+                new[] { PublishingPageIngredientIds.Reference("direct-attachment") });
+            snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                documentEnvelope,
+                attachmentEnvelope
+            };
+            var directDocument = new PageIngredientNode
+            {
+                Id = "document:page-reference:direct-file",
+                Kind = PageIngredientKind.Document,
+                KindId = PageIngredientKindIdentity.FromLegacyKind(PageIngredientKind.Document),
+                Subtype = "document.page-referenced-file",
+                SemanticRole = "direct-page-dependency",
+                SourcePredicateId = "document.direct-page-reference",
+                SourcePageOrListItemIdentity = PublishingPageIngredientSourceBinding.SourceIdentity(snapshot, "document:page-reference:direct-file"),
+                SourceVersionIdentity = PublishingPageIngredientSourceBinding.SourceVersionIdentity(snapshot),
+                PrimaryOwnerLane = "resource.image",
+                EvidenceDigest = documentEnvelope.EvidenceDigest,
+                EvidenceReferences = documentEnvelope.EvidenceReferences.ToList()
+            };
+            var directAttachment = new PageIngredientNode
+            {
+                Id = "attachment:page-reference:direct-attachment",
+                Kind = PageIngredientKind.Attachment,
+                KindId = PageIngredientKindIdentity.FromLegacyKind(PageIngredientKind.Attachment),
+                Subtype = "attachment.page-referenced-file",
+                SemanticRole = "direct-page-dependency",
+                SourcePredicateId = "attachment.direct-page-reference",
+                SourcePageOrListItemIdentity = PublishingPageIngredientSourceBinding.SourceIdentity(snapshot, "attachment:page-reference:direct-attachment"),
+                SourceVersionIdentity = PublishingPageIngredientSourceBinding.SourceVersionIdentity(snapshot),
+                PrimaryOwnerLane = "resource.image",
+                EvidenceDigest = attachmentEnvelope.EvidenceDigest,
+                EvidenceReferences = attachmentEnvelope.EvidenceReferences.ToList()
+            };
+
+            Assert.AreEqual("shared.cross-site-repro-integration",
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, listDocument).PrimaryOwnerLane);
+            Assert.AreEqual("shared.cross-site-repro-integration",
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, listAttachment).PrimaryOwnerLane);
+            Assert.AreEqual("resource.image",
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, directDocument).PrimaryOwnerLane);
+            Assert.AreEqual("resource.image",
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, directAttachment).PrimaryOwnerLane);
+        }
+
+        [TestMethod]
+        public void OwnerResolutionIsIndependentFromRegistryInputOrder()
+        {
+            var predicates = new Dictionary<string, Func<IngredientOwnershipSourceContext, bool>>
+            {
+                ["predicate.a"] = _ => true,
+                ["predicate.b"] = _ => true
+            };
+            var first = new PageIngredientPrimaryOwnerDescriptor(
+                "a", PageIngredientKind.Runtime, "runtime.a", "role-a", "predicate.a", "lane.a");
+            var second = new PageIngredientPrimaryOwnerDescriptor(
+                "b", PageIngredientKind.Runtime, "runtime.b", "role-b", "predicate.b", "lane.b");
+            var node = new PageIngredientNode
+            {
+                Id = "runtime:a",
+                Kind = PageIngredientKind.Runtime,
+                Subtype = "runtime.a",
+                SemanticRole = "role-a",
+                SourcePredicateId = "predicate.a"
+            };
+
+            var forward = new PublishingPageIngredientPrimaryOwnerRegistry(new[] { first, second }, predicates);
+            var reverse = new PublishingPageIngredientPrimaryOwnerRegistry(new[] { second, first }, predicates);
+
+            Assert.AreEqual(forward.Resolve(null, node).Id, reverse.Resolve(null, node).Id);
         }
 
         [TestMethod]
@@ -364,6 +612,182 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void UnsupportedPageFamilyFailsClosedBeforeHandlerDispatch()
+        {
+            var handler = new TestHandler(new PageIngredientHandlerDescriptor(
+                "pnp.unsupported-family/v1",
+                new PageIngredientLaneDescriptor("dynamic.region", new[] { "unrelated-family/v99" }),
+                new[] { TestHandler.EvidenceSchema },
+                PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                10,
+                new[] { new PageIngredientIdOwnership(PageIngredientIdOwnershipKind.Prefix, "dynamic-region:") }));
+            var snapshot = CreateValidProjectionSnapshot();
+            snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientGraphProjector.Project(
+                    snapshot,
+                    new PublishingPageIngredientHandlerCatalog(new[] { handler })));
+        }
+
+        [TestMethod]
+        public void AssessmentContributorRejectsForeignIngredient()
+        {
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            handler.AddForeignAssessment = true;
+            var snapshot = CreateValidProjectionSnapshot();
+            snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var graph = PublishingPageIngredientGraphProjector.Project(snapshot, catalog);
+
+            Assert.ThrowsException<InvalidDataException>(() => catalog.ContributeAssessment(
+                snapshot,
+                graph,
+                new PublishingPageAssessmentAccumulator(graph)));
+        }
+
+        [TestMethod]
+        public void ActionContributorReceivesAnIsolatedReadOnlySourceView()
+        {
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            handler.MutateSource = true;
+            var package = CreateValidMigrationPackage();
+            package.Snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var graph = PublishingPageIngredientGraphProjector.Project(package.Snapshot, catalog);
+            var before = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot);
+
+            PublishingPageIngredientActionProjector.Project(
+                package.Snapshot,
+                package.Plan,
+                graph,
+                catalog);
+
+            Assert.AreEqual(before, PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot));
+        }
+
+        [TestMethod]
+        public void ExtensionV8KeepsIndependentListTransactionSemantics()
+        {
+            var package = CreateValidMigrationPackage();
+            var snapshot = package.Snapshot;
+            var siteId = snapshot.Source.SiteId;
+            var webId = snapshot.Source.WebId;
+            var listId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+            var list = (ListDependencySnapshot)Fixture("CreateListSnapshot", siteId, webId, listId, "Items");
+            snapshot.ListDependencies = new List<ListDependencySnapshot> { list };
+            package.Plan.ListMigration = ListMigrationPlanFactory.Create(
+                snapshot.ListDependencies,
+                null,
+                (TopologyPlan)Fixture("CreateTopology", siteId, webId),
+                null,
+                null);
+            package.Plan.ListMigration.Lists.Single().Issues.Add(new MigrationIssue
+            {
+                Code = "UnsupportedFieldType",
+                Severity = MigrationIssueSeverity.Blocker,
+                Message = "A child field gap must not disable the independent List object transaction."
+            });
+            var listIngredientId = PublishingPageIngredientIds.List(webId, listId);
+            var legacyGraph = PublishingPageIngredientGraphProjector.Project(snapshot);
+            var legacyAction = PublishingPageIngredientActionProjector.Project(snapshot, package.Plan, legacyGraph)
+                .Single(value => value.IngredientId == listIngredientId);
+
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var extensionGraph = PublishingPageIngredientGraphProjector.Project(snapshot, catalog);
+            var extensionAction = PublishingPageIngredientActionProjector.Project(
+                    snapshot,
+                    package.Plan,
+                    extensionGraph,
+                    catalog)
+                .Single(value => value.IngredientId == listIngredientId);
+
+            Assert.AreEqual(IngredientCapability.Available, legacyAction.Capability);
+            Assert.AreEqual(legacyAction.Capability, extensionAction.Capability);
+            Assert.AreEqual(legacyAction.Disposition, extensionAction.Disposition);
+        }
+
+        [TestMethod]
+        public void ProductionSelectionPreservesCombinedExtensionAndPathDerivedGraph()
+        {
+            var topology = CreateSharedTopologyReference();
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var snapshot = CreateValidProjectionSnapshot();
+            snapshot.PathDerivedTopologyEvidence = topology.Evidence;
+            snapshot.SourceTopology = null;
+            snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot, catalog);
+            var snapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot);
+            var dependencyGraph = PublishingPagePathDerivedTopologyIngredientGraphProjector.Project(
+                snapshot,
+                topology.Plan,
+                topology.Reference);
+            var dependencyPlan = new PublishingPageDependencyPlan
+            {
+                SharedTopologyReference = topology.Reference,
+                IngredientGraph = dependencyGraph
+            };
+
+            var selected = new PublishingPageMigrationPlanner(catalog)
+                .SelectPlanningIngredientGraph(snapshot, dependencyPlan);
+            var plan = new PublishingPageMigrationPlan
+            {
+                SharedTopologyReference = topology.Reference,
+                IngredientGraph = selected
+            };
+
+            Assert.AreSame(dependencyGraph, selected);
+            Assert.AreEqual(
+                PublishingPagePathDerivedTopologyIngredientGraphProjector.ProjectionVersion,
+                selected.ProjectionVersion);
+            Assert.IsTrue(selected.Nodes.Any(value => value.Id == "dynamic-region:hero"));
+            Assert.IsTrue(selected.ExternalReferences.Any());
+            Assert.IsTrue(selected.Edges.Any(value =>
+                value.ToIngredientId == topology.Reference.TargetLeafContainerIngredientId
+                && value.Requirement == PageIngredientRequirement.Required));
+            PublishingPageMigrationPackageValidator.ValidatePathDerivedPlanningIngredientGraph(snapshot, plan);
+            Assert.AreEqual(snapshotDigest, PublishingPageDigest.ComputeSnapshotDigest(snapshot));
+        }
+
+        [TestMethod]
         public void PathDerivedGraphV2PreservesLegacyAndExtensionNodeIdentityAndSnapshotDigest()
         {
             var topology = CreateSharedTopologyReference();
@@ -580,12 +1004,17 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 .Invoke(null, null);
         }
 
-        private static (SharedTopologyPlan Plan, SharedTopologyPageReference Reference) CreateSharedTopologyReference()
+        private static (SharedTopologyPlan Plan, SharedTopologyPageReference Reference, PathDerivedSourceTopologyEvidence Evidence) CreateSharedTopologyReference()
         {
             var testType = typeof(PathDerivedSharedTopologyTests);
+            var createEvidence = testType.GetMethod("CreateEvidence", BindingFlags.NonPublic | BindingFlags.Static);
+            var evidenceArguments = createEvidence.GetParameters().Select(_ => Type.Missing).Cast<object>().ToArray();
+            evidenceArguments[0] = "groups/engineering/guides";
+            var evidence = (PathDerivedSourceTopologyEvidence)createEvidence.Invoke(null, evidenceArguments);
             var buildPlan = testType.GetMethod("BuildPlan", BindingFlags.NonPublic | BindingFlags.Static);
             var arguments = buildPlan.GetParameters().Select(_ => Type.Missing).Cast<object>().ToArray();
             arguments[0] = "groups/engineering/guides";
+            arguments[arguments.Length - 1] = evidence;
             var plan = (SharedTopologyPlan)buildPlan.Invoke(null, arguments);
             var execution = testType
                 .GetMethod("Execute", BindingFlags.NonPublic | BindingFlags.Static)
@@ -607,7 +1036,40 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     dag,
                     actionPlan,
                     binding.SourceSiteId,
-                    binding.SourceWebId));
+                    binding.SourceWebId),
+                evidence);
+        }
+
+        private static object Fixture(string name, params object[] arguments)
+        {
+            return typeof(EnterpriseWikiMigrationTests)
+                .GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)
+                .Invoke(null, arguments);
+        }
+
+        private static PageIngredientNode OwnershipNode(
+            PublishingPageCaptureBundle snapshot,
+            string id,
+            PageIngredientKind kind,
+            string subtype,
+            string role,
+            string predicate,
+            string lane)
+        {
+            var node = new PageIngredientNode
+            {
+                Id = id,
+                Kind = kind,
+                KindId = PageIngredientKindIdentity.FromLegacyKind(kind),
+                Subtype = subtype,
+                SemanticRole = role,
+                SourcePredicateId = predicate,
+                SourcePageOrListItemIdentity = PublishingPageIngredientSourceBinding.SourceIdentity(snapshot, id),
+                SourceVersionIdentity = PublishingPageIngredientSourceBinding.SourceVersionIdentity(snapshot),
+                PrimaryOwnerLane = lane
+            };
+            node.EvidenceDigest = PublishingPageIngredientSourceBinding.BindBuiltInEvidence(snapshot, node);
+            return node;
         }
 
         private static PageIngredientNode OwnershipNode(string predicateId)
@@ -645,6 +1107,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             public override PageIngredientHandlerDescriptor Descriptor => descriptor;
 
+            public bool AddForeignAssessment { get; set; }
+
+            public bool MutateSource { get; set; }
+
             protected override void ValidateEvidence(TestEvidence evidence)
             {
                 if (string.IsNullOrWhiteSpace(evidence.NodeId) || string.IsNullOrWhiteSpace(evidence.Value))
@@ -666,15 +1132,15 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     Subtype = "runtime.dynamic-region",
                     SemanticRole = "provider-derived-runtime-region",
                     SourcePredicateId = "runtime.dynamic-region.typed-provider-binding",
-                    SourcePageOrListItemIdentity = "source/page/" + evidence.NodeId,
-                    SourceVersionIdentity = "version=1",
+                    SourcePageOrListItemIdentity = context.SourceIdentity(evidence.NodeId),
+                    SourceVersionIdentity = context.SourceVersionIdentity,
                     PrimaryOwnerLane = "dynamic.region",
                     Label = evidence.Value,
                     HasContent = true,
                     Ownership = PageIngredientOwnership.SourceOwned,
                     SourceAuthority = "Typed test evidence",
-                    EvidenceDigest = envelope.EvidenceDigest,
-                    EvidenceReferences = envelope.EvidenceReferences.ToList()
+                    EvidenceDigest = context.EvidenceDigest,
+                    EvidenceReferences = context.EvidenceReferences.ToList()
                 });
                 if (!string.IsNullOrWhiteSpace(dependencyId))
                 {
@@ -693,6 +1159,10 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 PublishingPageIngredientEvidenceEnvelope envelope,
                 TestEvidence evidence)
             {
+                if (MutateSource)
+                {
+                    context.Snapshot.PublishingPageContent = "mutated outside the owning lane";
+                }
                 context.AddAction(new PageIngredientAction
                 {
                     ActionId = "action:" + evidence.NodeId,
@@ -712,7 +1182,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 TestEvidence evidence)
             {
                 context.AddAssessment(
-                    evidence.NodeId,
+                    AddForeignAssessment ? PublishingPageIngredientIds.PublishingContent : evidence.NodeId,
                     PageIngredientAssessmentState.Determined,
                     IngredientCapability.Available,
                     IngredientDisposition.Preserve,
