@@ -4065,6 +4065,59 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void RuntimeEvidenceBytesContextCacheManifestAndRefFailClosed()
+        {
+            var missingBytes = CreateCompareRequest();
+            missingBytes.RuntimeReceipt.Results[0].EvidenceArtifactSha256 = Hash("missing-runtime-bytes");
+            missingBytes.RuntimeReceipt.Results[0].EvidenceArtifactLength = 21;
+            ResealRuntimeReceipt(missingBytes);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(missingBytes, new PermissiveArtifactStore()));
+
+            var staleBytes = CreateCompareRequest();
+            staleBytes.RuntimeReceipt.Results[0].Http.CapturedAtUtc =
+                staleBytes.RuntimeReceipt.BrowserContext.CreatedAtUtc.AddSeconds(-1);
+            ResealRuntimeReceipt(staleBytes);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(staleBytes, new PermissiveArtifactStore()));
+
+            var foreignBytes = CreateCompareRequest();
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(foreignBytes, new ForeignArtifactStore()));
+
+            var wrongContext = CreateCompareRequest();
+            wrongContext.RuntimeReceipt.Results[0].BrowserContextId = "context:foreign";
+            ResealRuntimeReceipt(wrongContext);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(wrongContext, new PermissiveArtifactStore()));
+
+            var wrongRef = CreateCompareRequest();
+            wrongRef.RuntimeReceipt.ImplementationRef = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            wrongRef.RuntimeReceipt.Results[0].ImplementationRef = wrongRef.RuntimeReceipt.ImplementationRef;
+            ResealRuntimeReceipt(wrongRef);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(wrongRef, new PermissiveArtifactStore()));
+
+            var missingCache = CreateCompareRequest();
+            missingCache.RuntimeReceipt.Results[0].Cache = null;
+            ResealRuntimeReceipt(missingCache);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(missingCache, new PermissiveArtifactStore()));
+
+            var foreignManifest = CreateCompareRequest();
+            foreignManifest.RuntimeReceipt.RequirementsManifestDigestSha256 = Hash("foreign-manifest");
+            ResealRuntimeReceipt(foreignManifest);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(foreignManifest, new PermissiveArtifactStore()));
+
+            var partial = CreateCompareRequest();
+            partial.RuntimeReceipt.Results.Clear();
+            ResealRuntimeReceipt(partial);
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageCompareReconciler.Reconcile(partial, new PermissiveArtifactStore()));
+        }
+
+        [TestMethod]
         public void AdmittedPlanSourceOperationsAndNativeReceiptsFailClosed()
         {
             var wrongPlan = CreateCompareRequest();
@@ -4488,13 +4541,30 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     importDigest,
                     targetIdentity,
                     manifest,
+                    "e1b500da5437e2f78c7eff8ef7a5374310c4d978",
+                    CreateRuntimeBrowserContext(
+                        "context:" + capture.CaseId,
+                        "target:" + capture.CaseId,
+                        new DateTimeOffset(2026, 9, 9, 5, 30 + index, 0, TimeSpan.Zero)),
                     new[]
                     {
                         new RuntimeVerificationResult
                         {
                             RequirementId = "runtime:" + capture.CaseId,
                             Passed = true,
-                            EvidenceArtifactSha256 = Hash("runtime-evidence:" + capture.CaseId)
+                            EvidenceArtifactSha256 = Hash("runtime-evidence:" + capture.CaseId),
+                            EvidenceArtifactLength = Encoding.UTF8.GetByteCount("runtime-evidence:" + capture.CaseId),
+                            EvidenceArtifactLocator = "runtime/" + capture.CaseId + ".html",
+                            ImplementationRef = "e1b500da5437e2f78c7eff8ef7a5374310c4d978",
+                            BrowserContextId = "context:" + capture.CaseId,
+                            Http = CreateRuntimeHttpEvidence(
+                                targetIdentity,
+                                "headers:" + capture.CaseId,
+                                new DateTimeOffset(2026, 9, 9, 5, 30 + index, 0, TimeSpan.Zero)),
+                            Cache = CreateRuntimeCacheEvidence(),
+                            DomProbeArtifactSha256 = Hash("runtime-dom:" + capture.CaseId),
+                            DomProbeArtifactLength = Encoding.UTF8.GetByteCount("runtime-dom:" + capture.CaseId),
+                            DomProbeArtifactLocator = "runtime/" + capture.CaseId + ".dom.json"
                         }
                     },
                     new DateTimeOffset(2026, 9, 9, 5, 30 + index, 0, TimeSpan.Zero));
@@ -4577,12 +4647,29 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     importDigest,
                     canonicalTarget,
                     package.Plan.RuntimeVerification,
+                    "2dea1bbcc44bfcfe0fe5c3dd32e32bd28b79cc0c",
+                    CreateRuntimeBrowserContext(
+                        "context:compare",
+                        "target:compare",
+                        new DateTimeOffset(2026, 9, 8, 12, 0, 0, TimeSpan.Zero)),
                     package.Plan.RuntimeVerification.Requirements.Select(requirement =>
                         new RuntimeVerificationResult
                         {
                             RequirementId = requirement.Id,
                             Passed = runtimePassed,
                             EvidenceArtifactSha256 = Hash("runtime-evidence:" + requirement.Id),
+                            EvidenceArtifactLength = Encoding.UTF8.GetByteCount("runtime-evidence:" + requirement.Id),
+                            EvidenceArtifactLocator = "runtime/" + requirement.Id + ".html",
+                            ImplementationRef = "2dea1bbcc44bfcfe0fe5c3dd32e32bd28b79cc0c",
+                            BrowserContextId = "context:compare",
+                            Http = CreateRuntimeHttpEvidence(
+                                canonicalTarget,
+                                "headers:" + requirement.Id,
+                                new DateTimeOffset(2026, 9, 8, 12, 0, 0, TimeSpan.Zero)),
+                            Cache = CreateRuntimeCacheEvidence(),
+                            DomProbeArtifactSha256 = Hash("runtime-dom:" + requirement.Id),
+                            DomProbeArtifactLength = Encoding.UTF8.GetByteCount("runtime-dom:" + requirement.Id),
+                            DomProbeArtifactLocator = "runtime/" + requirement.Id + ".dom.json",
                             Message = "synthetic fixed evidence"
                         }),
                     new DateTimeOffset(2026, 9, 8, 12, 0, 0, TimeSpan.Zero));
@@ -4748,13 +4835,99 @@ namespace PnP.Framework.Test.EnterpriseWiki
             return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(value));
         }
 
+        private static void ResealRuntimeReceipt(PublishingPageCompareRequest request)
+        {
+            request.RuntimeReceiptDigestSha256 = ContractDigest(request.RuntimeReceipt);
+            request.Bindings.RuntimeReceiptDigestSha256 = request.RuntimeReceiptDigestSha256;
+        }
+
+        private static RuntimeBrowserContextIdentity CreateRuntimeBrowserContext(
+            string browserContextId,
+            string targetId,
+            DateTimeOffset completedAtUtc)
+        {
+            return new RuntimeBrowserContextIdentity
+            {
+                BrowserProduct = "Edg",
+                BrowserVersion = "151.0.4129.93",
+                ProtocolVersion = "1.3",
+                ProfileIdentitySha256 = Hash("test-browser-profile"),
+                BrowserContextId = browserContextId,
+                TargetId = targetId,
+                IsIncognito = true,
+                FreshContext = true,
+                CreatedAtUtc = completedAtUtc.AddMinutes(-1),
+                FirstNavigationAtUtc = completedAtUtc.AddSeconds(-30)
+            };
+        }
+
+        private static RuntimeHttpEvidence CreateRuntimeHttpEvidence(
+            string targetIdentity,
+            string headersIdentity,
+            DateTimeOffset capturedAtUtc)
+        {
+            return new RuntimeHttpEvidence
+            {
+                RequestedUrl = targetIdentity,
+                FinalUrl = targetIdentity,
+                Method = "GET",
+                StatusCode = 200,
+                ContentType = "text/html; charset=utf-8",
+                RequestId = "test-request",
+                SharePointRequestGuid = "10000000-0000-4000-8000-000000000001",
+                ResponseHeadersDigestSha256 = Hash(headersIdentity),
+                EncodedDataLength = 128,
+                CapturedAtUtc = capturedAtUtc.AddSeconds(-10)
+            };
+        }
+
+        private static RuntimeCacheEvidence CreateRuntimeCacheEvidence()
+        {
+            return new RuntimeCacheEvidence
+            {
+                RequestMode = "no-store",
+                CacheDisabled = true,
+                RequestCacheControl = "no-cache, no-store",
+                RequestPragma = "no-cache",
+                ResponseCacheControl = "private, max-age=0",
+                ResponseAge = "0",
+                ResponseExpires = "-1",
+                FromDiskCache = false,
+                FromServiceWorker = false
+            };
+        }
+
         private sealed class PermissiveArtifactStore : IMigrationArtifactStore
+        {
+            private static readonly Dictionary<string, byte[]> Artifacts = new[]
+            {
+                "runtime-evidence:authored-dom-equality",
+                "runtime-dom:authored-dom-equality"
+            }.ToDictionary(
+                value => Hash(value),
+                value => Encoding.UTF8.GetBytes(value),
+                StringComparer.OrdinalIgnoreCase);
+
+            public bool Contains(string sha256) => Artifacts.ContainsKey(sha256);
+
+            public Stream OpenRead(string sha256)
+            {
+                return new MemoryStream(Artifacts[sha256], writable: false);
+            }
+
+            public ArtifactReference Put(Stream content, string mediaType = null, string originalName = null)
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        private sealed class ForeignArtifactStore : IMigrationArtifactStore
         {
             public bool Contains(string sha256) => true;
 
             public Stream OpenRead(string sha256)
             {
-                throw new NotSupportedException();
+                return new MemoryStream(Encoding.UTF8.GetBytes("foreign-runtime-bytes"), writable: false);
             }
 
             public ArtifactReference Put(Stream content, string mediaType = null, string originalName = null)
