@@ -1,0 +1,162 @@
+{
+  "schema": "ccd.page-centric-canonical-bundle/v1",
+  "issue": "CCD-35",
+  "caseId": "ccd35-08",
+  "family": "Wiki Page",
+  "source": {
+    "manifestRevision": "classic-page.csv@sha256:5201c867d4bc0de15e54afaf565b745e8d5928cf6f06acf2a8114355d3c9b033",
+    "urlHash": "b87657506f7c2e4ba3007e174987d07c01feab6d087c758f4c37d80ae46137ce",
+    "captureReportSha256": "c701f00950d3bb162a8dead17bcc297c8e0dd0964c9fafce1e58bf3b3b9edc59",
+    "captureBindingRevision": "ccd35-5201c867d4bc-20260908T172028Z",
+    "policyContentHash": "7d97e4f7275a551ecec419bf747bb86e550b2bd76533a4b07d313ecbc019db3f",
+    "captureOutcome": "captured",
+    "pageItemBinding": {
+      "itemId": 9,
+      "listId": "f969974c-0ca8-447b-b7db-564f10bc48e3",
+      "webPath": "/teams/office_rdx/rm",
+      "listPathHash": "8ddf16b3159c6d18a79cb202b953ed867022d9e56ac06a14a5a0c622aa691efd",
+      "source": "rendered-page-context"
+    }
+  },
+  "artifacts": [
+    {
+      "kind": "file-content",
+      "file": "ccd35-08-file-content.aspx",
+      "sha256": "a93a6b13277000a45c3a233fc03b49b31ebc72d4d24788c2c7689e0101d918de",
+      "bytes": 3356,
+      "status": 200
+    },
+    {
+      "kind": "list-item-fields",
+      "file": "ccd35-08-list-item-fields.json",
+      "sha256": "e1755ce4551bca08680165d1cb19afc50e1fdfd572e81f2c3101f3823e7daa7a",
+      "bytes": 10381,
+      "status": 200
+    }
+  ],
+  "canonicalFields": {
+    "contentTypeId": "0x010108001D87D4679BC0894E8886B21A8CC69621",
+    "title": null,
+    "createdUtc": "2015-03-31T14:24:38Z",
+    "modifiedUtc": "2015-07-23T20:42:09Z",
+    "contentField": "WikiField",
+    "contentSha256": "83f1822f413dbe6cbbd103dbb4dd909561bf3d7da27306ed964efb1f2e89eb93",
+    "contentBytes": 6882,
+    "publishingLayoutUrl": null,
+    "zoneIds": [
+      "Bottom"
+    ]
+  },
+  "ingredientGraph": {
+    "schemaVersion": "pnp-page-ingredient-graph/v1",
+    "projectionVersion": "ccd35-rest-page-projection/1.0.0",
+    "nodes": [
+      {
+        "id": "node:content-type",
+        "kind": "ContentType",
+        "label": "Source content type",
+        "hasContent": true,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "list-item-fields.ContentTypeId",
+        "evidenceDigest": "ef3dc5430fb67ac6e736c7e4256ede6a372b7b7f1a515267e25737aa80872e74",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-08-list-item-fields.json"
+        ]
+      },
+      {
+        "id": "node:page-artifact",
+        "kind": "PageArtifact",
+        "label": "ASPX page artifact",
+        "hasContent": true,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "sp.rest.file.content.by_path.get.v1",
+        "evidenceDigest": "a93a6b13277000a45c3a233fc03b49b31ebc72d4d24788c2c7689e0101d918de",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-08-file-content.aspx"
+        ]
+      },
+      {
+        "id": "node:page-identity",
+        "kind": "ListItem",
+        "label": "Exact source page list item",
+        "hasContent": false,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "sp.rest.page.list_item_fields.exact.v1",
+        "evidenceDigest": "e1755ce4551bca08680165d1cb19afc50e1fdfd572e81f2c3101f3823e7daa7a",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-08-list-item-fields.json"
+        ]
+      },
+      {
+        "id": "node:runtime",
+        "kind": "Runtime",
+        "label": "Target classic page runtime",
+        "hasContent": false,
+        "ownership": "TargetRuntime",
+        "sourceAuthority": null,
+        "evidenceDigest": null,
+        "runtimeRequirement": "classic-wiki-page-render",
+        "evidenceReferences": []
+      },
+      {
+        "id": "node:wiki-content",
+        "kind": "Content",
+        "label": "WikiField",
+        "hasContent": true,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "list-item-fields.WikiField",
+        "evidenceDigest": "83f1822f413dbe6cbbd103dbb4dd909561bf3d7da27306ed964efb1f2e89eb93",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-08-list-item-fields.json"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "fromIngredientId": "node:page-artifact",
+        "toIngredientId": "node:runtime",
+        "relationship": "RendersThrough",
+        "requirement": "Required",
+        "condition": null
+      },
+      {
+        "fromIngredientId": "node:page-identity",
+        "toIngredientId": "node:content-type",
+        "relationship": "TypedBy",
+        "requirement": "Required",
+        "condition": null
+      },
+      {
+        "fromIngredientId": "node:page-identity",
+        "toIngredientId": "node:page-artifact",
+        "relationship": "Backs",
+        "requirement": "Required",
+        "condition": null
+      },
+      {
+        "fromIngredientId": "node:page-identity",
+        "toIngredientId": "node:wiki-content",
+        "relationship": "Backs",
+        "requirement": "Required",
+        "condition": null
+      }
+    ],
+    "externalReferences": null
+  },
+  "completeness": {
+    "pageArtifact": "pass",
+    "exactListItemFields": "pass",
+    "content": "pass",
+    "webPartInventory": "not-required-for-selected-shape"
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "canonicalization": "recursive-key-sort-json/1",
+    "byteLength": 3976,
+    "digest": "959a3f1fee6e17ef70472b056fdefb2d73b500b6e0be397352804a389de92dc5"
+  }
+}

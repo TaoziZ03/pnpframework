@@ -1,0 +1,23 @@
+{
+  "schema": "ccd-aspx-capture-handoff/1.0.0",
+  "manifest_revision_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "allowlist_revision_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "sample_id": "A1-001",
+  "stage_membership": ["A0", "A1"],
+  "canonical_locator_ref": "restricted://inventory/A1-001",
+  "canonical_locator_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "resource_identity_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "approved_host_hash": "hmac-sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "stratum_id": "S1-known-classic",
+  "expected_profile": "publishing_page",
+  "permission_signal": "known_readable",
+  "redirect_signal": "none_observed",
+  "unknown_signals": [],
+  "request_policy": {
+    "methods": ["HEAD", "GET"],
+    "auto_discovery": false,
+    "follow_redirects": "same-approved-host-only",
+    "max_redirects": 3,
+    "mutation_allowed": false
+  }
+}

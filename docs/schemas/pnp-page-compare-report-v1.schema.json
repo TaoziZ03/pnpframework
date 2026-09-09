@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pnp.github.io/schemas/pnp-page-compare-report-v1.schema.json",
+  "title": "PnP Page Compare Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAtUtc",
+    "producer",
+    "assessmentHandoff",
+    "bindings",
+    "sourceVersionComparison",
+    "targetIdentity",
+    "storage",
+    "runtime",
+    "ingredients",
+    "acceptance",
+    "reportDigestSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "pnp-page-compare-report/v1" },
+    "generatedAtUtc": { "type": "string", "format": "date-time" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "assessmentHandoff": { "$ref": "#/$defs/assessmentHandoff" },
+    "bindings": { "$ref": "#/$defs/bindings" },
+    "sourceVersionComparison": { "$ref": "#/$defs/sourceVersion" },
+    "targetIdentity": { "$ref": "#/$defs/targetIdentity" },
+    "storage": { "$ref": "#/$defs/storage" },
+    "runtime": { "$ref": "#/$defs/runtime" },
+    "ingredients": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ingredient" }
+    },
+    "acceptance": { "$ref": "#/$defs/acceptance" },
+    "reportDigestSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nullableSha256": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "implementationRef"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "implementationRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "assessmentHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "producerRevisionId",
+        "conformanceRevisionId",
+        "handoffDigestSha256",
+        "manifestRevisionId",
+        "allowlistRevisionId",
+        "selectionId",
+        "canonicalLocatorHash",
+        "resourceIdentityHash",
+        "approvedHostHash",
+        "permissionSignal",
+        "discoveryObservationStatus",
+        "producerAttestationStatus",
+        "coverageStatus"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "ccd-aspx-capture-handoff/1.0.0" },
+        "producerRevisionId": { "const": "fa6aa144-2abe-41dc-b25d-740e2230070e" },
+        "conformanceRevisionId": { "const": "f8366f5a-8012-4b4c-93d0-25150849dc8e" },
+        "handoffDigestSha256": { "$ref": "#/$defs/sha256" },
+        "manifestRevisionId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "allowlistRevisionId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "selectionId": { "type": "string", "minLength": 1 },
+        "canonicalLocatorHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "resourceIdentityHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "approvedHostHash": { "type": "string", "pattern": "^hmac-sha256:[0-9a-f]{64}$" },
+        "permissionSignal": {
+          "enum": ["known_readable", "known_forbidden", "auth_required", "inherited_unknown", "unknown"]
+        },
+        "discoveryObservationStatus": { "const": "unavailable_by_producer_contract" },
+        "producerAttestationStatus": { "const": "unavailable_by_producer_contract" },
+        "coverageStatus": { "const": "unavailable_by_producer_contract" }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifestDigestSha256",
+        "sourceCaptureReceiptDigestSha256",
+        "exportSchemaVersion",
+        "snapshotDigestSha256",
+        "ingredientGraphSchemaVersion",
+        "ingredientProjectionVersion",
+        "migrationPackageSchemaVersion",
+        "planDigestSha256",
+        "admittedPlanDigestSha256",
+        "sourceVersionDigestSha256",
+        "operations",
+        "importReceiptSchemaVersion",
+        "importReceiptDigestSha256",
+        "runtimeReceiptSchemaVersion",
+        "runtimeReceiptDigestSha256"
+      ],
+      "properties": {
+        "manifestDigestSha256": { "$ref": "#/$defs/sha256" },
+        "sourceCaptureReceiptDigestSha256": { "$ref": "#/$defs/sha256" },
+        "exportSchemaVersion": { "const": "pnp-publishing-page-export/v3" },
+        "snapshotDigestSha256": { "$ref": "#/$defs/sha256" },
+        "ingredientGraphSchemaVersion": { "enum": ["pnp-page-ingredient-graph/v1", "pnp-page-ingredient-graph/v2"] },
+        "ingredientProjectionVersion": { "type": "string", "minLength": 1 },
+        "migrationPackageSchemaVersion": { "const": "pnp-publishing-page-migration-package/v3" },
+        "planDigestSha256": { "$ref": "#/$defs/sha256" },
+        "admittedPlanDigestSha256": { "$ref": "#/$defs/sha256" },
+        "sourceVersionDigestSha256": { "$ref": "#/$defs/sha256" },
+        "operations": { "$ref": "#/$defs/operations" },
+        "importReceiptSchemaVersion": { "const": "pnp-publishing-page-import-receipt/v5" },
+        "importReceiptDigestSha256": { "$ref": "#/$defs/sha256" },
+        "runtimeReceiptSchemaVersion": { "type": ["string", "null"] },
+        "runtimeReceiptDigestSha256": { "$ref": "#/$defs/nullableSha256" }
+      }
+    },
+    "sourceVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identityDigestSha256",
+        "expectedCompositeDigestSha256",
+        "observedCompositeDigestSha256",
+        "observedETag",
+        "observedLastModifiedUtc",
+        "observedVersionLabel",
+        "observedAtUtc",
+        "status"
+      ],
+      "properties": {
+        "identityDigestSha256": { "$ref": "#/$defs/sha256" },
+        "expectedCompositeDigestSha256": { "$ref": "#/$defs/sha256" },
+        "observedCompositeDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "observedETag": { "type": ["string", "null"] },
+        "observedLastModifiedUtc": { "type": ["string", "null"], "format": "date-time" },
+        "observedVersionLabel": { "type": ["string", "null"] },
+        "observedAtUtc": { "type": "string", "format": "date-time" },
+        "status": { "enum": ["matched", "changed", "not-checked", "unknown"] }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutationOperationId",
+        "readbackOperationId",
+        "runtimeOperationId",
+        "cleanupOperationId"
+      ],
+      "properties": {
+        "mutationOperationId": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
+        "readbackOperationId": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
+        "runtimeOperationId": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
+        "cleanupOperationId": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } }
+      }
+    },
+    "targetIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["webUrlHashSha256", "pageServerRelativeUrlHashSha256", "fileUniqueId", "listItemId", "versionLabel"],
+      "properties": {
+        "webUrlHashSha256": { "$ref": "#/$defs/sha256" },
+        "pageServerRelativeUrlHashSha256": { "$ref": "#/$defs/sha256" },
+        "fileUniqueId": { "type": ["string", "null"], "format": "uuid" },
+        "listItemId": { "type": "integer", "minimum": 0 },
+        "versionLabel": { "type": ["string", "null"] }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "freshReadback"],
+      "properties": {
+        "status": { "enum": ["not-run", "passed", "failed"] },
+        "freshReadback": { "type": "boolean" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": { "status": { "enum": ["not-run", "not-required", "pending", "passed", "failed"] } }
+    },
+    "digestPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rawDigestSha256", "canonicalDigestSha256"],
+      "properties": {
+        "rawDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "canonicalDigestSha256": { "$ref": "#/$defs/nullableSha256" }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestedUrlHashSha256", "sourceArtifactDigestSha256", "sourceIngredientId", "actionId", "targetIdentity", "evidenceRefs", "causeIngredientIds"],
+      "properties": {
+        "requestedUrlHashSha256": { "$ref": "#/$defs/sha256" },
+        "sourceArtifactDigestSha256": { "$ref": "#/$defs/sha256" },
+        "sourceIngredientId": { "type": "string", "minLength": 1 },
+        "actionId": { "type": ["string", "null"] },
+        "targetIdentity": { "type": ["string", "null"] },
+        "evidenceRefs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "causeIngredientIds": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "ingredient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ingredientId", "kind", "material", "lineage", "expected", "actual", "resultClass", "reasonCode", "message"],
+      "properties": {
+        "ingredientId": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "material": { "type": "boolean" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "expected": { "$ref": "#/$defs/digestPair" },
+        "actual": { "$ref": "#/$defs/digestPair" },
+        "resultClass": {
+          "enum": [
+            "exact", "canonical-equivalent", "transformed-as-planned", "source-version-changed",
+            "missing", "unexpected-extra", "mismatch", "deferred", "authorization-blocked",
+            "runtime-pending", "auth-expired", "unknown", "not-applicable"
+          ]
+        },
+        "reasonCode": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$" },
+        "message": { "type": ["string", "null"] }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verdict", "reasonCodes", "storageStatus", "runtimeStatus"],
+      "properties": {
+        "verdict": { "enum": ["pass", "conditional", "fail", "unverified"] },
+        "reasonCodes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "storageStatus": { "enum": ["not-run", "passed", "failed"] },
+        "runtimeStatus": { "enum": ["not-run", "not-required", "pending", "passed", "failed"] }
+      }
+    }
+  }
+}

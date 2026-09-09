@@ -26,6 +26,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
         public Guid OperationId { get; set; }
 
+        public string AdmittedPlanDigestSha256 { get; set; }
+
+        public CurrentSourceVersionIdentity SourceVersion { get; set; }
+
+        public ReproOperationIds Operations { get; set; }
+
         public MigrationExecutionStatus ExecutionStatus { get; set; }
 
         public bool PartialExecution { get; set; }

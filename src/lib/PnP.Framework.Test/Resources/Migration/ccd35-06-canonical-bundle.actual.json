@@ -1,0 +1,180 @@
+{
+  "schema": "ccd.page-centric-canonical-bundle/v1",
+  "issue": "CCD-35",
+  "caseId": "ccd35-06",
+  "family": "Publishing Page",
+  "source": {
+    "manifestRevision": "classic-page.csv@sha256:5201c867d4bc0de15e54afaf565b745e8d5928cf6f06acf2a8114355d3c9b033",
+    "urlHash": "cae0ebe1e31d82c980dc34f907368b8d1439275cb774bfdfc99273d62eb01d75",
+    "captureReportSha256": "c701f00950d3bb162a8dead17bcc297c8e0dd0964c9fafce1e58bf3b3b9edc59",
+    "captureBindingRevision": "ccd35-5201c867d4bc-20260908T172028Z",
+    "policyContentHash": "7d97e4f7275a551ecec419bf747bb86e550b2bd76533a4b07d313ecbc019db3f",
+    "captureOutcome": "captured",
+    "pageItemBinding": {
+      "itemId": 3,
+      "listId": "17e56aeb-5a76-4165-b6a3-cf4fffdf3215",
+      "webPath": "/teams/campusipkits/industryipkitcybersecurity",
+      "listPathHash": "e8b3002134c75af8c8bb50c723863261268bc0a92b12a72b8549d4f16a08722f",
+      "source": "rendered-page-context"
+    }
+  },
+  "artifacts": [
+    {
+      "kind": "file-content",
+      "file": "ccd35-06-file-content.aspx",
+      "sha256": "d0a48786489fb7cfc244b423ec32f4767e0e8aea8d200e97ea0f44174caffb6a",
+      "bytes": 3055,
+      "status": 200
+    },
+    {
+      "kind": "list-item-fields",
+      "file": "ccd35-06-list-item-fields.json",
+      "sha256": "6f68bd58b776bfbb7d709fe12e1deab0da20b5167849531f7ce387271aad3ab1",
+      "bytes": 6972,
+      "status": 200
+    }
+  ],
+  "canonicalFields": {
+    "contentTypeId": "0x010100C568DB52D9D0A14D9B2FDCC96666E9F2007948130EC3DB064584E219954237AF390064DEA0F50FC8C147B0B6EA0636C4A7D400FD8AA8A1F916034FB89F10BF925796DC",
+    "title": "Settings",
+    "createdUtc": "2015-04-28T21:32:08Z",
+    "modifiedUtc": "2015-04-28T21:32:42Z",
+    "contentField": "PublishingPageContent",
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "contentBytes": 0,
+    "publishingLayoutUrl": "https://microsoft.sharepoint.com/teams/campusipkits/_catalogs/masterpage/BlankWebPartPage.aspx",
+    "zoneIds": []
+  },
+  "ingredientGraph": {
+    "schemaVersion": "pnp-page-ingredient-graph/v1",
+    "projectionVersion": "ccd35-rest-page-projection/1.0.0",
+    "nodes": [
+      {
+        "id": "node:content-type",
+        "kind": "ContentType",
+        "label": "Source content type",
+        "hasContent": true,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "list-item-fields.ContentTypeId",
+        "evidenceDigest": "8f59a0b14e3aae4c8951ab45551a1b313ac7591ecb9e1d9bdbc3cc8838349d6a",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-06-list-item-fields.json"
+        ]
+      },
+      {
+        "id": "node:page-artifact",
+        "kind": "PageArtifact",
+        "label": "ASPX page artifact",
+        "hasContent": true,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "sp.rest.file.content.by_path.get.v1",
+        "evidenceDigest": "d0a48786489fb7cfc244b423ec32f4767e0e8aea8d200e97ea0f44174caffb6a",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-06-file-content.aspx"
+        ]
+      },
+      {
+        "id": "node:page-identity",
+        "kind": "ListItem",
+        "label": "Exact source page list item",
+        "hasContent": false,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "sp.rest.page.list_item_fields.exact.v1",
+        "evidenceDigest": "6f68bd58b776bfbb7d709fe12e1deab0da20b5167849531f7ce387271aad3ab1",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-06-list-item-fields.json"
+        ]
+      },
+      {
+        "id": "node:page-layout",
+        "kind": "Layout",
+        "label": "Publishing page layout",
+        "hasContent": true,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "list-item-fields.PublishingPageLayout",
+        "evidenceDigest": "11235ef9088f54ef3d90de62f10bdd4afc915a15f7eecf92d14cd682cd97a79a",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-06-list-item-fields.json"
+        ]
+      },
+      {
+        "id": "node:publishing-content",
+        "kind": "Content",
+        "label": "PublishingPageContent",
+        "hasContent": false,
+        "ownership": "SourceOwned",
+        "sourceAuthority": "list-item-fields.PublishingPageContent",
+        "evidenceDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "runtimeRequirement": null,
+        "evidenceReferences": [
+          "ccd35-06-list-item-fields.json"
+        ]
+      },
+      {
+        "id": "node:runtime",
+        "kind": "Runtime",
+        "label": "Target classic page runtime",
+        "hasContent": false,
+        "ownership": "TargetRuntime",
+        "sourceAuthority": null,
+        "evidenceDigest": null,
+        "runtimeRequirement": "classic-publishing-page-render",
+        "evidenceReferences": []
+      }
+    ],
+    "edges": [
+      {
+        "fromIngredientId": "node:page-artifact",
+        "toIngredientId": "node:page-layout",
+        "relationship": "DependsOn",
+        "requirement": "Required",
+        "condition": null
+      },
+      {
+        "fromIngredientId": "node:page-artifact",
+        "toIngredientId": "node:runtime",
+        "relationship": "RendersThrough",
+        "requirement": "Required",
+        "condition": null
+      },
+      {
+        "fromIngredientId": "node:page-identity",
+        "toIngredientId": "node:content-type",
+        "relationship": "TypedBy",
+        "requirement": "Required",
+        "condition": null
+      },
+      {
+        "fromIngredientId": "node:page-identity",
+        "toIngredientId": "node:page-artifact",
+        "relationship": "Backs",
+        "requirement": "Required",
+        "condition": null
+      },
+      {
+        "fromIngredientId": "node:page-identity",
+        "toIngredientId": "node:publishing-content",
+        "relationship": "Backs",
+        "requirement": "Required",
+        "condition": null
+      }
+    ],
+    "externalReferences": null
+  },
+  "completeness": {
+    "pageArtifact": "pass",
+    "exactListItemFields": "pass",
+    "content": "pass",
+    "webPartInventory": "not-required-for-selected-shape"
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "canonicalization": "recursive-key-sort-json/1",
+    "byteLength": 4739,
+    "digest": "0df93b549e8cd53d5cd510aef26a3fd0ef88b303bc7af7867bca6a0e92bc9711"
+  }
+}

@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Verification;
 using System;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Execution
@@ -18,7 +19,39 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             IMigrationExecutionJournal journal = null,
             IMigrationArtifactStore artifactStore = null)
         {
-            return ImportCore(targetContext, package, approvedPlanDigest, policy, journal, artifactStore, null);
+            return ImportCore(targetContext, package, approvedPlanDigest, policy, journal, artifactStore, null, null);
+        }
+
+        public PublishingPageImportReceipt ImportAdmitted(
+            ClientContext targetContext,
+            PublishingPageMigrationPackage package,
+            string approvedPlanDigest,
+            AdmittedReproExecutionPlan admittedPlan,
+            PublishingPageWorkflowPolicy policy = null,
+            IMigrationExecutionJournal journal = null,
+            IMigrationArtifactStore artifactStore = null)
+        {
+            if (package == null)
+            {
+                throw new ArgumentNullException(nameof(package));
+            }
+            var targetIdentity = PublishingPageImportReceiptBinder.CanonicalTargetIdentity(
+                package.Plan?.TargetWebUrl,
+                package.Plan?.TargetPageServerRelativeUrl);
+            var admittedPlanDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+                admittedPlan,
+                package.PlanDigest,
+                targetIdentity);
+            return ImportCore(
+                targetContext,
+                package,
+                approvedPlanDigest,
+                policy,
+                journal,
+                artifactStore,
+                null,
+                admittedPlan,
+                admittedPlanDigest);
         }
 
         public PublishingPageImportReceipt ImportWithSharedTopology(
@@ -37,7 +70,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 policy,
                 journal,
                 artifactStore,
-                sharedTopologyProof);
+                sharedTopologyProof,
+                null);
         }
 
         internal PublishingPageImportReceipt ImportWithExecutionSeam(
@@ -56,6 +90,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 null,
                 artifactStore,
                 null,
+                null,
+                null,
                 executionSeam ?? throw new ArgumentNullException(nameof(executionSeam)));
         }
 
@@ -67,6 +103,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             IMigrationExecutionJournal journal,
             IMigrationArtifactStore artifactStore,
             SharedTopologyExecutionProof sharedTopologyProof,
+            AdmittedReproExecutionPlan admittedPlan,
+            string admittedPlanDigestSha256 = null,
             PublishingPageImportExecutionSeam executionSeam = null)
         {
             if (targetContext == null)
@@ -80,7 +118,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
             }
 
             var executionScope = Prepare(package, policy, artifactStore);
-            var operationId = Guid.NewGuid();
+            var operationId = admittedPlan?.Operations?.MutationOperationId ?? Guid.NewGuid();
             var startedAt = DateTimeOffset.UtcNow;
             var recorder = new MigrationExecutionRecorder(operationId, package.PlanDigest, journal);
             var admissionFailure = PublishingPageImportAdmission.TryAdmit(
@@ -95,13 +133,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 executionSeam);
             if (admissionFailure != null)
             {
-                return admissionFailure;
+                return PublishingPageImportReceiptBinder.Bind(
+                    admissionFailure,
+                    package,
+                    admittedPlan,
+                    admittedPlanDigestSha256);
             }
 
             recorder.RecordState(MigrationExecutionStatus.Running, "Target admission passed. Mutation execution is starting.");
             try
             {
-                return PublishingPageMutationExecutor.Execute(
+                var receipt = PublishingPageMutationExecutor.Execute(
                     targetContext,
                     package,
                     executionScope,
@@ -113,16 +155,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                     package.Plan.TargetProbe?.PageContentTypeId,
                     sharedTopologyProof,
                     executionSeam);
+                return PublishingPageImportReceiptBinder.Bind(
+                    receipt,
+                    package,
+                    admittedPlan,
+                    admittedPlanDigestSha256);
             }
             catch (Exception exception)
             {
                 recorder.RecordState(MigrationExecutionStatus.FailedUnexpectedly, exception.Message);
-                return PublishingPageImportReceiptFactory.UnexpectedFailure(
+                var receipt = PublishingPageImportReceiptFactory.UnexpectedFailure(
                     package,
                     operationId,
                     startedAt,
                     exception,
                     recorder);
+                return PublishingPageImportReceiptBinder.Bind(
+                    receipt,
+                    package,
+                    admittedPlan,
+                    admittedPlanDigestSha256);
             }
         }
 
