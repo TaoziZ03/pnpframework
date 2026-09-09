@@ -62,6 +62,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             {
                 node.KindId = PageIngredientKindIdentity.FromLegacyKind(node.Kind);
             }
+            catalog.PrimaryOwnerRegistry.BindBuiltInNodes(snapshot, graph);
             catalog.Project(snapshot, graph);
             ValidateExtensionGraph(graph);
             return graph;

@@ -7,15 +7,26 @@ using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Topology;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Article
 {
     public sealed class ArticlePageMigrationPlanner
     {
-        private readonly PublishingPageMigrationPlanner planner = new PublishingPageMigrationPlanner();
+        private readonly PublishingPageMigrationPlanner planner;
 
-        private readonly PublishingPageMigrationAssessmentPlanner assessmentPlanner =
-            new PublishingPageMigrationAssessmentPlanner();
+        private readonly PublishingPageMigrationAssessmentPlanner assessmentPlanner;
+
+        public ArticlePageMigrationPlanner()
+            : this(PublishingPageIngredientHandlerCatalog.Default)
+        {
+        }
+
+        public ArticlePageMigrationPlanner(PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            planner = new PublishingPageMigrationPlanner(handlerCatalog);
+            assessmentPlanner = new PublishingPageMigrationAssessmentPlanner(handlerCatalog);
+        }
 
         public PublishingPageMigrationAssessment Assess(
             PublishingPageExportPackage exportPackage,

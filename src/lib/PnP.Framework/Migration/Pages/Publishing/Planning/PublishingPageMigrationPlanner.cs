@@ -34,6 +34,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
 {
     public sealed class PublishingPageMigrationPlanner
     {
+        private readonly PublishingPageIngredientHandlerCatalog handlerCatalog;
+
+        public PublishingPageMigrationPlanner()
+            : this(PublishingPageIngredientHandlerCatalog.Default)
+        {
+        }
+
+        public PublishingPageMigrationPlanner(PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            this.handlerCatalog = handlerCatalog ?? throw new ArgumentNullException(nameof(handlerCatalog));
+        }
+
         public PublishingPageMigrationPackage Plan(
             ClientContext targetContext,
             PublishingPageExportPackage exportPackage,
@@ -77,7 +89,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 throw new ArgumentNullException(nameof(workflowPolicy));
             }
 
-            PublishingPagePackageValidator.ValidateExport(exportPackage, artifactStore);
+            PublishingPagePackageValidator.ValidateExport(exportPackage, artifactStore, handlerCatalog);
             if (!string.Equals(exportPackage.Selection.WorkflowId, workflowPolicy.WorkflowId, StringComparison.Ordinal))
             {
                 throw new InvalidDataException($"Workflow '{exportPackage.Selection.WorkflowId}' cannot be planned by policy '{workflowPolicy.WorkflowId}'.");
@@ -210,8 +222,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 targetFieldsLoaded: targetPages != null);
             var expectedContent = PageTextTransformer.Rewrite(snapshot.PublishingPageContent, replacements);
             var expectedContentDigest = PublishingPageDigest.ComputeSha256(expectedContent);
-            var planningIngredientGraph = dependencyPlan.IngredientGraph
-                ?? PublishingPageIngredientGraphProjector.Project(snapshot);
+            var planningIngredientGraph = (snapshot.IngredientEvidence?.Count ?? 0) > 0
+                ? ProjectIngredientGraph(snapshot)
+                : dependencyPlan.IngredientGraph ?? ProjectIngredientGraph(snapshot);
             var plan = new PublishingPageMigrationPlan
             {
                 SourceSnapshotDigest = exportPackage.SnapshotDigest,
@@ -255,7 +268,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 Blockers = blockers.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList(),
                 Warnings = warnings.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList()
             };
-            plan.IngredientActions = PublishingPageIngredientActionProjector.Project(snapshot, plan, planningIngredientGraph);
+            plan.IngredientActions = PublishingPageIngredientActionProjector.Project(
+                snapshot,
+                plan,
+                planningIngredientGraph,
+                handlerCatalog);
             var ingredientEvaluation = PageIngredientPlanEvaluator.Evaluate(
                 planningIngredientGraph,
                 plan.IngredientActions,
@@ -263,8 +280,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
             plan.MigrationOutcome = ingredientEvaluation.Outcome;
             plan.IngredientIssues = ingredientEvaluation.Issues;
             plan.ExecutionFrontier = ingredientEvaluation.ExecutionFrontier;
+            var hasIngredientExtensions = (snapshot.IngredientEvidence?.Count ?? 0) > 0;
             var package = new PublishingPageMigrationPackage
             {
+                SchemaVersion = PublishingPagePackageContract.MigrationSchemaFor(hasIngredientExtensions),
+                ExportSchemaVersion = PublishingPagePackageContract.ExportSchemaFor(hasIngredientExtensions),
                 PlannedAtUtc = DateTimeOffset.UtcNow,
                 ExportedAtUtc = exportPackage.ExportedAtUtc,
                 Selection = exportPackage.Selection,
@@ -276,8 +296,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Planning
                 PlanDigest = PublishingPageDigest.ComputePlanDigest(plan),
                 Report = PublishingPagePlanReportFactory.Create(snapshot, plan)
             };
-            PublishingPagePackageValidator.ValidateMigration(package, artifactStore);
+            PublishingPagePackageValidator.ValidateMigration(package, artifactStore, handlerCatalog);
             return package;
+        }
+
+        private CanonicalPageIngredientGraph ProjectIngredientGraph(PublishingPageCaptureBundle snapshot)
+        {
+            return (snapshot?.IngredientEvidence?.Count ?? 0) > 0
+                ? PublishingPageIngredientGraphProjector.Project(snapshot, handlerCatalog)
+                : PublishingPageIngredientGraphProjector.Project(snapshot);
         }
 
     }

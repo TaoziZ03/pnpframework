@@ -20,6 +20,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
 {
     internal sealed class PublishingPageMigrationAssessmentPlanner
     {
+        private readonly PublishingPageIngredientHandlerCatalog handlerCatalog;
+
+        public PublishingPageMigrationAssessmentPlanner()
+            : this(PublishingPageIngredientHandlerCatalog.Default)
+        {
+        }
+
+        public PublishingPageMigrationAssessmentPlanner(PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            this.handlerCatalog = handlerCatalog ?? throw new ArgumentNullException(nameof(handlerCatalog));
+        }
+
         public PublishingPageMigrationAssessment Assess(
             PublishingPageExportPackage exportPackage,
             TopologyPlan topology,
@@ -33,7 +45,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
                 throw new ArgumentNullException(nameof(workflowPolicy));
             }
 
-            PublishingPagePackageValidator.ValidateExport(exportPackage, artifactStore);
+            PublishingPagePackageValidator.ValidateExport(exportPackage, artifactStore, handlerCatalog);
             TopologyPlanValidator.Validate(topology);
             PublishingPagePlanningPolicy.ValidateOptions(options);
             ValidateWorkflow(exportPackage, workflowPolicy);
@@ -109,7 +121,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             BuildReferenceActions(context);
             BuildListPlan(context, topology);
 
-            var graph = PublishingPageIngredientGraphProjector.Project(snapshot);
+            var graph = (snapshot.IngredientEvidence?.Count ?? 0) > 0
+                ? PublishingPageIngredientGraphProjector.Project(snapshot, handlerCatalog)
+                : PublishingPageIngredientGraphProjector.Project(snapshot);
             var accumulator = new PublishingPageAssessmentAccumulator(graph);
             PublishingPageCoreAssessmentProjector.Project(context, accumulator);
             PublishingPageLayoutAssessmentProjector.Project(context, accumulator);
@@ -117,6 +131,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Assessment
             PublishingPageListAssessmentProjector.Project(context, accumulator);
             PublishingPageWebPartAssessmentProjector.Project(context, accumulator);
             PublishingPageReferenceAssessmentProjector.Project(context, accumulator);
+            if ((snapshot.IngredientEvidence?.Count ?? 0) > 0)
+            {
+                handlerCatalog.ContributeAssessment(snapshot, graph, accumulator);
+            }
             var ingredientAssessments = accumulator.Complete();
             PublishingPageAuthorizationEvidenceProjector.Apply(
                 ingredientAssessments,

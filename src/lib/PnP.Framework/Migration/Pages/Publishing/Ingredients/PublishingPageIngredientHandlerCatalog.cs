@@ -12,12 +12,23 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         private readonly IReadOnlyDictionary<string, PublishingPageIngredientHandler> handlersById;
 
         public static PublishingPageIngredientHandlerCatalog Default { get; } =
-            new PublishingPageIngredientHandlerCatalog(Array.Empty<PublishingPageIngredientHandler>());
+            new PublishingPageIngredientHandlerCatalog(
+                Array.Empty<PublishingPageIngredientHandler>(),
+                PublishingPageIngredientPrimaryOwnerRegistry.Default);
 
         public static PublishingPageIngredientHandlerCatalog Empty => Default;
 
         public PublishingPageIngredientHandlerCatalog(IEnumerable<PublishingPageIngredientHandler> handlers)
+            : this(handlers, PublishingPageIngredientPrimaryOwnerRegistry.Default)
         {
+        }
+
+        public PublishingPageIngredientHandlerCatalog(
+            IEnumerable<PublishingPageIngredientHandler> handlers,
+            PublishingPageIngredientPrimaryOwnerRegistry primaryOwnerRegistry)
+        {
+            PrimaryOwnerRegistry = primaryOwnerRegistry
+                ?? throw new ArgumentNullException(nameof(primaryOwnerRegistry));
             var ordered = (handlers ?? throw new ArgumentNullException(nameof(handlers)))
                 .Select(value => value ?? throw new ArgumentException("The ingredient handler catalog cannot contain null handlers.", nameof(handlers)))
                 .OrderBy(value => value.Descriptor.OrderGroup)
@@ -55,6 +66,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         }
 
         public IReadOnlyList<PublishingPageIngredientHandler> Handlers { get; }
+
+        public PublishingPageIngredientPrimaryOwnerRegistry PrimaryOwnerRegistry { get; }
 
         public void ValidateEvidence(IEnumerable<PublishingPageIngredientEvidenceEnvelope> evidence)
         {
@@ -117,8 +130,41 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             foreach (var envelope in evidence)
             {
                 var handler = handlersById[envelope.HandlerId];
-                var context = new PublishingPageIngredientGraphProjectionContext(snapshot, graph, handler.Descriptor);
+                var context = new PublishingPageIngredientGraphProjectionContext(
+                    snapshot,
+                    graph,
+                    handler.Descriptor,
+                    PrimaryOwnerRegistry);
                 handler.ValidateAndProject(context, envelope);
+            }
+        }
+
+        internal void ProjectActions(
+            PublishingPageCaptureBundle snapshot,
+            PnP.Framework.Migration.Pages.Publishing.Planning.PublishingPageMigrationPlan plan,
+            PnP.Framework.Migration.Pages.Ingredients.CanonicalPageIngredientGraph graph,
+            IDictionary<string, PnP.Framework.Migration.Pages.Ingredients.PageIngredientAction> actions)
+        {
+            var evidence = ValidateAndOrderEvidence(snapshot.IngredientEvidence);
+            foreach (var envelope in evidence)
+            {
+                var handler = handlersById[envelope.HandlerId];
+                handler.ValidateAndProjectActions(
+                    new PublishingPageIngredientActionProjectionContext(snapshot, plan, graph, actions, handler.Descriptor),
+                    envelope);
+            }
+        }
+
+        internal void ContributeAssessment(
+            PublishingPageCaptureBundle snapshot,
+            PnP.Framework.Migration.Pages.Ingredients.CanonicalPageIngredientGraph graph,
+            PnP.Framework.Migration.Pages.Publishing.Assessment.PublishingPageAssessmentAccumulator accumulator)
+        {
+            var evidence = ValidateAndOrderEvidence(snapshot.IngredientEvidence);
+            var context = new PublishingPageIngredientAssessmentContext(snapshot, graph, accumulator);
+            foreach (var envelope in evidence)
+            {
+                handlersById[envelope.HandlerId].ValidateAndContributeAssessment(context, envelope);
             }
         }
 

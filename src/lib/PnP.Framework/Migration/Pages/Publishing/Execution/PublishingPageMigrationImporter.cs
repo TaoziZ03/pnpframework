@@ -3,6 +3,7 @@ using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 
@@ -10,6 +11,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
 {
     public sealed class PublishingPageMigrationImporter
     {
+        private readonly PublishingPageIngredientHandlerCatalog handlerCatalog;
+
+        public PublishingPageMigrationImporter()
+            : this(PublishingPageIngredientHandlerCatalog.Default)
+        {
+        }
+
+        public PublishingPageMigrationImporter(PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            this.handlerCatalog = handlerCatalog ?? throw new ArgumentNullException(nameof(handlerCatalog));
+        }
+
         public PublishingPageImportReceipt Import(
             ClientContext targetContext,
             PublishingPageMigrationPackage package,
@@ -59,7 +72,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 executionSeam ?? throw new ArgumentNullException(nameof(executionSeam)));
         }
 
-        private static PublishingPageImportReceipt ImportCore(
+        private PublishingPageImportReceipt ImportCore(
             ClientContext targetContext,
             PublishingPageMigrationPackage package,
             string approvedPlanDigest,
@@ -79,7 +92,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
                 throw new ArgumentNullException(nameof(package));
             }
 
-            var executionScope = Prepare(package, policy, artifactStore);
+            var executionScope = Prepare(package, policy, artifactStore, handlerCatalog);
             var operationId = Guid.NewGuid();
             var startedAt = DateTimeOffset.UtcNow;
             var recorder = new MigrationExecutionRecorder(operationId, package.PlanDigest, journal);
@@ -129,9 +142,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Execution
         private static PublishingPageExecutionScope Prepare(
             PublishingPageMigrationPackage package,
             PublishingPageWorkflowPolicy policy,
-            IMigrationArtifactStore artifactStore)
+            IMigrationArtifactStore artifactStore,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
         {
-            PublishingPagePackageValidator.ValidateMigration(package, artifactStore);
+            PublishingPagePackageValidator.ValidateMigration(package, artifactStore, handlerCatalog);
             var executionScope = PublishingPageExecutionScope.Create(package);
             var workflowPolicy = policy ?? PublishingPageProfileRegistry.ResolvePolicy(
                 workflowId: package.Selection?.WorkflowId,

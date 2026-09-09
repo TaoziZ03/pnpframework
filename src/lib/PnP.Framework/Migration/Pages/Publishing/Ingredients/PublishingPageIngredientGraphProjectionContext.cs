@@ -10,17 +10,22 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
     {
         private readonly CanonicalPageIngredientGraph graph;
         private readonly PageIngredientHandlerDescriptor descriptor;
+        private readonly PublishingPageCaptureBundle snapshot;
+        private readonly PublishingPageIngredientPrimaryOwnerRegistry primaryOwnerRegistry;
 
         internal PublishingPageIngredientGraphProjectionContext(
             PublishingPageCaptureBundle snapshot,
             CanonicalPageIngredientGraph graph,
-            PageIngredientHandlerDescriptor descriptor)
+            PageIngredientHandlerDescriptor descriptor,
+            PublishingPageIngredientPrimaryOwnerRegistry primaryOwnerRegistry)
         {
             SourceContentTypeId = snapshot?.Source?.ContentTypeId;
             RuntimeAdapterId = snapshot?.Runtime?.AdapterId;
             ProjectionVersion = graph?.ProjectionVersion;
             this.graph = graph;
             this.descriptor = descriptor;
+            this.snapshot = snapshot;
+            this.primaryOwnerRegistry = primaryOwnerRegistry;
         }
 
         public string SourceContentTypeId { get; }
@@ -55,6 +60,23 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             if (graph.Nodes.Any(value => string.Equals(value?.Id, node.Id, StringComparison.Ordinal)))
             {
                 throw new InvalidDataException($"Ingredient handler projection produced duplicate node ID '{node.Id}'.");
+            }
+            if (string.IsNullOrWhiteSpace(node.Subtype)
+                || string.IsNullOrWhiteSpace(node.SemanticRole)
+                || string.IsNullOrWhiteSpace(node.SourcePredicateId)
+                || string.IsNullOrWhiteSpace(node.SourcePageOrListItemIdentity)
+                || string.IsNullOrWhiteSpace(node.SourceVersionIdentity)
+                || string.IsNullOrWhiteSpace(node.PrimaryOwnerLane))
+            {
+                throw new InvalidDataException(
+                    $"Extension ingredient '{node.Id}' has an incomplete primary-owner source envelope.");
+            }
+            var owner = primaryOwnerRegistry.Resolve(snapshot, node);
+            if (!string.Equals(owner.PrimaryOwnerLane, descriptor.Lane.LaneId, StringComparison.Ordinal)
+                || !string.Equals(owner.PrimaryOwnerLane, node.PrimaryOwnerLane, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Ingredient '{node.Id}' resolves to primary owner '{owner.PrimaryOwnerLane}', not handler lane '{descriptor.Lane.LaneId}'.");
             }
             graph.Nodes.Add(node);
         }

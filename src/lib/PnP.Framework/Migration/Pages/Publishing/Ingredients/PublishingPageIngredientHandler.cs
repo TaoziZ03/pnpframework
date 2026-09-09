@@ -13,6 +13,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             PublishingPageIngredientEvidenceEnvelope envelope);
 
         internal abstract void Validate(PublishingPageIngredientEvidenceEnvelope envelope);
+
+        internal abstract void ValidateAndProjectActions(
+            PublishingPageIngredientActionProjectionContext context,
+            PublishingPageIngredientEvidenceEnvelope envelope);
+
+        internal abstract void ValidateAndContributeAssessment(
+            PublishingPageIngredientAssessmentContext context,
+            PublishingPageIngredientEvidenceEnvelope envelope);
     }
 
     public abstract class PublishingPageIngredientHandler<TEvidence> : PublishingPageIngredientHandler
@@ -27,6 +35,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             PublishingPageIngredientEvidenceEnvelope envelope,
             TEvidence evidence);
 
+        protected virtual void ProjectActions(
+            PublishingPageIngredientActionProjectionContext context,
+            PublishingPageIngredientEvidenceEnvelope envelope,
+            TEvidence evidence)
+        {
+        }
+
+        protected virtual void ContributeAssessment(
+            PublishingPageIngredientAssessmentContext context,
+            PublishingPageIngredientEvidenceEnvelope envelope,
+            TEvidence evidence)
+        {
+        }
+
         internal override void ValidateAndProject(
             PublishingPageIngredientGraphProjectionContext context,
             PublishingPageIngredientEvidenceEnvelope envelope)
@@ -38,6 +60,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
         internal override void Validate(PublishingPageIngredientEvidenceEnvelope envelope)
         {
             DeserializeAndValidate(envelope);
+        }
+
+        internal override void ValidateAndProjectActions(
+            PublishingPageIngredientActionProjectionContext context,
+            PublishingPageIngredientEvidenceEnvelope envelope)
+        {
+            ProjectActions(context, envelope, DeserializeAndValidate(envelope));
+        }
+
+        internal override void ValidateAndContributeAssessment(
+            PublishingPageIngredientAssessmentContext context,
+            PublishingPageIngredientEvidenceEnvelope envelope)
+        {
+            ContributeAssessment(context, envelope, DeserializeAndValidate(envelope));
         }
 
         private TEvidence DeserializeAndValidate(PublishingPageIngredientEvidenceEnvelope envelope)

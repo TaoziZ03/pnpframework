@@ -4,6 +4,7 @@ using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
+using PnP.Framework.Migration.Pages.Publishing.Planning;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -70,6 +71,50 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             Assert.ThrowsException<ArgumentException>(() =>
                 new PublishingPageIngredientHandlerCatalog(new PublishingPageIngredientHandler[] { prefix, exact }));
+        }
+
+        [TestMethod]
+        public void PrimaryOwnerRegistryCoversAllKindsAndRejectsUnboundUnknownAndOverlappingPredicates()
+        {
+            var registry = PublishingPageIngredientPrimaryOwnerRegistry.Default;
+            Assert.AreEqual(36, registry.Entries.Count);
+            CollectionAssert.AreEquivalent(
+                Enum.GetValues(typeof(PageIngredientKind)).Cast<PageIngredientKind>().ToArray(),
+                registry.Entries.Select(value => value.Kind).Distinct().ToArray());
+            Assert.AreEqual(
+                "resource.image",
+                registry.Entries.Single(value => value.Id == "document.page-referenced").PrimaryOwnerLane);
+            Assert.AreEqual(
+                "shared.cross-site-repro-integration",
+                registry.Entries.Single(value => value.Id == "document.list-closure").PrimaryOwnerLane);
+
+            var entry = new PageIngredientPrimaryOwnerDescriptor(
+                "test.owner",
+                PageIngredientKind.Runtime,
+                "runtime.test",
+                "test-role",
+                "predicate.test",
+                "lane.test");
+            Assert.ThrowsException<ArgumentException>(() =>
+                new PublishingPageIngredientPrimaryOwnerRegistry(
+                    new[] { entry },
+                    new Dictionary<string, Func<IngredientOwnershipSourceContext, bool>>()));
+
+            var predicates = new Dictionary<string, Func<IngredientOwnershipSourceContext, bool>>
+            {
+                ["predicate.one"] = _ => true
+            };
+            var overlapping = new PublishingPageIngredientPrimaryOwnerRegistry(
+                new[]
+                {
+                    new PageIngredientPrimaryOwnerDescriptor("one", PageIngredientKind.Runtime, "runtime.*", "test-role", "predicate.one", "lane.one"),
+                    new PageIngredientPrimaryOwnerDescriptor("two", PageIngredientKind.Runtime, "runtime.test", "test-role", "predicate.one", "lane.two")
+                },
+                predicates);
+            var node = OwnershipNode("predicate.one");
+            Assert.ThrowsException<InvalidDataException>(() => overlapping.Resolve(null, node));
+            node.SourcePredicateId = "predicate.unknown";
+            Assert.ThrowsException<InvalidDataException>(() => overlapping.Resolve(null, node));
         }
 
         [TestMethod]
@@ -148,7 +193,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             var roundTrip = PublishingPagePackageSerializer.Deserialize<PublishingPageExportPackage>(
                 PublishingPagePackageSerializer.Serialize(package));
-            PublishingPagePackageValidator.ValidateExport(roundTrip, catalog);
+            PublishingPagePackageValidator.ValidateExport(roundTrip, null, catalog);
 
             var envelope = roundTrip.Snapshot.IngredientEvidence.Single();
             using (var document = JsonDocument.Parse("{\"nodeId\":\"dynamic-region:hero\",\"value\":\"Tampered\"}"))
@@ -158,7 +203,79 @@ namespace PnP.Framework.Test.EnterpriseWiki
             roundTrip.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(roundTrip.Snapshot);
 
             Assert.ThrowsException<InvalidDataException>(() =>
-                PublishingPagePackageValidator.ValidateExport(roundTrip, catalog));
+                PublishingPagePackageValidator.ValidateExport(roundTrip, null, catalog));
+        }
+
+        [TestMethod]
+        public void Version4MigrationUsesCatalogForActionsFileStoreRoundTripAndTamperRejection()
+        {
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var package = CreateValidMigrationPackage();
+            package.Snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            package.SchemaVersion = PublishingPagePackageContract.IngredientExtensionMigrationSchemaVersion;
+            package.ExportSchemaVersion = PublishingPagePackageContract.IngredientExtensionExportSchemaVersion;
+            package.Snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(package.Snapshot, catalog);
+            package.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot);
+            package.Plan.SourceSnapshotDigest = package.SnapshotDigest;
+            package.Plan.IngredientGraph = package.Snapshot.IngredientGraph;
+            package.Plan.IngredientActions = PublishingPageIngredientActionProjector.Project(
+                package.Snapshot,
+                package.Plan,
+                package.Plan.IngredientGraph,
+                catalog);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(
+                package.Plan.IngredientGraph,
+                package.Plan.IngredientActions);
+            package.Plan.MigrationOutcome = evaluation.Outcome;
+            package.Plan.IngredientIssues = evaluation.Issues;
+            package.Plan.ExecutionFrontier = evaluation.ExecutionFrontier;
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+
+            PublishingPagePackageValidator.ValidateMigration(package, null, catalog);
+            var directory = Path.Combine(Path.GetTempPath(), "pnp-ccd165-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                var path = PublishingPagePackageFileStore.SaveMigrationWithIngredientHandlers(
+                    directory,
+                    package,
+                    catalog);
+                var roundTrip = PublishingPagePackageFileStore.LoadMigrationWithIngredientHandlers(path, catalog);
+                Assert.AreEqual(package.PlanDigest, roundTrip.PlanDigest);
+                Assert.AreEqual(
+                    IngredientCapability.Available,
+                    roundTrip.Plan.IngredientActions.Single(value => value.IngredientId == "dynamic-region:hero").Capability);
+
+                roundTrip.Snapshot.IngredientEvidence.Single().LaneId = "lane.tampered";
+                roundTrip.Snapshot.IngredientEvidence.Single().EvidenceDigest =
+                    PublishingPageIngredientEvidenceEnvelope.ComputeDigest(roundTrip.Snapshot.IngredientEvidence.Single());
+                roundTrip.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(roundTrip.Snapshot);
+                roundTrip.Plan.SourceSnapshotDigest = roundTrip.SnapshotDigest;
+                roundTrip.PlanDigest = PublishingPageDigest.ComputePlanDigest(roundTrip.Plan);
+                Assert.ThrowsException<InvalidDataException>(() =>
+                    PublishingPagePackageValidator.ValidateMigration(roundTrip, null, catalog));
+            }
+            finally
+            {
+                Directory.Delete(directory, true);
+            }
+        }
+
+        [TestMethod]
+        public void ExistingNullArtifactStoreCallsRemainSourceCompatible()
+        {
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateExport((PublishingPageExportPackage)null, null));
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateMigration((PublishingPageMigrationPackage)null, null));
         }
 
         [TestMethod]
@@ -185,7 +302,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         {
             var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
             var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
-            var snapshot = CreateProjectionSnapshot();
+            var snapshot = CreateOwnershipProjectionSnapshot();
             snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
             {
                 PublishingPageIngredientEvidenceEnvelope.Create(
@@ -201,8 +318,11 @@ namespace PnP.Framework.Test.EnterpriseWiki
 
             Assert.AreEqual(CanonicalPageIngredientGraph.SchemaVersionV2, graph.SchemaVersion);
             Assert.AreEqual(PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion, graph.ProjectionVersion);
-            Assert.AreEqual(0, (int)custom.Kind);
-            Assert.AreEqual("pnp.dynamic-region", custom.KindId);
+            Assert.AreEqual(PageIngredientKind.Runtime, custom.Kind);
+            Assert.AreEqual("pnp.runtime", custom.KindId);
+            Assert.AreEqual("runtime.dynamic-region", custom.Subtype);
+            Assert.AreEqual("provider-derived-runtime-region", custom.SemanticRole);
+            Assert.AreEqual("dynamic.region", custom.PrimaryOwnerLane);
             Assert.AreEqual(PageIngredientKind.Content, builtIn.Kind);
             Assert.AreEqual("pnp.content", builtIn.KindId);
         }
@@ -211,7 +331,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         public void ExtensionProjectionRejectsDuplicateBuiltInNodeAndDisconnectedEdge()
         {
             var duplicate = CreateHandler("pnp.duplicate-node/v1", 10, "content:");
-            var snapshot = CreateProjectionSnapshot();
+            var snapshot = CreateOwnershipProjectionSnapshot();
             snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
             {
                 PublishingPageIngredientEvidenceEnvelope.Create(
@@ -288,7 +408,9 @@ namespace PnP.Framework.Test.EnterpriseWiki
             return new TestHandler(
                 new PageIngredientHandlerDescriptor(
                     handlerId,
-                    Lane("lane." + handlerId),
+                    Lane(ownedPrefix.StartsWith("dynamic-region:", StringComparison.Ordinal)
+                        ? "dynamic.region"
+                        : "lane." + handlerId),
                     new[] { TestHandler.EvidenceSchema },
                     PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
                     orderGroup,
@@ -311,6 +433,11 @@ namespace PnP.Framework.Test.EnterpriseWiki
             };
         }
 
+        private static PublishingPageCaptureBundle CreateOwnershipProjectionSnapshot()
+        {
+            return CreateValidProjectionSnapshot();
+        }
+
         private static PublishingPageCaptureBundle CreateValidProjectionSnapshot()
         {
             return (PublishingPageCaptureBundle)typeof(EnterpriseWikiMigrationTests)
@@ -323,6 +450,28 @@ namespace PnP.Framework.Test.EnterpriseWiki
             return (PublishingPageWorkflowSelection)typeof(EnterpriseWikiMigrationTests)
                 .GetMethod("CreateSelection", BindingFlags.NonPublic | BindingFlags.Static)
                 .Invoke(null, null);
+        }
+
+        private static PublishingPageMigrationPackage CreateValidMigrationPackage()
+        {
+            return (PublishingPageMigrationPackage)typeof(EnterpriseWikiMigrationTests)
+                .GetMethod("CreateMigrationPackage", BindingFlags.NonPublic | BindingFlags.Static)
+                .Invoke(null, null);
+        }
+
+        private static PageIngredientNode OwnershipNode(string predicateId)
+        {
+            return new PageIngredientNode
+            {
+                Id = "runtime:test",
+                Kind = PageIngredientKind.Runtime,
+                KindId = "pnp.runtime",
+                Subtype = "runtime.test",
+                SemanticRole = "test-role",
+                SourcePredicateId = predicateId,
+                SourcePageOrListItemIdentity = "source/page",
+                SourceVersionIdentity = "version=1"
+            };
         }
 
         private sealed class TestEvidence
@@ -361,7 +510,14 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 context.AddNode(new PageIngredientNode
                 {
                     Id = evidence.NodeId,
-                    KindId = "pnp.dynamic-region",
+                    Kind = PageIngredientKind.Runtime,
+                    KindId = "pnp.runtime",
+                    Subtype = "runtime.dynamic-region",
+                    SemanticRole = "provider-derived-runtime-region",
+                    SourcePredicateId = "runtime.dynamic-region.typed-provider-binding",
+                    SourcePageOrListItemIdentity = "source/page/" + evidence.NodeId,
+                    SourceVersionIdentity = "version=1",
+                    PrimaryOwnerLane = "dynamic.region",
                     Label = evidence.Value,
                     HasContent = true,
                     Ownership = PageIngredientOwnership.SourceOwned,
@@ -379,6 +535,24 @@ namespace PnP.Framework.Test.EnterpriseWiki
                         Requirement = PageIngredientRequirement.Required
                     });
                 }
+            }
+
+            protected override void ProjectActions(
+                PublishingPageIngredientActionProjectionContext context,
+                PublishingPageIngredientEvidenceEnvelope envelope,
+                TestEvidence evidence)
+            {
+                context.AddAction(new PageIngredientAction
+                {
+                    ActionId = "action:" + evidence.NodeId,
+                    IngredientId = evidence.NodeId,
+                    Capability = IngredientCapability.Available,
+                    Disposition = IngredientDisposition.Preserve,
+                    Realization = "test-handler",
+                    PolicyId = "policy.test-handler",
+                    PolicyVersion = "1",
+                    Reason = "Typed test handler action."
+                });
             }
         }
     }

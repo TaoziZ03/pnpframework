@@ -6,6 +6,7 @@ using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.Publishing.Reporting.Sections;
 using PnP.Framework.Migration.Pages.Markup;
 using PnP.Framework.Migration.Pages.Fields;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Taxonomy;
 using System;
 using System.Linq;
@@ -21,7 +22,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Reporting
 
         public static string Build(PublishingPageMigrationPackage package, IMigrationArtifactStore artifactStore)
         {
-            PublishingPagePackageValidator.ValidateMigration(package, artifactStore);
+            return Build(package, artifactStore, PublishingPageIngredientHandlerCatalog.Default);
+        }
+
+        public static string Build(
+            PublishingPageMigrationPackage package,
+            IMigrationArtifactStore artifactStore,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            PublishingPagePackageValidator.ValidateMigration(package, artifactStore, handlerCatalog);
             var snapshot = package.Snapshot;
             var plan = package.Plan;
             var report = package.Report ?? new PublishingPageMigrationReport();

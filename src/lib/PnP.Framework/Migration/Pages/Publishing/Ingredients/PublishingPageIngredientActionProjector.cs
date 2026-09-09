@@ -13,7 +13,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             PublishingPageCaptureBundle snapshot,
             PublishingPageMigrationPlan plan)
         {
-            return Project(snapshot, plan, snapshot?.IngredientGraph);
+            return Project(snapshot, plan, snapshot?.IngredientGraph, PublishingPageIngredientHandlerCatalog.Default);
         }
 
         public static IList<PageIngredientAction> Project(
@@ -21,6 +21,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             PublishingPageMigrationPlan plan,
             CanonicalPageIngredientGraph ingredientGraph)
         {
+            return Project(snapshot, plan, ingredientGraph, PublishingPageIngredientHandlerCatalog.Default);
+        }
+
+        public static IList<PageIngredientAction> Project(
+            PublishingPageCaptureBundle snapshot,
+            PublishingPageMigrationPlan plan,
+            CanonicalPageIngredientGraph ingredientGraph,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            if (handlerCatalog == null)
+            {
+                throw new ArgumentNullException(nameof(handlerCatalog));
+            }
             var actions = new Dictionary<string, PageIngredientAction>(StringComparer.Ordinal);
             PublishingPageCoreIngredientActionProjector.Project(snapshot, plan, actions);
             PublishingPageLayoutIngredientActionProjector.Project(snapshot, plan, actions);
@@ -47,6 +60,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     PublishingPageIngredientGraphProjector.ProjectionVersionV4,
                     StringComparison.Ordinal));
             PublishingPageReferenceIngredientActionProjector.Project(plan, actions, ingredientGraph);
+            if ((snapshot?.IngredientEvidence?.Count ?? 0) > 0)
+            {
+                handlerCatalog.ProjectActions(snapshot, plan, ingredientGraph, actions);
+            }
 
             foreach (var node in (ingredientGraph?.Nodes ?? Array.Empty<PageIngredientNode>())
                          .Where(value => value != null && value.HasContent))

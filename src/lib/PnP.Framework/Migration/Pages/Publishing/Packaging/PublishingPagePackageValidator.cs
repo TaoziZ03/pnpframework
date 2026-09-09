@@ -19,13 +19,6 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
         public static void ValidateExport(
             PublishingPageExportPackage package,
-            PublishingPageIngredientHandlerCatalog handlerCatalog)
-        {
-            PublishingPageExportPackageValidator.Validate(package, null, handlerCatalog);
-        }
-
-        public static void ValidateExport(
-            PublishingPageExportPackage package,
             IMigrationArtifactStore artifactStore,
             PublishingPageIngredientHandlerCatalog handlerCatalog)
         {
@@ -42,13 +35,6 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             IMigrationArtifactStore artifactStore)
         {
             PublishingPageMigrationPackageValidator.Validate(package, artifactStore, PublishingPageIngredientHandlerCatalog.Default);
-        }
-
-        public static void ValidateMigration(
-            PublishingPageMigrationPackage package,
-            PublishingPageIngredientHandlerCatalog handlerCatalog)
-        {
-            PublishingPageMigrationPackageValidator.Validate(package, null, handlerCatalog);
         }
 
         public static void ValidateMigration(

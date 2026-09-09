@@ -5,13 +5,24 @@ using PnP.Framework.Migration.Pages.Publishing.Execution;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Profiles;
 using PnP.Framework.Migration.Topology.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using System;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Welcome
 {
     public sealed class WelcomePageMigrationImporter
     {
-        private readonly PublishingPageMigrationImporter importer = new PublishingPageMigrationImporter();
+        private readonly PublishingPageMigrationImporter importer;
+
+        public WelcomePageMigrationImporter()
+            : this(PublishingPageIngredientHandlerCatalog.Default)
+        {
+        }
+
+        public WelcomePageMigrationImporter(PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            importer = new PublishingPageMigrationImporter(handlerCatalog);
+        }
 
         public PublishingPageImportReceipt Import(
             ClientContext targetContext,

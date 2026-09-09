@@ -20,12 +20,24 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
 {
     internal sealed class PublishingPagePackageExporter
     {
+        private readonly PublishingPageIngredientHandlerCatalog handlerCatalog;
+
+        public PublishingPagePackageExporter()
+            : this(PublishingPageIngredientHandlerCatalog.Default)
+        {
+        }
+
+        public PublishingPagePackageExporter(PublishingPageIngredientHandlerCatalog handlerCatalog)
+        {
+            this.handlerCatalog = handlerCatalog ?? throw new ArgumentNullException(nameof(handlerCatalog));
+        }
+
         public PublishingPageExportPackage Export(
             ClientContext sourceContext,
             PageCaptureOptions options,
             PublishingPageWorkflowPolicy workflowPolicy)
         {
-            return Export(sourceContext, options, workflowPolicy, null);
+            return ExportCore(sourceContext, options, workflowPolicy, null, null);
         }
 
         public PublishingPageExportPackage Export(
@@ -33,6 +45,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
             PageCaptureOptions options,
             PublishingPageWorkflowPolicy workflowPolicy,
             IMigrationArtifactStore artifactStore)
+        {
+            return ExportCore(sourceContext, options, workflowPolicy, artifactStore, null);
+        }
+
+        public PublishingPageExportPackage ExportWithIngredientEvidence(
+            ClientContext sourceContext,
+            PageCaptureOptions options,
+            PublishingPageWorkflowPolicy workflowPolicy,
+            IEnumerable<PublishingPageIngredientEvidenceEnvelope> ingredientEvidence,
+            IMigrationArtifactStore artifactStore = null)
+        {
+            return ExportCore(sourceContext, options, workflowPolicy, artifactStore, ingredientEvidence);
+        }
+
+        private PublishingPageExportPackage ExportCore(
+            ClientContext sourceContext,
+            PageCaptureOptions options,
+            PublishingPageWorkflowPolicy workflowPolicy,
+            IMigrationArtifactStore artifactStore,
+            IEnumerable<PublishingPageIngredientEvidenceEnvelope> ingredientEvidence)
         {
             if (sourceContext == null)
             {
@@ -180,17 +212,29 @@ namespace PnP.Framework.Migration.Pages.Publishing.Capture
                 Blockers = blockers.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList(),
                 Warnings = warnings.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToList()
             };
-            snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot);
+            var suppliedEvidence = ingredientEvidence?.ToArray();
+            if (suppliedEvidence?.Length > 0)
+            {
+                snapshot.IngredientEvidence = handlerCatalog.OrderEvidence(suppliedEvidence).ToList();
+                snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot, handlerCatalog);
+            }
+            else
+            {
+                snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot);
+            }
 
             var selection = workflowPolicy.Select(sourceCapture.Identity.ContentTypeId);
-            return new PublishingPageExportPackage
+            var package = new PublishingPageExportPackage
             {
+                SchemaVersion = PublishingPagePackageContract.ExportSchemaFor(suppliedEvidence?.Length > 0),
                 ExportedAtUtc = DateTimeOffset.UtcNow,
                 Selection = selection,
                 SelectionDigest = PublishingPageDigest.ComputeSelectionDigest(selection),
                 Snapshot = snapshot,
                 SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot)
             };
+            PublishingPagePackageValidator.ValidateExport(package, artifactStore, handlerCatalog);
+            return package;
         }
 
         internal static string GetContextWebServerRelativeUrl(string contextUrl)

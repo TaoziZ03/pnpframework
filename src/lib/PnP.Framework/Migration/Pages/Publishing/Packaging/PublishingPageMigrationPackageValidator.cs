@@ -72,7 +72,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
             ValidateActionCoverage(package.Snapshot, plan);
             ValidateReferencePreflight(package.Snapshot, plan);
-            ValidateDerivedIngredientActions(package.Snapshot, plan);
+            ValidateDerivedIngredientActions(package.Snapshot, plan, handlerCatalog);
             ValidateIngredientActions(package.Snapshot, plan.IngredientGraph, plan);
             ValidateExpectedContent(package, plan);
             var derivedLifecycle = PublishingPageLifecyclePolicy.DeriveTargetLifecycle(package.Snapshot.Lifecycle);
@@ -288,9 +288,14 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
 
         private static void ValidateDerivedIngredientActions(
             PublishingPageCaptureBundle snapshot,
-            PublishingPageMigrationPlan plan)
+            PublishingPageMigrationPlan plan,
+            PublishingPageIngredientHandlerCatalog handlerCatalog)
         {
-            var expected = PublishingPageIngredientActionProjector.Project(snapshot, plan, plan.IngredientGraph);
+            var expected = PublishingPageIngredientActionProjector.Project(
+                snapshot,
+                plan,
+                plan.IngredientGraph,
+                handlerCatalog);
             if (!PublishingPageValidationCanonical.Equals(expected, plan.IngredientActions))
             {
                 throw new InvalidDataException("The sealed ingredient actions do not match the typed domain plans and policy projection.");

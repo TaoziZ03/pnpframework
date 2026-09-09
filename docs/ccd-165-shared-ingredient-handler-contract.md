@@ -15,7 +15,9 @@ Lane implementations derive from `PublishingPageIngredientHandler<TEvidence>` an
 - supported page families;
 - accepted evidence schema versions;
 - introduction projection version and deterministic order group;
-- exact or prefix-based ingredient ID ownership.
+- exact or prefix-based ingredient ID namespace guards. These guards prevent duplicate handler output; they do not decide primary ownership.
+
+Primary ownership is decided by the frozen `PublishingPageIngredientPrimaryOwnerRegistry`. Its 36 persisted/derived-node entries cover all 22 `PageIngredientKind` values from the CCD-160 `pnp-page-ingredient-primary-owner-registry/v1` contract. Each graph-v2 node must carry `subtype`, `semanticRole`, `sourcePredicateId`, exact source page/list-item identity, source version identity, and `primaryOwnerLane`. Registry construction rejects unbound predicate IDs, and projection rejects both zero-match and multiple-match predicate results. Handler order is not an ownership tiebreaker.
 
 `PublishingPageIngredientHandlerCatalog` freezes handlers in `(orderGroup, handlerId)` ordinal order. It rejects duplicate handler IDs and overlapping ownership both within one descriptor and across handlers. There is no mutable global registration API and no filesystem-order discovery.
 
@@ -28,7 +30,9 @@ Use `PublishingPageIngredientEvidenceEnvelope.Create` to create a typed envelope
 - Extension capture graphs use `pnp-page-ingredient-graph/v2` and stable string `kindId` values. Known built-ins retain the existing `PageIngredientKind` enum view; custom kinds omit the legacy enum value.
 - Legacy graph v1 serialization omits both `kindId` and `ingredientEvidence`.
 - Projection dispatch for v2 through v7 stays on the historical built-in path and is protected by six canonical golden digests.
-- Existing `PublishingPagePackageValidator` entry points retain their signatures and use the frozen default catalog. New overloads accept an explicit catalog.
+- Existing `PublishingPagePackageValidator` entry points retain their signatures and use the frozen default catalog. Explicit-catalog validation uses the three-argument overload so existing calls such as `ValidateExport(package, null)` remain source compatible and unambiguous.
+
+The catalog flows through the normal product chain: family exporters expose `ExportWithIngredientEvidence` and select v4/v8 automatically; family planners and importers accept a catalog constructor dependency while preserving parameterless constructors; graph, action and assessment dispatch run before missing-handler fallback; `PublishingPagePackageFileStore` exposes `Save/Load*WithIngredientHandlers`; report validation uses the same catalog.
 
 ## Lane integration rules
 
@@ -36,9 +40,12 @@ Use `PublishingPageIngredientEvidenceEnvelope.Create` to create a typed envelope
 2. Put envelopes in `catalog.OrderEvidence(...)` order before snapshot sealing.
 3. Set the export/migration schema with `PublishingPagePackageContract.ExportSchemaFor(true)` and `MigrationSchemaFor(true)`.
 4. Project with `PublishingPageIngredientGraphProjector.Project(snapshot, catalog)`.
-5. Add nodes and edges only through `PublishingPageIngredientGraphProjectionContext`; a handler can create only IDs owned by its descriptor.
-6. Do not edit the catalog, envelope, graph identity, serializer, digest, or package validators in lane branches. Route shared-contract changes back through the PnP Framework Lead.
+5. Add nodes and edges only through `PublishingPageIngredientGraphProjectionContext`; a handler can create only IDs inside its namespace guard and only when the primary-owner registry resolves the complete tuple to that handler lane.
+6. Contribute actions and assessments through the collision-checking handler contexts; direct mutation of shared dictionaries is not exposed.
+7. Do not edit the catalog, registry, envelope, graph identity, serializer, digest, or package validators in lane branches. Route shared-contract changes back through the PnP Framework Lead.
 
 ## Verification
 
-Focused tests are in `PublishingPageIngredientExtensionContractTests` and cover deterministic order, catalog immutability, duplicate/overlap rejection, typed round-trip, unknown handler/schema rejection, digest tamper rejection after outer snapshot resealing, graph v2 kind identity, duplicate node/disconnected edge rejection, v2-v7 golden projection dispatch, and legacy serialization omission.
+Focused tests are in `PublishingPageIngredientExtensionContractTests` and cover deterministic order, catalog immutability, duplicate/overlap rejection, all-22-kind registry coverage, unbound/zero/multiple owner rejection, typed export and migration round-trip, standard file-store save/load, action dispatch, tamper rejection after outer digest resealing, source-compatible null artifact-store calls, graph v2 identity, duplicate node/disconnected edge rejection, v2-v7 golden projection dispatch, and legacy serialization omission.
+
+This-run verification used the installed .NET SDK `10.0.400`: the CCD-165 focused contract suite passed `14/14`, and the existing `EnterpriseWikiMigrationTests` plus `PublishingProfilesTests` compatibility suite passed `136/136`. Repository warnings were pre-existing package/advisory and analyzer warnings; no test or compilation error remained.

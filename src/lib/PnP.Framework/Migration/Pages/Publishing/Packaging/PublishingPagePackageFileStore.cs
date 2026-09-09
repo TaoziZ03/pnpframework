@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Assessment;
 using PnP.Framework.Migration.Pages.Publishing.Reporting;
+using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using System;
 using System.IO;
 using System.Text;
@@ -32,6 +33,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             return exportPath;
         }
 
+        public static string SaveExportWithIngredientHandlers(
+            string path,
+            PublishingPageExportPackage package,
+            PublishingPageIngredientHandlerCatalog handlerCatalog,
+            IMigrationArtifactStore artifactStore = null,
+            bool overwrite = false,
+            string defaultFileName = DefaultExportFileName)
+        {
+            PublishingPagePackageValidator.ValidateExport(package, artifactStore, handlerCatalog);
+            var exportPath = ResolvePath(path, defaultFileName);
+            SaveText(exportPath, PublishingPagePackageSerializer.Serialize(package), overwrite);
+            return exportPath;
+        }
+
         public static PublishingPageExportPackage LoadExport(
             string path,
             IMigrationArtifactStore artifactStore = null,
@@ -42,6 +57,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             using var stream = OpenPackageReadStream(exportPath);
             var package = PublishingPagePackageSerializer.Deserialize<PublishingPageExportPackage>(stream);
             PublishingPagePackageValidator.ValidateExport(package, artifactStore);
+            return package;
+        }
+
+        public static PublishingPageExportPackage LoadExportWithIngredientHandlers(
+            string path,
+            PublishingPageIngredientHandlerCatalog handlerCatalog,
+            IMigrationArtifactStore artifactStore = null,
+            string defaultFileName = DefaultExportFileName,
+            string description = "Publishing Page export")
+        {
+            var exportPath = ResolveExistingPath(path, defaultFileName, description);
+            using var stream = OpenPackageReadStream(exportPath);
+            var package = PublishingPagePackageSerializer.Deserialize<PublishingPageExportPackage>(stream);
+            PublishingPagePackageValidator.ValidateExport(package, artifactStore, handlerCatalog);
             return package;
         }
 
@@ -87,6 +116,25 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             return packagePath;
         }
 
+        public static string SaveMigrationWithIngredientHandlers(
+            string path,
+            PublishingPageMigrationPackage package,
+            PublishingPageIngredientHandlerCatalog handlerCatalog,
+            IMigrationArtifactStore artifactStore = null,
+            bool overwrite = false,
+            string defaultPackageFileName = DefaultPackageFileName,
+            string defaultReportFileName = DefaultReportFileName)
+        {
+            PublishingPagePackageValidator.ValidateMigration(package, artifactStore, handlerCatalog);
+            var packagePath = ResolvePath(path, defaultPackageFileName);
+            var reportPath = Path.Combine(Path.GetDirectoryName(packagePath) ?? string.Empty, defaultReportFileName);
+            EnsureWritable(packagePath, overwrite);
+            EnsureWritable(reportPath, overwrite);
+            SaveText(packagePath, PublishingPagePackageSerializer.Serialize(package), true);
+            SaveText(reportPath, PublishingPageMigrationReportBuilder.Build(package, artifactStore, handlerCatalog), true);
+            return packagePath;
+        }
+
         public static PublishingPageMigrationPackage LoadMigration(
             string path,
             IMigrationArtifactStore artifactStore = null,
@@ -97,6 +145,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Packaging
             using var stream = OpenPackageReadStream(packagePath);
             var package = PublishingPagePackageSerializer.Deserialize<PublishingPageMigrationPackage>(stream);
             PublishingPagePackageValidator.ValidateMigration(package, artifactStore);
+            return package;
+        }
+
+        public static PublishingPageMigrationPackage LoadMigrationWithIngredientHandlers(
+            string path,
+            PublishingPageIngredientHandlerCatalog handlerCatalog,
+            IMigrationArtifactStore artifactStore = null,
+            string defaultPackageFileName = DefaultPackageFileName,
+            string description = "Publishing Page migration package")
+        {
+            var packagePath = ResolveExistingPath(path, defaultPackageFileName, description);
+            using var stream = OpenPackageReadStream(packagePath);
+            var package = PublishingPagePackageSerializer.Deserialize<PublishingPageMigrationPackage>(stream);
+            PublishingPagePackageValidator.ValidateMigration(package, artifactStore, handlerCatalog);
             return package;
         }
 
