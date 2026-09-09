@@ -65,3 +65,41 @@ SDK：Windows host `.NET SDK 10.0.400`。构建保留仓库既有 warning，包�
 测试、review revision、conflict/disposition 和 remaining uncertainty。若出现冲突，保留
 双方声明与 acquisition method，Ingredient Delivery Manager 提议 owner，PnP Lead 作
 最终 instance arbitration，shared-contract/reuse 影响交 Architect 审查。
+
+## Revision 2 — CCD-256 adverse review and shared remediation
+
+本节只追加、不改写上面的首次准入历史。Architect 子任务 CCD-256 对 exact ref
+`088a95e23a4c864bffb5a8548ff2bdf9d8cc8107` 给出 `CHANGES_REQUIRED`：
+`RuntimeVerificationContractValidator.ValidateReceipt` 只按 v2 assertions 判断 receipt
+状态，而 `PublishingPageCompareReconciler.ValidateRuntime` 又只按 legacy required
+results 判断同一状态。该 ref 因此不再是 reviewed-compatible ref；只冻结
+runtime-v2 mixed-outcome merge path，不停止其他 ingredient instance 或 lane-local 工作。
+
+修订以原 ref 为直接 first parent：
+
+| 来源 | original/integration commit | 路径 | conflict/path analysis | disposition |
+| --- | --- | --- | --- | --- |
+| CCD-256 P1 remediation | `267ec53518c9e9f34a03c6b94e5378f75133c10d` | shared runtime validator、Publishing Compare reconciler、两组永久 tests | 与既有 owner resolver、serializer/digest、action journal/receipt、registry/guard 无路径交集；复用唯一 runtime receipt/status contract；无 cherry-pick conflict | candidate admitted for exact-ref review |
+
+统一规则由 `RuntimeVerificationContractValidator.ValidateAggregateStatus` 实现：完整覆盖的
+required legacy results 与 v2 assertion results 共同导出一个 aggregate status；任一
+required evidence failure 都得到 `Failed`，optional legacy failure 不改变 aggregate。
+Compare 删除本地第二套 status 逻辑，只消费该共享规则。plan/target/time/state/artifact
+binding 仍由既有验证路径执行；缺失 required result 继续 fail closed。
+
+本轮使用 Windows host version-matched `.NET SDK 10.0.400` 与既有 restore：
+
+```text
+Permanent combined cohort: 22 passed, 0 failed, 0 skipped
+CCD-256 original reviewer probes: 6 passed, 0 failed, 0 skipped
+```
+
+永久测试覆盖 required/assertion 四格、v2-only、optional requirement、missing required
+result、既有 absent-receipt pending 与 v1 compatibility。首次全局 `dotnet.exe` 解析到
+SDK 9.0.318 并产生 `NETSDK1045`；按既有 IT 路径改用宿主已安装的 version-matched
+mise dotnet-root，未安装依赖、未修改 TargetFramework 或全局配置。
+
+剩余不确定性：包含本节的最终 exact Git ref 仍需 Architect 新一轮 exact-SHA review；
+Independent Verification、live CUPCollect、M5、release 与 customer acceptance 均未声明。
+CCD-165 hardening 与 CCD-167 immutable-contribution 条件保持 deferred，不因本修订被
+改写为 PASS。
