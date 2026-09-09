@@ -3,6 +3,7 @@ using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Verification;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Comparison
@@ -73,6 +74,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public IList<IngredientCompareResult> Ingredients { get; set; } = new List<IngredientCompareResult>();
         public CompareAcceptance Acceptance { get; set; }
         public string ReportDigestSha256 { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class CompareProducer
@@ -80,6 +84,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public string Id { get; set; }
         public string Version { get; set; }
         public string ImplementationRef { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class AssessmentHandoffProjection
@@ -98,6 +105,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public string DiscoveryObservationStatus { get; set; }
         public string ProducerAttestationStatus { get; set; }
         public string CoverageStatus { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class CompareBindings
@@ -117,6 +127,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public string ImportReceiptDigestSha256 { get; set; }
         public string RuntimeReceiptSchemaVersion { get; set; }
         public string RuntimeReceiptDigestSha256 { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class SourceVersionComparison
@@ -129,6 +142,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public string ObservedVersionLabel { get; set; }
         public DateTimeOffset ObservedAtUtc { get; set; }
         public string Status { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class CompareTargetIdentity
@@ -141,17 +157,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
 
         [JsonIgnore]
         public string CanonicalIdentity { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class CompareStorageSummary
     {
         public string Status { get; set; }
         public bool FreshReadback { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class CompareRuntimeSummary
     {
         public string Status { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class IngredientCompareResult
@@ -165,6 +190,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public string ResultClass { get; set; }
         public string ReasonCode { get; set; }
         public string Message { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class IngredientCompareLineage
@@ -176,12 +204,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public string TargetIdentity { get; set; }
         public IList<string> EvidenceRefs { get; set; } = new List<string>();
         public IList<string> CauseIngredientIds { get; set; } = new List<string>();
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class CompareDigestPair
     {
         public string RawDigestSha256 { get; set; }
         public string CanonicalDigestSha256 { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class CompareAcceptance
@@ -190,6 +224,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public IList<string> ReasonCodes { get; set; } = new List<string>();
         public string StorageStatus { get; set; }
         public string RuntimeStatus { get; set; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement> ExtensionData { get; set; }
     }
 
     public sealed class PublishingPageCompareRequest

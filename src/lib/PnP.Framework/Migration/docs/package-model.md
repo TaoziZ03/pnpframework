@@ -44,6 +44,7 @@ The migration package embeds the source snapshot, so Import does not need to rec
 | `SharedTopologyPageReference` | `pnp-shared-topology-page-reference/v4` |
 | `RuntimeVerificationManifest` | `pnp-migration-runtime-verification/v1` |
 | `RuntimeVerificationReceipt` | `pnp-migration-runtime-verification-receipt/v1` |
+| `PageCompareTerminalEnvelope` | `pnp-page-compare-terminal-envelope/v1` |
 | `MigrationActionSignature` | `pnp-migration-action-signature/v1` |
 | `MigrationExecutionJournalRecord` | `pnp-migration-execution-journal-record/v1` |
 | `MigrationMutationVerificationReceipt` | `pnp-migration-mutation-verification/v1` |
