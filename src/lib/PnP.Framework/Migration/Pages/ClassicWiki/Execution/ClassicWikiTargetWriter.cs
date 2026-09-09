@@ -67,7 +67,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                     () =>
                     {
                         var newFile = targetLocation.TargetFolder.Files.AddTemplateFile(
-                            targetLocation.FileName,
+                            package.Plan.TargetPageServerRelativeUrl,
                             TemplateFileType.WikiPage);
                         targetContext.Load(newFile, f => f.Exists, f => f.ServerRelativeUrl);
                         targetContext.ExecuteQueryRetry();
