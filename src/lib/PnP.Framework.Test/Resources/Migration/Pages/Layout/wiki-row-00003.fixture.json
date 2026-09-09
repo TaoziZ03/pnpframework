@@ -1,0 +1,26 @@
+{
+  "schema": "ccd.page-layout-source-fixture/v1",
+  "claimId": "f411b3cf66979cbcb16479dd79ef2faefecc237df164c6d1e3642967d869c7c7",
+  "ingredientId": "ccd.ingredient.page.layout/v1:df8c03a5-8f4b-4966-bbe6-fc82992c0234:wiki-runtime-binding",
+  "source": {
+    "webUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive",
+    "fileServerRelativeUrl": "/sites/biatmicrosoft/blog_Archive/SitePages/rss.aspx",
+    "listId": "6779e40e-3e8f-41c3-bbd4-9a5020797f2f",
+    "itemId": 1,
+    "uniqueId": "df8c03a5-8f4b-4966-bbe6-fc82992c0234",
+    "version": "\"{DF8C03A5-8F4B-4966-BBE6-FC82992C0234},12\"",
+    "contentTypeId": "0x01010800D0EA2218568D2644BD411A3CF6D8C4FA",
+    "contentTypeName": "Wiki Page",
+    "listBaseTemplate": 119,
+    "publishingPageLayout": null,
+    "runtimeAdapterId": "runtime.wiki"
+  },
+  "rawArtifact": {
+    "sha256": "c8104d520032fda8f0a457f4e8cfc4c4a01628cb6e7ed107d6d2409413e34140",
+    "length": 180,
+    "base64": "eyJjb250ZW50VHlwZUlkIjoiMHgwMTAxMDgwMEQwRUEyMjE4NTY4RDI2NDRCRDQxMUEzQ0Y2RDhDNEZBIiwiY29udGVudFR5cGVOYW1lIjoiV2lraSBQYWdlIiwibGlicmFyeUJhc2VUZW1wbGF0ZSI6MTE5LCJwdWJsaXNoaW5nUGFnZUxheW91dCI6bnVsbCwicnVudGltZUFkYXB0ZXJJZCI6InJ1bnRpbWUud2lraSJ9",
+    "upstreamEntryRawSha256": "b672bcfe1755ace36df9544006103ebaf90da9e6c2d948a2d4cec82e6a0b914a"
+  },
+  "semanticSha256": "acbfbbea8563082d535853c47b39a0acf0f7bbeb3c38b75aa9f492b3a03ddec9",
+  "sourceObservedAtUtc": "2026-09-09T19:24:00Z"
+}
