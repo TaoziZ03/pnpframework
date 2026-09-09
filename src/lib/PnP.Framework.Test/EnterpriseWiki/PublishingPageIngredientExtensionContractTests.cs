@@ -1,10 +1,13 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Pages;
+using PnP.Framework.Migration.Pages.Assessment;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Assessment;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
+using PnP.Framework.Migration.Topology.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -328,6 +331,124 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [TestMethod]
+        public void HandlerCatalogProjectsActionsAndAssessmentThroughSharedSeams()
+        {
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var package = CreateValidMigrationPackage();
+            package.Snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            var graph = PublishingPageIngredientGraphProjector.Project(package.Snapshot, catalog);
+
+            var actions = PublishingPageIngredientActionProjector.Project(
+                package.Snapshot,
+                package.Plan,
+                graph,
+                catalog);
+            var accumulator = new PublishingPageAssessmentAccumulator(graph);
+            catalog.ContributeAssessment(package.Snapshot, graph, accumulator);
+            var assessments = accumulator.Complete();
+
+            Assert.AreEqual(
+                IngredientCapability.Available,
+                actions.Single(value => value.IngredientId == "dynamic-region:hero").Capability);
+            var assessment = assessments.Single(value => value.IngredientId == "dynamic-region:hero");
+            Assert.AreEqual(PageIngredientAssessmentState.Determined, assessment.State);
+            Assert.AreEqual("policy.test-handler", assessment.PolicyId);
+        }
+
+        [TestMethod]
+        public void PathDerivedGraphV2PreservesLegacyAndExtensionNodeIdentityAndSnapshotDigest()
+        {
+            var topology = CreateSharedTopologyReference();
+            var legacySnapshot = CreateValidProjectionSnapshot();
+            var legacyDigest = PublishingPageDigest.ComputeSnapshotDigest(legacySnapshot);
+            var legacyGraph = PublishingPagePathDerivedTopologyIngredientGraphProjector.Project(
+                legacySnapshot,
+                topology.Plan,
+                topology.Reference);
+
+            Assert.AreEqual(CanonicalPageIngredientGraph.SchemaVersionV2, legacyGraph.SchemaVersion);
+            Assert.AreEqual(
+                PublishingPagePathDerivedTopologyIngredientGraphProjector.ProjectionVersion,
+                legacyGraph.ProjectionVersion);
+            Assert.IsTrue(legacyGraph.Nodes.All(value => string.IsNullOrWhiteSpace(value.KindId)));
+            Assert.AreEqual(legacyDigest, PublishingPageDigest.ComputeSnapshotDigest(legacySnapshot));
+
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var extensionSnapshot = CreateValidProjectionSnapshot();
+            extensionSnapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            extensionSnapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(extensionSnapshot, catalog);
+            var extensionDigest = PublishingPageDigest.ComputeSnapshotDigest(extensionSnapshot);
+            var extensionGraph = PublishingPagePathDerivedTopologyIngredientGraphProjector.Project(
+                extensionSnapshot,
+                topology.Plan,
+                topology.Reference);
+            var sourceNode = extensionSnapshot.IngredientGraph.Nodes.Single(value => value.Id == "dynamic-region:hero");
+            var projectedNode = extensionGraph.Nodes.Single(value => value.Id == sourceNode.Id);
+
+            Assert.AreEqual(CanonicalPageIngredientGraph.SchemaVersionV2, extensionGraph.SchemaVersion);
+            Assert.AreEqual(
+                PublishingPagePathDerivedTopologyIngredientGraphProjector.ProjectionVersion,
+                extensionGraph.ProjectionVersion);
+            Assert.AreEqual(sourceNode.KindId, projectedNode.KindId);
+            Assert.AreEqual(sourceNode.Subtype, projectedNode.Subtype);
+            Assert.AreEqual(sourceNode.SemanticRole, projectedNode.SemanticRole);
+            Assert.AreEqual(sourceNode.SourcePredicateId, projectedNode.SourcePredicateId);
+            Assert.AreEqual(sourceNode.SourcePageOrListItemIdentity, projectedNode.SourcePageOrListItemIdentity);
+            Assert.AreEqual(sourceNode.SourceVersionIdentity, projectedNode.SourceVersionIdentity);
+            Assert.AreEqual(sourceNode.PrimaryOwnerLane, projectedNode.PrimaryOwnerLane);
+            Assert.AreEqual(sourceNode.EvidenceDigest, projectedNode.EvidenceDigest);
+            Assert.AreEqual(extensionDigest, PublishingPageDigest.ComputeSnapshotDigest(extensionSnapshot));
+        }
+
+        [TestMethod]
+        public void ExtensionGraphRejectsPathDerivedDiscriminatorAfterRedigest()
+        {
+            var handler = CreateHandler("pnp.dynamic-region/v1", 10, "dynamic-region:");
+            var catalog = new PublishingPageIngredientHandlerCatalog(new[] { handler });
+            var snapshot = CreateValidProjectionSnapshot();
+            snapshot.IngredientEvidence = new List<PublishingPageIngredientEvidenceEnvelope>
+            {
+                PublishingPageIngredientEvidenceEnvelope.Create(
+                    handler,
+                    TestHandler.EvidenceSchema,
+                    "hero",
+                    new TestEvidence { NodeId = "dynamic-region:hero", Value = "Welcome" })
+            };
+            snapshot.IngredientGraph = PublishingPageIngredientGraphProjector.Project(snapshot, catalog);
+            snapshot.IngredientGraph.ProjectionVersion =
+                PublishingPagePathDerivedTopologyIngredientGraphProjector.ProjectionVersion;
+            var selection = CreateValidSelection();
+            var package = new PublishingPageExportPackage
+            {
+                SchemaVersion = PublishingPagePackageContract.IngredientExtensionExportSchemaVersion,
+                ExportedAtUtc = new DateTimeOffset(2026, 9, 9, 0, 0, 0, TimeSpan.Zero),
+                Selection = selection,
+                SelectionDigest = PublishingPageDigest.ComputeSelectionDigest(selection),
+                Snapshot = snapshot,
+                SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot)
+            };
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateExport(package, null, catalog));
+        }
+
+        [TestMethod]
         public void ExtensionProjectionRejectsDuplicateBuiltInNodeAndDisconnectedEdge()
         {
             var duplicate = CreateHandler("pnp.duplicate-node/v1", 10, "content:");
@@ -459,6 +580,36 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 .Invoke(null, null);
         }
 
+        private static (SharedTopologyPlan Plan, SharedTopologyPageReference Reference) CreateSharedTopologyReference()
+        {
+            var testType = typeof(PathDerivedSharedTopologyTests);
+            var buildPlan = testType.GetMethod("BuildPlan", BindingFlags.NonPublic | BindingFlags.Static);
+            var arguments = buildPlan.GetParameters().Select(_ => Type.Missing).Cast<object>().ToArray();
+            arguments[0] = "groups/engineering/guides";
+            var plan = (SharedTopologyPlan)buildPlan.Invoke(null, arguments);
+            var execution = testType
+                .GetMethod("Execute", BindingFlags.NonPublic | BindingFlags.Static)
+                .Invoke(null, new object[] { plan });
+            var executionType = execution.GetType();
+            var dag = (SharedTopologyGlobalActionDag)executionType.GetProperty("Dag").GetValue(execution);
+            var actionPlan = (SharedTopologyGlobalActionPlan)executionType.GetProperty("ActionPlan").GetValue(execution);
+            var leaf = plan.TargetWebContainers.Single(value =>
+                !plan.TargetWebContainers.Any(candidate => string.Equals(
+                    candidate.ParentLogicalActionKey,
+                    value.LogicalActionKey,
+                    StringComparison.Ordinal)));
+            var binding = plan.SourceWebBindings.Single(value =>
+                string.Equals(value.TargetLogicalActionKey, leaf.LogicalActionKey, StringComparison.Ordinal));
+            return (
+                plan,
+                SharedTopologyPageReferenceFactory.Create(
+                    plan,
+                    dag,
+                    actionPlan,
+                    binding.SourceSiteId,
+                    binding.SourceWebId));
+        }
+
         private static PageIngredientNode OwnershipNode(string predicateId)
         {
             return new PageIngredientNode
@@ -553,6 +704,21 @@ namespace PnP.Framework.Test.EnterpriseWiki
                     PolicyVersion = "1",
                     Reason = "Typed test handler action."
                 });
+            }
+
+            protected override void ContributeAssessment(
+                PublishingPageIngredientAssessmentContext context,
+                PublishingPageIngredientEvidenceEnvelope envelope,
+                TestEvidence evidence)
+            {
+                context.AddAssessment(
+                    evidence.NodeId,
+                    PageIngredientAssessmentState.Determined,
+                    IngredientCapability.Available,
+                    IngredientDisposition.Preserve,
+                    "test-handler",
+                    "policy.test-handler",
+                    "Typed test handler assessment.");
             }
         }
     }

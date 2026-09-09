@@ -109,6 +109,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 {
                     Id = value.Id,
                     Kind = value.Kind,
+                    KindId = value.KindId,
+                    Subtype = value.Subtype,
+                    SemanticRole = value.SemanticRole,
+                    SourcePredicateId = value.SourcePredicateId,
+                    SourcePageOrListItemIdentity = value.SourcePageOrListItemIdentity,
+                    SourceVersionIdentity = value.SourceVersionIdentity,
+                    PrimaryOwnerLane = value.PrimaryOwnerLane,
                     Label = value.Label,
                     HasContent = value.HasContent,
                     Ownership = value.Ownership,
