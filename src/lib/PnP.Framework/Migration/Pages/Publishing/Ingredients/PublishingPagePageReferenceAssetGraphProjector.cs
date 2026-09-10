@@ -94,7 +94,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             }
 
             var image = references.Any(value => value.Kind == PageReferenceKind.Image);
-            if (image ? !IsSupportedImagePayload(mediaType, payload) : !IsFileMediaType(mediaType))
+            if (image ? !IsSupportedImagePayload(mediaType, payload) : !IsSupportedFilePayload(mediaType, payload))
             {
                 return null;
             }
@@ -199,6 +199,52 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             return !mediaType.StartsWith("image/", StringComparison.Ordinal)
                 && mediaType != "text/html" && mediaType != "application/xhtml+xml"
                 && mediaType != "text/css" && mediaType != "text/javascript" && mediaType != "application/javascript";
+        }
+
+        private static bool IsSupportedFilePayload(string mediaType, byte[] bytes)
+        {
+            if (!IsFileMediaType(mediaType) || bytes == null)
+            {
+                return false;
+            }
+
+            // An empty captured file is explicit payload evidence and remains
+            // distinct from a missing or reference-only observation. Nonempty
+            // Anchor payloads need a format-specific semantic proof; an
+            // extension and a digest alone cannot authorize an HTTP-200 error
+            // shell as source file bytes.
+            if (bytes.Length == 0)
+            {
+                return true;
+            }
+
+            return string.Equals(mediaType, "application/pdf", StringComparison.Ordinal)
+                && IsPdfPayload(bytes);
+        }
+
+        private static bool IsPdfPayload(byte[] bytes)
+        {
+            var header = new byte[] { 37, 80, 68, 70, 45 }; // %PDF-
+            var end = new byte[] { 37, 37, 69, 79, 70 }; // %%EOF
+            if (bytes.Length < 13 || !bytes.Take(header.Length).SequenceEqual(header)
+                || bytes[5] < (byte)'1' || bytes[5] > (byte)'9'
+                || bytes[6] != (byte)'.' || bytes[7] < (byte)'0' || bytes[7] > (byte)'9')
+            {
+                return false;
+            }
+
+            // PDF permits trailing line endings and other bounded trailing
+            // bytes. Bind the proof to an EOF marker near the actual payload
+            // end instead of looking for denial text in arbitrary content.
+            var firstCandidate = Math.Max(0, bytes.Length - 1024);
+            for (var offset = bytes.Length - end.Length; offset >= firstCandidate; offset--)
+            {
+                if (bytes.Skip(offset).Take(end.Length).SequenceEqual(end))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

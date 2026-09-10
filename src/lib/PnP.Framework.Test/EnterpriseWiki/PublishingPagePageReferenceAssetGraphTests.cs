@@ -162,6 +162,73 @@ namespace PnP.Framework.Test.EnterpriseWiki
             }
         }
 
+        [DataTestMethod]
+        [DataRow("denied-pdf")]
+        [DataRow("denied-txt")]
+        [DataRow("denied-png")]
+        [DataRow("valid-png")]
+        [DataRow("valid-pdf")]
+        [DataRow("empty-txt")]
+        [DataRow("missing-pdf-independent")]
+        public void R1SemanticAcquisitionProofClosesTheSevenProbeMatrix(string condition)
+        {
+            var snapshot = CreateClaimSnapshot();
+            var reference = snapshot.Dependencies.Single();
+            var expectedAssetPath = AssetPath;
+            var expectedPredicate = "asset.typed-image";
+            string unavailablePath = null;
+
+            switch (condition)
+            {
+                case "denied-pdf":
+                case "denied-txt":
+                case "denied-png":
+                    var extension = condition.Substring("denied".Length);
+                    unavailablePath = AssetPath.Replace(".png", extension);
+                    reference.Kind = extension == ".png" ? PageReferenceKind.Image : PageReferenceKind.Anchor;
+                    ChangePath(reference, unavailablePath);
+                    SetPayload(reference, Encoding.UTF8.GetBytes("<!doctype html><title>Access Denied</title>"));
+                    var independent = Reference(snapshot, AssetPath.Replace("andManifest.png", "independent.png"), "img[src]");
+                    snapshot.Dependencies.Add(independent);
+                    expectedAssetPath = independent.SourceServerRelativeUrl;
+                    break;
+                case "valid-pdf":
+                    reference.Kind = PageReferenceKind.Anchor;
+                    ChangePath(reference, AssetPath.Replace(".png", ".pdf"));
+                    SetPayload(reference, Encoding.UTF8.GetBytes("%PDF-1.4\nfixture\n%%EOF"));
+                    expectedAssetPath = reference.SourceServerRelativeUrl;
+                    expectedPredicate = "asset.direct-page-file";
+                    break;
+                case "empty-txt":
+                    reference.Kind = PageReferenceKind.Anchor;
+                    ChangePath(reference, AssetPath.Replace(".png", ".txt"));
+                    SetPayload(reference, Array.Empty<byte>());
+                    expectedAssetPath = reference.SourceServerRelativeUrl;
+                    expectedPredicate = "asset.direct-page-file";
+                    break;
+                case "missing-pdf-independent":
+                    reference.Kind = PageReferenceKind.Anchor;
+                    unavailablePath = AssetPath.Replace(".png", ".pdf");
+                    ChangePath(reference, unavailablePath);
+                    reference.CaptureStatus = PageCaptureStatus.NotReturned;
+                    var later = Reference(snapshot, AssetPath.Replace("andManifest.png", "independent.png"), "img[src]");
+                    snapshot.Dependencies.Add(later);
+                    expectedAssetPath = later.SourceServerRelativeUrl;
+                    break;
+            }
+            var retained = MigrationContractSerializer.SerializeCanonical(reference);
+            var graph = Project(snapshot);
+
+            var asset = graph.Nodes.Single(value => value.Kind == PageIngredientKind.Asset);
+            Assert.AreEqual(expectedAssetPath, asset.Label);
+            Assert.AreEqual(expectedPredicate, asset.SourcePredicateId);
+            Assert.IsFalse(unavailablePath != null
+                && graph.Nodes.Any(value => value.Kind == PageIngredientKind.Asset && value.Label == unavailablePath));
+            Assert.IsTrue(graph.Nodes.Any(value => value.Id == "reference:" + reference.Id
+                && value.Kind == PageIngredientKind.Reference));
+            Assert.AreEqual(retained, MigrationContractSerializer.SerializeCanonical(reference));
+        }
+
         [TestMethod]
         public void ConflictingPayloadsPauseOnlyTheirCanonicalInstance()
         {
