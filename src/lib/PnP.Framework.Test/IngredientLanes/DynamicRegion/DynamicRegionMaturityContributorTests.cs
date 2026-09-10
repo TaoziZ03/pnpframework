@@ -194,6 +194,36 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
         }
 
         [TestMethod]
+        public void ForeignSourceObservationReferenceFailsClosedAtM1()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Evidence.Live.Observations.First(value =>
+                value.Origin == IngredientObservationOrigin.AuthenticatedSource).EvidenceReference = "foreign-source.json";
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
+        [TestMethod]
+        public void ForeignTargetObservationReferenceFailsClosedAtM1()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Evidence.Live.Observations.First(value =>
+                value.Origin == IngredientObservationOrigin.CupCollectFreshReadback).EvidenceReference = "foreign-target.json";
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
+        [TestMethod]
         public void BorrowedForeignPlanCannotCloseM3()
         {
             var fixture = Fixture.Create();
@@ -511,14 +541,16 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                 var targetTime = contract.Target.ObservedAtUtc;
                 foreach (var source in Evidence.Live.Observations.ToArray())
                 {
+                    var evidenceReference = "cupcollect-runtime.json#" + source.ValuePath;
                     Evidence.Live.Observations.Add(new IngredientValueObservation
                     {
                         ValuePath = source.ValuePath,
                         ValueDigest = source.ValueDigest,
                         ObservedAtUtc = targetTime,
                         Origin = IngredientObservationOrigin.CupCollectFreshReadback,
-                        EvidenceReference = "cupcollect-runtime.json#" + source.ValuePath
+                        EvidenceReference = evidenceReference
                     });
+                    Evidence.Live.TargetEvidenceReferences.Add(evidenceReference);
                 }
                 Evidence.Live.TargetFreshReadback = true;
                 Evidence.Live.TargetEvidenceReferences.Add("cupcollect-runtime.json");
@@ -670,7 +702,8 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                         SourceEvidenceReferences = new List<string>
                         {
                             "search-results-row-00001-v41.json"
-                        }
+                        }.Concat(normalized.ValueDigests.Keys.Select(value =>
+                            "search-results-row-00001-v41.json#" + value)).ToList()
                     }
                 };
             }

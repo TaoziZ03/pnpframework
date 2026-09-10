@@ -181,15 +181,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
             var targetEvidenceReferences = evidence.TargetEvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToList()
                 ?? new List<string>();
-            targetEvidenceReferences.AddRange(targets.Select(value => value.EvidenceReference).Where(value =>
-                !string.IsNullOrWhiteSpace(value)));
-            targetEvidenceReferences = targetEvidenceReferences.Distinct(StringComparer.Ordinal).ToList();
             var sourceEvidenceReferences = evidence.SourceEvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToList()
                 ?? new List<string>();
-            sourceEvidenceReferences.AddRange(sources.Select(value => value.EvidenceReference).Where(value =>
-                !string.IsNullOrWhiteSpace(value)));
-            sourceEvidenceReferences = sourceEvidenceReferences.Distinct(StringComparer.Ordinal).ToList();
             var targetReferencesBound = target?.EvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).All(value => targetEvidenceReferences.Contains(value, StringComparer.Ordinal)) == true;
             var substituted = evidence.HistoricalOrSyntheticSubstitution
