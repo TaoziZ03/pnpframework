@@ -59,7 +59,7 @@
     "frameworkSha256": "038f66d9f433792f603ae3a237469003270b7866a6b1dc8170fb81566a9daa9f",
     "testArtifact": "src/lib/PnP.Framework.Test/IngredientLanes/EmbedIframe/EmbedIframeMaturityContributorTests.cs",
     "testArtifactKind": "lane-test-source",
-    "testSha256": "8d7797b31647f9602a4ca2d85b4b38ede0512a203a7998c0594cf53fd991f7e7"
+    "testSha256": "846d7ac7218a62266e82e6edbc3af78ac170bd4cf08fbdd615b1b1edc3b7d512"
   },
   "sourceValueDigests": {
     "binding.consumer": "2aad8914cf9fd5768d7e815ed2027023cfebf07b93ad015e8dec23eba10d39cb",

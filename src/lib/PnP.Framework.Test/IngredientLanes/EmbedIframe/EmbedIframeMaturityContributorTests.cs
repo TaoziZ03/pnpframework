@@ -23,6 +23,9 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
     [TestClass]
     public class EmbedIframeMaturityContributorTests
     {
+        private const string PrimaryOwnerFailureReason =
+            "Ingredient 'reference:1d58d34bed460770722b20ff7e809f8636b4b03f80a131e66ee3d11957dcbe69' has no primary owner for tuple (Reference, reference.embed.iframe, embedded-frame-reference, reference.kind-iframe).";
+
         private static readonly Lazy<string> FrameworkAssemblySha256 = new Lazy<string>(
             () => ComputeFileSha256(typeof(EmbedIframeMaturityContributor).Assembly.Location));
 
@@ -146,20 +149,30 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [DataTestMethod]
-        [DataRow("missing-src")]
-        [DataRow("hyperlink-is-not-iframe")]
-        [DataRow("stale-source-version")]
-        [DataRow("missing-host-binding")]
-        [DataRow("wrong-consumer-binding")]
-        [DataRow("wrong-reference-kind")]
-        [DataRow("unobservable-content-claimed")]
-        [DataRow("corrupt-raw-artifact")]
-        [DataRow("semantic-digest-mismatch")]
-        public void SourceBindingPolicyAndIntegrityNegativesFailClosed(string mutation)
+        [DataRow("missing-src", IngredientMaturityGateCatalog.PrimaryOwner, PrimaryOwnerFailureReason)]
+        [DataRow("hyperlink-is-not-iframe", IngredientMaturityGateCatalog.PrimaryOwner, PrimaryOwnerFailureReason)]
+        [DataRow("stale-source-version", IngredientMaturityGateCatalog.SourceBinding,
+            "The source binding differs from the projected ingredient evidence.")]
+        [DataRow("missing-host-binding", IngredientMaturityGateCatalog.PrimaryOwner, PrimaryOwnerFailureReason)]
+        [DataRow("wrong-consumer-binding", IngredientMaturityGateCatalog.PrimaryOwner, PrimaryOwnerFailureReason)]
+        [DataRow("wrong-reference-kind", IngredientMaturityGateCatalog.PrimaryOwner, PrimaryOwnerFailureReason)]
+        [DataRow("unobservable-content-claimed", IngredientMaturityGateCatalog.PrimaryOwner, PrimaryOwnerFailureReason)]
+        [DataRow("corrupt-raw-artifact", IngredientMaturityGateCatalog.RawArtifactIntegrity,
+            "ingredient maturity raw inline payload length or digest does not match its artifact reference.")]
+        [DataRow("semantic-digest-mismatch", IngredientMaturityGateCatalog.SemanticIntegrity,
+            "The normalized semantic digest does not recompute.")]
+        public void SourceBindingPolicyAndIntegritySingleMutationsFlipTheExactPassingGate(
+            string mutation,
+            string gateId,
+            string reason)
         {
             var fixture = Fixture.Create();
+            var baseline = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Passed, baseline.Status, mutation + " baseline");
             fixture.Mutate(mutation);
-            Assert.IsTrue(fixture.Evaluate().Levels.SelectMany(value => value.Gates).Any(value => value.Status == IngredientMaturityGateStatus.Failed));
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+            Assert.AreEqual(reason, receipt.FailureReason, mutation);
         }
 
         [DataTestMethod]
