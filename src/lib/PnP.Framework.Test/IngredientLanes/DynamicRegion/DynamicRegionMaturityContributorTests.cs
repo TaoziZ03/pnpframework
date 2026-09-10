@@ -224,6 +224,34 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
         }
 
         [TestMethod]
+        public void CrossSwappedSourceObservationReferencesFailClosedAtM1()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            SwapObservationReferences(fixture.Evidence.Live, IngredientObservationOrigin.AuthenticatedSource);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
+        [TestMethod]
+        public void CrossSwappedTargetObservationReferencesFailClosedAtM1()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            SwapObservationReferences(fixture.Evidence.Live, IngredientObservationOrigin.CupCollectFreshReadback);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
+        [TestMethod]
         public void BorrowedForeignPlanCannotCloseM3()
         {
             var fixture = Fixture.Create();
@@ -498,6 +526,17 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
         private static IngredientMaturityGateResult Gate(IngredientMaturityAssessment assessment, string gateId)
         {
             return assessment.Levels.SelectMany(value => value.Gates).Single(value => value.GateId == gateId);
+        }
+
+        private static void SwapObservationReferences(
+            IngredientLiveEvidence evidence,
+            IngredientObservationOrigin origin)
+        {
+            var observations = evidence.Observations.Where(value => value.Origin == origin).Take(2).ToArray();
+            Assert.AreEqual(2, observations.Length);
+            var first = observations[0].EvidenceReference;
+            observations[0].EvidenceReference = observations[1].EvidenceReference;
+            observations[1].EvidenceReference = first;
         }
 
         private sealed class Fixture
