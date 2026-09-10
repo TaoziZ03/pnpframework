@@ -84,6 +84,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
         [DataRow("wrong-target-searchbox")]
         [DataRow("searchbox-is-provider")]
         [DataRow("unrelated-target-page")]
+        [DataRow("wrong-source-page-mapping")]
         [DataRow("unrelated-lease-id")]
         [DataRow("unrelated-claim-lease")]
         public void IndependentTargetConsumerAndLeaseBindingsFailClosed(string mutation)
@@ -511,8 +512,10 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         topology.TargetProvider.PageIdentity = unrelatedPage;
                         topology.TargetSearchBox.PageIdentity = unrelatedPage;
                         topology.TargetMapping.TargetPageIdentity = unrelatedPage;
-                        topology.TargetMapping.TargetIdentity = unrelatedPage;
-                        topology.Lease.TargetIdentity = unrelatedPage;
+                        break;
+                    case "wrong-source-page-mapping":
+                        topology.TargetMapping.SourcePageIdentity = "urn:sha256:1111111111111111111111111111111111111111111111111111111111111111";
+                        topology.TargetMapping.SourcePageVersion = "\"{11111111-1111-1111-1111-111111111111},1\"";
                         break;
                     case "unrelated-claim-lease":
                         topology.Lease.LeaseId = "unrelated-claim-lease-v1";

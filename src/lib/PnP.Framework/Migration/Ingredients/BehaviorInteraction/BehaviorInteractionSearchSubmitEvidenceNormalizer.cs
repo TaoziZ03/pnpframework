@@ -383,6 +383,11 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             }
             if (!string.Equals(context?.Target?.TargetProfile, evidence.Assertion?.TargetProfileId, StringComparison.Ordinal)
                 || !string.Equals(context?.Target?.TargetIdentity, mapping.TargetIdentity, StringComparison.Ordinal)
+                || !string.Equals(context?.Target?.TargetIdentity, mapping.TargetPageIdentity, StringComparison.Ordinal)
+                || !string.Equals(mapping.SourcePageIdentity, evidence.Assertion?.SourcePageOrListItemIdentity, StringComparison.Ordinal)
+                || !string.Equals(mapping.SourcePageVersion, evidence.Assertion?.SourceVersionIdentity, StringComparison.Ordinal)
+                || !string.Equals(mapping.SourcePageIdentity, topology.SourceProvider.PageIdentity, StringComparison.Ordinal)
+                || !string.Equals(mapping.SourcePageVersion, topology.SourceProvider.PageVersion, StringComparison.Ordinal)
                 || !string.Equals(provider.PageIdentity, mapping.TargetPageIdentity, StringComparison.Ordinal)
                 || !string.Equals(provider.PageVersion, mapping.TargetPageVersion, StringComparison.Ordinal)
                 || !string.Equals(searchBox.PageIdentity, mapping.TargetPageIdentity, StringComparison.Ordinal)
@@ -390,7 +395,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                 || string.IsNullOrWhiteSpace(provider.PageIdentity)
                 || string.IsNullOrWhiteSpace(provider.PageVersion))
             {
-                failureReason = "The mapped ResultScript provider is not freshly bound to the same target page identity and version as the Search Box.";
+                failureReason = "The source-to-target mapping is not bound to the asserted source and evaluation target page identities and versions.";
                 return false;
             }
             if (!TargetActionsMatch(context, evidence, mapping)
