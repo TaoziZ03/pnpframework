@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Pages.ClassicWebParts;
+using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
 using PnP.Framework.Migration.Pages.Fields;
@@ -271,6 +272,11 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 if (match == null)
                 {
                     result.Differences.Add($"Dependency exact-semantics mismatch for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
+                    return;
+                }
+                if (match.CaptureStatus == PageCaptureStatus.Failed)
+                {
+                    result.Differences.Add($"Dependency fresh evidence is unavailable for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
                     return;
                 }
                 unused.Remove(match);
