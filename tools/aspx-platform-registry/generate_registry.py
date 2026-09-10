@@ -29,6 +29,10 @@ AUTHORITY_SCHEMA_VERSION = "aspx-platform-authority/v1"
 PROFILE_SCHEMA_VERSION = "aspx-platform-registry-profile/v2"
 REGISTRY_REVISION = "spo-online-16.0.27606.12000-r4"
 PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r4"
+PROFILE_SCHEMA_RESOURCE_ID = (
+    "urn:ccd:pnp:aspx-platform-registry-profile:"
+    "spo-online-16.0.27606.12000:r4"
+)
 PLATFORM_FAMILY = "SharePointOnline-16"
 PLATFORM_BUILD = "16.0.27606.12000"
 CONSUMER_PRODUCT_ID = "pnp/assessment"
@@ -936,6 +940,30 @@ def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def validate_profile_schema_resource(
+    profile_schema: dict[str, Any],
+    registry_schema: dict[str, Any] | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    if profile_schema.get("$id") != PROFILE_SCHEMA_RESOURCE_ID:
+        errors.append("profile schema $id is not the frozen revision-bound resource ID")
+    properties = profile_schema.get("properties")
+    if not isinstance(properties, dict):
+        errors.append("profile schema properties must be an object")
+        return errors
+    expected_consts = {
+        "profileSchemaVersion": PROFILE_SCHEMA_VERSION,
+        "profileRevision": PROFILE_REVISION,
+    }
+    for key, expected in expected_consts.items():
+        definition = properties.get(key)
+        if not isinstance(definition, dict) or definition.get("const") != expected:
+            errors.append(f"profile schema {key} const is not the frozen value")
+    if registry_schema is not None and profile_schema.get("$id") == registry_schema.get("$id"):
+        errors.append("profile and registry schemas share one resource ID")
+    return errors
+
+
 def bind_fixture_document(
     fixtures: dict[str, Any],
     registry: dict[str, Any],
@@ -1079,6 +1107,17 @@ def main() -> int:
     )
     if not registry_schema_path.is_file():
         raise ValueError(f"registry schema is missing: {registry_schema_path}")
+    profile_schema_path = (
+        args.output_root / "schema" / "aspx-platform-registry-profile.schema.json"
+    )
+    if not profile_schema_path.is_file():
+        raise ValueError(f"profile schema is missing: {profile_schema_path}")
+    profile_schema_errors = validate_profile_schema_resource(
+        load_json(profile_schema_path),
+        load_json(registry_schema_path),
+    )
+    if profile_schema_errors:
+        raise ValueError("; ".join(profile_schema_errors))
     profile = build_profile(
         registry,
         authority,

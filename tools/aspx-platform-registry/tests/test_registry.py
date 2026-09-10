@@ -19,6 +19,9 @@ from generate_registry import (  # noqa: E402
     DISPOSITIONS,
     FAILURE_SEMANTICS,
     PLATFORM_BUILD,
+    PROFILE_REVISION,
+    PROFILE_SCHEMA_RESOURCE_ID,
+    PROFILE_SCHEMA_VERSION,
     SOURCE_KINDS,
     VOLUME_COMPATIBILITY,
     canonical_json_bytes,
@@ -38,6 +41,7 @@ from validate_registry import (  # noqa: E402
     schema_validation_errors,
     validate_authority,
     validate_profile,
+    validate_profile_schema_resource,
     validate_registry,
 )
 
@@ -76,6 +80,36 @@ class RegistryContractTests(unittest.TestCase):
                 self.authority,
                 self.schema_hash,
             ),
+        )
+
+    def test_schema_resource_ids_are_revision_bound_and_unique(self) -> None:
+        profile_revision_suffix = PROFILE_REVISION.rsplit("-profile-", 1)[1]
+        expected_profile_resource_id = (
+            "urn:ccd:pnp:aspx-platform-registry-profile:"
+            f"spo-online-{PLATFORM_BUILD}:{profile_revision_suffix}"
+        )
+        self.assertEqual(expected_profile_resource_id, PROFILE_SCHEMA_RESOURCE_ID)
+        self.assertEqual(PROFILE_SCHEMA_RESOURCE_ID, self.profile_schema["$id"])
+        self.assertEqual(
+            PROFILE_SCHEMA_VERSION,
+            self.profile_schema["properties"]["profileSchemaVersion"]["const"],
+        )
+        self.assertEqual(
+            PROFILE_REVISION,
+            self.profile_schema["properties"]["profileRevision"]["const"],
+        )
+        self.assertNotEqual(self.schema["$id"], self.profile_schema["$id"])
+        self.assertEqual(
+            [],
+            validate_profile_schema_resource(self.profile_schema, self.schema),
+        )
+        stale_resource_id = self.profile_schema.copy()
+        stale_resource_id["$id"] = (
+            "urn:ccd:pnp:aspx-platform-registry-profile:"
+            "spo-online-16.0.27606.12000:r3"
+        )
+        self.assertTrue(
+            validate_profile_schema_resource(stale_resource_id, self.schema)
         )
 
     def test_registry_is_finite_and_exact_build_bound(self) -> None:

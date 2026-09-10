@@ -16,6 +16,10 @@ generated from Assessment results, CUPCollect paths, or a tenant scan.
   `c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146`
 - Profile schema/revision: `aspx-platform-registry-profile/v2` /
   `spo-online-16.0.27606.12000-profile-r4`
+- Profile schema resource ID:
+  `urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27606.12000:r4`
+- Profile schema SHA-256:
+  `3faeb983aa69cdd55003755f5d87eb28c4e0101ee845c9220245efa13ebb4ea1`
 - Profile canonical hash:
   `43858256b82288df69db270c10344a1720f7e7c51d10e1e28f412cfa7fd615e6`
 - Assessment consumer product identity:

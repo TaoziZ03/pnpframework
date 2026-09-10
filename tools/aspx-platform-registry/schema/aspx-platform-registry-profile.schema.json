@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27606.12000:r3",
+  "$id": "urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27606.12000:r4",
   "title": "Externally pinned ASPX platform registry compatibility profile",
   "type": "object",
   "additionalProperties": false,

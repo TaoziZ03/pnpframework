@@ -45,6 +45,7 @@ from generate_registry import (
     object_hash,
     rule_hash,
     sqlite_schema_manifest,
+    validate_profile_schema_resource,
 )
 
 
@@ -2052,10 +2053,19 @@ def main() -> int:
     errors = schema_validation_errors(registry, registry_schema)
     errors.extend(validate_registry(registry, authority))
     errors.extend(validate_profile(profile, registry, authority, registry_schema_hash))
+    profile_schema = None
     if args.profile_schema:
+        profile_schema = load_json(args.profile_schema)
         errors.extend(
             f"profile schema: {error}"
-            for error in schema_validation_errors(profile, load_json(args.profile_schema))
+            for error in schema_validation_errors(profile, profile_schema)
+        )
+        errors.extend(
+            f"profile schema resource: {error}"
+            for error in validate_profile_schema_resource(
+                profile_schema,
+                registry_schema,
+            )
         )
     if errors:
         for error in errors:
@@ -2071,6 +2081,9 @@ def main() -> int:
         "registrySchemaHash": registry_schema_hash,
         "entryCount": registry["entryCount"],
     }
+    if profile_schema is not None and args.profile_schema is not None:
+        summary["profileSchemaResourceId"] = profile_schema["$id"]
+        summary["profileSchemaHash"] = artifact_sha256(args.profile_schema)
     if args.fixtures:
         receipts = evaluate_fixture_suite(
             load_json(args.fixtures),
