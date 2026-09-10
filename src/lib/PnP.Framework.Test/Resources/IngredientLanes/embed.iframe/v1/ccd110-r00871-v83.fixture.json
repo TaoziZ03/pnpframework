@@ -1,0 +1,41 @@
+{
+  "schema": "pnp-ingredient-fixture/v1",
+  "claimId": "3c757d79a7e3846027fc3a97f341c3a23b5959f004cc525dfd05e30b659e3dbf",
+  "ingredientId": "reference:1d58d34bed460770722b20ff7e809f8636b4b03f80a131e66ee3d11957dcbe69",
+  "source": {
+    "webUrl": "https://microsoft.sharepoint.com/sites/Marketing/Teams",
+    "pageUrl": "https://microsoft.sharepoint.com/sites/Marketing/Teams/Pages/ACEProgram.aspx",
+    "fileServerRelativeUrl": "/sites/Marketing/Teams/Pages/ACEProgram.aspx",
+    "listId": "fa983d97-f0cf-4728-867a-86c483cb82d9",
+    "itemId": 19,
+    "uniqueId": "f3025196-bbfe-4a90-a3de-6d0df9c78718",
+    "version": "\"{F3025196-BBFE-4A90-A3DE-6D0DF9C78718},83\"",
+    "modified": "2016-10-21T09:58:04"
+  },
+  "host": {
+    "ingredientId": "ccd.ingredient.webpart.instance/v1:f3025196-bbfe-4a90-a3de-6d0df9c78718:62eae19b-2097-4477-a3e4-8ab74a1e8b82",
+    "webPartId": "62eae19b-2097-4477-a3e4-8ab74a1e8b82",
+    "propertyName": "Content",
+    "zoneIndex": 1
+  },
+  "reference": {
+    "id": "1d58d34bed460770722b20ff7e809f8636b4b03f80a131e66ee3d11957dcbe69",
+    "originalValue": "https://sway.com/s/BatsRizUdfGTTaJS/embed",
+    "sourceAbsoluteUrl": "https://sway.com/s/BatsRizUdfGTTaJS/embed",
+    "consumer": "webpart:62eae19b-2097-4477-a3e4-8ab74a1e8b82",
+    "kind": "IFrame",
+    "isRenderableResource": true,
+    "captureStatus": "CapturedWithLimitations"
+  },
+  "rawArtifact": {
+    "sha256": "89295aed02042152e609615fbc7dc37a74c2a8a38f766f0606e56af35a12bac3",
+    "length": 213,
+    "mediaType": "text/html",
+    "originalName": "webpart-content.html",
+    "base64": "PGlmcmFtZSB3aWR0aD0iNTYwcHgiIGhlaWdodD0iMjUwcHgiIHNyYz0iaHR0cHM6Ly9zd2F5LmNvbS9zL0JhdHNSaXpVZGZHVFRhSlMvZW1iZWQiIGZyYW1lYm9yZGVyPSIwIiBtYXJnaW53aWR0aD0iMCIgbWFyZ2luaGVpZ2h0PSIwIiBzY3JvbGxpbmc9Im5vIiBzdHlsZT0iYm9yZGVyOiBub25lOyBtYXgtd2lkdGg6MTAwJTsgbWF4LWhlaWdodDoxMDB2aCI+PC9pZnJhbWU+"
+  },
+  "semanticSha256": "b8c645f3f195c4d1eda535c4fbdf92447341aa64174ad9362ac71fff5d195d43",
+  "sourceObservedAtUtc": "2026-09-09T19:31:13.694Z",
+  "targetProfile": "cupcollect-classic-page/v1",
+  "targetIdentity": "cupcollect:planned:/sites/ccd171/Pages/ACEProgram.aspx#webpart:62eae19b-2097-4477-a3e4-8ab74a1e8b82"
+}
