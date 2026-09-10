@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Evidence.ProducerBuild;
 using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Execution.Journaling;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Execution;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
@@ -104,6 +105,41 @@ namespace PnP.Framework.Test.Migration.Verification
             fixture.External.CompletedAtUtc = fixture.External.StartedAtUtc.AddSeconds(2);
             fixture.ResealExternal();
             Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.External.PreCaptureTargetReadback.ObservedAtUtc = fixture.Binding.TargetIdentityEvidence.ObservedAtUtc.AddSeconds(-1);
+            fixture.ResealExternal();
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.External.PostCaptureTargetReadback.ObservedAtUtc = fixture.Binding.CaptureExpiresAtUtc.AddSeconds(1);
+            fixture.ResealExternal();
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+        }
+
+        [TestMethod]
+        public void BindingRequiresProviderObservedSourceAndTargetAndPlanWebIdentity()
+        {
+            var fixture = NativeRuntimeTestFixture.Create();
+            fixture.Binding.TargetStorageIdentity.WebId = Guid.Parse("90000000-0000-0000-0000-000000000002");
+            fixture.Binding.TargetStorageIdentity.CanonicalUrl = NativeRuntimeTestFixture.CanonicalTarget(fixture.Binding.TargetStorageIdentity);
+            fixture.Binding.TargetIdentityEvidence.Identity = NativePageRuntimeBindingValidator.CopyTarget(fixture.Binding.TargetStorageIdentity);
+            fixture.Binding.TargetIdentityEvidence.Artifact = NativePageRuntimeBindingValidator.PutCanonicalArtifact(
+                fixture.Binding.TargetIdentityEvidence.Identity,
+                fixture.ArtifactStore,
+                "application/vnd.pnp.target-identity+json");
+            NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateBinding());
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.Binding.SourceIdentityEvidence.ProviderId = null;
+            NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateBinding());
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.Binding.TargetIdentityEvidence.Artifact = null;
+            NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateBinding());
         }
 
         [TestMethod]
@@ -114,6 +150,121 @@ namespace PnP.Framework.Test.Migration.Verification
             fixture.ValidateExternal(out var status);
 
             Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+        }
+
+        [TestMethod]
+        public void WikiPolicyRecomputesAuthoredSurfaceDecodesDenialAndRequiresImageBytes()
+        {
+            var fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body data-page='classic-wiki'>foreign content</body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out var status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><h1>Access&#32;Denied</h1><p>Sign&#32;in to continue</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body data-page='classic-wiki'>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                Encoding.UTF8.GetBytes("not an image"));
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+        }
+
+        [TestMethod]
+        public void AttemptManifestAndNestedRuntimeWireMustCloseOverConsumedEvidence()
+        {
+            var fixture = NativeRuntimeTestFixture.Create();
+            fixture.External.Attempts[0].HttpStatusCode = 403;
+            fixture.External.Attempts[0].SemanticResult = "access_denied";
+            fixture.ResealExternal();
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.External.Attempts[0].RawEvidence[0].Locator = "../escape";
+            fixture.ResealExternal();
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.External.ArtifactManifest.Artifacts = new List<ArtifactReference>
+            {
+                fixture.ArtifactStore.PutText("unrelated", "text/plain")
+            };
+            fixture.ResealManifestAndExternal();
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.External.RuntimeReceipt.SchemaVersion = "pnp-migration-runtime-verification-receipt/v2";
+            fixture.ResealExternal();
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.External.RuntimeReceipt.Status = (RuntimeVerificationStatus)999;
+            fixture.ResealExternal();
+            Assert.ThrowsException<InvalidDataException>(() => fixture.ValidateExternal(out _));
+        }
+
+        [TestMethod]
+        public void ExistingJournalWriterPersistsOperationScopedVerificationEvidenceAndRecoversTail()
+        {
+            var directory = Path.Combine(Path.GetTempPath(), "ccd271-journal-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                var path = Path.Combine(directory, "verification.jsonl");
+                var reference = new MigrationExecutionArtifactReference
+                {
+                    OperationId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                    PlanDigest = NativeRuntimeTestFixture.Hash("plan"),
+                    WrittenAtUtc = new DateTimeOffset(2026, 9, 10, 0, 20, 0, TimeSpan.Zero),
+                    ArtifactKind = MigrationExecutionArtifactKind.VerificationEvidence,
+                    ArtifactSchemaVersion = NativePageRuntimeContract.AcceptanceReceiptSchemaVersion,
+                    Sha256 = NativeRuntimeTestFixture.Hash("acceptance"),
+                    Length = 128,
+                    MediaType = "application/vnd.pnp.native-runtime-acceptance+json"
+                };
+                using (var journal = new JsonLinesMigrationExecutionJournal(path))
+                {
+                    journal.WriteArtifactReference(reference);
+                }
+                var first = MigrationExecutionJournalReader.Read(path);
+                Assert.AreEqual(1, first.Records.Count);
+                Assert.AreEqual(MigrationExecutionJournalRecordKind.ArtifactReference, first.Records[0].RecordKind);
+                Assert.IsNull(first.Records[0].ActionId);
+
+                File.AppendAllText(path, "{\"partial\":");
+                using (var journal = new JsonLinesMigrationExecutionJournal(path))
+                {
+                    reference = new MigrationExecutionArtifactReference
+                    {
+                        OperationId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                        PlanDigest = NativeRuntimeTestFixture.Hash("plan-2"),
+                        WrittenAtUtc = reference.WrittenAtUtc.AddSeconds(1),
+                        ArtifactKind = reference.ArtifactKind,
+                        ArtifactSchemaVersion = reference.ArtifactSchemaVersion,
+                        Sha256 = NativeRuntimeTestFixture.Hash("acceptance-2"),
+                        Length = reference.Length,
+                        MediaType = reference.MediaType
+                    };
+                    journal.WriteArtifactReference(reference);
+                }
+                var recovered = MigrationExecutionJournalReader.Read(path);
+                Assert.AreEqual(2, recovered.Records.Count);
+                Assert.AreEqual(1, recovered.InterruptedTails.Count);
+            }
+            finally
+            {
+                Directory.Delete(directory, true);
+            }
         }
 
         [TestMethod]
@@ -171,7 +322,7 @@ namespace PnP.Framework.Test.Migration.Verification
         }
 
         [TestMethod]
-        public void PermanentCounterexampleFixturesAreCopiedAndValidJson()
+        public void PermanentCounterexampleFixturesReopenInputsAndDriveExpectedOutcomes()
         {
             var root = Path.Combine(AppContext.BaseDirectory, "Resources", "Migration", "NativeRuntimeBinding", "v1");
             var files = Directory.GetFiles(root, "*.case.json").OrderBy(value => value).ToArray();
@@ -187,10 +338,150 @@ namespace PnP.Framework.Test.Migration.Verification
                     Assert.IsTrue(document.RootElement.GetProperty("synthetic").GetBoolean());
                     Assert.AreEqual(64, document.RootElement.GetProperty("originEvidencePackageDigest").GetString().Length);
                     Assert.AreEqual(NativePageRuntimeContract.ClaimId, document.RootElement.GetProperty("claimId").GetString());
-                    Assert.AreEqual(64, document.RootElement.GetProperty("transformRecipeDigest").GetString().Length);
-                    Assert.IsTrue(document.RootElement.GetProperty("inputArtifacts").GetArrayLength() > 0);
+                    var recipe = document.RootElement.GetProperty("transformRecipe").GetString();
+                    Assert.AreEqual(
+                        MigrationDigest.ComputeSha256(recipe),
+                        document.RootElement.GetProperty("transformRecipeDigest").GetString());
+                    var inputs = document.RootElement.GetProperty("inputArtifacts");
+                    Assert.IsTrue(inputs.GetArrayLength() > 0);
+                    foreach (var input in inputs.EnumerateArray())
+                    {
+                        var path = Path.GetFullPath(Path.Combine(root, input.GetProperty("path").GetString()));
+                        Assert.IsTrue(path.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal));
+                        var bytes = File.ReadAllBytes(path);
+                        Assert.AreEqual(input.GetProperty("length").GetInt64(), bytes.LongLength);
+                        Assert.AreEqual(input.GetProperty("sha256").GetString(), MigrationDigest.ComputeSha256(bytes));
+                    }
+                    AssertPermanentOutcome(caseId.GetString(), document.RootElement.GetProperty("expected"));
                 }
             }
+        }
+
+        [TestMethod]
+        public void SyntheticFixtureCreationIsDigestDeterministic()
+        {
+            var first = NativeRuntimeTestFixture.Create();
+            var second = NativeRuntimeTestFixture.Create();
+
+            Assert.AreEqual(first.Package.SnapshotDigest, second.Package.SnapshotDigest);
+            Assert.AreEqual(first.Package.PlanDigest, second.Package.PlanDigest);
+            Assert.AreEqual(first.AdmittedDigest, second.AdmittedDigest);
+            Assert.AreEqual(first.ImportAggregate.ReceiptDigestSha256, second.ImportAggregate.ReceiptDigestSha256);
+            Assert.AreEqual(first.Binding.ContentSha256, second.Binding.ContentSha256);
+            Assert.AreEqual(first.External.ContentSha256, second.External.ContentSha256);
+        }
+
+        private static void AssertPermanentOutcome(string caseId, JsonElement expected)
+        {
+            var fixture = NativeRuntimeTestFixture.Create(
+                runtimePassed: !string.Equals(caseId, "access-denied-terminal", StringComparison.Ordinal),
+                semanticDenial: string.Equals(caseId, "http-200-denial", StringComparison.Ordinal));
+            string bindingStatus = NativePageRuntimeContract.BindingValid;
+            RuntimeVerificationStatus runtimeStatus = RuntimeVerificationStatus.Pending;
+            MigrationAcceptanceStatus acceptanceStatus = MigrationAcceptanceStatus.Pending;
+            string provenanceStatus = ProducerBuildProvenanceContract.Unverified;
+            string diagnostic = null;
+            try
+            {
+                switch (caseId)
+                {
+                    case "capture-before-import":
+                        fixture.External.StartedAtUtc = fixture.ImportAggregate.ClassicWikiReceipt.StartedAtUtc.AddMinutes(-1);
+                        fixture.External.CompletedAtUtc = fixture.External.StartedAtUtc.AddSeconds(1);
+                        fixture.ResealExternal();
+                        fixture.ValidateExternal(out runtimeStatus);
+                        break;
+                    case "consistent-unobserved-target":
+                        fixture.External.ObservedTargetIdentity.SiteId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+                        fixture.ResealExternal();
+                        fixture.ValidateExternal(out runtimeStatus);
+                        break;
+                    case "stale-source-version":
+                        fixture.Binding.SourceVersion.VersionDigestSha256 = NativeRuntimeTestFixture.Hash("stale-source");
+                        NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
+                        fixture.ValidateBinding();
+                        break;
+                    case "weakened-manifest":
+                        fixture.Binding.RequirementsManifest.Requirements[0].Required = false;
+                        NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
+                        fixture.ValidateBinding();
+                        break;
+                    case "wrong-operation":
+                        fixture.Binding.Operations.RuntimeOperationId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+                        NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
+                        fixture.ValidateBinding();
+                        break;
+                    case "wrong-target-file":
+                        fixture.Binding.TargetStorageIdentity.FileUniqueId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+                        NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
+                        fixture.ValidateBinding();
+                        break;
+                    default:
+                        var external = caseId == "custom-report-only"
+                            || caseId == "policy-cannot-upgrade-pending"
+                            || caseId == "pending-preservation"
+                            ? null
+                            : fixture.External;
+                        IProducerBuildProvenanceVerifier verifier = caseId == "missing-provenance"
+                            || caseId == "pending-preservation"
+                            ? null
+                            : caseId == "self-authored-verified"
+                                ? new SelfAuthoredVerifiedProvenanceVerifier()
+                                : new VerifiedTestProducerBuildProvenanceVerifier();
+                        var policy = caseId == "policy-cannot-upgrade-pending"
+                            ? (INativePageRuntimeEvidencePolicy)new AlwaysTrueRuntimePolicy()
+                            : new ClassicWikiRuntimeEvidencePolicy();
+                        var receipt = EvaluateFixture(fixture, external, verifier, policy);
+                        bindingStatus = receipt.BindingValidationStatus;
+                        runtimeStatus = receipt.RuntimeVerificationStatus;
+                        acceptanceStatus = receipt.AcceptanceStatus;
+                        provenanceStatus = receipt.ProvenanceStatus;
+                        diagnostic = string.Join(";", receipt.ReasonCodes);
+                        break;
+                }
+            }
+            catch (InvalidDataException exception)
+            {
+                bindingStatus = NativePageRuntimeContract.BindingInvalid;
+                diagnostic = exception.Message;
+            }
+
+            foreach (var property in expected.EnumerateObject())
+            {
+                switch (property.Name)
+                {
+                    case "bindingStatus": Assert.AreEqual(property.Value.GetString(), bindingStatus, caseId); break;
+                    case "runtimeStatus": Assert.AreEqual(property.Value.GetString(), runtimeStatus.ToString(), caseId); break;
+                    case "acceptanceStatus": Assert.AreEqual(property.Value.GetString(), acceptanceStatus.ToString(), caseId); break;
+                    case "provenanceStatus": Assert.AreEqual(property.Value.GetString(), provenanceStatus, caseId); break;
+                    case "httpStatus": Assert.AreEqual(property.Value.GetInt32(), fixture.External.RuntimeReceipt.Results[0].Http.StatusCode, caseId); break;
+                    case "semanticDetector": Assert.AreEqual(property.Value.GetString(), fixture.External.Attempts[0].SemanticResult, caseId); break;
+                    case "diagnostic": Assert.IsTrue((diagnostic ?? string.Empty).IndexOf(property.Value.GetString(), StringComparison.OrdinalIgnoreCase) >= 0, caseId + ": " + diagnostic); break;
+                    default: Assert.Fail(caseId + " contains an unsupported expected field: " + property.Name); break;
+                }
+            }
+        }
+
+        private static NativePageRuntimeAcceptanceReceipt EvaluateFixture(
+            NativeRuntimeTestFixture fixture,
+            ExternalPageRuntimeEvidence external,
+            IProducerBuildProvenanceVerifier verifier,
+            INativePageRuntimeEvidencePolicy policy)
+        {
+            return ClassicWikiNativeRuntimeAcceptance.Evaluate(
+                fixture.Package,
+                fixture.AdmittedPlan,
+                fixture.AdmittedDigest,
+                fixture.ImportAggregate,
+                fixture.Binding,
+                external,
+                fixture.ArtifactStore,
+                policy,
+                fixture.ProvenanceManifest,
+                verifier,
+                "ccd.native-runtime-evaluator",
+                NativeRuntimeTestFixture.ContractRef,
+                new DateTimeOffset(2026, 9, 10, 0, 20, 0, TimeSpan.Zero));
         }
     }
 
@@ -295,16 +586,48 @@ namespace PnP.Framework.Test.Migration.Verification
             };
             var store = new MemoryArtifactStore();
             var provenance = CreateProvenanceManifest(store);
+            var sourceIdentity = new NativePageRuntimeSourceIdentity
+            {
+                SiteId = package.Snapshot.Source.SiteId,
+                WebId = package.Snapshot.Source.WebId,
+                ListId = SourceListId,
+                ListItemId = package.Snapshot.Source.ListItemId,
+                FileUniqueId = package.Snapshot.Source.FileUniqueId,
+                PageServerRelativeUrl = package.Snapshot.Source.PageServerRelativeUrl
+            };
+            var sourceIdentityEvidence = new NativePageRuntimeSourceIdentityEvidence
+            {
+                ObservationId = "typed-package-source-identity",
+                ObservedAtUtc = admittedPlan.SourceVersion.ObservedAtUtc.AddSeconds(-1),
+                OperationId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"),
+                AcquisitionMethod = "typed-package-source-identity",
+                ProviderId = "pnp-framework.classic-wiki-package",
+                ProviderVersion = "v1",
+                SourceVersionDigestSha256 = admittedPlan.SourceVersion.VersionDigestSha256,
+                Identity = sourceIdentity,
+                Artifact = NativePageRuntimeBindingValidator.PutCanonicalArtifact(
+                    sourceIdentity,
+                    store,
+                    "application/vnd.pnp.source-identity+json")
+            };
             var targetEvidence = new NativePageRuntimeTargetIdentityEvidence
             {
                 ObservationId = "fresh-import-readback",
                 ObservedAtUtc = importReceipt.CompletedAtUtc.AddSeconds(1),
-                Identity = NativePageRuntimeBindingValidator.CopyTarget(target)
+                OperationId = admittedPlan.Operations.ReadbackOperationId,
+                ProviderId = "pnp-framework.classic-wiki-fresh-readback",
+                ProviderVersion = "v1",
+                SourceArtifactSha256 = aggregate.ReceiptDigestSha256,
+                Identity = NativePageRuntimeBindingValidator.CopyTarget(target),
+                Artifact = NativePageRuntimeBindingValidator.PutCanonicalArtifact(
+                    target,
+                    store,
+                    "application/vnd.pnp.target-identity+json")
             };
             var binding = ClassicWikiRuntimeBindingFactory.CreatePreCapture(
                 RunId,
                 package,
-                SourceListId,
+                sourceIdentityEvidence,
                 admittedPlan,
                 admittedDigest,
                 aggregate,
@@ -363,20 +686,79 @@ namespace PnP.Framework.Test.Migration.Verification
             NativePageRuntimeBindingValidator.SealExternalEvidence(External);
         }
 
+        public void ResealManifestAndExternal()
+        {
+            External.ArtifactManifest.ContentSha256 = MigrationDigest.ComputeSha256(
+                MigrationContractSerializer.SerializeCanonicalWithNullRootProperty(
+                    External.ArtifactManifest,
+                    nameof(MigrationArtifactManifest.ContentSha256)));
+            ResealExternal();
+        }
+
+        public string CreateDom(string authoredContent)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                schemaVersion = "pnp-classic-wiki-runtime-dom/v1",
+                surface = "classic-wiki",
+                readyState = "complete",
+                errorShell = false,
+                observedUrl = Target.CanonicalUrl,
+                authoredContent
+            });
+        }
+
+        public void ReplaceRuntimeArtifacts(string htmlText, string domJson, byte[] screenshotBytes)
+        {
+            var html = ArtifactStore.PutText(htmlText, "text/html");
+            var dom = ArtifactStore.PutText(domJson, "application/json");
+            var screenshot = ArtifactStore.PutBytes(screenshotBytes, "image/png");
+            foreach (var result in External.RuntimeReceipt.Results)
+            {
+                result.EvidenceArtifactSha256 = html.Sha256;
+                result.EvidenceArtifactLength = html.Length;
+                result.DomProbeArtifactSha256 = dom.Sha256;
+                result.DomProbeArtifactLength = dom.Length;
+                result.ScreenshotArtifactSha256 = screenshot.Sha256;
+                result.ScreenshotArtifactLength = screenshot.Length;
+            }
+            External.Attempts[0].RawEvidence = new List<NativePageRuntimeArtifactReference>
+            {
+                ToNative(html, "runtime/page.html"),
+                ToNative(dom, "runtime/dom-probe.json"),
+                ToNative(screenshot, "runtime/screenshot.png")
+            };
+            External.ArtifactManifest.Artifacts = new List<ArtifactReference>
+            {
+                html,
+                dom,
+                screenshot,
+                ToArtifact(External.PreCaptureTargetReadback.Artifact)
+            };
+            ResealManifestAndExternal();
+        }
+
         public ExternalPageRuntimeEvidence CreateExternal(bool runtimePassed, bool semanticDenial)
         {
             var started = Binding.CaptureNotBeforeUtc.AddSeconds(2);
             var html = ArtifactStore.PutText(semanticDenial
                 ? "<html><body>Access Denied; Sign in to continue</body></html>"
                 : "<html><body data-page='classic-wiki'>approved content</body></html>", "text/html");
+            var authoredContent = Package.Plan.WikiFieldPlan.ExactValue;
             var dom = ArtifactStore.PutText(JsonSerializer.Serialize(new
             {
+                schemaVersion = "pnp-classic-wiki-runtime-dom/v1",
                 surface = "classic-wiki",
                 readyState = "complete",
                 errorShell = semanticDenial,
-                authoredContentSha256 = Package.Plan.WikiFieldPlan.ExpectedStoredSha256
+                observedUrl = Target.CanonicalUrl,
+                authoredContent
             }), "application/json");
-            var screenshot = ArtifactStore.PutText("synthetic-png-bytes", "image/png");
+            var screenshot = ArtifactStore.PutBytes(new byte[]
+            {
+                0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+                0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52
+            }, "image/png");
             var browser = new RuntimeBrowserContextIdentity
             {
                 BrowserProduct = "Edge",
@@ -445,7 +827,13 @@ namespace PnP.Framework.Test.Migration.Verification
             var post = CreateTargetReadback("browser-post-capture", completed.AddSeconds(1));
             var artifactManifest = new MigrationArtifactManifest
             {
-                Artifacts = new List<ArtifactReference> { html, dom, screenshot }
+                Artifacts = new List<ArtifactReference>
+                {
+                    html,
+                    dom,
+                    screenshot,
+                    ToArtifact(pre.Artifact)
+                }
             };
             artifactManifest.ContentSha256 = MigrationDigest.ComputeSha256(
                 MigrationContractSerializer.SerializeCanonicalWithNullRootProperty(
@@ -574,6 +962,22 @@ namespace PnP.Framework.Test.Migration.Verification
 
         public static string Hash(string value) => MigrationDigest.ComputeSha256(value);
 
+        public static string CanonicalTarget(NativePageRuntimeTargetIdentity target)
+        {
+            return new Uri(target.WebUrl).GetLeftPart(UriPartial.Authority).TrimEnd('/')
+                + "/"
+                + target.PageServerRelativeUrl.TrimStart('/');
+        }
+
+        public static byte[] PngBytes()
+        {
+            return new byte[]
+            {
+                0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+                0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52
+            };
+        }
+
         private NativePageRuntimeTargetIdentityEvidence CreateTargetReadback(string id, DateTimeOffset observedAt)
         {
             var identity = NativePageRuntimeBindingValidator.CopyTarget(Target);
@@ -581,6 +985,10 @@ namespace PnP.Framework.Test.Migration.Verification
             {
                 ObservationId = id,
                 ObservedAtUtc = observedAt,
+                OperationId = Binding.Operations.RuntimeOperationId,
+                ProviderId = "edge-cdp.sharepoint-readback",
+                ProviderVersion = "v1",
+                SourceArtifactSha256 = Binding.ContentSha256,
                 Identity = identity,
                 Artifact = NativePageRuntimeBindingValidator.PutCanonicalArtifact(
                     identity,
@@ -600,6 +1008,16 @@ namespace PnP.Framework.Test.Migration.Verification
             };
         }
 
+        private static ArtifactReference ToArtifact(NativePageRuntimeArtifactReference value)
+        {
+            return new ArtifactReference
+            {
+                Sha256 = value.Sha256,
+                Length = value.Length,
+                MediaType = value.MediaType
+            };
+        }
+
         private static void MakePackageDeterministic(ClassicWikiMigrationPackage package)
         {
             package.PlannedAtUtc = new DateTimeOffset(2026, 9, 10, 0, 0, 0, TimeSpan.Zero);
@@ -609,6 +1027,8 @@ namespace PnP.Framework.Test.Migration.Verification
             package.Snapshot.Source.FileUniqueId = Guid.Parse("c3b2c2bb-663d-47ed-8562-840c9fd685fb");
             package.Snapshot.Source.ListItemId = 2;
             package.Snapshot.Source.VersionLabel = "3.0";
+            package.Snapshot.Lifecycle.CreatedUtc = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+            package.Snapshot.Lifecycle.ModifiedUtc = new DateTime(2026, 9, 10, 0, 0, 0, DateTimeKind.Utc);
             package.Snapshot.IngredientGraph = new CanonicalPageIngredientGraph
             {
                 Nodes = new List<PageIngredientNode>
@@ -715,6 +1135,14 @@ namespace PnP.Framework.Test.Migration.Verification
         public ArtifactReference PutText(string value, string mediaType)
         {
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(value)))
+            {
+                return Put(stream, mediaType);
+            }
+        }
+
+        public ArtifactReference PutBytes(byte[] value, string mediaType)
+        {
+            using (var stream = new MemoryStream(value, writable: false))
             {
                 return Put(stream, mediaType);
             }

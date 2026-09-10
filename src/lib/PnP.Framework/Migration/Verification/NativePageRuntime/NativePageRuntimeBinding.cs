@@ -35,6 +35,27 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
         public string PageServerRelativeUrl { get; set; }
     }
 
+    public sealed class NativePageRuntimeSourceIdentityEvidence
+    {
+        public string ObservationId { get; set; }
+
+        public DateTimeOffset ObservedAtUtc { get; set; }
+
+        public Guid OperationId { get; set; }
+
+        public string AcquisitionMethod { get; set; }
+
+        public string ProviderId { get; set; }
+
+        public string ProviderVersion { get; set; }
+
+        public string SourceVersionDigestSha256 { get; set; }
+
+        public NativePageRuntimeSourceIdentity Identity { get; set; }
+
+        public NativePageRuntimeArtifactReference Artifact { get; set; }
+    }
+
     public sealed class NativePageRuntimeTargetIdentity
     {
         public Guid SiteId { get; set; }
@@ -75,6 +96,14 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
 
         public DateTimeOffset ObservedAtUtc { get; set; }
 
+        public Guid OperationId { get; set; }
+
+        public string ProviderId { get; set; }
+
+        public string ProviderVersion { get; set; }
+
+        public string SourceArtifactSha256 { get; set; }
+
         public NativePageRuntimeTargetIdentity Identity { get; set; }
 
         public NativePageRuntimeArtifactReference Artifact { get; set; }
@@ -97,6 +126,8 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
         public string PolicyVersion { get; set; } = NativePageRuntimeContract.ClassicWikiPolicyVersion;
 
         public NativePageRuntimeSourceIdentity SourceIdentity { get; set; }
+
+        public NativePageRuntimeSourceIdentityEvidence SourceIdentityEvidence { get; set; }
 
         public CurrentSourceVersionIdentity SourceVersion { get; set; }
 

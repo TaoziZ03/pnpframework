@@ -13,8 +13,11 @@ or customer acceptance.
 The binding contains the exact package/source/snapshot, admitted plan, all four
 operation IDs, native import receipt, fresh target Site/Web/List/File/item/
 version/ETag identity, fixed profile manifest, bounded capture window, and
-separate import/contract producer refs. Package, native receipt, target identity,
-and policy bytes are stored in CAS and reopened by the consumer.
+separate import/contract producer refs. Source and target identities carry the
+provider, operation, observation time, acquisition/source digest, and pre-existing
+CAS artifact. The factory never converts a caller-only DTO into observed evidence.
+Package, native receipt, source/target identity, and policy bytes are reopened by
+the consumer. The target Web ID/URL must also match the sealed Wiki plan.
 
 The fixed required set is:
 
@@ -39,7 +42,15 @@ one of:
 
 The envelope records a distinct capture producer, pre/post target identity
 readbacks, bounded ordered attempts, request-ID availability, detector identity,
-and a sealed artifact manifest. It cannot set native acceptance.
+and a sealed artifact manifest. The terminal attempt must identify the consumed
+HTTP/context/result, every raw/result/readback artifact must be reopened and
+covered by the manifest, and nested schema/status discriminators are v1-known.
+It cannot set native acceptance.
+
+Classic Wiki DOM evidence uses `pnp-classic-wiki-runtime-dom/v1`. Its observed
+URL and authored-content bytes are checked against the actual HTML artifact; the
+consumer recomputes the authored digest, decodes denial text, and requires PNG or
+JPEG signature bytes for screenshot evidence.
 
 ## Native evaluation authority
 
@@ -60,6 +71,10 @@ The append-only `pnp-native-page-runtime-acceptance-receipt/v1` records evaluato
 identity/ref, all input digests, validation/storage/runtime/acceptance/provenance
 statuses, explicit exclusions, reason codes, and evidence refs. The original
 native import receipt and its `Pending` fields are not modified.
+
+The CLI stores the acceptance bytes in CAS and writes an operation-scoped
+`VerificationEvidence` reference through `JsonLinesMigrationExecutionJournal`.
+It does not invent an orphan mutation action or a second bare JSONL wire.
 
 ## Fail-closed behavior
 

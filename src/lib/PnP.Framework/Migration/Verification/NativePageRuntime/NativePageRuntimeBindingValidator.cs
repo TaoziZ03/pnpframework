@@ -52,8 +52,15 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                 && DigestEquals(binding.PlanDigest, package.PlanDigest),
                 "The runtime binding package snapshot or plan digest is stale or foreign.");
             ValidateSourceIdentity(binding.SourceIdentity, package);
+            ValidateSourceIdentityEvidence(
+                binding.SourceIdentityEvidence,
+                binding.SourceIdentity,
+                admittedPlan?.SourceVersion?.VersionDigestSha256,
+                artifactStore);
             Require(AdmittedReproExecutionPlanValidator.SameSourceVersion(binding.SourceVersion, admittedPlan?.SourceVersion),
                 "The runtime binding source version is missing or stale.");
+            Require(binding.SourceIdentityEvidence.ObservedAtUtc <= binding.SourceVersion.ObservedAtUtc,
+                "The source identity observation postdates the admitted source-version fence.");
 
             var computedAdmittedDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
                 admittedPlan,
@@ -83,13 +90,21 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
 
             ValidateTarget(binding.TargetStorageIdentity, "sealed target storage identity");
             Require(UriEquals(binding.TargetStorageIdentity.WebUrl, importBinding.TargetWebUrl)
+                && binding.TargetStorageIdentity.WebId == package.Plan.TargetLocation.TargetWebId
+                && UriEquals(binding.TargetStorageIdentity.WebUrl, package.Plan.TargetLocation.TargetWebUrl)
                 && PathEquals(binding.TargetStorageIdentity.PageServerRelativeUrl, importBinding.TargetPageServerRelativeUrl)
                 && binding.TargetStorageIdentity.FileUniqueId == importBinding.TargetFileUniqueId
                 && binding.TargetStorageIdentity.ListItemId == importBinding.TargetListItemId
                 && string.Equals(binding.TargetStorageIdentity.ListItemVersion, importBinding.TargetVersionLabel, StringComparison.Ordinal)
                 && string.Equals(binding.TargetStorageIdentity.CanonicalUrl, admittedPlan.TargetIdentity, StringComparison.Ordinal),
                 "The sealed target identity does not match the admitted native import.");
-            ValidateTargetEvidence(binding.TargetIdentityEvidence, binding.TargetStorageIdentity, artifactStore, "pre-capture target identity");
+            ValidateTargetEvidence(
+                binding.TargetIdentityEvidence,
+                binding.TargetStorageIdentity,
+                admittedPlan.Operations.ReadbackOperationId,
+                binding.ImportReceiptDigestSha256,
+                artifactStore,
+                "pre-capture target identity");
 
             ValidateFixedManifest(binding.RequirementsManifest);
             var manifestDigest = MigrationDigest.ComputeSha256(
@@ -159,13 +174,26 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
             ValidateTarget(evidence.ObservedTargetIdentity, "observed runtime target identity");
             Require(SameTarget(evidence.ObservedTargetIdentity, binding.TargetStorageIdentity),
                 "The observed runtime target identity is foreign or stale.");
-            ValidateTargetEvidence(evidence.PreCaptureTargetReadback, binding.TargetStorageIdentity, artifactStore, "pre-capture target readback");
-            ValidateTargetEvidence(evidence.PostCaptureTargetReadback, binding.TargetStorageIdentity, artifactStore, "post-capture target readback");
-            Require(evidence.PreCaptureTargetReadback.ObservedAtUtc <= evidence.StartedAtUtc
-                && evidence.PostCaptureTargetReadback.ObservedAtUtc >= evidence.CompletedAtUtc,
+            ValidateTargetEvidence(
+                evidence.PreCaptureTargetReadback,
+                binding.TargetStorageIdentity,
+                binding.Operations.RuntimeOperationId,
+                binding.ContentSha256,
+                artifactStore,
+                "pre-capture target readback");
+            ValidateTargetEvidence(
+                evidence.PostCaptureTargetReadback,
+                binding.TargetStorageIdentity,
+                binding.Operations.RuntimeOperationId,
+                binding.ContentSha256,
+                artifactStore,
+                "post-capture target readback");
+            Require(evidence.PreCaptureTargetReadback.ObservedAtUtc >= binding.TargetIdentityEvidence.ObservedAtUtc
+                && evidence.PreCaptureTargetReadback.ObservedAtUtc >= binding.CaptureNotBeforeUtc
+                && evidence.PreCaptureTargetReadback.ObservedAtUtc <= evidence.StartedAtUtc
+                && evidence.PostCaptureTargetReadback.ObservedAtUtc >= evidence.CompletedAtUtc
+                && evidence.PostCaptureTargetReadback.ObservedAtUtc <= binding.CaptureExpiresAtUtc,
                 "The target identity readbacks do not bracket the runtime capture.");
-            ValidateAttempts(evidence.Attempts, binding, evidence);
-            ValidateArtifactManifest(evidence.ArtifactManifest, artifactStore);
 
             var hasRuntime = evidence.RuntimeReceipt != null;
             var hasTerminal = evidence.TerminalObservation != null;
@@ -175,6 +203,9 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                 Require(string.Equals(evidence.ResultKind, NativePageRuntimeContract.RuntimeResultKind, StringComparison.Ordinal),
                     "The external runtime evidence result kind is inconsistent.");
                 var receipt = evidence.RuntimeReceipt;
+                Require(string.Equals(receipt.SchemaVersion, "pnp-migration-runtime-verification-receipt/v1", StringComparison.Ordinal)
+                    && Enum.IsDefined(typeof(RuntimeVerificationStatus), receipt.Status),
+                    "The nested runtime receipt schema or status is unsupported.");
                 RuntimeVerificationReceiptValidator.ValidateEvidence(
                     receipt,
                     binding.RequirementsManifest,
@@ -197,6 +228,17 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                 Require(DigestEquals(evidence.RuntimeReceiptDigestSha256, digest),
                     "The external envelope runtime receipt digest is missing or altered.");
                 ValidateResultCoverage(receipt.Results, binding.RequirementsManifest);
+                var expectedReceiptStatus = binding.RequirementsManifest.Requirements.All(requirement =>
+                    receipt.Results.Single(value => string.Equals(value.RequirementId, requirement.Id, StringComparison.Ordinal)).Passed)
+                    ? RuntimeVerificationStatus.Passed
+                    : RuntimeVerificationStatus.Failed;
+                Require(receipt.Status == expectedReceiptStatus,
+                    "The nested runtime receipt status contradicts its required results.");
+                ValidateAttempts(evidence.Attempts, binding, evidence, receipt, null, artifactStore);
+                ValidateArtifactManifest(
+                    evidence.ArtifactManifest,
+                    RequiredArtifacts(evidence, receipt),
+                    artifactStore);
                 semanticStatus = binding.RequirementsManifest.Requirements.All(requirement =>
                 {
                     var result = receipt.Results.Single(value => string.Equals(value.RequirementId, requirement.Id, StringComparison.Ordinal));
@@ -215,6 +257,11 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                     && !string.IsNullOrWhiteSpace(evidence.TerminalObservation.ReasonCode)
                     && !string.IsNullOrWhiteSpace(evidence.TerminalObservation.SemanticDetectorResult),
                     "The terminal runtime observation is incomplete.");
+                ValidateAttempts(evidence.Attempts, binding, evidence, null, evidence.TerminalObservation, artifactStore);
+                ValidateArtifactManifest(
+                    evidence.ArtifactManifest,
+                    RequiredArtifacts(evidence, null),
+                    artifactStore);
                 semanticStatus = RuntimeVerificationStatus.Failed;
             }
             return evidence.ContentSha256;
@@ -374,7 +421,10 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
         private static void ValidateAttempts(
             IList<NativePageRuntimeAttempt> attempts,
             NativePageRuntimeBinding binding,
-            ExternalPageRuntimeEvidence evidence)
+            ExternalPageRuntimeEvidence evidence,
+            RuntimeVerificationReceipt receipt,
+            NativePageRuntimeTerminalObservation terminal,
+            IMigrationArtifactStore store)
         {
             Require(attempts != null && attempts.Count > 0 && attempts.Count <= 3,
                 "The external runtime evidence requires one to three bounded attempts.");
@@ -388,6 +438,7 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                     && attempt.RuntimeOperationId == binding.Operations.RuntimeOperationId
                     && attempt.ObservedAtUtc >= evidence.StartedAtUtc
                     && attempt.ObservedAtUtc <= evidence.CompletedAtUtc
+                    && (index == 0 || attempt.ObservedAtUtc >= attempts[index - 1].ObservedAtUtc)
                     && string.Equals(attempt.RequestedUrl, binding.TargetStorageIdentity.CanonicalUrl, StringComparison.Ordinal)
                     && !string.IsNullOrWhiteSpace(attempt.FinalUrl)
                     && !string.IsNullOrWhiteSpace(attempt.ProviderId)
@@ -404,6 +455,35 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                     || string.Equals(attempt.RequestIdAvailability, "unavailable", StringComparison.Ordinal)
                         && !string.IsNullOrWhiteSpace(attempt.RequestIdUnavailableReason),
                     "A runtime attempt must preserve request ID or explicit unavailability.");
+                Require(attempt.RawEvidence != null && attempt.RawEvidence.Count > 0,
+                    "A runtime attempt must preserve reopenable raw evidence.");
+                foreach (var artifact in attempt.RawEvidence)
+                {
+                    ValidateRuntimeArtifactReference(artifact, store, "runtime attempt raw evidence");
+                }
+            }
+            var finalAttempt = attempts[attempts.Count - 1];
+            if (receipt != null)
+            {
+                var http = receipt.Results.Select(value => value.Http).FirstOrDefault();
+                Require(http != null
+                    && receipt.Results.All(value => SameHttpObservation(value.Http, http))
+                    && finalAttempt.HttpStatusCode == http.StatusCode
+                    && !finalAttempt.TransportUnavailable
+                    && string.Equals(finalAttempt.FinalUrl, http.FinalUrl, StringComparison.Ordinal)
+                    && string.Equals(finalAttempt.BrowserContextId, receipt.BrowserContext.BrowserContextId, StringComparison.Ordinal)
+                    && (string.Equals(finalAttempt.RequestId, http.RequestId, StringComparison.Ordinal)
+                        || string.Equals(finalAttempt.RequestIdAvailability, "unavailable", StringComparison.Ordinal)
+                            && string.IsNullOrWhiteSpace(http.RequestId))
+                    && finalAttempt.ObservedAtUtc == http.CapturedAtUtc,
+                    "The terminal runtime attempt does not identify the consumed runtime result.");
+            }
+            else
+            {
+                Require(terminal != null
+                    && (!terminal.HttpStatusCode.HasValue || finalAttempt.HttpStatusCode == terminal.HttpStatusCode)
+                    && string.Equals(finalAttempt.SemanticResult, terminal.SemanticDetectorResult, StringComparison.OrdinalIgnoreCase),
+                    "The terminal attempt does not match the terminal observation.");
             }
         }
 
@@ -421,18 +501,27 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
         private static void ValidateTargetEvidence(
             NativePageRuntimeTargetIdentityEvidence evidence,
             NativePageRuntimeTargetIdentity expected,
+            Guid expectedOperationId,
+            string expectedSourceDigest,
             IMigrationArtifactStore store,
             string name)
         {
             Require(evidence != null
                 && !string.IsNullOrWhiteSpace(evidence.ObservationId)
                 && evidence.ObservedAtUtc != default
+                && evidence.OperationId == expectedOperationId
+                && !string.IsNullOrWhiteSpace(evidence.ProviderId)
+                && !string.IsNullOrWhiteSpace(evidence.ProviderVersion)
+                && DigestEquals(evidence.SourceArtifactSha256, expectedSourceDigest)
                 && SameTarget(evidence.Identity, expected),
                 "The " + name + " is incomplete or foreign.");
             ValidateCanonicalArtifact(evidence.Artifact, evidence.Identity, store, name + " artifact");
         }
 
-        private static void ValidateArtifactManifest(MigrationArtifactManifest manifest, IMigrationArtifactStore store)
+        private static void ValidateArtifactManifest(
+            MigrationArtifactManifest manifest,
+            IEnumerable<NativePageRuntimeArtifactReference> requiredArtifacts,
+            IMigrationArtifactStore store)
         {
             Require(manifest != null
                 && string.Equals(manifest.SchemaVersion, "pnp-migration-artifacts/v1", StringComparison.Ordinal)
@@ -444,9 +533,14 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                     nameof(MigrationArtifactManifest.ContentSha256)));
             Require(DigestEquals(manifest.ContentSha256, seal),
                 "The external runtime artifact manifest seal is stale or corrupt.");
+            var observed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var artifact in manifest.Artifacts)
             {
-                Require(artifact != null && artifact.Length > 0 && store.Contains(artifact.Sha256),
+                Require(artifact != null
+                    && artifact.Length > 0
+                    && !string.IsNullOrWhiteSpace(artifact.MediaType)
+                    && observed.Add(artifact.Sha256)
+                    && store.Contains(artifact.Sha256),
                     "The external runtime artifact manifest contains a missing artifact.");
                 ValidateDigest(artifact.Sha256, "external runtime artifact digest");
                 using (var input = store.OpenRead(artifact.Sha256))
@@ -457,6 +551,103 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                         && DigestEquals(MigrationDigest.ComputeSha256(copy.ToArray()), artifact.Sha256),
                         "An external runtime artifact is corrupt or stale.");
                 }
+            }
+            foreach (var required in requiredArtifacts ?? Enumerable.Empty<NativePageRuntimeArtifactReference>())
+            {
+                ValidateRuntimeArtifactReference(required, store, "required external runtime evidence");
+                Require(manifest.Artifacts.Any(value => value != null
+                        && DigestEquals(value.Sha256, required.Sha256)
+                        && value.Length == required.Length
+                        && MediaTypeEquals(value.MediaType, required.MediaType)),
+                    "The external runtime artifact manifest omits required evidence.");
+            }
+        }
+
+        private static void ValidateSourceIdentityEvidence(
+            NativePageRuntimeSourceIdentityEvidence evidence,
+            NativePageRuntimeSourceIdentity expected,
+            string expectedSourceVersionDigest,
+            IMigrationArtifactStore store)
+        {
+            Require(evidence != null
+                && !string.IsNullOrWhiteSpace(evidence.ObservationId)
+                && evidence.ObservedAtUtc != default
+                && evidence.OperationId != Guid.Empty
+                && !string.IsNullOrWhiteSpace(evidence.AcquisitionMethod)
+                && !string.IsNullOrWhiteSpace(evidence.ProviderId)
+                && !string.IsNullOrWhiteSpace(evidence.ProviderVersion)
+                && DigestEquals(evidence.SourceVersionDigestSha256, expectedSourceVersionDigest)
+                && SameSource(evidence.Identity, expected),
+                "The source identity evidence is incomplete or foreign.");
+            ValidateCanonicalArtifact(evidence.Artifact, evidence.Identity, store, "source identity evidence artifact");
+        }
+
+        private static IList<NativePageRuntimeArtifactReference> RequiredArtifacts(
+            ExternalPageRuntimeEvidence evidence,
+            RuntimeVerificationReceipt receipt)
+        {
+            var result = new List<NativePageRuntimeArtifactReference>
+            {
+                evidence.PreCaptureTargetReadback.Artifact,
+                evidence.PostCaptureTargetReadback.Artifact
+            };
+            foreach (var attempt in evidence.Attempts ?? new List<NativePageRuntimeAttempt>())
+            {
+                result.AddRange(attempt?.RawEvidence ?? new List<NativePageRuntimeArtifactReference>());
+            }
+            foreach (var item in receipt?.Results ?? new List<RuntimeVerificationResult>())
+            {
+                result.Add(new NativePageRuntimeArtifactReference
+                {
+                    Sha256 = item.EvidenceArtifactSha256,
+                    Length = item.EvidenceArtifactLength,
+                    MediaType = item.Http?.ContentType,
+                    Locator = item.EvidenceArtifactLocator
+                });
+                result.Add(new NativePageRuntimeArtifactReference
+                {
+                    Sha256 = item.DomProbeArtifactSha256,
+                    Length = item.DomProbeArtifactLength,
+                    MediaType = "application/json",
+                    Locator = item.DomProbeArtifactLocator
+                });
+                if (!string.IsNullOrWhiteSpace(item.ScreenshotArtifactSha256))
+                {
+                    result.Add(new NativePageRuntimeArtifactReference
+                    {
+                        Sha256 = item.ScreenshotArtifactSha256,
+                        Length = item.ScreenshotArtifactLength.GetValueOrDefault(),
+                        MediaType = "image/png",
+                        Locator = item.ScreenshotArtifactLocator
+                    });
+                }
+            }
+            return result
+                .Where(value => value != null)
+                .GroupBy(value => value.Sha256, StringComparer.OrdinalIgnoreCase)
+                .Select(value => value.First())
+                .ToList();
+        }
+
+        private static void ValidateRuntimeArtifactReference(
+            NativePageRuntimeArtifactReference artifact,
+            IMigrationArtifactStore store,
+            string name)
+        {
+            Require(artifact != null
+                && artifact.Length > 0
+                && !string.IsNullOrWhiteSpace(artifact.MediaType)
+                && IsSafeRelativeLocator(artifact.Locator),
+                "The " + name + " reference is incomplete or unsafe.");
+            ValidateDigest(artifact.Sha256, name + " digest");
+            Require(store != null && store.Contains(artifact.Sha256), "The " + name + " is missing.");
+            using (var input = store.OpenRead(artifact.Sha256))
+            using (var copy = new MemoryStream())
+            {
+                input.CopyTo(copy);
+                Require(copy.Length == artifact.Length
+                    && DigestEquals(MigrationDigest.ComputeSha256(copy.ToArray()), artifact.Sha256),
+                    "The " + name + " bytes are stale or corrupt.");
             }
         }
 
@@ -518,6 +709,44 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                 && string.Equals(left.ListItemVersion, right.ListItemVersion, StringComparison.Ordinal)
                 && string.Equals(left.ListItemETag, right.ListItemETag, StringComparison.Ordinal)
                 && string.Equals(left.CanonicalUrl, right.CanonicalUrl, StringComparison.Ordinal);
+        }
+
+        private static bool SameSource(NativePageRuntimeSourceIdentity left, NativePageRuntimeSourceIdentity right)
+        {
+            return left != null && right != null
+                && left.SiteId == right.SiteId
+                && left.WebId == right.WebId
+                && left.ListId == right.ListId
+                && left.ListItemId == right.ListItemId
+                && left.FileUniqueId == right.FileUniqueId
+                && PathEquals(left.PageServerRelativeUrl, right.PageServerRelativeUrl);
+        }
+
+        private static bool SameHttpObservation(RuntimeHttpEvidence left, RuntimeHttpEvidence right)
+        {
+            return left != null && right != null
+                && left.StatusCode == right.StatusCode
+                && string.Equals(left.Method, right.Method, StringComparison.Ordinal)
+                && string.Equals(left.RequestedUrl, right.RequestedUrl, StringComparison.Ordinal)
+                && string.Equals(left.FinalUrl, right.FinalUrl, StringComparison.Ordinal)
+                && string.Equals(left.RequestId, right.RequestId, StringComparison.Ordinal)
+                && left.CapturedAtUtc == right.CapturedAtUtc;
+        }
+
+        private static bool IsSafeRelativeLocator(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value)
+                && !Path.IsPathRooted(value)
+                && !value.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Any(part => string.Equals(part, "..", StringComparison.Ordinal));
+        }
+
+        private static bool MediaTypeEquals(string left, string right)
+        {
+            var leftBase = (left ?? string.Empty).Split(';')[0].Trim();
+            var rightBase = (right ?? string.Empty).Split(';')[0].Trim();
+            return !string.IsNullOrWhiteSpace(leftBase)
+                && string.Equals(leftBase, rightBase, StringComparison.OrdinalIgnoreCase);
         }
 
         private static string CanonicalTargetIdentity(NativePageRuntimeTargetIdentity target)

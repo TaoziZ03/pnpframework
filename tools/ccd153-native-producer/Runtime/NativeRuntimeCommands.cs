@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Evidence.ProducerBuild;
 using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Execution.Journaling;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Verification;
@@ -67,19 +68,10 @@ internal static class NativeRuntimeCommands
                 "application/vnd.pnp.native-runtime-acceptance+json",
                 "native-page-runtime-acceptance-receipt-v1.json");
         }
-        var action = MigrationActionSignature.Create(
-            "classic-wiki.runtime:" + binding.Operations.RuntimeOperationId.ToString("D"),
-            "RuntimeVerification",
-            binding.ContentSha256,
-            external?.ContentSha256,
-            binding.TargetStorageIdentity.CanonicalUrl,
-            acceptance.ContentSha256);
         var journalReference = new MigrationExecutionArtifactReference
         {
             OperationId = binding.Operations.RuntimeOperationId,
             PlanDigest = binding.PlanDigest,
-            ActionId = action.ActionId,
-            ActionSignature = action.Signature,
             WrittenAtUtc = acceptance.EvaluatedAtUtc,
             ArtifactKind = MigrationExecutionArtifactKind.VerificationEvidence,
             ArtifactSchemaVersion = acceptance.SchemaVersion,
@@ -170,12 +162,9 @@ internal static class NativeRuntimeCommands
 
     private static void AppendJournalReference(string path, MigrationExecutionArtifactReference reference)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path));
-        var bytes = Encoding.UTF8.GetBytes(ClassicWikiPackageSerializer.SerializeCanonical(reference) + Environment.NewLine);
-        using (var output = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read))
+        using (var journal = new JsonLinesMigrationExecutionJournal(path))
         {
-            output.Write(bytes, 0, bytes.Length);
-            output.Flush(true);
+            journal.WriteArtifactReference(reference);
         }
     }
 
