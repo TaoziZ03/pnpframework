@@ -13,6 +13,9 @@ sys.path.insert(0, str(ROOT))
 
 from generate_registry import (  # noqa: E402
     ARTIFACT_VERIFICATION,
+    CONSUMER_PRODUCT_ID,
+    CONSUMER_PRODUCT_REF,
+    CONSUMER_SOURCE_REF,
     DISPOSITIONS,
     FAILURE_SEMANTICS,
     PLATFORM_BUILD,
@@ -91,6 +94,9 @@ class RegistryContractTests(unittest.TestCase):
         self.assertEqual(VOLUME_COMPATIBILITY, compatibility["volumeCompatibility"])
         self.assertEqual(FAILURE_SEMANTICS, self.registry["failureSemantics"])
         self.assertEqual(self.schema_hash, self.profile["registrySchemaHash"])
+        self.assertEqual(CONSUMER_PRODUCT_ID, self.profile["consumerProductId"])
+        self.assertEqual(CONSUMER_SOURCE_REF, self.profile["consumerSourceRef"])
+        self.assertEqual(CONSUMER_PRODUCT_REF, self.profile["consumerProductRef"])
 
     def test_self_consistent_rehashed_contract_mutations_fail_closed(self) -> None:
         for kind in [
@@ -278,7 +284,7 @@ class RegistryContractTests(unittest.TestCase):
         )
         self.assertEqual("aspx-acquisition-verdict/v1", provenance["consumerWireShape"])
         self.assertEqual(
-            "aspx-platform-registry-reader-envelope/v1", provenance["readerShape"]
+            "aspx-platform-registry-reader-envelope/v2", provenance["readerShape"]
         )
         self.assertEqual(
             "physicalArtifactHash+physicalVolume.artifactHash",
@@ -287,6 +293,15 @@ class RegistryContractTests(unittest.TestCase):
         self.assertEqual(
             "referenceArtifactHash+referenceVolume.artifactHash",
             provenance["adapterMapping"]["referenceVolume.sha256"],
+        )
+        self.assertEqual("productRef", provenance["adapterMapping"]["productRef"])
+        self.assertEqual(
+            "physicalVolume.productRef",
+            provenance["adapterMapping"]["physicalVolume.productRef"],
+        )
+        self.assertEqual(
+            "referenceVolume.productRef",
+            provenance["adapterMapping"]["referenceVolume.productRef"],
         )
 
     def test_git_commit_time_is_canonicalized_independent_of_client_spelling(self) -> None:

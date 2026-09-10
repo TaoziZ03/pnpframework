@@ -19,6 +19,9 @@ from generate_registry import (
     AUTHORITY_SCHEMA_VERSION,
     AUTHORITY_TAG,
     COMPATIBILITY_DECISION_REF,
+    CONSUMER_PRODUCT_ID,
+    CONSUMER_PRODUCT_REF,
+    CONSUMER_SOURCE_REF,
     CONTRACT_REVIEW_REF,
     DISPOSITIONS,
     EXPECTED_AUTHORITY_ARTIFACT_HASH,
@@ -59,6 +62,7 @@ LINKED_PHYSICAL_DISPOSITIONS = {
 CONSUMER_MAPPING_KEYS = {"assessment", "pnpGraph", "repro", "compare"}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+PRODUCT_REF_RE = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 BUILD_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
 UTC_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
 
@@ -78,7 +82,7 @@ REGISTRY_ENVELOPE_KEYS = {
 ACQUISITION_ENVELOPE_KEYS = {
     "outputVersion",
     "runId",
-    "producerRef",
+    "productRef",
     "scopeAuthorityHash",
     "snapshotFence",
     "asOfUtc",
@@ -95,7 +99,7 @@ BASE_VOLUME_KEYS = {
     "outputVersion",
     "contractVersion",
     "runId",
-    "producerRef",
+    "productRef",
     "scopeAuthorityHash",
     "snapshotFence",
     "platformBuild",
@@ -629,6 +633,9 @@ def validate_profile(
         "authorityArtifactHash",
         "platformFamily",
         "platformBuild",
+        "consumerProductId",
+        "consumerSourceRef",
+        "consumerProductRef",
         "contractReviewRef",
         "compatibilityDecisionRef",
         "consumerCompatibilityHash",
@@ -654,6 +661,9 @@ def validate_profile(
         "authoritySourceTag": AUTHORITY_TAG,
         "platformFamily": PLATFORM_FAMILY,
         "platformBuild": PLATFORM_BUILD,
+        "consumerProductId": CONSUMER_PRODUCT_ID,
+        "consumerSourceRef": CONSUMER_SOURCE_REF,
+        "consumerProductRef": CONSUMER_PRODUCT_REF,
         "contractReviewRef": CONTRACT_REVIEW_REF,
         "compatibilityDecisionRef": COMPATIBILITY_DECISION_REF,
         "recordKind": REFERENCE_RECORD_KIND,
@@ -963,6 +973,36 @@ def apply_evidence_mutation(
             connection.execute(f"UPDATE {table} SET ManifestHash=?", ("f" * 64,))
             connection.commit()
             mutated[store_key] = connection.serialize()
+    elif kind in {
+        "rewritePhysicalProductPrefixAndRehashManifest",
+        "rewriteReferenceProductPrefixAndRehashManifest",
+    }:
+        reference_store = kind == "rewriteReferenceProductPrefixAndRehashManifest"
+        store_key = "referenceStore" if reference_store else "physicalStore"
+        table = "ReferenceRuns" if reference_store else "DiscoveryRuns"
+        with closing(_sqlite_connection(mutated[store_key])) as connection:
+            row = connection.execute(
+                f"SELECT RunId, ManifestJson FROM {table} ORDER BY RunId LIMIT 1"
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"{table} has no fixture run")
+            manifest = json.loads(row[1])
+            source_ref = str(manifest["productRef"]).rsplit("@", 1)[1]
+            manifest["productRef"] = f"pnp/other-assessment@{source_ref}"
+            manifest_json = json.dumps(manifest, ensure_ascii=False, separators=(",", ":"))
+            manifest_hash = discovery_hash(manifest_json)
+            connection.execute(
+                f"UPDATE {table} SET ManifestJson=?, ManifestHash=? WHERE RunId=?",
+                (manifest_json, manifest_hash, row[0]),
+            )
+            connection.commit()
+            mutated[store_key] = connection.serialize()
+        if reference_store:
+            output = json.loads(mutated["referenceOutput"])
+            output["manifestHash"] = manifest_hash
+            mutated["referenceOutput"] = (
+                json.dumps(output, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+            ).encode("utf-8")
     else:
         raise ValueError(f"unknown evidence mutation: {kind}")
     return mutated
@@ -1184,6 +1224,7 @@ def _validate_reference_denominator_row(
         "acquisitionRunId": expected_run_id,
         "snapshotFence": volume.get("snapshotFence"),
         "scopeAuthorityHash": volume.get("scopeAuthorityHash"),
+        "productRef": volume.get("productRef"),
         "platformBuildRef": volume.get("platformBuild"),
         "registryRevision": registry.get("registryRevision"),
         "registryHash": registry.get("registryHash"),
@@ -1529,9 +1570,8 @@ def _validate_store_artifact(
     for key, expected in required_bindings.items():
         if manifest.get(key) != expected:
             return "STORE_MANIFEST_MISMATCH", [f"SQLite manifest {key} does not match volume binding"]
-    product_ref = manifest.get("productRef")
-    if not isinstance(product_ref, str) or not product_ref.endswith("@" + str(volume.get("producerRef"))):
-        return "STORE_MANIFEST_MISMATCH", ["SQLite manifest productRef does not match producerRef"]
+    if manifest.get("productRef") != volume.get("productRef"):
+        return "STORE_MANIFEST_MISMATCH", ["SQLite manifest productRef does not exactly match volume productRef"]
     return None, []
 
 
@@ -1589,7 +1629,7 @@ def validate_acquisition_envelope(
             return {"verdict": "Unknown", "reasonCode": "VOLUME_HASH_INVALID"}
         if not isinstance(volume.get("artifactLength"), int) or volume["artifactLength"] < 0:
             return {"verdict": "Unknown", "reasonCode": "VOLUME_LENGTH_INVALID"}
-        if not GIT_SHA_RE.fullmatch(str(volume.get("producerRef"))):
+        if not PRODUCT_REF_RE.fullmatch(str(volume.get("productRef"))):
             return {"verdict": "Unknown", "reasonCode": "VOLUME_REF_INVALID"}
 
     if envelope.get("physicalArtifactHash") != physical.get("artifactHash"):
@@ -1602,7 +1642,7 @@ def validate_acquisition_envelope(
         return {"verdict": "Unknown", "reasonCode": "REGISTRY_BINDING_MISMATCH"}
 
     for field, reason_code in [
-        ("producerRef", "VOLUME_REF_MISMATCH"),
+        ("productRef", "VOLUME_REF_MISMATCH"),
         ("runId", "VOLUME_REF_MISMATCH"),
         ("scopeAuthorityHash", "VOLUME_REF_MISMATCH"),
         ("snapshotFence", "VOLUME_FENCE_MISMATCH"),
@@ -1613,6 +1653,8 @@ def validate_acquisition_envelope(
             return {"verdict": "Unknown", "reasonCode": reason_code}
     if envelope.get("platformBuild") != profile.get("platformBuild"):
         return {"verdict": "Unknown", "reasonCode": "VOLUME_BUILD_MISMATCH"}
+    if envelope.get("productRef") != profile.get("consumerProductRef"):
+        return {"verdict": "Unknown", "reasonCode": "VOLUME_REF_MISMATCH"}
 
     evidence = artifact_evidence or {}
     output_documents: dict[str, dict[str, Any]] = {}

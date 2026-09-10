@@ -14,9 +14,12 @@ generated from Assessment results, CUPCollect paths, or a tenant scan.
 - Registry revision: `spo-online-16.0.27606.12000-r4`
 - Registry canonical hash:
   `c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146`
-- Profile revision: `spo-online-16.0.27606.12000-profile-r3`
+- Profile schema/revision: `aspx-platform-registry-profile/v2` /
+  `spo-online-16.0.27606.12000-profile-r4`
 - Profile canonical hash:
-  `b1502cf265032930b895b04ee55a8ce98c7e8e5d447f65790f9c9f6f850142a8`
+  `43858256b82288df69db270c10344a1720f7e7c51d10e1e28f412cfa7fd615e6`
+- Assessment consumer product identity:
+  `pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8`
 - Registry schema SHA-256:
   `a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d`
 
@@ -31,9 +34,10 @@ The registry's own canonical hash is an integrity check, not a compatibility
 grant. A consumer must load
 `profile/spo-online-16.0.27606.12000.profile.json` as an externally trusted
 profile and require its exact revision/hash. The profile pins the authority,
-registry, schema hash, exact platform build, CCD-394/CCD-411 decisions, wire
-enums, version boundary and fail-closed map. A self-consistently rehashed wider
-build range or changed contract remains invalid.
+registry, schema hash, exact platform build, full Assessment product identity,
+CCD-394/CCD-411 decisions, wire enums, version boundary and fail-closed map. A
+self-consistently rehashed wider build range, product prefix drift, or changed
+contract remains invalid.
 
 ## Outputs
 
@@ -54,7 +58,7 @@ build range or changed contract remains invalid.
   bindings. `fixtures/volumes/` contains the actual physical/reference JSON
   bytes and two readable SQLite databases; `fixtures/sql/` records the SQL used
   to construct those stores. `fixtures/f1-f4-negative-receipts.json` records
-  deterministic results for all 45 positive/negative contract cases.
+  deterministic results for all 57 positive/negative contract cases.
 
 The compatibility fixtures are bound to Assessment consumer source ref
 `3012555317d5a8ee981b9e103206f3f0680333d8`: `AspxDiscoveryOutputV2`,
@@ -104,10 +108,13 @@ The CCD-411 three-volume boundary is represented by seven exact version names:
 The v2 physical output/store shape is closed. Adding a reference row, table,
 source kind or enum under a v2 physical contract is invalid; such a mixed
 format requires an explicit v3 contract. The reference volume and acquisition
-envelope bind run ID, producer refs, scope authority hash, snapshot fence,
+envelope bind run ID, exact `productRef`, scope authority hash, snapshot fence,
 platform build, artifact hashes, registry revision/hash and exact store
-versions. Missing volumes/envelope or any hash/ref/fence/build/version drift
-fails closed to `Unknown`.
+versions. The externally trusted profile pins the full product ID and full
+consumer source SHA. Both volume bindings and both SQLite run manifests must
+equal that exact product reference; matching only the commit suffix is invalid.
+Missing volumes/envelope or any hash/ref/fence/build/version drift fails closed
+to `Unknown`.
 
 The reader additionally requires actual artifact handles. It computes SHA-256
 and byte length from both output files, parses their exact output version and
@@ -130,9 +137,9 @@ attribute exceptions.
 
 A self-consistent envelope with invented hashes, stale lengths, an injected
 reference table in physical v2, a changed partial-index predicate, a generated
-reference column, typed row pollution, a missing reference-v1 table, or a
-rewritten/drifted SQLite manifest therefore returns `Unknown`. The frozen store
-schema hashes are:
+reference column, typed row pollution, a missing reference-v1 table, a
+rewritten/drifted SQLite manifest, or a changed product prefix with the same
+commit suffix therefore returns `Unknown`. The frozen store schema hashes are:
 
 - physical `aspx-discovery-sqlite/v2`:
   `899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504`
@@ -141,10 +148,11 @@ schema hashes are:
 
 The committed fixture artifacts are intentionally small synthetic data, not a
 tenant capture. Their SHA-256/length pairs are bound in
-`fixtures/contract-cases.json` and repeated in the v3 receipt. The 54-case
+`fixtures/contract-cases.json` and repeated in the v3 receipt. The 57-case
 suite includes the CCD-423/CCD-449 changed-predicate, generated-column,
 physical/reference row pollution, output/store manifest drift and JSON-array
-root counterexamples.
+root counterexamples, plus physical/reference store and aggregate-envelope
+product-prefix drift with synchronized hashes.
 
 ## Assessment adapter conformance
 
@@ -157,6 +165,7 @@ separate shapes and freezes the adapter mapping:
 - `AcquisitionRunId` -> reader `runId`;
 - volume `Sha256` -> aggregate plus per-volume `artifactHash`;
 - volume `Length` -> per-volume `artifactLength`;
+- aggregate and volume `ProductRef` -> exact reader `productRef`;
 - `PlatformBuildRef` -> `platformBuild`;
 - `SealedAtUtc` -> `asOfUtc`.
 

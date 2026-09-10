@@ -21,8 +21,8 @@ INSERT INTO ReferenceRuns
   (RunId, ManifestJson, ManifestHash, OutputVersion, CoverageVerdict, UpdatedUtc)
 VALUES
   ('11111111-2222-3333-4444-555555555555',
-   '{"contractVersion":"aspx-reference/v1","schemaVersion":"aspx-reference-sqlite/v1","productRef":"assessment-fixture@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","sdkRef":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","scopeAuthorityHash":"5555555555555555555555555555555555555555555555555555555555555555","permissionBoundaryHash":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","registryRevision":"spo-online-16.0.27606.12000-r4","registryHash":"c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146","platformBuildRef":"16.0.27606.12000","snapshotFence":"fixture-snapshot-001","providerVersion":"sharepoint-live-aspx-provider/v1","artifactRunId":"11111111-2222-3333-4444-555555555555"}',
-   '301e3d97bb773d444686c79326f08596bdcd684e37c9e4eb74d09eacf007e6a7',
+   '{"contractVersion":"aspx-reference/v1","schemaVersion":"aspx-reference-sqlite/v1","productRef":"pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8","sdkRef":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","scopeAuthorityHash":"5555555555555555555555555555555555555555555555555555555555555555","permissionBoundaryHash":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","registryRevision":"spo-online-16.0.27606.12000-r4","registryHash":"c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146","platformBuildRef":"16.0.27606.12000","snapshotFence":"fixture-snapshot-001","providerVersion":"sharepoint-live-aspx-provider/v1","artifactRunId":"11111111-2222-3333-4444-555555555555"}',
+   'eb6399cb4bac829ba6dc51d4367b83db23127999396777fef900b0c7d13f3502',
    'aspx-reference-output/v1', 'CompleteAuthorizedSurface',
    '2026-09-10T00:00:01.0000000+00:00');
 COMMIT;

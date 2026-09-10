@@ -20,6 +20,9 @@
     "authorityArtifactHash",
     "platformFamily",
     "platformBuild",
+    "consumerProductId",
+    "consumerSourceRef",
+    "consumerProductRef",
     "contractReviewRef",
     "compatibilityDecisionRef",
     "consumerCompatibilityHash",
@@ -32,9 +35,9 @@
   ],
   "properties": {
     "$schema": { "const": "../schema/aspx-platform-registry-profile.schema.json" },
-    "profileSchemaVersion": { "const": "aspx-platform-registry-profile/v1" },
-    "profileRevision": { "const": "spo-online-16.0.27606.12000-profile-r3" },
-    "profileHash": { "const": "b1502cf265032930b895b04ee55a8ce98c7e8e5d447f65790f9c9f6f850142a8" },
+    "profileSchemaVersion": { "const": "aspx-platform-registry-profile/v2" },
+    "profileRevision": { "const": "spo-online-16.0.27606.12000-profile-r4" },
+    "profileHash": { "const": "43858256b82288df69db270c10344a1720f7e7c51d10e1e28f412cfa7fd615e6" },
     "registrySchemaVersion": { "const": "aspx-platform-registry/v1" },
     "registrySchemaHash": { "const": "a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d" },
     "registryRevision": { "const": "spo-online-16.0.27606.12000-r4" },
@@ -46,6 +49,9 @@
     "authorityArtifactHash": { "const": "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab" },
     "platformFamily": { "const": "SharePointOnline-16" },
     "platformBuild": { "const": "16.0.27606.12000" },
+    "consumerProductId": { "const": "pnp/assessment" },
+    "consumerSourceRef": { "const": "3012555317d5a8ee981b9e103206f3f0680333d8" },
+    "consumerProductRef": { "const": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8" },
     "contractReviewRef": {
       "const": "CCD-394#document-aspx-surface-applicability-denominator-v3@7d44f61d-919e-478a-ab8e-bb4c8f9b4b4a"
     },

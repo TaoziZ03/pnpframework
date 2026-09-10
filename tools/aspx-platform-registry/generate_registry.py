@@ -26,11 +26,14 @@ from typing import Any, Iterable
 
 SCHEMA_VERSION = "aspx-platform-registry/v1"
 AUTHORITY_SCHEMA_VERSION = "aspx-platform-authority/v1"
-PROFILE_SCHEMA_VERSION = "aspx-platform-registry-profile/v1"
+PROFILE_SCHEMA_VERSION = "aspx-platform-registry-profile/v2"
 REGISTRY_REVISION = "spo-online-16.0.27606.12000-r4"
-PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r3"
+PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r4"
 PLATFORM_FAMILY = "SharePointOnline-16"
 PLATFORM_BUILD = "16.0.27606.12000"
+CONSUMER_PRODUCT_ID = "pnp/assessment"
+CONSUMER_SOURCE_REF = "3012555317d5a8ee981b9e103206f3f0680333d8"
+CONSUMER_PRODUCT_REF = f"{CONSUMER_PRODUCT_ID}@{CONSUMER_SOURCE_REF}"
 AUTHORITY_REF = "cee0ed61136e17c742c1cf98c9dea9446f10c564"
 AUTHORITY_TAG = "release/16.0.27606.12000"
 CONTRACT_REVIEW_REF = (
@@ -52,7 +55,7 @@ EXPECTED_CONSUMER_COMPATIBILITY_HASH = (
     "7a38a2b1e643637d2e6a8e34d41e3784416238519bc99e526d74ac4b65435e7a"
 )
 EXPECTED_PROFILE_HASH = (
-    "b1502cf265032930b895b04ee55a8ce98c7e8e5d447f65790f9c9f6f850142a8"
+    "43858256b82288df69db270c10344a1720f7e7c51d10e1e28f412cfa7fd615e6"
 )
 
 REFERENCE_RECORD_KIND = "AspxReferenceObservation"
@@ -586,6 +589,9 @@ def build_profile(
         "authorityArtifactHash": authority["authorityArtifactHash"],
         "platformFamily": PLATFORM_FAMILY,
         "platformBuild": PLATFORM_BUILD,
+        "consumerProductId": CONSUMER_PRODUCT_ID,
+        "consumerSourceRef": CONSUMER_SOURCE_REF,
+        "consumerProductRef": CONSUMER_PRODUCT_REF,
         "contractReviewRef": CONTRACT_REVIEW_REF,
         "compatibilityDecisionRef": COMPATIBILITY_DECISION_REF,
         "consumerCompatibilityHash": hashlib.sha256(
@@ -983,6 +989,7 @@ def bind_fixture_document(
     acquisition.update(
         {
             "platformBuild": profile["platformBuild"],
+            "productRef": profile["consumerProductRef"],
             "registryRevision": registry["registryRevision"],
             "registryHash": registry["registryHash"],
         }
@@ -995,6 +1002,7 @@ def bind_fixture_document(
         {
             "artifactHash": physical_binding["sha256"],
             "artifactLength": physical_binding["length"],
+            "productRef": profile["consumerProductRef"],
         }
     )
     physical["platformBuild"] = profile["platformBuild"]
@@ -1002,6 +1010,7 @@ def bind_fixture_document(
         {
             "artifactHash": reference_binding["sha256"],
             "artifactLength": reference_binding["length"],
+            "productRef": profile["consumerProductRef"],
             "platformBuild": profile["platformBuild"],
             "registryRevision": registry["registryRevision"],
             "registryHash": registry["registryHash"],
