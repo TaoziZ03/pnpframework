@@ -182,13 +182,12 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 return evidence;
             }
 
-            var observations = (evidence.Observations ?? Array.Empty<IngredientValueObservation>())
-                .Where(value => value != null)
-                .ToList();
-            var sources = observations.Where(value => value.Origin == IngredientObservationOrigin.AuthenticatedSource).ToArray();
-            var targets = observations.Where(value => value.Origin == IngredientObservationOrigin.CupCollectFreshReadback).ToArray();
+            var observations = (evidence.Observations ?? Array.Empty<IngredientValueObservation>()).ToList();
+            var nonNullObservations = observations.Where(value => value != null).ToArray();
+            var sources = nonNullObservations.Where(value => value.Origin == IngredientObservationOrigin.AuthenticatedSource).ToArray();
+            var targets = nonNullObservations.Where(value => value.Origin == IngredientObservationOrigin.CupCollectFreshReadback).ToArray();
             var substituted = evidence.HistoricalOrSyntheticSubstitution
-                || observations.Any(value => value.Origin == IngredientObservationOrigin.Historical
+                || nonNullObservations.Any(value => value.Origin == IngredientObservationOrigin.Historical
                     || value.Origin == IngredientObservationOrigin.Synthetic);
             var sourceMatches = MatchesExpected(normalized.SourceObservationDigests, sources);
             var targetMatches = MatchesExpected(normalized.TargetObservationDigests, targets);
@@ -339,24 +338,43 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 ["content-type"] = evidence.ContentTypeId,
                 ["field"] = NormalizeGuid(evidence.FieldId)
             };
-            var dependencies = (evidence.Dependencies ?? Array.Empty<ContentTextDependencyEvidence>())
-                .Where(value => value != null)
-                .ToArray();
+            var dependencies = (evidence.Dependencies ?? Array.Empty<ContentTextDependencyEvidence>()).ToArray();
             var legacyIds = (evidence.DependencyIngredientIds ?? Array.Empty<string>()).ToArray();
+            var evidenceReferences = (evidence.EvidenceReferences ?? Array.Empty<string>()).ToArray();
 
             return dependencies.Length == expected.Count
+                && dependencies.All(value => value != null)
                 && expected.All(pair =>
                 {
                     var matches = dependencies.Where(value => string.Equals(value.Kind, pair.Key, StringComparison.Ordinal)).ToArray();
                     var canonicalId = pair.Key + ":" + pair.Value;
+                    var dependency = matches.SingleOrDefault();
+                    var expectedProviderSchema = CreateDependencySchemaCanonicalJson(evidence, pair.Key, pair.Value);
+                    var providerBytes = DecodeBase64(dependency?.ProviderArtifactBase64);
+                    var providerDigest = providerBytes == null ? null : MigrationDigest.ComputeSha256(providerBytes);
                     return matches.Length == 1
-                        && string.Equals(matches[0].ProviderIdentity, pair.Value, StringComparison.OrdinalIgnoreCase)
-                        && IngredientMaturityEvaluator.IsSha256(matches[0].EvidenceDigest)
+                        && string.Equals(dependency.ProviderIdentity, pair.Value, StringComparison.OrdinalIgnoreCase)
+                        && dependency.ProviderArtifact != null
+                        && dependency.ProviderArtifact.Availability == EvidenceAvailability.Captured
+                        && providerBytes != null
+                        && string.Equals(Encoding.UTF8.GetString(providerBytes), expectedProviderSchema, StringComparison.Ordinal)
+                        && dependency.ProviderArtifact.Length == providerBytes.LongLength
+                        && string.Equals(dependency.ProviderArtifact.Sha256, providerDigest, StringComparison.OrdinalIgnoreCase)
+                        && IngredientMaturityEvaluator.IsSha256(dependency.EvidenceDigest)
                         && string.Equals(
-                            matches[0].EvidenceDigest,
-                            CreateDependencyEvidenceDigest(evidence, pair.Key, pair.Value),
+                            dependency.EvidenceDigest,
+                            CreateDependencyEvidenceDigest(
+                                evidence,
+                                pair.Key,
+                                pair.Value,
+                                dependency.EvidenceReference,
+                                providerDigest),
                             StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(matches[0].EvidenceReference)
+                        && !string.IsNullOrWhiteSpace(dependency.EvidenceReference)
+                        && evidenceReferences.Count(value => string.Equals(
+                            value,
+                            dependency.EvidenceReference,
+                            StringComparison.Ordinal)) == 1
                         && legacyIds.Count(value => string.Equals(value, canonicalId, StringComparison.OrdinalIgnoreCase)) == 1;
                 });
         }
@@ -366,7 +384,29 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             string kind,
             string providerIdentity)
         {
-            if (evidence == null)
+            var schema = CreateDependencySchemaCanonicalJson(evidence, kind, providerIdentity);
+            if (schema == null)
+            {
+                return null;
+            }
+
+            return CreateDependencyEvidenceDigest(
+                evidence,
+                kind,
+                providerIdentity,
+                "evidence/content-text/dependency-" + kind + ".json",
+                MigrationDigest.ComputeSha256(Encoding.UTF8.GetBytes(schema)));
+        }
+
+        public static string CreateDependencyEvidenceDigest(
+            ContentTextSourceEvidence evidence,
+            string kind,
+            string providerIdentity,
+            string evidenceReference,
+            string providerArtifactDigest)
+        {
+            if (evidence == null || string.IsNullOrWhiteSpace(evidenceReference)
+                || !IngredientMaturityEvaluator.IsSha256(providerArtifactDigest))
             {
                 return null;
             }
@@ -375,12 +415,65 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 new ContentTextDependencyBindingProjection
                 {
                     ContentTypeId = evidence.ContentTypeId,
+                    EvidenceReference = evidenceReference,
                     FieldId = NormalizeGuid(evidence.FieldId),
                     Kind = kind,
                     ListId = NormalizeGuid(evidence.ListId),
+                    ProviderArtifactDigest = providerArtifactDigest,
                     ProviderIdentity = providerIdentity,
                     SourceVersion = evidence.SourceVersion
                 }));
+        }
+
+        public static string CreateDependencySchemaCanonicalJson(
+            ContentTextSourceEvidence evidence,
+            string kind,
+            string providerIdentity)
+        {
+            if (evidence == null || string.IsNullOrWhiteSpace(kind)
+                || string.IsNullOrWhiteSpace(providerIdentity))
+            {
+                return null;
+            }
+
+            switch (kind)
+            {
+                case "list":
+                    return MigrationContractSerializer.SerializeCanonical(new ContentTextListProviderSchemaProjection
+                    {
+                        ListBaseTemplate = evidence.ListBaseTemplate,
+                        ListId = NormalizeGuid(evidence.ListId),
+                        ListTitle = evidence.ListTitle,
+                        ProviderIdentity = providerIdentity
+                    });
+                case "list-schema":
+                    return MigrationContractSerializer.SerializeCanonical(new ContentTextListSchemaProviderProjection
+                    {
+                        ContentTypeId = evidence.ContentTypeId,
+                        FieldSchemaDigest = CreateFieldSchemaDigest(evidence),
+                        ListBaseTemplate = evidence.ListBaseTemplate,
+                        ListId = NormalizeGuid(evidence.ListId),
+                        ProviderIdentity = providerIdentity
+                    });
+                case "content-type":
+                    return MigrationContractSerializer.SerializeCanonical(new ContentTextContentTypeProviderSchemaProjection
+                    {
+                        ContentTypeId = evidence.ContentTypeId,
+                        ContentTypeName = evidence.ContentTypeName,
+                        ListId = NormalizeGuid(evidence.ListId),
+                        ProviderIdentity = providerIdentity
+                    });
+                case "field":
+                    return MigrationContractSerializer.SerializeCanonical(new ContentTextFieldProviderSchemaProjection
+                    {
+                        ContentTypeId = evidence.ContentTypeId,
+                        FieldSchemaDigest = CreateFieldSchemaDigest(evidence),
+                        ListId = NormalizeGuid(evidence.ListId),
+                        ProviderIdentity = providerIdentity
+                    });
+                default:
+                    return null;
+            }
         }
 
         private static string CreateFieldSchemaDigest(ContentTextSourceEvidence evidence)
@@ -498,15 +591,65 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
         {
             public string ContentTypeId { get; set; }
 
+            public string EvidenceReference { get; set; }
+
             public string FieldId { get; set; }
 
             public string Kind { get; set; }
 
             public string ListId { get; set; }
 
+            public string ProviderArtifactDigest { get; set; }
+
             public string ProviderIdentity { get; set; }
 
             public string SourceVersion { get; set; }
+        }
+
+        private sealed class ContentTextListProviderSchemaProjection
+        {
+            public int ListBaseTemplate { get; set; }
+
+            public string ListId { get; set; }
+
+            public string ListTitle { get; set; }
+
+            public string ProviderIdentity { get; set; }
+        }
+
+        private sealed class ContentTextListSchemaProviderProjection
+        {
+            public string ContentTypeId { get; set; }
+
+            public string FieldSchemaDigest { get; set; }
+
+            public int ListBaseTemplate { get; set; }
+
+            public string ListId { get; set; }
+
+            public string ProviderIdentity { get; set; }
+        }
+
+        private sealed class ContentTextContentTypeProviderSchemaProjection
+        {
+            public string ContentTypeId { get; set; }
+
+            public string ContentTypeName { get; set; }
+
+            public string ListId { get; set; }
+
+            public string ProviderIdentity { get; set; }
+        }
+
+        private sealed class ContentTextFieldProviderSchemaProjection
+        {
+            public string ContentTypeId { get; set; }
+
+            public string FieldSchemaDigest { get; set; }
+
+            public string ListId { get; set; }
+
+            public string ProviderIdentity { get; set; }
         }
 
         private sealed class ContentTextSourceIdentityProjection

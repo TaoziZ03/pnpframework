@@ -19,6 +19,10 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
 
         public string ProviderIdentity { get; set; }
 
+        public ArtifactReference ProviderArtifact { get; set; }
+
+        public string ProviderArtifactBase64 { get; set; }
+
         public string EvidenceDigest { get; set; }
 
         public string EvidenceReference { get; set; }

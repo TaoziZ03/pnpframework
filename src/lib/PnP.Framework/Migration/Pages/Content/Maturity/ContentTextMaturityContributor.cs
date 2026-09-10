@@ -1,5 +1,7 @@
+using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Comparison;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
@@ -61,7 +63,11 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             {
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM4(evidence.Operational));
             }
-            if (operationalBound && IsProductizationBound(context, evidence.Plan, evidence.Productization))
+            if (operationalBound && IsProductizationBound(
+                context,
+                evidence.Plan,
+                evidence.Operational,
+                evidence.Productization))
             {
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM5(
                     evidence.Productization,
@@ -132,7 +138,15 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 || !string.Equals(operational.AdmittedPlanDigest, planEvidence.ExpectedPlanDigest, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(operational.ActionSignature.TargetIdentity, context.Target.TargetIdentity, StringComparison.Ordinal)
                 || !string.Equals(operational.ActionSignature.SourceEvidenceDigest, context.Source.SourceArtifactDigest, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(operational.ActionSignature.SemanticDigest, normalized.SemanticProjectionSha256, StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(operational.ActionSignature.SemanticDigest, normalized.SemanticProjectionSha256, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(
+                    operational.VerificationReceipt?.TargetIdentityDigest,
+                    operational.ActionSignature.TargetIdentityDigest,
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(
+                    operational.VerificationReceipt?.ObservedStateDigest,
+                    normalized.SemanticProjectionSha256,
+                    StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -147,16 +161,82 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
         private static bool IsProductizationBound(
             IngredientMaturityEvaluationContext context,
             IngredientPlanEvidence planEvidence,
+            IngredientOperationalEvidence operational,
             IngredientProductizationEvidence productization)
         {
+            var report = productization?.CompareReport;
+            var bindings = report?.Bindings;
+            var action = operational?.ActionSignature;
+            var verification = operational?.VerificationReceipt;
+            var rows = (report?.Ingredients ?? Array.Empty<IngredientCompareResult>())
+                .Where(value => value != null
+                    && string.Equals(value.IngredientId, context?.Identity?.IngredientId, StringComparison.Ordinal))
+                .ToArray();
+            var row = rows.SingleOrDefault();
+            var importReceiptDigest = operational?.ImportReceipt == null
+                ? null
+                : MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(operational.ImportReceipt));
+
             return productization != null
-                && context?.Producer != null
+                && context?.Identity != null
+                && context.Source != null
+                && context.Target != null
+                && context.Producer != null
+                && action != null
+                && verification != null
                 && string.Equals(productization.ImplementationCommit, context.Producer.ImplementationCommit, StringComparison.Ordinal)
                 && string.Equals(productization.BuildCommit, context.Producer.ImplementationCommit, StringComparison.Ordinal)
                 && string.Equals(productization.EndToEndCommit, context.Producer.ImplementationCommit, StringComparison.Ordinal)
                 && string.Equals(productization.PrReadyCommit, context.Producer.ImplementationCommit, StringComparison.Ordinal)
                 && string.Equals(productization.EndToEndPlanDigest, planEvidence.ExpectedPlanDigest, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(productization.CompareReport?.Bindings?.PlanDigestSha256, planEvidence.ExpectedPlanDigest, StringComparison.OrdinalIgnoreCase);
+                && string.Equals(bindings?.PlanDigestSha256, planEvidence.ExpectedPlanDigest, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(bindings?.SnapshotDigestSha256, context.Source.SourceSnapshotDigest, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(bindings?.ImportReceiptDigestSha256, importReceiptDigest, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(report.Producer?.Id, context.Producer.ProducerId, StringComparison.Ordinal)
+                && string.Equals(report.Producer?.Version, context.Producer.ProducerVersion, StringComparison.Ordinal)
+                && string.Equals(report.Producer?.ImplementationRef, context.Producer.ImplementationCommit, StringComparison.Ordinal)
+                && rows.Length == 1
+                && string.Equals(row.Kind, "Content", StringComparison.Ordinal)
+                && row.Material
+                && string.Equals(row.Lineage?.SourceIngredientId, context.Identity.IngredientId, StringComparison.Ordinal)
+                && string.Equals(row.Lineage?.SourceArtifactDigestSha256, context.Source.SourceArtifactDigest, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(row.Lineage?.ActionId, action.ActionId, StringComparison.Ordinal)
+                && string.Equals(row.Lineage?.TargetIdentity, context.Target.TargetIdentity, StringComparison.Ordinal)
+                && string.Equals(row.Lineage?.PlanDigestSha256, planEvidence.ExpectedPlanDigest, StringComparison.OrdinalIgnoreCase)
+                && row.Lineage.EvidenceRefs != null
+                && row.Lineage.EvidenceRefs.Count > 0
+                && row.Lineage.EvidenceRefs.All(value => !string.IsNullOrWhiteSpace(value))
+                && string.Equals(row.TargetEvidenceState, IngredientTargetEvidenceStates.Fresh, StringComparison.Ordinal)
+                && row.ObservedAtUtc.HasValue
+                && row.ObservedAtUtc.Value != default
+                && row.ObservedAtUtc.Value >= verification.VerifiedAtUtc
+                && HasAdmissibleCompareResult(row, context.Source.SourceArtifactDigest);
+        }
+
+        private static bool HasAdmissibleCompareResult(
+            IngredientCompareResult row,
+            string sourceArtifactDigest)
+        {
+            if (string.Equals(row.ResultClass, PublishingPageCompareContract.ResultClasses.Exact, StringComparison.Ordinal))
+            {
+                return string.Equals(row.Expected?.RawDigestSha256, sourceArtifactDigest, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(row.Actual?.RawDigestSha256, sourceArtifactDigest, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (string.Equals(row.ResultClass, PublishingPageCompareContract.ResultClasses.CanonicalEquivalent, StringComparison.Ordinal))
+            {
+                return IngredientMaturityEvaluator.IsSha256(row.Expected?.CanonicalDigestSha256)
+                    && string.Equals(
+                        row.Expected.CanonicalDigestSha256,
+                        row.Actual?.CanonicalDigestSha256,
+                        StringComparison.OrdinalIgnoreCase);
+            }
+
+            return string.Equals(
+                    row.ResultClass,
+                    PublishingPageCompareContract.ResultClasses.TransformedAsPlanned,
+                    StringComparison.Ordinal)
+                && IngredientMaturityEvaluator.IsSha256(row.Actual?.CanonicalDigestSha256);
         }
 
         private static bool TryComputePlanDigest(

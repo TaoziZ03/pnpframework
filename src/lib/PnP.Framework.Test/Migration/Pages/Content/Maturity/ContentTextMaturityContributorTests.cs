@@ -5,6 +5,7 @@ using PnP.Framework.Migration.Pages;
 using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Content.Maturity;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Comparison;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Verification;
@@ -222,6 +223,183 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
             AssertGate(assessment, IngredientMaturityGateCatalog.SnapshotPlanBinding, IngredientMaturityGateStatus.Passed);
             AssertGate(assessment, IngredientMaturityGateCatalog.OperationActionBinding, IngredientMaturityGateStatus.Passed);
             AssertGate(assessment, IngredientMaturityGateCatalog.FreshStorage, IngredientMaturityGateStatus.Passed);
+        }
+
+        [DataTestMethod]
+        [DataRow("missing")]
+        [DataRow("foreign")]
+        public void VerificationTargetDigestMustBindTheActionTarget(string mutation)
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            fixture.BindPlanAndOperationalEvidence();
+            fixture.Evidence.Operational.VerificationReceipt.TargetIdentityDigest =
+                mutation == "missing" ? null : MigrationDigest.ComputeSha256("foreign-target");
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M3, assessment.AttainedMaturity, mutation);
+        }
+
+        [TestMethod]
+        public void BoundSameClaimProductizationReachesM5WithoutChangingConditionalOutcome()
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            fixture.BindPlanAndOperationalEvidence();
+            fixture.BindProductizationEvidence();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M5, assessment.AttainedMaturity);
+            Assert.AreEqual(IngredientTechnicalStatus.Conditional, fixture.Context.TechnicalOutcome.Status);
+        }
+
+        [DataTestMethod]
+        [DataRow("snapshot")]
+        [DataRow("import-receipt")]
+        [DataRow("ingredient")]
+        [DataRow("source-artifact")]
+        [DataRow("action")]
+        [DataRow("target")]
+        [DataRow("producer")]
+        [DataRow("missing-ingredient")]
+        [DataRow("denied-instance")]
+        public void CompareEvidenceMustRemainJoinedToTheCurrentInstance(string mutation)
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            fixture.BindPlanAndOperationalEvidence();
+            fixture.BindProductizationEvidence();
+            var report = fixture.Evidence.Productization.CompareReport;
+            var row = report.Ingredients.Single();
+            switch (mutation)
+            {
+                case "snapshot":
+                    report.Bindings.SnapshotDigestSha256 = MigrationDigest.ComputeSha256("foreign-snapshot");
+                    break;
+                case "import-receipt":
+                    report.Bindings.ImportReceiptDigestSha256 = MigrationDigest.ComputeSha256("foreign-import-receipt");
+                    break;
+                case "ingredient":
+                    row.IngredientId = "content:foreign";
+                    row.Lineage.SourceIngredientId = "content:foreign";
+                    break;
+                case "source-artifact":
+                    row.Lineage.SourceArtifactDigestSha256 = MigrationDigest.ComputeSha256("foreign-source");
+                    break;
+                case "action":
+                    row.Lineage.ActionId = "action:foreign";
+                    break;
+                case "target":
+                    row.Lineage.TargetIdentity = "cupcollect:foreign-target";
+                    break;
+                case "producer":
+                    report.Producer.ImplementationRef = new string('b', 40);
+                    break;
+                case "missing-ingredient":
+                    report.Ingredients.Clear();
+                    break;
+                case "denied-instance":
+                    row.TargetEvidenceState = IngredientTargetEvidenceStates.Denied;
+                    row.ResultClass = PublishingPageCompareContract.ResultClasses.AuthorizationBlocked;
+                    row.ReasonCode = "ACCESS_DENIED_SKIPPED";
+                    break;
+                default:
+                    Assert.Fail("Unknown mutation.");
+                    break;
+            }
+            fixture.ResealCompareReport();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M4, assessment.AttainedMaturity, mutation);
+        }
+
+        [DataTestMethod]
+        [DataRow("list")]
+        [DataRow("list-schema")]
+        [DataRow("content-type")]
+        [DataRow("field")]
+        public void ForeignDependencyReferenceFailsProviderAdmission(string kind)
+        {
+            var fixture = Fixture.CreatePublishing();
+            var dependency = fixture.Evidence.Source.Dependencies.Single(value => value.Kind == kind);
+            dependency.EvidenceReference = "evidence/unrelated-page/foreign-" + kind + ".json";
+            fixture.AddSourceObservations();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.IsNull(assessment.AttainedMaturity, kind);
+        }
+
+        [TestMethod]
+        public void ChangedFieldSchemaInvalidatesCapturedDependencyEvidence()
+        {
+            var fixture = Fixture.CreatePublishing();
+            var dependency = fixture.Evidence.Source.Dependencies.Single(value => value.Kind == "field");
+            var previousDigest = dependency.EvidenceDigest;
+            fixture.Evidence.Source.FieldSealed = !fixture.Evidence.Source.FieldSealed;
+
+            var currentDigest = ContentTextEvidenceNormalizer.CreateDependencyEvidenceDigest(
+                fixture.Evidence.Source,
+                dependency.Kind,
+                dependency.ProviderIdentity);
+            fixture.RefreshNormalization();
+            fixture.AddSourceObservations();
+
+            Assert.AreNotEqual(previousDigest, currentDigest);
+            Assert.IsNull(fixture.Evaluate().AttainedMaturity);
+        }
+
+        [DataTestMethod]
+        [DataRow("missing-reference")]
+        [DataRow("stale-payload")]
+        [DataRow("corrupt-artifact-digest")]
+        [DataRow("corrupt-evidence-digest")]
+        public void DependencyProviderArtifactFailsClosedWhenBindingIsIncomplete(string mutation)
+        {
+            var fixture = Fixture.CreatePublishing();
+            var dependency = fixture.Evidence.Source.Dependencies.Single(value => value.Kind == "field");
+            switch (mutation)
+            {
+                case "missing-reference":
+                    fixture.Evidence.Source.EvidenceReferences.Remove(dependency.EvidenceReference);
+                    break;
+                case "stale-payload":
+                    dependency.ProviderArtifactBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"stale\":true}"));
+                    break;
+                case "corrupt-artifact-digest":
+                    dependency.ProviderArtifact.Sha256 = MigrationDigest.ComputeSha256("corrupt-artifact");
+                    break;
+                case "corrupt-evidence-digest":
+                    dependency.EvidenceDigest = MigrationDigest.ComputeSha256("corrupt-binding");
+                    break;
+                default:
+                    Assert.Fail("Unknown mutation.");
+                    break;
+            }
+            fixture.RefreshNormalization();
+            fixture.AddSourceObservations();
+
+            Assert.IsNull(fixture.Evaluate().AttainedMaturity, mutation);
+        }
+
+        [TestMethod]
+        public void LiveProjectionPreservesNullObservationForSharedV2Rejection()
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            fixture.Evidence.Live.Observations.Add(null);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.PerValueObservation, IngredientMaturityGateStatus.Failed);
         }
 
         [TestMethod]
@@ -532,7 +710,9 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
                         ActionId = action.ActionId,
                         ActionSignature = signature.Signature,
                         FreshReadbackPassed = true,
+                        ObservedStateDigest = Normalized.SemanticProjectionSha256,
                         Ownership = MigrationTargetOwnership.MigrationOwned,
+                        TargetIdentityDigest = signature.TargetIdentityDigest,
                         ProvenanceMatched = true,
                         VerifiedAtUtc = completedAt
                     },
@@ -547,6 +727,94 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
                     FreshReadbackEvidenceReferences = References("m4-readback.json"),
                     RuntimeCleanupRetryEvidenceReferences = References("m4-cleanup-retry.json")
                 };
+            }
+
+            public void BindProductizationEvidence()
+            {
+                var implementationCommit = Context.Producer.ImplementationCommit;
+                Context.Producer.BinaryDigest = MigrationDigest.ComputeSha256("content-text-test-binary");
+                var planDigest = Evidence.Plan.ExpectedPlanDigest;
+                var report = new PublishingPageCompareReport
+                {
+                    SchemaVersion = PublishingPageCompareContract.IngredientContributionSchemaVersion,
+                    Producer = new CompareProducer
+                    {
+                        Id = Context.Producer.ProducerId,
+                        Version = Context.Producer.ProducerVersion,
+                        ImplementationRef = implementationCommit
+                    },
+                    Bindings = new CompareBindings
+                    {
+                        SnapshotDigestSha256 = Context.Source.SourceSnapshotDigest,
+                        PlanDigestSha256 = planDigest,
+                        ImportReceiptDigestSha256 = MigrationDigest.ComputeSha256(
+                            MigrationContractSerializer.SerializeCanonical(Evidence.Operational.ImportReceipt))
+                    },
+                    Ingredients = new List<IngredientCompareResult>
+                    {
+                        new IngredientCompareResult
+                        {
+                            IngredientId = Context.Identity.IngredientId,
+                            Kind = "Content",
+                            Material = true,
+                            Lineage = new IngredientCompareLineage
+                            {
+                                SourceIngredientId = Context.Identity.IngredientId,
+                                SourceArtifactDigestSha256 = Context.Source.SourceArtifactDigest,
+                                ActionId = Evidence.Operational.ActionSignature.ActionId,
+                                TargetIdentity = Context.Target.TargetIdentity,
+                                PlanDigestSha256 = planDigest,
+                                EvidenceRefs = References("m5-current-instance.json")
+                            },
+                            Expected = new CompareDigestPair
+                            {
+                                RawDigestSha256 = Context.Source.SourceArtifactDigest
+                            },
+                            Actual = new CompareDigestPair
+                            {
+                                RawDigestSha256 = Context.Source.SourceArtifactDigest
+                            },
+                            TargetEvidenceState = IngredientTargetEvidenceStates.Fresh,
+                            ObservedAtUtc = Evidence.Operational.VerificationReceipt.VerifiedAtUtc,
+                            ResultClass = PublishingPageCompareContract.ResultClasses.Exact,
+                            ReasonCode = PublishingPageCompareContract.ReasonCodes.ExactRawDigest
+                        }
+                    },
+                    Acceptance = new CompareAcceptance { Verdict = "conditional" }
+                };
+                Evidence.Productization = new IngredientProductizationEvidence
+                {
+                    TestId = nameof(ContentTextMaturityContributorTests),
+                    HermeticUnitTest = true,
+                    RedTestEvidenceReference = "evidence/content-text/m5-red.trx",
+                    GreenTestEvidenceReference = "evidence/content-text/m5-green.trx",
+                    ImplementationCommit = implementationCommit,
+                    BuildCommit = implementationCommit,
+                    BinaryDigest = Context.Producer.BinaryDigest,
+                    BuildEvidenceReference = "evidence/content-text/m5-build.json",
+                    EndToEndCommit = implementationCommit,
+                    EndToEndPlanDigest = planDigest,
+                    EndToEndEvidenceReference = "evidence/content-text/m5-e2e.json",
+                    CompareReport = report,
+                    CompareEvidenceReference = "evidence/content-text/m5-compare.json",
+                    ArchitectReviewVerdict = "APPROVED",
+                    ArchitectReviewEvidenceReference = "evidence/content-text/m5-architect-review.md",
+                    CtoReviewVerdict = "APPROVED",
+                    CtoReviewEvidenceReference = "evidence/content-text/m5-cto-review.md",
+                    IndependentVerificationVerdict = "PASS",
+                    IndependentVerificationEvidenceReference = "evidence/content-text/m5-verification.md",
+                    PrReadyCommit = implementationCommit,
+                    PrReadyEvidenceReference = "evidence/content-text/m5-pr-ready.json"
+                };
+                ResealCompareReport();
+            }
+
+            public void ResealCompareReport()
+            {
+                var productization = Evidence.Productization;
+                productization.CompareReportDigest = PublishingPageCompareReconciler.ComputeReportDigest(
+                    productization.CompareReport);
+                productization.CompareReport.ReportDigestSha256 = productization.CompareReportDigest;
             }
 
             private static Fixture Create(
@@ -644,16 +912,40 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
                 source.DependencyIngredientIds = bindings
                     .Select(value => value.Kind + ":" + value.Identity)
                     .ToList();
-                source.Dependencies = bindings.Select(value => new ContentTextDependencyEvidence
+                source.Dependencies = bindings.Select(value =>
                 {
-                    Kind = value.Kind,
-                    ProviderIdentity = value.Identity,
-                    EvidenceDigest = ContentTextEvidenceNormalizer.CreateDependencyEvidenceDigest(
+                    var evidenceReference = "evidence/content-text/dependency-" + value.Kind + ".json";
+                    var providerSchema = ContentTextEvidenceNormalizer.CreateDependencySchemaCanonicalJson(
                         source,
                         value.Kind,
-                        value.Identity),
-                    EvidenceReference = "evidence/content-text/dependency-" + value.Kind + ".json"
+                        value.Identity);
+                    var providerBytes = Encoding.UTF8.GetBytes(providerSchema);
+                    var providerDigest = MigrationDigest.ComputeSha256(providerBytes);
+                    source.EvidenceReferences.Add(evidenceReference);
+                    return new ContentTextDependencyEvidence
+                    {
+                        Kind = value.Kind,
+                        ProviderIdentity = value.Identity,
+                        ProviderArtifact = new ArtifactReference
+                        {
+                            Sha256 = providerDigest,
+                            Length = providerBytes.LongLength,
+                            MediaType = "application/json",
+                            ContentEncoding = "utf-8"
+                        },
+                        ProviderArtifactBase64 = Convert.ToBase64String(providerBytes),
+                        EvidenceDigest = ContentTextEvidenceNormalizer.CreateDependencyEvidenceDigest(
+                            source,
+                            value.Kind,
+                            value.Identity,
+                            evidenceReference,
+                            providerDigest),
+                        EvidenceReference = evidenceReference
+                    };
                 }).ToList();
+                source.EvidenceReferences = source.EvidenceReferences
+                    .OrderBy(value => value, StringComparer.Ordinal)
+                    .ToList();
             }
 
             private static FixtureData LoadFixture([CallerFilePath] string callerFile = null)
