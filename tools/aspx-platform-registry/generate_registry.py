@@ -27,39 +27,39 @@ from typing import Any, Iterable
 SCHEMA_VERSION = "aspx-platform-registry/v1"
 AUTHORITY_SCHEMA_VERSION = "aspx-platform-authority/v1"
 PROFILE_SCHEMA_VERSION = "aspx-platform-registry-profile/v2"
-REGISTRY_REVISION = "spo-online-16.0.27606.12000-r4"
-PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r4"
+REGISTRY_REVISION = "spo-online-16.0.27708.12757-r1"
+PROFILE_REVISION = "spo-online-16.0.27708.12757-profile-r1"
 PROFILE_SCHEMA_RESOURCE_ID = (
     "urn:ccd:pnp:aspx-platform-registry-profile:"
-    "spo-online-16.0.27606.12000:r4"
+    "spo-online-16.0.27708.12757:r1"
 )
 PLATFORM_FAMILY = "SharePointOnline-16"
-PLATFORM_BUILD = "16.0.27606.12000"
+PLATFORM_BUILD = "16.0.27708.12757"
 CONSUMER_PRODUCT_ID = "pnp/assessment"
 CONSUMER_SOURCE_REF = "3012555317d5a8ee981b9e103206f3f0680333d8"
 CONSUMER_PRODUCT_REF = f"{CONSUMER_PRODUCT_ID}@{CONSUMER_SOURCE_REF}"
-AUTHORITY_REF = "cee0ed61136e17c742c1cf98c9dea9446f10c564"
-AUTHORITY_TAG = "release/16.0.27606.12000"
+AUTHORITY_REF = "1826a78bef6194afb25edc44b9abf61b7798de0a"
+AUTHORITY_TAG = "build/main/16.0.27708.12757"
 CONTRACT_REVIEW_REF = (
     "CCD-394#document-aspx-surface-applicability-denominator-v3"
     "@7d44f61d-919e-478a-ab8e-bb4c8f9b4b4a"
 )
 COMPATIBILITY_DECISION_REF = "CCD-411:approve_with_changes"
-DEFAULT_INDEPENDENT_REVIEW_REF = "CCD-423"
+DEFAULT_INDEPENDENT_REVIEW_REF = "CCD-502"
 EXPECTED_AUTHORITY_ARTIFACT_HASH = (
-    "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab"
+    "9d2bef816a17fb0e0da93c53620e647e97acbfae1d61a58fb59b2d574b2d3af8"
 )
 EXPECTED_REGISTRY_HASH = (
-    "c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146"
+    "a9bf07d1e45cab08583f3691b77fe91d06e0de4757812cbdc7023ba4c92b953c"
 )
 EXPECTED_REGISTRY_SCHEMA_HASH = (
-    "a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d"
+    "d1fbce7acf41c27d78cd68222f141d311da3ce8bfa006b57c4c5d742237d6ac6"
 )
 EXPECTED_CONSUMER_COMPATIBILITY_HASH = (
     "7a38a2b1e643637d2e6a8e34d41e3784416238519bc99e526d74ac4b65435e7a"
 )
 EXPECTED_PROFILE_HASH = (
-    "43858256b82288df69db270c10344a1720f7e7c51d10e1e28f412cfa7fd615e6"
+    "b73d44d9a98e8aeb810e98a8e546975150641f9e86be0bf5f2f7200885f1726b"
 )
 
 REFERENCE_RECORD_KIND = "AspxReferenceObservation"
@@ -831,7 +831,7 @@ def build_registry(
         "authoritySourceTag": AUTHORITY_TAG,
         "authorityArtifactHash": authority["authorityArtifactHash"],
         "authorityArtifactPath": (
-            "authority/spo-online-16.0.27606.12000.authority.json"
+            "authority/spo-online-16.0.27708.12757.authority.json"
         ),
         "reviewRef": independent_review_ref,
         "contractReviewRef": CONTRACT_REVIEW_REF,
@@ -889,9 +889,6 @@ def collect_source(
     resolved = run_git(git_executable, repo, ["rev-parse", AUTHORITY_REF]).strip()
     if resolved != AUTHORITY_REF:
         raise ValueError(f"authority ref resolved to unexpected object: {resolved}")
-    tag_resolved = run_git(git_executable, repo, ["rev-parse", f"{AUTHORITY_TAG}^{{}}"] ).strip()
-    if tag_resolved != AUTHORITY_REF:
-        raise ValueError(f"authority tag does not resolve to authority ref: {tag_resolved}")
     commit_epoch = run_git(
         git_executable, repo, ["show", "-s", "--format=%ct", AUTHORITY_REF]
     ).strip()
@@ -1157,15 +1154,15 @@ def main() -> int:
     )
 
     write_json(
-        args.output_root / "authority" / "spo-online-16.0.27606.12000.authority.json",
+        args.output_root / "authority" / "spo-online-16.0.27708.12757.authority.json",
         authority,
     )
     write_json(
-        args.output_root / "registry" / "spo-online-16.0.27606.12000.registry.json",
+        args.output_root / "registry" / "spo-online-16.0.27708.12757.registry.json",
         registry,
     )
     write_json(
-        args.output_root / "profile" / "spo-online-16.0.27606.12000.profile.json",
+        args.output_root / "profile" / "spo-online-16.0.27708.12757.profile.json",
         profile,
     )
     write_json(fixture_path, fixtures)

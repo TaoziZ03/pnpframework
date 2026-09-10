@@ -7,25 +7,32 @@ generated from Assessment results, CUPCollect paths, or a tenant scan.
 
 ## Frozen authority and external profile
 
-- SPO.Core commit: `cee0ed61136e17c742c1cf98c9dea9446f10c564`
-- SPO.Core tag: `release/16.0.27606.12000`
+- SPO.Core commit: `1826a78bef6194afb25edc44b9abf61b7798de0a`
+- SPO.Core build branch: `build/main/16.0.27708.12757`
+- SPO.Core tree: `a9d047d1f57a35855b767384daca789ca1157cc7`
 - Supported platform family: `SharePointOnline-16`
-- Supported build: exactly `16.0.27606.12000`
-- Registry revision: `spo-online-16.0.27606.12000-r4`
+- Supported build: exactly `16.0.27708.12757`
+- Registry revision: `spo-online-16.0.27708.12757-r1`
 - Registry canonical hash:
-  `c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146`
+  `a9bf07d1e45cab08583f3691b77fe91d06e0de4757812cbdc7023ba4c92b953c`
 - Profile schema/revision: `aspx-platform-registry-profile/v2` /
-  `spo-online-16.0.27606.12000-profile-r4`
+  `spo-online-16.0.27708.12757-profile-r1`
 - Profile schema resource ID:
-  `urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27606.12000:r4`
+  `urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27708.12757:r1`
 - Profile schema SHA-256:
-  `3faeb983aa69cdd55003755f5d87eb28c4e0101ee845c9220245efa13ebb4ea1`
+  `cb677e8451cf58f35aeec0638a41c43b58b5846447e5807bd9bbd285339402c7`
 - Profile canonical hash:
-  `43858256b82288df69db270c10344a1720f7e7c51d10e1e28f412cfa7fd615e6`
+  `b73d44d9a98e8aeb810e98a8e546975150641f9e86be0bf5f2f7200885f1726b`
 - Assessment consumer product identity:
   `pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8`
 - Registry schema SHA-256:
-  `a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d`
+  `d1fbce7acf41c27d78cd68222f141d311da3ce8bfa006b57c4c5d742237d6ac6`
+
+The SPO.Core build branch was recorded in the host repository's `FETCH_HEAD`
+with the exact commit above. The commit, not a locally invented tag or the
+moving branch name, is the authority binding. The generator therefore resolves
+and reads the immutable commit directly while preserving the build branch as
+provenance metadata. It never creates a replacement release tag.
 
 The shipping authority is the `otools/deploy/*.xml` `File` destinations below
 `Web Server Extensions\16\TEMPLATE\LAYOUTS` that end in `.aspx`. The bounded
@@ -36,7 +43,7 @@ evidence is `sts/stsom/ApplicationRuntime/spvirtualpathprovider.cs` and
 
 The registry's own canonical hash is an integrity check, not a compatibility
 grant. A consumer must load
-`profile/spo-online-16.0.27606.12000.profile.json` as an externally trusted
+`profile/spo-online-16.0.27708.12757.profile.json` as an externally trusted
 profile and require its exact revision/hash. The profile pins the authority,
 registry, schema hash, exact platform build, full Assessment product identity,
 CCD-394/CCD-411 decisions, wire enums, version boundary and fail-closed map. A
@@ -45,14 +52,14 @@ contract remains invalid.
 
 ## Outputs
 
-- `authority/spo-online-16.0.27606.12000.authority.json` records every matched
+- `authority/spo-online-16.0.27708.12757.authority.json` records every matched
   shipping-manifest row, its source manifest/blob, the redirect-map blob, the
   extraction algorithm and the forbidden scanner inputs.
-- `registry/spo-online-16.0.27606.12000.registry.json` is the finite consumer
+- `registry/spo-online-16.0.27708.12757.registry.json` is the finite consumer
   volume. Each entry has a stable reference ID, canonical `/_layouts/15/` path,
   aliases, applicability rule, availability, disposition and separate identity
   axes.
-- `profile/spo-online-16.0.27606.12000.profile.json` is the external immutable
+- `profile/spo-online-16.0.27708.12757.profile.json` is the external immutable
   compatibility pin.
 - `schema/aspx-platform-registry.schema.json` and
   `schema/aspx-platform-registry-profile.schema.json` are closed Draft 2020-12
@@ -153,7 +160,7 @@ commit suffix therefore returns `Unknown`. The frozen store schema hashes are:
 The committed fixture artifacts are intentionally small synthetic data, not a
 tenant capture. Their SHA-256/length pairs are bound in
 `fixtures/contract-cases.json` and repeated in the v3 receipt. The 57-case
-suite includes the CCD-423/CCD-449 changed-predicate, generated-column,
+suite includes the inherited CCD-423/CCD-449 changed-predicate, generated-column,
 physical/reference row pollution, output/store manifest drift and JSON-array
 root counterexamples, plus physical/reference store and aggregate-envelope
 product-prefix drift with synchronized hashes.
@@ -176,8 +183,10 @@ separate shapes and freezes the adapter mapping:
 The adapter must also supply the companion store bindings from the same run.
 The validator then reads the actual output/store artifacts; metadata mapping by
 itself never proves compatibility. The fixture provenance names the exact C#
-types and `Initialize*` schema sources, while the 1,211 authority entries remain
-derived only from the frozen SPO.Core ref.
+types and `Initialize*` schema sources, while the 1,161 authority entries remain
+derived only from the frozen SPO.Core ref. CCD-502 is the independent review
+authority for this exact build revision; the CCD-423 verdict remains historical
+evidence for `16.0.27606.12000` only.
 
 Explicit paths use ordinal-ignore-case matching. Versionless
 `/_layouts/<path>` aliases normalize to `/_layouts/15/<path>`. The generator
@@ -200,16 +209,16 @@ From a Windows-backed SPO.Core enlistment:
 python3 tools/aspx-platform-registry/generate_registry.py \
   --spocore-repo Q:/spocore/src \
   --git-executable '/mnt/c/Program Files/Git/cmd/git.exe' \
-  --independent-review-ref CCD-423
+  --independent-review-ref CCD-502
 ```
 
 Validate the authority, registry, schemas, profile, reader fixtures and receipt:
 
 ```bash
 python3 tools/aspx-platform-registry/validate_registry.py \
-  tools/aspx-platform-registry/registry/spo-online-16.0.27606.12000.registry.json \
-  --authority tools/aspx-platform-registry/authority/spo-online-16.0.27606.12000.authority.json \
-  --profile tools/aspx-platform-registry/profile/spo-online-16.0.27606.12000.profile.json \
+  tools/aspx-platform-registry/registry/spo-online-16.0.27708.12757.registry.json \
+  --authority tools/aspx-platform-registry/authority/spo-online-16.0.27708.12757.authority.json \
+  --profile tools/aspx-platform-registry/profile/spo-online-16.0.27708.12757.profile.json \
   --schema tools/aspx-platform-registry/schema/aspx-platform-registry.schema.json \
   --profile-schema tools/aspx-platform-registry/schema/aspx-platform-registry-profile.schema.json \
   --fixtures tools/aspx-platform-registry/fixtures/contract-cases.json \

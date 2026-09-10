@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ccd:pnp:aspx-platform-registry:spo-online-16.0.27606.12000:r4",
+  "$id": "urn:ccd:pnp:aspx-platform-registry:spo-online-16.0.27708.12757:r1",
   "title": "SharePoint setup and virtual ASPX platform registry",
   "type": "object",
   "additionalProperties": false,
@@ -31,13 +31,13 @@
   "properties": {
     "$schema": { "const": "../schema/aspx-platform-registry.schema.json" },
     "registrySchemaVersion": { "const": "aspx-platform-registry/v1" },
-    "registryRevision": { "const": "spo-online-16.0.27606.12000-r4" },
+    "registryRevision": { "const": "spo-online-16.0.27708.12757-r1" },
     "registryHash": { "$ref": "#/$defs/sha256" },
     "authorityKind": { "const": "SPOCoreReleaseShippingManifest" },
-    "authoritySourceRef": { "const": "cee0ed61136e17c742c1cf98c9dea9446f10c564" },
-    "authoritySourceTag": { "const": "release/16.0.27606.12000" },
+    "authoritySourceRef": { "const": "1826a78bef6194afb25edc44b9abf61b7798de0a" },
+    "authoritySourceTag": { "const": "build/main/16.0.27708.12757" },
     "authorityArtifactHash": { "$ref": "#/$defs/sha256" },
-    "authorityArtifactPath": { "const": "authority/spo-online-16.0.27606.12000.authority.json" },
+    "authorityArtifactPath": { "const": "authority/spo-online-16.0.27708.12757.authority.json" },
     "reviewRef": { "type": "string", "minLength": 1 },
     "contractReviewRef": {
       "const": "CCD-394#document-aspx-surface-applicability-denominator-v3@7d44f61d-919e-478a-ab8e-bb4c8f9b4b4a"
@@ -48,8 +48,8 @@
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
     },
     "platformFamily": { "const": "SharePointOnline-16" },
-    "platformBuildMin": { "const": "16.0.27606.12000" },
-    "platformBuildMax": { "const": "16.0.27606.12000" },
+    "platformBuildMin": { "const": "16.0.27708.12757" },
+    "platformBuildMax": { "const": "16.0.27708.12757" },
     "normalization": { "type": "object", "minProperties": 1 },
     "failureSemantics": { "$ref": "#/$defs/failureSemantics" },
     "applicabilityRules": {

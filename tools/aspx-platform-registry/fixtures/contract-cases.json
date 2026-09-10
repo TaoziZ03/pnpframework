@@ -9,18 +9,18 @@
       "length": 126976,
       "path": "volumes/physical-store-v2.sqlite",
       "schemaManifestHash": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504",
-      "sha256": "b9dc77b9c86f35f682f996ceb4f0651d40e60575a047dee65e420a8326e79961"
+      "sha256": "5fe53fc62e7511322a434f8940020b73f5ad86e7f20b447bffa6d357ab9369ee"
     },
     "referenceOutput": {
       "length": 335,
       "path": "volumes/reference-output-v1.json",
-      "sha256": "383ee54ecc44fe81db932cac04aafcab4366ac37d1ac81d20212fbcdc21067a0"
+      "sha256": "be219f9049489d57e922aa2bde17e75d1a3c91e1f962623ad944df2a537c7afd"
     },
     "referenceStore": {
       "length": 45056,
       "path": "volumes/reference-store-v1.sqlite",
       "schemaManifestHash": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec",
-      "sha256": "16052bc65376b50b2c5ce9640f10589c6463ea773e9abb510ae9cc92c6b38bef"
+      "sha256": "24e0f607ab6ccbc7d811bca58c52ef7aebf5c56398ead5d24571ea1b5cdc3cb0"
     }
   },
   "fixtureProvenance": {
@@ -775,21 +775,21 @@
         "artifactLength": 324,
         "contractVersion": "aspx-discovery/v2",
         "outputVersion": "aspx-discovery-output/v2",
-        "platformBuild": "16.0.27606.12000",
+        "platformBuild": "16.0.27708.12757",
         "productRef": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8",
         "runId": "11111111-2222-3333-4444-555555555555",
         "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
         "snapshotFence": "fixture-snapshot-001",
         "store": {
-          "manifestHash": "60295e20e59f434c5f3a8d9bf7abb39af594bcd6c09584d49ce60e4a5d575ca2",
+          "manifestHash": "b41174d5327f5164b49ef5431b599ccdf86a3d6753858035a4be2107960b6569",
           "schemaVersion": "aspx-discovery-sqlite/v2"
         }
       },
-      "platformBuild": "16.0.27606.12000",
+      "platformBuild": "16.0.27708.12757",
       "productRef": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8",
-      "referenceArtifactHash": "383ee54ecc44fe81db932cac04aafcab4366ac37d1ac81d20212fbcdc21067a0",
+      "referenceArtifactHash": "be219f9049489d57e922aa2bde17e75d1a3c91e1f962623ad944df2a537c7afd",
       "referenceVolume": {
-        "artifactHash": "383ee54ecc44fe81db932cac04aafcab4366ac37d1ac81d20212fbcdc21067a0",
+        "artifactHash": "be219f9049489d57e922aa2bde17e75d1a3c91e1f962623ad944df2a537c7afd",
         "artifactLength": 335,
         "contractVersion": "aspx-reference/v1",
         "dispositions": [
@@ -802,11 +802,11 @@
           "Unknown"
         ],
         "outputVersion": "aspx-reference-output/v1",
-        "platformBuild": "16.0.27606.12000",
+        "platformBuild": "16.0.27708.12757",
         "productRef": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8",
         "recordKind": "AspxReferenceObservation",
-        "registryHash": "c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146",
-        "registryRevision": "spo-online-16.0.27606.12000-r4",
+        "registryHash": "a9bf07d1e45cab08583f3691b77fe91d06e0de4757812cbdc7023ba4c92b953c",
+        "registryRevision": "spo-online-16.0.27708.12757-r1",
         "runId": "11111111-2222-3333-4444-555555555555",
         "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
         "snapshotFence": "fixture-snapshot-001",
@@ -818,28 +818,28 @@
           "RuntimeRequestReference"
         ],
         "store": {
-          "manifestHash": "eb6399cb4bac829ba6dc51d4367b83db23127999396777fef900b0c7d13f3502",
+          "manifestHash": "c71587960089e7f3c471b4fcc04468b26f7e9a9a3866ce365bb97c31fb35de99",
           "schemaVersion": "aspx-reference-sqlite/v1"
         }
       },
-      "registryHash": "c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146",
-      "registryRevision": "spo-online-16.0.27606.12000-r4",
+      "registryHash": "a9bf07d1e45cab08583f3691b77fe91d06e0de4757812cbdc7023ba4c92b953c",
+      "registryRevision": "spo-online-16.0.27708.12757-r1",
       "runId": "11111111-2222-3333-4444-555555555555",
       "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
       "snapshotFence": "fixture-snapshot-001"
     },
-    "platformBuild": "16.0.27606.12000",
+    "platformBuild": "16.0.27708.12757",
     "registryEnvelope": {
-      "authorityArtifactHash": "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab",
-      "authoritySourceRef": "cee0ed61136e17c742c1cf98c9dea9446f10c564",
-      "platformBuild": "16.0.27606.12000",
+      "authorityArtifactHash": "9d2bef816a17fb0e0da93c53620e647e97acbfae1d61a58fb59b2d574b2d3af8",
+      "authoritySourceRef": "1826a78bef6194afb25edc44b9abf61b7798de0a",
+      "platformBuild": "16.0.27708.12757",
       "platformFamily": "SharePointOnline-16",
-      "profileHash": "43858256b82288df69db270c10344a1720f7e7c51d10e1e28f412cfa7fd615e6",
-      "profileRevision": "spo-online-16.0.27606.12000-profile-r4",
+      "profileHash": "b73d44d9a98e8aeb810e98a8e546975150641f9e86be0bf5f2f7200885f1726b",
+      "profileRevision": "spo-online-16.0.27708.12757-profile-r1",
       "profileSchemaVersion": "aspx-platform-registry-profile/v2",
-      "registryHash": "c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146",
-      "registryRevision": "spo-online-16.0.27606.12000-r4",
-      "registrySchemaHash": "a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d",
+      "registryHash": "a9bf07d1e45cab08583f3691b77fe91d06e0de4757812cbdc7023ba4c92b953c",
+      "registryRevision": "spo-online-16.0.27708.12757-r1",
+      "registrySchemaHash": "d1fbce7acf41c27d78cd68222f141d311da3ce8bfa006b57c4c5d742237d6ac6",
       "registrySchemaVersion": "aspx-platform-registry/v1"
     },
     "runtimePath": "/_layouts/15/accessdenied.aspx"

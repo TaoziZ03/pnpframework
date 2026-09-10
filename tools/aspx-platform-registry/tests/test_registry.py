@@ -50,13 +50,13 @@ class RegistryContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.registry = load_json(
-            ROOT / "registry" / "spo-online-16.0.27606.12000.registry.json"
+            ROOT / "registry" / "spo-online-16.0.27708.12757.registry.json"
         )
         cls.authority = load_json(
-            ROOT / "authority" / "spo-online-16.0.27606.12000.authority.json"
+            ROOT / "authority" / "spo-online-16.0.27708.12757.authority.json"
         )
         cls.profile = load_json(
-            ROOT / "profile" / "spo-online-16.0.27606.12000.profile.json"
+            ROOT / "profile" / "spo-online-16.0.27708.12757.profile.json"
         )
         cls.schema_path = ROOT / "schema" / "aspx-platform-registry.schema.json"
         cls.schema = load_json(cls.schema_path)
@@ -106,7 +106,7 @@ class RegistryContractTests(unittest.TestCase):
         stale_resource_id = self.profile_schema.copy()
         stale_resource_id["$id"] = (
             "urn:ccd:pnp:aspx-platform-registry-profile:"
-            "spo-online-16.0.27606.12000:r3"
+            "spo-online-16.0.27708.12757:r0"
         )
         self.assertTrue(
             validate_profile_schema_resource(stale_resource_id, self.schema)
