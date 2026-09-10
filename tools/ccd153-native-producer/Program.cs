@@ -16,15 +16,22 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using IOFile = System.IO.File;
 
-if (args.Length != 2 || (args[0] != "import" && args[0] != "reconcile" && args[0] != "validate-import"))
+if (args.Length != 2 || (args[0] != "import"
+    && args[0] != "reconcile"
+    && args[0] != "validate-import"
+    && args[0] != "adapt-classic-wiki-rest"))
 {
     throw new ArgumentException(
-        "usage: ccd153-native-producer <import|reconcile|validate-import> <request.json>");
+        "usage: ccd153-native-producer <import|reconcile|validate-import|adapt-classic-wiki-rest> <request.json>");
 }
 
 var options = CreateJsonOptions(writeIndented: false);
 var indented = CreateJsonOptions(writeIndented: true);
-if (args[0] == "import")
+if (args[0] == "adapt-classic-wiki-rest")
+{
+    RunClassicWikiRestSourceAdaptation(Path.GetFullPath(args[1]), options, indented);
+}
+else if (args[0] == "import")
 {
     RunImport(Path.GetFullPath(args[1]), options, indented);
 }
@@ -35,6 +42,48 @@ else if (args[0] == "reconcile")
 else
 {
     RunValidateImport(Path.GetFullPath(args[1]), options, indented);
+}
+
+static void RunClassicWikiRestSourceAdaptation(
+    string requestPath,
+    JsonSerializerOptions options,
+    JsonSerializerOptions indented)
+{
+    var request = Read<ClassicWikiRestSourceAdaptationRequest>(requestPath, options);
+    Require(request.Schema == "ccd153.classic-wiki-rest-source-adaptation-request/v1",
+        "classic_wiki_rest_source_adaptation_request_schema_unsupported");
+    ValidateImplementationRef(request.ImplementationRef);
+
+    var package = Read<ClassicWikiMigrationPackage>(Resolve(requestPath, request.PackagePath), options);
+    var admittedPlan = Read<AdmittedReproExecutionPlan>(Resolve(requestPath, request.AdmittedPlanPath), options);
+    ValidateTargetWeb(package.Plan?.TargetLocation?.TargetWebUrl);
+    var result = ClassicWikiRestSourceAdapter.Adapt(package, admittedPlan);
+
+    var outputDirectory = Resolve(requestPath, request.OutputDirectory);
+    Directory.CreateDirectory(outputDirectory);
+    var packagePath = Path.Combine(outputDirectory, "classic-wiki-migration-package-v1.json");
+    var admittedPlanPath = Path.Combine(outputDirectory, "admitted-plan-v1.json");
+    Write(packagePath, result.Package, indented);
+    Write(admittedPlanPath, result.AdmittedPlan, indented);
+    var manifest = new
+    {
+        schema = "ccd153.classic-wiki-rest-source-adaptation-result/v1",
+        request.CaseId,
+        producer = new { id = ProducerContract.Id, version = ProducerContract.Version, implementationRef = request.ImplementationRef },
+        binarySha256 = CurrentBinarySha256(),
+        result.PriorPlanDigestSha256,
+        result.AdaptedPlanDigestSha256,
+        result.PriorAdmittedPlanDigestSha256,
+        result.AdaptedAdmittedPlanDigestSha256,
+        result.DependencyCount,
+        result.ReconstructedDependencyCount,
+        result.UsedDeclaredInventory,
+        operations = result.AdmittedPlan.Operations,
+        packagePath = Path.GetFileName(packagePath),
+        admittedPlanPath = Path.GetFileName(admittedPlanPath)
+    };
+    Write(Path.Combine(outputDirectory, "source-adaptation-manifest-v1.json"), manifest, indented);
+    Console.WriteLine(JsonSerializer.Serialize(manifest, indented));
 }
 
 static void RunValidateImport(string requestPath, JsonSerializerOptions options, JsonSerializerOptions indented)
@@ -554,6 +603,16 @@ sealed class NativeImportRequest
     public string ArtifactStorePath { get; set; }
     public string OutputDirectory { get; set; }
     public string TargetCookieEnvironmentVariable { get; set; }
+}
+
+sealed class ClassicWikiRestSourceAdaptationRequest
+{
+    public string Schema { get; set; }
+    public string CaseId { get; set; }
+    public string ImplementationRef { get; set; }
+    public string PackagePath { get; set; }
+    public string AdmittedPlanPath { get; set; }
+    public string OutputDirectory { get; set; }
 }
 
 sealed class NativeImportValidationRequest

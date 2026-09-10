@@ -33,6 +33,23 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             return PlanCore(targetWeb.Id, targetWeb.Url, targetWeb.ServerRelativeUrl, exportPackage, options, artifactStore);
         }
 
+        public ClassicWikiMigrationPackage PlanOffline(
+            Guid targetWebId,
+            string targetWebUrl,
+            string targetWebServerRelativeUrl,
+            ClassicWikiExportPackage exportPackage,
+            PagePlanningOptions options,
+            IMigrationArtifactStore artifactStore = null)
+        {
+            return PlanCore(
+                targetWebId,
+                targetWebUrl,
+                targetWebServerRelativeUrl,
+                exportPackage,
+                options,
+                artifactStore);
+        }
+
         internal static ClassicWikiMigrationPackage PlanCore(
             Guid targetWebId,
             string targetWebUrl,
