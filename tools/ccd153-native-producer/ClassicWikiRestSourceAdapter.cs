@@ -95,7 +95,7 @@ internal static class ClassicWikiRestSourceAdapter
         };
     }
 
-    private static bool SameInventory(
+    internal static bool SameInventory(
         IList<PageReferenceSnapshot> declared,
         IList<PageReferenceSnapshot> reconstructed)
     {
@@ -108,7 +108,12 @@ internal static class ClassicWikiRestSourceAdapter
         foreach (var expected in declared)
         {
             var match = unused.FirstOrDefault(actual =>
-                expected.Kind == actual.Kind
+                expected != null
+                && actual != null
+                && RequiredEquals(expected.Id, actual.Id)
+                && expected.CaptureStatus == actual.CaptureStatus
+                && Enum.IsDefined(typeof(PnP.Framework.Migration.Pages.Capture.PageCaptureStatus), expected.CaptureStatus)
+                && expected.Kind == actual.Kind
                 && RequiredEquals(expected.Consumer, actual.Consumer)
                 && RequiredEquals(expected.OriginalValue, actual.OriginalValue)
                 && RequiredUrlEquals(expected.SourceAbsoluteUrl, actual.SourceAbsoluteUrl)

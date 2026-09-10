@@ -274,9 +274,22 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     result.Differences.Add($"Dependency exact-semantics mismatch for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
                     return;
                 }
-                if (match.CaptureStatus == PageCaptureStatus.Failed)
+                if (!Enum.IsDefined(typeof(PageCaptureStatus), match.CaptureStatus))
+                {
+                    result.Differences.Add(
+                        $"Dependency fresh evidence has unsupported capture status '{(int)match.CaptureStatus}' for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
+                    return;
+                }
+                if (match.CaptureStatus == PageCaptureStatus.NotReturned
+                    || match.CaptureStatus == PageCaptureStatus.Failed)
                 {
                     result.Differences.Add($"Dependency fresh evidence is unavailable for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
+                    return;
+                }
+                if (match.CaptureStatus == PageCaptureStatus.CapturedWithLimitations)
+                {
+                    result.Differences.Add(
+                        $"Dependency fresh evidence is limited for '{plan.Consumer}'/'{plan.TargetOriginalValue}' and no reviewed reference-only profile accepts that limitation.");
                     return;
                 }
                 unused.Remove(match);

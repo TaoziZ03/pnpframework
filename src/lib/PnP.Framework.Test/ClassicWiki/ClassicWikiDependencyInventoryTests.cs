@@ -136,6 +136,38 @@ namespace PnP.Framework.Test.ClassicWiki
             Assert.IsTrue(foreignResult.Differences.Any(value => value.Contains("exact-semantics mismatch")));
         }
 
+        [DataTestMethod]
+        [DataRow(PageCaptureStatus.NotReturned, "fresh evidence is unavailable")]
+        [DataRow(PageCaptureStatus.CapturedWithLimitations, "no reviewed reference-only profile")]
+        public void FreshVerificationRejectsNonFidelityCaptureStatuses(
+            PageCaptureStatus captureStatus,
+            string expectedDiagnostic)
+        {
+            var package = CreatePlannedCanaryPackage();
+            var evidence = CreateDependencyEvidence(package);
+            evidence.Recapture.Snapshot.Dependencies[0].CaptureStatus = captureStatus;
+
+            var result = ClassicWikiFreshVerification.Evaluate(package, evidence);
+
+            Assert.IsFalse(result.Passed);
+            Assert.IsFalse(result.DependenciesMatched);
+            Assert.IsTrue(result.Differences.Any(value => value.Contains(expectedDiagnostic)));
+        }
+
+        [TestMethod]
+        public void FreshVerificationRejectsUndefinedCaptureStatus()
+        {
+            var package = CreatePlannedCanaryPackage();
+            var evidence = CreateDependencyEvidence(package);
+            evidence.Recapture.Snapshot.Dependencies[0].CaptureStatus = (PageCaptureStatus)999;
+
+            var result = ClassicWikiFreshVerification.Evaluate(package, evidence);
+
+            Assert.IsFalse(result.Passed);
+            Assert.IsFalse(result.DependenciesMatched);
+            Assert.IsTrue(result.Differences.Any(value => value.Contains("unsupported capture status '999'")));
+        }
+
         private static ClassicWikiMigrationPackage CreatePlannedCanaryPackage()
         {
             var source = CreateCanaryExport();

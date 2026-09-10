@@ -10,4 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/lib/PnP.Framework/PnP.Framework.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ccd153-native-producer.tests" />
+  </ItemGroup>
 </Project>
