@@ -17,7 +17,12 @@ separate import/contract producer refs. Source and target identities carry the
 provider, operation, observation time, acquisition/source digest, and pre-existing
 CAS artifact. The factory never converts a caller-only DTO into observed evidence.
 Package, native receipt, source/target identity, and policy bytes are reopened by
-the consumer. The target Web ID/URL must also match the sealed Wiki plan.
+the consumer. The binding also names an independent identity-evidence verifier by
+ID and exact implementation ref. That verifier must re-establish the complete
+source and target tuples from its trusted acquisition boundary; caller-authored
+CAS tuples and copied provider labels are not identity authority. An unavailable
+verifier preserves `Incomplete / Pending`; a rejected tuple fails closed. The
+target Web ID/URL must also match the sealed Wiki plan.
 
 The fixed required set is:
 
@@ -43,20 +48,24 @@ one of:
 The envelope records a distinct capture producer, pre/post target identity
 readbacks, bounded ordered attempts, request-ID availability, detector identity,
 and a sealed artifact manifest. The terminal attempt must identify the consumed
-HTTP/context/result, every raw/result/readback artifact must be reopened and
-covered by the manifest, and nested schema/status discriminators are v1-known.
+HTTP/context/result and its raw evidence set must be exactly the result artifacts
+used by the receipt. Every raw/result/readback artifact must be reopened and
+covered by the manifest. Known availability, transport, semantic, nested type,
+schema, and status discriminators are default-deny.
 It cannot set native acceptance.
 
 Classic Wiki DOM evidence uses `pnp-classic-wiki-runtime-dom/v1`. Its observed
-URL and authored-content bytes are checked against the actual HTML artifact; the
-consumer recomputes the authored digest, decodes denial text, and requires PNG or
-JPEG signature bytes for screenshot evidence.
+URL and authored-content bytes are checked against the parsed rendered HTML
+surface after script/style/template content is removed. The consumer recomputes
+the authored digest, detects split-tag and nonbreaking-space denial text, and
+requires structurally valid PNG or JPEG content rather than a magic prefix.
 
 ## Native evaluation authority
 
 `ClassicWikiNativeRuntimeAcceptance.Evaluate` consumes the immutable package,
 admission, native import, pre-capture binding, external envelope, artifact store,
-the unique Classic Wiki semantic policy, and a host-owned provenance verifier.
+the unique Classic Wiki semantic policy, a host-owned identity verifier, and a
+host-owned provenance verifier.
 The semantic policy returns only a per-result boolean. The common consumer owns
 binding/storage/runtime/provenance gates and calls the existing
 `ClassicWikiImportStatusPolicy.Acceptance`.
@@ -66,6 +75,10 @@ Positive runtime evidence remains `Pending` unless provenance is independently
 or a caller-provided `VERIFIED` string is not an acceptance input. Complete
 negative evidence remains `Failed / Rejected`, including 401/403 and semantic
 HTTP-200 access-denied shells.
+
+The producer CLI deliberately supplies the unverified identity verifier until a
+provider-owned acquisition verifier is wired. It therefore cannot turn a loaded
+binding plus custom runtime report into positive acceptance by itself.
 
 The append-only `pnp-native-page-runtime-acceptance-receipt/v1` records evaluator
 identity/ref, all input digests, validation/storage/runtime/acceptance/provenance

@@ -28,7 +28,8 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
             string admittedPlanDigestSha256,
             NativePageImportReceiptAggregate importAggregate,
             ProducerBuildProvenanceManifest provenanceManifest,
-            IMigrationArtifactStore artifactStore)
+            IMigrationArtifactStore artifactStore,
+            INativePageRuntimeIdentityEvidenceVerifier identityEvidenceVerifier)
         {
             Require(binding != null, "A native page runtime binding is required.");
             Require(string.Equals(binding.SchemaVersion, NativePageRuntimeContract.BindingSchemaVersion, StringComparison.Ordinal),
@@ -105,6 +106,21 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                 binding.ImportReceiptDigestSha256,
                 artifactStore,
                 "pre-capture target identity");
+            Require(identityEvidenceVerifier != null
+                && !string.IsNullOrWhiteSpace(binding.IdentityEvidenceVerifierId)
+                && string.Equals(binding.IdentityEvidenceVerifierId, identityEvidenceVerifier.VerifierId, StringComparison.Ordinal)
+                && string.Equals(
+                    binding.IdentityEvidenceVerifierImplementationRef,
+                    identityEvidenceVerifier.ImplementationRef,
+                    StringComparison.OrdinalIgnoreCase),
+                "The independent identity evidence verifier is missing or foreign.");
+            ValidateImplementationRef(binding.IdentityEvidenceVerifierImplementationRef, "identity evidence verifier ref");
+            identityEvidenceVerifier.Verify(
+                binding.SourceIdentityEvidence,
+                binding.TargetIdentityEvidence,
+                package,
+                admittedPlan,
+                importAggregate);
 
             ValidateFixedManifest(binding.RequirementsManifest);
             var manifestDigest = MigrationDigest.ComputeSha256(
@@ -239,11 +255,16 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                     evidence.ArtifactManifest,
                     RequiredArtifacts(evidence, receipt),
                     artifactStore);
-                semanticStatus = binding.RequirementsManifest.Requirements.All(requirement =>
-                {
-                    var result = receipt.Results.Single(value => string.Equals(value.RequirementId, requirement.Id, StringComparison.Ordinal));
-                    return policy.VerifyResult(binding, result, artifactStore);
-                })
+                semanticStatus = receipt.Status == RuntimeVerificationStatus.Passed
+                    && string.Equals(
+                        evidence.Attempts[evidence.Attempts.Count - 1].SemanticResult,
+                        "surface_present",
+                        StringComparison.Ordinal)
+                    && binding.RequirementsManifest.Requirements.All(requirement =>
+                    {
+                        var result = receipt.Results.Single(value => string.Equals(value.RequirementId, requirement.Id, StringComparison.Ordinal));
+                        return result.Passed && policy.VerifyResult(binding, result, artifactStore);
+                    })
                     ? RuntimeVerificationStatus.Passed
                     : RuntimeVerificationStatus.Failed;
             }
@@ -255,7 +276,11 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                     "A terminal observation cannot carry a runtime receipt digest.");
                 Require(!string.IsNullOrWhiteSpace(evidence.TerminalObservation.Kind)
                     && !string.IsNullOrWhiteSpace(evidence.TerminalObservation.ReasonCode)
-                    && !string.IsNullOrWhiteSpace(evidence.TerminalObservation.SemanticDetectorResult),
+                    && IsSupportedSemanticResult(evidence.TerminalObservation.SemanticDetectorResult)
+                    && !string.Equals(
+                        evidence.TerminalObservation.SemanticDetectorResult,
+                        "surface_present",
+                        StringComparison.Ordinal),
                     "The terminal runtime observation is incomplete.");
                 ValidateAttempts(evidence.Attempts, binding, evidence, null, evidence.TerminalObservation, artifactStore);
                 ValidateArtifactManifest(
@@ -445,14 +470,17 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                     && !string.IsNullOrWhiteSpace(attempt.ProviderVersion)
                     && !string.IsNullOrWhiteSpace(attempt.SemanticDetectorId)
                     && !string.IsNullOrWhiteSpace(attempt.SemanticDetectorVersion)
-                    && !string.IsNullOrWhiteSpace(attempt.SemanticResult)
+                    && IsSupportedSemanticResult(attempt.SemanticResult)
                     && !string.IsNullOrWhiteSpace(attempt.BrowserContextId),
                     "A runtime attempt is incomplete, foreign, or out of order.");
                 ValidateDigest(attempt.SemanticDetectorDigestSha256, "semantic detector digest");
                 Require(attempt.HttpStatusCode.HasValue != attempt.TransportUnavailable,
                     "A runtime attempt must contain either HTTP status or transport-unavailable evidence.");
                 Require(!string.IsNullOrWhiteSpace(attempt.RequestId)
-                    || string.Equals(attempt.RequestIdAvailability, "unavailable", StringComparison.Ordinal)
+                        && string.Equals(attempt.RequestIdAvailability, "available", StringComparison.Ordinal)
+                        && string.IsNullOrWhiteSpace(attempt.RequestIdUnavailableReason)
+                    || string.IsNullOrWhiteSpace(attempt.RequestId)
+                        && string.Equals(attempt.RequestIdAvailability, "unavailable", StringComparison.Ordinal)
                         && !string.IsNullOrWhiteSpace(attempt.RequestIdUnavailableReason),
                     "A runtime attempt must preserve request ID or explicit unavailability.");
                 Require(attempt.RawEvidence != null && attempt.RawEvidence.Count > 0,
@@ -477,6 +505,7 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                             && string.IsNullOrWhiteSpace(http.RequestId))
                     && finalAttempt.ObservedAtUtc == http.CapturedAtUtc,
                     "The terminal runtime attempt does not identify the consumed runtime result.");
+                ValidateTerminalAttemptArtifacts(finalAttempt, receipt.Results);
             }
             else
             {
@@ -730,7 +759,81 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
                 && string.Equals(left.RequestedUrl, right.RequestedUrl, StringComparison.Ordinal)
                 && string.Equals(left.FinalUrl, right.FinalUrl, StringComparison.Ordinal)
                 && string.Equals(left.RequestId, right.RequestId, StringComparison.Ordinal)
+                && string.Equals(left.SharePointRequestGuid, right.SharePointRequestGuid, StringComparison.Ordinal)
+                && string.Equals(left.ContentType, right.ContentType, StringComparison.OrdinalIgnoreCase)
+                && DigestEquals(left.ResponseHeadersDigestSha256, right.ResponseHeadersDigestSha256)
+                && left.EncodedDataLength == right.EncodedDataLength
                 && left.CapturedAtUtc == right.CapturedAtUtc;
+        }
+
+        private static void ValidateTerminalAttemptArtifacts(
+            NativePageRuntimeAttempt finalAttempt,
+            IList<RuntimeVerificationResult> results)
+        {
+            var expected = ResultArtifacts(results)
+                .GroupBy(ArtifactKey, StringComparer.OrdinalIgnoreCase)
+                .Select(value => value.First())
+                .ToList();
+            var actual = finalAttempt.RawEvidence
+                .GroupBy(ArtifactKey, StringComparer.OrdinalIgnoreCase)
+                .Select(value => value.First())
+                .ToList();
+            Require(actual.Count == finalAttempt.RawEvidence.Count
+                && actual.Count == expected.Count
+                && expected.All(item => actual.Any(value => string.Equals(
+                    ArtifactKey(value),
+                    ArtifactKey(item),
+                    StringComparison.OrdinalIgnoreCase))),
+                "The terminal runtime attempt raw evidence is not the consumed runtime result evidence.");
+        }
+
+        private static IEnumerable<NativePageRuntimeArtifactReference> ResultArtifacts(
+            IEnumerable<RuntimeVerificationResult> results)
+        {
+            foreach (var result in results ?? Enumerable.Empty<RuntimeVerificationResult>())
+            {
+                yield return new NativePageRuntimeArtifactReference
+                {
+                    Sha256 = result.EvidenceArtifactSha256,
+                    Length = result.EvidenceArtifactLength,
+                    MediaType = result.Http?.ContentType,
+                    Locator = result.EvidenceArtifactLocator
+                };
+                yield return new NativePageRuntimeArtifactReference
+                {
+                    Sha256 = result.DomProbeArtifactSha256,
+                    Length = result.DomProbeArtifactLength,
+                    MediaType = "application/json",
+                    Locator = result.DomProbeArtifactLocator
+                };
+                if (!string.IsNullOrWhiteSpace(result.ScreenshotArtifactSha256))
+                {
+                    yield return new NativePageRuntimeArtifactReference
+                    {
+                        Sha256 = result.ScreenshotArtifactSha256,
+                        Length = result.ScreenshotArtifactLength.GetValueOrDefault(),
+                        MediaType = "image/png",
+                        Locator = result.ScreenshotArtifactLocator
+                    };
+                }
+            }
+        }
+
+        private static string ArtifactKey(NativePageRuntimeArtifactReference artifact)
+        {
+            return (artifact?.Sha256 ?? string.Empty) + ":" + artifact?.Length + ":"
+                + (artifact?.MediaType ?? string.Empty).Split(';')[0].Trim() + ":" + artifact?.Locator;
+        }
+
+        private static bool IsSupportedSemanticResult(string value)
+        {
+            return string.Equals(value, "surface_present", StringComparison.Ordinal)
+                || string.Equals(value, "access_denied", StringComparison.Ordinal)
+                || string.Equals(value, "unauthorized", StringComparison.Ordinal)
+                || string.Equals(value, "forbidden", StringComparison.Ordinal)
+                || string.Equals(value, "error_shell", StringComparison.Ordinal)
+                || string.Equals(value, "http_error", StringComparison.Ordinal)
+                || string.Equals(value, "transport_unavailable", StringComparison.Ordinal);
         }
 
         private static bool IsSafeRelativeLocator(string value)

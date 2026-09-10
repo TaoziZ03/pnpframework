@@ -3,7 +3,7 @@
   "$id": "pnp-native-page-runtime-binding/v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "contentSha256", "runId", "claimId", "subject", "profileId", "policyVersion", "sourceIdentity", "sourceIdentityEvidence", "sourceVersion", "snapshotDigestSha256", "planDigest", "admittedPlanDigestSha256", "importReceiptDigestSha256", "operations", "targetStorageIdentity", "targetIdentityEvidence", "nativeImportEvidence", "packageEvidence", "policyArtifact", "requirementsManifest", "requirementsManifestDigestSha256", "expectedAuthoredContentSha256", "issuedAtUtc", "captureNotBeforeUtc", "captureExpiresAtUtc", "importProducerRef", "contractProducerRef", "contractProducerProvenanceManifestDigestSha256", "contractProducerProvenanceStatus", "extensions"],
+  "required": ["schemaVersion", "contentSha256", "runId", "claimId", "subject", "profileId", "policyVersion", "sourceIdentity", "sourceIdentityEvidence", "sourceVersion", "snapshotDigestSha256", "planDigest", "admittedPlanDigestSha256", "importReceiptDigestSha256", "operations", "targetStorageIdentity", "targetIdentityEvidence", "identityEvidenceVerifierId", "identityEvidenceVerifierImplementationRef", "nativeImportEvidence", "packageEvidence", "policyArtifact", "requirementsManifest", "requirementsManifestDigestSha256", "expectedAuthoredContentSha256", "issuedAtUtc", "captureNotBeforeUtc", "captureExpiresAtUtc", "importProducerRef", "contractProducerRef", "contractProducerProvenanceManifestDigestSha256", "contractProducerProvenanceStatus", "extensions"],
   "properties": {
     "schemaVersion": { "const": "pnp-native-page-runtime-binding/v1" },
     "contentSha256": { "$ref": "#/$defs/sha256" },
@@ -22,6 +22,8 @@
     "operations": { "type": "object" },
     "targetStorageIdentity": { "$ref": "#/$defs/target" },
     "targetIdentityEvidence": { "$ref": "#/$defs/identityEvidence" },
+    "identityEvidenceVerifierId": { "type": "string", "minLength": 1 },
+    "identityEvidenceVerifierImplementationRef": { "$ref": "#/$defs/gitRef" },
     "nativeImportEvidence": { "$ref": "#/$defs/artifact" },
     "packageEvidence": { "$ref": "#/$defs/artifact" },
     "policyArtifact": { "$ref": "#/$defs/artifact" },

@@ -23,7 +23,7 @@
     "runtimeReceipt": { "anyOf": [{ "$ref": "#/$defs/runtimeReceipt" }, { "type": "null" }] },
     "runtimeReceiptDigestSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
     "terminalObservation": { "anyOf": [{ "$ref": "#/$defs/terminalObservation" }, { "type": "null" }] },
-    "extensions": { "type": "object", "propertyNames": { "pattern": "^[^.]+\\..+$" }, "additionalProperties": { "type": "string" } }
+    "extensions": { "$ref": "#/$defs/extensions" }
   },
   "oneOf": [
     { "properties": { "resultKind": { "const": "runtime-receipt" }, "runtimeReceipt": { "$ref": "#/$defs/runtimeReceipt" }, "runtimeReceiptDigestSha256": { "$ref": "#/$defs/sha256" }, "terminalObservation": { "type": "null" } } },
@@ -34,15 +34,121 @@
     "gitRef": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
     "guid": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
     "dateTime": { "type": "string", "format": "date-time" },
+    "uri": { "type": "string", "format": "uri", "minLength": 1 },
+    "nullableString": { "type": ["string", "null"] },
     "safeLocator": { "type": "string", "minLength": 1, "pattern": "^(?![/\\\\])(?!(?:.*[/\\\\])?\\.\\.(?:[/\\\\]|$)).+" },
-    "captureProducer": { "type": "object", "additionalProperties": false, "required": ["adapterId", "version", "implementationRef", "toolVersion", "protocolVersion"], "properties": { "adapterId": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "toolVersion": { "type": "string", "minLength": 1 }, "protocolVersion": { "type": "string", "minLength": 1 } } },
-    "artifact": { "type": "object", "additionalProperties": false, "required": ["sha256", "length", "mediaType", "locator"], "properties": { "sha256": { "$ref": "#/$defs/sha256" }, "length": { "type": "integer", "minimum": 1 }, "mediaType": { "type": "string", "minLength": 1 }, "locator": { "$ref": "#/$defs/safeLocator" } } },
-    "manifestArtifact": { "type": "object", "required": ["sha256", "length", "mediaType"], "properties": { "sha256": { "$ref": "#/$defs/sha256" }, "length": { "type": "integer", "minimum": 1 }, "mediaType": { "type": "string", "minLength": 1 } } },
-    "target": { "type": "object", "additionalProperties": false, "required": ["siteId", "webId", "listId", "webUrl", "pageServerRelativeUrl", "fileUniqueId", "listItemId", "listItemVersion", "listItemETag", "canonicalUrl"], "properties": { "siteId": { "$ref": "#/$defs/guid" }, "webId": { "$ref": "#/$defs/guid" }, "listId": { "$ref": "#/$defs/guid" }, "webUrl": { "type": "string", "format": "uri" }, "pageServerRelativeUrl": { "type": "string", "pattern": "^/" }, "fileUniqueId": { "$ref": "#/$defs/guid" }, "listItemId": { "type": "integer", "minimum": 1 }, "listItemVersion": { "type": "string", "minLength": 1 }, "listItemETag": { "type": "string", "minLength": 1 }, "canonicalUrl": { "type": "string", "format": "uri" } } },
-    "identityEvidence": { "type": "object", "additionalProperties": false, "required": ["observationId", "observedAtUtc", "operationId", "providerId", "providerVersion", "sourceArtifactSha256", "identity", "artifact"], "properties": { "observationId": { "type": "string", "minLength": 1 }, "observedAtUtc": { "$ref": "#/$defs/dateTime" }, "operationId": { "$ref": "#/$defs/guid" }, "providerId": { "type": "string", "minLength": 1 }, "providerVersion": { "type": "string", "minLength": 1 }, "sourceArtifactSha256": { "$ref": "#/$defs/sha256" }, "identity": { "$ref": "#/$defs/target" }, "artifact": { "$ref": "#/$defs/artifact" } } },
-    "attempt": { "type": "object", "additionalProperties": false, "required": ["sequence", "maximumAttempts", "observedAtUtc", "runId", "runtimeOperationId", "requestedUrl", "finalUrl", "httpStatusCode", "transportUnavailable", "requestId", "requestIdAvailability", "requestIdUnavailableReason", "providerId", "providerVersion", "semanticDetectorId", "semanticDetectorVersion", "semanticDetectorDigestSha256", "semanticResult", "browserContextId", "rawEvidence"], "properties": { "sequence": { "type": "integer", "minimum": 1, "maximum": 3 }, "maximumAttempts": { "type": "integer", "minimum": 1, "maximum": 3 }, "observedAtUtc": { "$ref": "#/$defs/dateTime" }, "runId": { "$ref": "#/$defs/guid" }, "runtimeOperationId": { "$ref": "#/$defs/guid" }, "requestedUrl": { "type": "string", "format": "uri" }, "finalUrl": { "type": "string", "format": "uri" }, "httpStatusCode": { "anyOf": [{ "type": "integer", "minimum": 100, "maximum": 599 }, { "type": "null" }] }, "transportUnavailable": { "type": "boolean" }, "requestId": { "type": ["string", "null"] }, "requestIdAvailability": { "enum": ["available", "unavailable"] }, "requestIdUnavailableReason": { "type": ["string", "null"] }, "providerId": { "type": "string", "minLength": 1 }, "providerVersion": { "type": "string", "minLength": 1 }, "semanticDetectorId": { "type": "string", "minLength": 1 }, "semanticDetectorVersion": { "type": "string", "minLength": 1 }, "semanticDetectorDigestSha256": { "$ref": "#/$defs/sha256" }, "semanticResult": { "type": "string", "minLength": 1 }, "browserContextId": { "type": "string", "minLength": 1 }, "rawEvidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } } } },
-    "artifactManifest": { "type": "object", "required": ["schemaVersion", "artifacts", "contentSha256"], "properties": { "schemaVersion": { "const": "pnp-migration-artifacts/v1" }, "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/manifestArtifact" } }, "contentSha256": { "$ref": "#/$defs/sha256" } } },
-    "runtimeReceipt": { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "planDigest", "admittedPlanDigestSha256", "operationId", "importReceiptDigestSha256", "requirementsManifestDigestSha256", "implementationRef", "sourceVersion", "operations", "targetIdentity", "browserContext", "completedAtUtc", "results", "status"], "properties": { "schemaVersion": { "const": "pnp-migration-runtime-verification-receipt/v1" }, "planDigest": { "$ref": "#/$defs/sha256" }, "admittedPlanDigestSha256": { "$ref": "#/$defs/sha256" }, "operationId": { "$ref": "#/$defs/guid" }, "importReceiptDigestSha256": { "$ref": "#/$defs/sha256" }, "requirementsManifestDigestSha256": { "$ref": "#/$defs/sha256" }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "sourceVersion": { "type": "object" }, "operations": { "type": "object" }, "targetIdentity": { "type": "string", "format": "uri" }, "browserContext": { "type": "object" }, "completedAtUtc": { "$ref": "#/$defs/dateTime" }, "results": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["requirementId", "passed", "evidenceArtifactSha256", "evidenceArtifactLength", "evidenceArtifactLocator", "implementationRef", "browserContextId", "http", "cache", "domProbeArtifactSha256", "domProbeArtifactLength", "domProbeArtifactLocator", "screenshotArtifactSha256", "screenshotArtifactLength", "screenshotArtifactLocator", "message"] } }, "status": { "enum": ["NotRun", "NotRequired", "Pending", "Passed", "Failed"] } } },
-    "terminalObservation": { "type": "object", "additionalProperties": false, "required": ["kind", "httpStatusCode", "semanticDetectorResult", "reasonCode", "message"], "properties": { "kind": { "type": "string", "minLength": 1 }, "httpStatusCode": { "anyOf": [{ "type": "integer", "minimum": 100, "maximum": 599 }, { "type": "null" }] }, "semanticDetectorResult": { "type": "string", "minLength": 1 }, "reasonCode": { "type": "string", "minLength": 1 }, "message": { "type": ["string", "null"] } } }
+    "extensions": { "type": "object", "propertyNames": { "pattern": "^[^.]+\\..+$" }, "additionalProperties": { "type": "string" } },
+    "captureProducer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["adapterId", "version", "implementationRef", "toolVersion", "protocolVersion"],
+      "properties": { "adapterId": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "toolVersion": { "type": "string", "minLength": 1 }, "protocolVersion": { "type": "string", "minLength": 1 } }
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "length", "mediaType", "locator"],
+      "properties": { "sha256": { "$ref": "#/$defs/sha256" }, "length": { "type": "integer", "minimum": 1 }, "mediaType": { "type": "string", "minLength": 1 }, "locator": { "$ref": "#/$defs/safeLocator" } }
+    },
+    "manifestArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "length", "mediaType", "contentEncoding", "originalName", "availability", "lineage"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" }, "length": { "type": "integer", "minimum": 1 }, "mediaType": { "type": "string", "minLength": 1 },
+        "contentEncoding": { "$ref": "#/$defs/nullableString" }, "originalName": { "$ref": "#/$defs/nullableString" },
+        "availability": { "enum": ["Captured", "Partial", "Unavailable", "Conflict", "OutOfScope"] },
+        "lineage": { "anyOf": [{ "$ref": "#/$defs/lineage" }, { "type": "null" }] }
+      }
+    },
+    "lineage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["inputExchangeIds", "inputPayloadSha256", "projectorId", "projectorVersion", "outputSchemaVersion", "outputSha256"],
+      "properties": {
+        "inputExchangeIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "inputPayloadSha256": { "type": "array", "items": { "$ref": "#/$defs/sha256" } },
+        "projectorId": { "$ref": "#/$defs/nullableString" }, "projectorVersion": { "$ref": "#/$defs/nullableString" },
+        "outputSchemaVersion": { "$ref": "#/$defs/nullableString" }, "outputSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
+      }
+    },
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["siteId", "webId", "listId", "webUrl", "pageServerRelativeUrl", "fileUniqueId", "listItemId", "listItemVersion", "listItemETag", "canonicalUrl"],
+      "properties": { "siteId": { "$ref": "#/$defs/guid" }, "webId": { "$ref": "#/$defs/guid" }, "listId": { "$ref": "#/$defs/guid" }, "webUrl": { "$ref": "#/$defs/uri" }, "pageServerRelativeUrl": { "type": "string", "pattern": "^/", "minLength": 1 }, "fileUniqueId": { "$ref": "#/$defs/guid" }, "listItemId": { "type": "integer", "minimum": 1 }, "listItemVersion": { "type": "string", "minLength": 1 }, "listItemETag": { "type": "string", "minLength": 1 }, "canonicalUrl": { "$ref": "#/$defs/uri" } }
+    },
+    "identityEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["observationId", "observedAtUtc", "operationId", "providerId", "providerVersion", "sourceArtifactSha256", "identity", "artifact"],
+      "properties": { "observationId": { "type": "string", "minLength": 1 }, "observedAtUtc": { "$ref": "#/$defs/dateTime" }, "operationId": { "$ref": "#/$defs/guid" }, "providerId": { "type": "string", "minLength": 1 }, "providerVersion": { "type": "string", "minLength": 1 }, "sourceArtifactSha256": { "$ref": "#/$defs/sha256" }, "identity": { "$ref": "#/$defs/target" }, "artifact": { "$ref": "#/$defs/artifact" } }
+    },
+    "attempt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sequence", "maximumAttempts", "observedAtUtc", "runId", "runtimeOperationId", "requestedUrl", "finalUrl", "httpStatusCode", "transportUnavailable", "requestId", "requestIdAvailability", "requestIdUnavailableReason", "providerId", "providerVersion", "semanticDetectorId", "semanticDetectorVersion", "semanticDetectorDigestSha256", "semanticResult", "browserContextId", "rawEvidence"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 3 }, "maximumAttempts": { "type": "integer", "minimum": 1, "maximum": 3 }, "observedAtUtc": { "$ref": "#/$defs/dateTime" },
+        "runId": { "$ref": "#/$defs/guid" }, "runtimeOperationId": { "$ref": "#/$defs/guid" }, "requestedUrl": { "$ref": "#/$defs/uri" }, "finalUrl": { "$ref": "#/$defs/uri" },
+        "httpStatusCode": { "anyOf": [{ "type": "integer", "minimum": 100, "maximum": 599 }, { "type": "null" }] }, "transportUnavailable": { "type": "boolean" },
+        "requestId": { "$ref": "#/$defs/nullableString" }, "requestIdAvailability": { "enum": ["available", "unavailable"] }, "requestIdUnavailableReason": { "$ref": "#/$defs/nullableString" },
+        "providerId": { "type": "string", "minLength": 1 }, "providerVersion": { "type": "string", "minLength": 1 }, "semanticDetectorId": { "type": "string", "minLength": 1 }, "semanticDetectorVersion": { "type": "string", "minLength": 1 },
+        "semanticDetectorDigestSha256": { "$ref": "#/$defs/sha256" }, "semanticResult": { "enum": ["surface_present", "access_denied", "unauthorized", "forbidden", "error_shell", "http_error", "transport_unavailable"] },
+        "browserContextId": { "type": "string", "minLength": 1 }, "rawEvidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } }
+      },
+      "allOf": [
+        { "oneOf": [
+          { "properties": { "transportUnavailable": { "const": false }, "httpStatusCode": { "type": "integer", "minimum": 100, "maximum": 599 } } },
+          { "properties": { "transportUnavailable": { "const": true }, "httpStatusCode": { "type": "null" }, "semanticResult": { "const": "transport_unavailable" } } }
+        ] },
+        { "oneOf": [
+          { "properties": { "requestIdAvailability": { "const": "available" }, "requestId": { "type": "string", "minLength": 1 }, "requestIdUnavailableReason": { "type": "null" } } },
+          { "properties": { "requestIdAvailability": { "const": "unavailable" }, "requestId": { "type": "null" }, "requestIdUnavailableReason": { "type": "string", "minLength": 1 } } }
+        ] }
+      ]
+    },
+    "sourceVersion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["identityDigestSha256", "versionDigestSha256", "eTag", "lastModifiedUtc", "versionLabel", "observedAtUtc"],
+      "properties": { "identityDigestSha256": { "$ref": "#/$defs/sha256" }, "versionDigestSha256": { "$ref": "#/$defs/sha256" }, "eTag": { "$ref": "#/$defs/nullableString" }, "lastModifiedUtc": { "anyOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] }, "versionLabel": { "$ref": "#/$defs/nullableString" }, "observedAtUtc": { "$ref": "#/$defs/dateTime" } }
+    },
+    "operations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mutationOperationId", "readbackOperationId", "runtimeOperationId", "cleanupOperationId"],
+      "properties": { "mutationOperationId": { "$ref": "#/$defs/guid" }, "readbackOperationId": { "$ref": "#/$defs/guid" }, "runtimeOperationId": { "$ref": "#/$defs/guid" }, "cleanupOperationId": { "$ref": "#/$defs/guid" } }
+    },
+    "browserContext": {
+      "type": "object", "additionalProperties": false,
+      "required": ["browserProduct", "browserVersion", "protocolVersion", "profileIdentitySha256", "browserContextId", "targetId", "isIncognito", "freshContext", "createdAtUtc", "firstNavigationAtUtc"],
+      "properties": { "browserProduct": { "type": "string", "minLength": 1 }, "browserVersion": { "type": "string", "minLength": 1 }, "protocolVersion": { "type": "string", "minLength": 1 }, "profileIdentitySha256": { "$ref": "#/$defs/sha256" }, "browserContextId": { "type": "string", "minLength": 1 }, "targetId": { "type": "string", "minLength": 1 }, "isIncognito": { "type": "boolean" }, "freshContext": { "const": true }, "createdAtUtc": { "$ref": "#/$defs/dateTime" }, "firstNavigationAtUtc": { "$ref": "#/$defs/dateTime" } }
+    },
+    "http": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requestedUrl", "finalUrl", "method", "statusCode", "contentType", "requestId", "sharePointRequestGuid", "responseHeadersDigestSha256", "encodedDataLength", "capturedAtUtc"],
+      "properties": { "requestedUrl": { "$ref": "#/$defs/uri" }, "finalUrl": { "$ref": "#/$defs/uri" }, "method": { "const": "GET" }, "statusCode": { "type": "integer", "minimum": 100, "maximum": 599 }, "contentType": { "type": "string", "minLength": 1 }, "requestId": { "$ref": "#/$defs/nullableString" }, "sharePointRequestGuid": { "$ref": "#/$defs/nullableString" }, "responseHeadersDigestSha256": { "$ref": "#/$defs/sha256" }, "encodedDataLength": { "type": "integer", "minimum": 0 }, "capturedAtUtc": { "$ref": "#/$defs/dateTime" } }
+    },
+    "cache": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requestMode", "cacheDisabled", "requestCacheControl", "requestPragma", "responseCacheControl", "responseAge", "responseExpires", "fromDiskCache", "fromServiceWorker"],
+      "properties": { "requestMode": { "const": "no-store" }, "cacheDisabled": { "const": true }, "requestCacheControl": { "type": "string", "minLength": 1 }, "requestPragma": { "type": "string", "minLength": 1 }, "responseCacheControl": { "$ref": "#/$defs/nullableString" }, "responseAge": { "$ref": "#/$defs/nullableString" }, "responseExpires": { "$ref": "#/$defs/nullableString" }, "fromDiskCache": { "const": false }, "fromServiceWorker": { "const": false } }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requirementId", "passed", "evidenceArtifactSha256", "evidenceArtifactLength", "evidenceArtifactLocator", "implementationRef", "browserContextId", "http", "cache", "domProbeArtifactSha256", "domProbeArtifactLength", "domProbeArtifactLocator", "screenshotArtifactSha256", "screenshotArtifactLength", "screenshotArtifactLocator", "message"],
+      "properties": { "requirementId": { "type": "string", "minLength": 1 }, "passed": { "type": "boolean" }, "evidenceArtifactSha256": { "$ref": "#/$defs/sha256" }, "evidenceArtifactLength": { "type": "integer", "minimum": 1 }, "evidenceArtifactLocator": { "$ref": "#/$defs/safeLocator" }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "browserContextId": { "type": "string", "minLength": 1 }, "http": { "$ref": "#/$defs/http" }, "cache": { "$ref": "#/$defs/cache" }, "domProbeArtifactSha256": { "$ref": "#/$defs/sha256" }, "domProbeArtifactLength": { "type": "integer", "minimum": 1 }, "domProbeArtifactLocator": { "$ref": "#/$defs/safeLocator" }, "screenshotArtifactSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }, "screenshotArtifactLength": { "type": ["integer", "null"], "minimum": 1 }, "screenshotArtifactLocator": { "anyOf": [{ "$ref": "#/$defs/safeLocator" }, { "type": "null" }] }, "message": { "$ref": "#/$defs/nullableString" } },
+      "allOf": [{ "oneOf": [
+        { "properties": { "screenshotArtifactSha256": { "$ref": "#/$defs/sha256" }, "screenshotArtifactLength": { "type": "integer", "minimum": 1 }, "screenshotArtifactLocator": { "$ref": "#/$defs/safeLocator" } } },
+        { "properties": { "screenshotArtifactSha256": { "type": "null" }, "screenshotArtifactLength": { "type": "null" }, "screenshotArtifactLocator": { "type": "null" } } }
+      ] }]
+    },
+    "runtimeReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "planDigest", "admittedPlanDigestSha256", "operationId", "importReceiptDigestSha256", "requirementsManifestDigestSha256", "implementationRef", "sourceVersion", "operations", "targetIdentity", "browserContext", "completedAtUtc", "results", "status"],
+      "properties": { "schemaVersion": { "const": "pnp-migration-runtime-verification-receipt/v1" }, "planDigest": { "$ref": "#/$defs/sha256" }, "admittedPlanDigestSha256": { "$ref": "#/$defs/sha256" }, "operationId": { "$ref": "#/$defs/guid" }, "importReceiptDigestSha256": { "$ref": "#/$defs/sha256" }, "requirementsManifestDigestSha256": { "$ref": "#/$defs/sha256" }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "sourceVersion": { "$ref": "#/$defs/sourceVersion" }, "operations": { "$ref": "#/$defs/operations" }, "targetIdentity": { "$ref": "#/$defs/uri" }, "browserContext": { "$ref": "#/$defs/browserContext" }, "completedAtUtc": { "$ref": "#/$defs/dateTime" }, "results": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/result" } }, "status": { "enum": ["Passed", "Failed"] } }
+    },
+    "artifactManifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "artifacts", "contentSha256"],
+      "properties": { "schemaVersion": { "const": "pnp-migration-artifacts/v1" }, "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/manifestArtifact" } }, "contentSha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "terminalObservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "httpStatusCode", "semanticDetectorResult", "reasonCode", "message"],
+      "properties": { "kind": { "type": "string", "minLength": 1 }, "httpStatusCode": { "anyOf": [{ "type": "integer", "minimum": 100, "maximum": 599 }, { "type": "null" }] }, "semanticDetectorResult": { "enum": ["access_denied", "unauthorized", "forbidden", "error_shell", "http_error", "transport_unavailable"] }, "reasonCode": { "type": "string", "minLength": 1 }, "message": { "$ref": "#/$defs/nullableString" } }
+    }
   }
 }
