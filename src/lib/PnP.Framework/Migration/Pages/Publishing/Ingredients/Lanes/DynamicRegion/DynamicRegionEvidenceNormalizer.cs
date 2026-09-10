@@ -153,6 +153,22 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
 
             var observations = (evidence.Observations ?? new List<IngredientValueObservation>())
                 .Where(value => value != null)
+                .Select(value => new IngredientValueObservation
+                {
+                    ClaimId = string.IsNullOrWhiteSpace(value.ClaimId)
+                        ? context?.Identity?.ClaimId
+                        : value.ClaimId,
+                    IngredientId = string.IsNullOrWhiteSpace(value.IngredientId)
+                        ? context?.Identity?.IngredientId
+                        : value.IngredientId,
+                    Source = value.Source ?? context?.Source,
+                    Target = value.Target ?? context?.Target,
+                    ValuePath = value.ValuePath,
+                    ValueDigest = value.ValueDigest,
+                    ObservedAtUtc = value.ObservedAtUtc,
+                    Origin = value.Origin,
+                    EvidenceReference = value.EvidenceReference
+                })
                 .ToList();
             var sources = observations.Where(value => value.Origin == IngredientObservationOrigin.AuthenticatedSource).ToArray();
             var targets = observations.Where(value => value.Origin == IngredientObservationOrigin.CupCollectFreshReadback).ToArray();
@@ -165,6 +181,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
             var targetEvidenceReferences = evidence.TargetEvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToList()
                 ?? new List<string>();
+            targetEvidenceReferences.AddRange(targets.Select(value => value.EvidenceReference).Where(value =>
+                !string.IsNullOrWhiteSpace(value)));
+            targetEvidenceReferences = targetEvidenceReferences.Distinct(StringComparer.Ordinal).ToList();
+            var sourceEvidenceReferences = evidence.SourceEvidenceReferences?.Where(value =>
+                !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToList()
+                ?? new List<string>();
+            sourceEvidenceReferences.AddRange(sources.Select(value => value.EvidenceReference).Where(value =>
+                !string.IsNullOrWhiteSpace(value)));
+            sourceEvidenceReferences = sourceEvidenceReferences.Distinct(StringComparer.Ordinal).ToList();
             var targetReferencesBound = target?.EvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).All(value => targetEvidenceReferences.Contains(value, StringComparer.Ordinal)) == true;
             var substituted = evidence.HistoricalOrSyntheticSubstitution
@@ -183,8 +208,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                     && oldestTarget >= newestSource
                     && oldestTarget >= target.ObservedAtUtc,
                 HistoricalOrSyntheticSubstitution = substituted,
+                ReadbackStartedAtUtc = evidence.ReadbackStartedAtUtc,
                 Observations = observations,
-                SourceEvidenceReferences = evidence.SourceEvidenceReferences?.ToList() ?? new List<string>(),
+                SourceEvidenceReferences = sourceEvidenceReferences,
                 TargetEvidenceReferences = targetEvidenceReferences
             };
         }

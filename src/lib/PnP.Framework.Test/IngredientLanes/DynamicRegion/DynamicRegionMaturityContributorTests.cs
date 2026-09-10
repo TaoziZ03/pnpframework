@@ -175,6 +175,24 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
             Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
         }
 
+        [DataTestMethod]
+        [DataRow("wrong-observation-claim", IngredientMaturityGateCatalog.AuthenticatedSourceCollect)]
+        [DataRow("wrong-observation-source", IngredientMaturityGateCatalog.AuthenticatedSourceCollect)]
+        [DataRow("missing-readback-start", IngredientMaturityGateCatalog.AuthenticatedSourceCollect)]
+        [DataRow("target-before-readback", IngredientMaturityGateCatalog.CupCollectFreshReadback)]
+        [DataRow("outside-observation-window", IngredientMaturityGateCatalog.CupCollectFreshReadback)]
+        public void ObservationIdentityAndTimeFenceMutationsFailClosedAtM1(string mutation, string expectedGate)
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Mutate(mutation);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, expectedGate).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
         [TestMethod]
         public void BorrowedForeignPlanCannotCloseM3()
         {
@@ -461,7 +479,7 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
             {
                 this.contract = contract;
                 contract.Source.RawRegion = contract.Region;
-                Evidence = CreateEvidence(contract.Source, contract.Target);
+                Evidence = CreateEvidence(contract.Source, contract.Target, contract.ReadbackStartedAtUtc);
                 Context = CreateContext(contract, contract.Source);
                 expectedSourceVersion = contract.Source.SourceVersion;
             }
@@ -575,6 +593,34 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                             target.ObservedAtUtc = Evidence.Target.ObservedAtUtc;
                         }
                         break;
+                    case "wrong-observation-claim":
+                        Evidence.Live.Observations.First(value =>
+                            value.Origin == IngredientObservationOrigin.AuthenticatedSource).ClaimId = "foreign-claim";
+                        break;
+                    case "wrong-observation-source":
+                        Evidence.Live.Observations.First(value =>
+                            value.Origin == IngredientObservationOrigin.AuthenticatedSource).Source =
+                            new IngredientMaturitySourceBinding
+                            {
+                                PageOrListItemIdentity = "foreign-source",
+                                SourceVersion = Evidence.Source.SourceVersion,
+                                SourceArtifactDigest = Evidence.Source.SourceArtifactSha256,
+                                SourceSnapshotDigest = Evidence.Source.LegacyLineTerminatedSemanticDigest
+                            };
+                        break;
+                    case "missing-readback-start":
+                        Evidence.Live.ReadbackStartedAtUtc = default;
+                        break;
+                    case "target-before-readback":
+                        foreach (var target in Evidence.Live.Observations.Where(value =>
+                            value.Origin == IngredientObservationOrigin.CupCollectFreshReadback))
+                        {
+                            target.ObservedAtUtc = Evidence.Live.ReadbackStartedAtUtc.AddTicks(-1);
+                        }
+                        break;
+                    case "outside-observation-window":
+                        Context.ObservationWindowEndUtc = Evidence.Live.ReadbackStartedAtUtc.AddTicks(-1);
+                        break;
                     case "corrupt-raw-artifact":
                         Evidence.Source.RawArtifactSha256 = new string('0', 64);
                         break;
@@ -600,7 +646,8 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
 
             private static DynamicRegionMaturityEvidence CreateEvidence(
                 DynamicRegionSourceEvidence source,
-                DynamicRegionTargetEvidence target)
+                DynamicRegionTargetEvidence target,
+                DateTimeOffset readbackStartedAtUtc)
             {
                 var normalized = DynamicRegionEvidenceNormalizer.Normalize(null, source);
                 return new DynamicRegionMaturityEvidence
@@ -611,6 +658,7 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                     {
                         SourceAuthenticated = true,
                         TargetFreshReadback = false,
+                        ReadbackStartedAtUtc = readbackStartedAtUtc,
                         Observations = normalized.ValueDigests.Select(value => new IngredientValueObservation
                         {
                             ValuePath = value.Key,
@@ -655,6 +703,8 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                         TargetProfile = "cupcollect-classic-page/v1",
                         TargetIdentity = "runtime-region:cupcollect/search.aspx/search-results"
                     },
+                    ObservationWindowStartUtc = fixture.ObservationWindowStartUtc,
+                    ObservationWindowEndUtc = fixture.ObservationWindowEndUtc,
                     Producer = new IngredientMaturityProducerBinding
                     {
                         ProducerId = "pnp-framework",
@@ -687,6 +737,12 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
             public string ClaimId { get; set; }
 
             public string IngredientId { get; set; }
+
+            public DateTimeOffset ObservationWindowStartUtc { get; set; }
+
+            public DateTimeOffset ObservationWindowEndUtc { get; set; }
+
+            public DateTimeOffset ReadbackStartedAtUtc { get; set; }
 
             public DynamicRegionSourceEvidence Source { get; set; }
 

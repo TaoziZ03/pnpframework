@@ -2,6 +2,9 @@
   "schema": "pnp.dynamic-region-fixture/v1",
   "claimId": "06ae06890b1d8db32e12613d7b8dbd5a2aae054d1ebeb10d49b830e6567a6b44",
   "ingredientId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+  "observationWindowStartUtc": "2026-09-09T09:18:49.595Z",
+  "observationWindowEndUtc": "2026-09-10T02:36:24.865Z",
+  "readbackStartedAtUtc": "2026-09-10T02:36:24.865Z",
   "source": {
     "pageUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
     "webUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive",

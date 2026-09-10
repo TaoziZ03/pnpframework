@@ -57,7 +57,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                 evidence.Target);
             if (live != null)
             {
-                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(live));
+                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(context, live));
             }
 
             if (evidence.Source != null)
