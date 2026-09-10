@@ -126,7 +126,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
             }
 
             var observations = (live?.Observations ?? Array.Empty<IngredientValueObservation>())
-                .Where(value => value?.Origin != IngredientObservationOrigin.CupCollectFreshReadback)
+                .Where(value => value != null
+                    && value.Origin != IngredientObservationOrigin.CupCollectFreshReadback)
                 .ToList();
             var sourceObservedAtUtc = observations
                 .Where(value => value.Origin == IngredientObservationOrigin.AuthenticatedSource)
@@ -150,7 +151,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 && string.Equals(target.ImplementationCommit, context.Producer.ImplementationCommit, StringComparison.Ordinal)
                 && string.Equals(target.TargetProfile, context.Target.TargetProfile, StringComparison.Ordinal)
                 && IngredientMaturityEvaluator.IsSha256(target.PlanDigest)
-                && !string.IsNullOrWhiteSpace(target.TargetPath)
+                && !string.IsNullOrWhiteSpace(context.Target.TargetIdentity)
+                && string.Equals(target.TargetPath, context.Target.TargetIdentity, StringComparison.OrdinalIgnoreCase)
                 && target.ObservedAtUtc != default
                 && (sourceObservedAtUtc == default || target.ObservedAtUtc >= sourceObservedAtUtc)
                 && targetReferences.Count > 0;
