@@ -17,13 +17,16 @@ import json
 import re
 import subprocess
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
 
 SCHEMA_VERSION = "aspx-platform-registry/v1"
 AUTHORITY_SCHEMA_VERSION = "aspx-platform-authority/v1"
-REGISTRY_REVISION = "spo-online-16.0.27606.12000-r1"
+PROFILE_SCHEMA_VERSION = "aspx-platform-registry-profile/v1"
+REGISTRY_REVISION = "spo-online-16.0.27606.12000-r2"
+PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r1"
 PLATFORM_FAMILY = "SharePointOnline-16"
 PLATFORM_BUILD = "16.0.27606.12000"
 AUTHORITY_REF = "cee0ed61136e17c742c1cf98c9dea9446f10c564"
@@ -33,7 +36,69 @@ CONTRACT_REVIEW_REF = (
     "@7d44f61d-919e-478a-ab8e-bb4c8f9b4b4a"
 )
 COMPATIBILITY_DECISION_REF = "CCD-411:approve_with_changes"
-DEFAULT_INDEPENDENT_REVIEW_REF = "CCD-415:independent-review-pending"
+DEFAULT_INDEPENDENT_REVIEW_REF = "CCD-423"
+EXPECTED_AUTHORITY_ARTIFACT_HASH = (
+    "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab"
+)
+EXPECTED_REGISTRY_HASH = (
+    "1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680"
+)
+EXPECTED_REGISTRY_SCHEMA_HASH = (
+    "85a2f0664c90d7fe5dfe013bcb938438d6f5e688888fada57bfef28ec2f9cfd2"
+)
+EXPECTED_CONSUMER_COMPATIBILITY_HASH = (
+    "ab5dd734ec7a7b40edaa0b5b8ff20be0bb60f863b76f8def3a30ec93581df2d1"
+)
+EXPECTED_PROFILE_HASH = (
+    "62283f038be997244cda11552e51a4974a62815653dcb9e025356c642de4e79f"
+)
+
+REFERENCE_RECORD_KIND = "AspxReferenceObservation"
+SOURCE_KINDS = [
+    "ListFormReference",
+    "ListViewReference",
+    "WebWelcomePageReference",
+    "PlatformRegistryReference",
+    "RuntimeRequestReference",
+]
+DISPOSITIONS = [
+    "ReferenceOnlyAvailable",
+    "ReferenceUnavailable",
+    "LinkedPhysicalGhosted",
+    "LinkedPhysicalCustomized",
+    "VirtualHandler",
+    "NonAspx",
+    "Unknown",
+]
+VOLUME_COMPATIBILITY = {
+    "physicalOutput": "aspx-discovery-output/v2",
+    "physicalContract": "aspx-discovery/v2",
+    "physicalStore": "aspx-discovery-sqlite/v2",
+    "referenceOutput": "aspx-reference-output/v1",
+    "referenceContract": "aspx-reference/v1",
+    "referenceStore": "aspx-reference-sqlite/v1",
+    "aggregateOutput": "aspx-acquisition-verdict/v1",
+}
+FAILURE_SEMANTICS = {
+    "unknownBuild": "Unknown",
+    "missingRegistryVolume": "Unknown",
+    "registryProfileMismatch": "Unknown",
+    "sameRevisionChangedHash": "Unknown",
+    "aliasCollision": "Unknown",
+    "runtimePathAbsent": "Unknown",
+    "unknownSourceKindOrDisposition": "Unknown",
+    "missingAcquisitionEnvelope": "Unknown",
+    "missingPhysicalVolume": "Unknown",
+    "missingReferenceVolume": "Unknown",
+    "unsupportedOutputVersion": "Unknown",
+    "unsupportedContractVersion": "Unknown",
+    "unsupportedStoreVersion": "Unknown",
+    "volumeHashMismatch": "Unknown",
+    "volumeRefMismatch": "Unknown",
+    "volumeFenceMismatch": "Unknown",
+    "volumeBuildMismatch": "Unknown",
+    "bindingMismatch": "Unknown",
+}
 
 DEPLOY_PATHSPEC = "otools/deploy/*.xml"
 REDIRECT_MAP_PATH = "sts/template/sts/layouts/FilesToRedirect.sts.xms"
@@ -62,6 +127,17 @@ def object_hash(value: dict[str, Any], hash_field: str) -> str:
     material = copy.deepcopy(value)
     material.pop(hash_field, None)
     return hashlib.sha256(canonical_json_bytes(material)).hexdigest()
+
+
+def artifact_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def canonical_utc_from_epoch(epoch_text: str) -> str:
+    if not re.fullmatch(r"[0-9]+", epoch_text):
+        raise ValueError("authority commit epoch is invalid")
+    instant = datetime.fromtimestamp(int(epoch_text), tz=timezone.utc)
+    return instant.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def rule_hash(value: dict[str, Any]) -> str:
@@ -229,13 +305,8 @@ def create_virtual_mapping_rule() -> dict[str, Any]:
 def create_consumer_compatibility() -> dict[str, Any]:
     return {
         "compatibilityDecisionRef": COMPATIBILITY_DECISION_REF,
-        "sourceKinds": [
-            "ListFormReference",
-            "ListViewReference",
-            "WebWelcomePageReference",
-            "PlatformRegistryReference",
-            "RuntimeRequestReference",
-        ],
+        "recordKind": REFERENCE_RECORD_KIND,
+        "sourceKinds": SOURCE_KINDS,
         "dispositions": {
             "ReferenceOnlyAvailable": {
                 "assessment": "Emit a typed reference observation with no physical identity.",
@@ -280,14 +351,45 @@ def create_consumer_compatibility() -> dict[str, Any]:
                 "compare": "Aggregate remains Unknown.",
             },
         },
-        "volumeCompatibility": {
-            "physicalVolume": "aspx-discovery-output/v2",
-            "referenceVolume": "aspx-reference-output/v1",
-            "aggregateVolume": "aspx-acquisition-verdict/v1",
-            "referenceStore": "aspx-reference-sqlite/v1",
-            "directMixedVolume": "aspx-discovery-output/v3",
-        },
+        "volumeCompatibility": VOLUME_COMPATIBILITY,
     }
+
+
+def build_profile(
+    registry: dict[str, Any],
+    authority: dict[str, Any],
+    registry_schema_hash: str,
+) -> dict[str, Any]:
+    compatibility = registry["consumerCompatibility"]
+    profile = {
+        "$schema": "../schema/aspx-platform-registry-profile.schema.json",
+        "profileSchemaVersion": PROFILE_SCHEMA_VERSION,
+        "profileRevision": PROFILE_REVISION,
+        "profileHash": "",
+        "registrySchemaVersion": SCHEMA_VERSION,
+        "registrySchemaHash": registry_schema_hash,
+        "registryRevision": registry["registryRevision"],
+        "registryHash": registry["registryHash"],
+        "authoritySchemaVersion": authority["authoritySchemaVersion"],
+        "authorityKind": authority["authorityKind"],
+        "authoritySourceRef": authority["authoritySourceRef"],
+        "authoritySourceTag": authority["authoritySourceTag"],
+        "authorityArtifactHash": authority["authorityArtifactHash"],
+        "platformFamily": PLATFORM_FAMILY,
+        "platformBuild": PLATFORM_BUILD,
+        "contractReviewRef": CONTRACT_REVIEW_REF,
+        "compatibilityDecisionRef": COMPATIBILITY_DECISION_REF,
+        "consumerCompatibilityHash": hashlib.sha256(
+            canonical_json_bytes(compatibility)
+        ).hexdigest(),
+        "recordKind": REFERENCE_RECORD_KIND,
+        "sourceKinds": SOURCE_KINDS,
+        "dispositions": DISPOSITIONS,
+        "volumeCompatibility": VOLUME_COMPATIBILITY,
+        "failureSemantics": FAILURE_SEMANTICS,
+    }
+    profile["profileHash"] = object_hash(profile, "profileHash")
+    return profile
 
 
 def build_authority(
@@ -535,15 +637,7 @@ def build_registry(
                 "than one referenceId, reject the registry and return Unknown."
             ),
         },
-        "failureSemantics": {
-            "unknownBuild": "Unknown",
-            "missingRegistryVolume": "Unknown",
-            "sameRevisionChangedHash": "Unknown",
-            "aliasCollision": "Unknown",
-            "runtimePathAbsent": "Unknown",
-            "unknownSourceKindOrDisposition": "Unknown",
-            "bindingMismatch": "Unknown",
-        },
+        "failureSemantics": FAILURE_SEMANTICS,
         "applicabilityRules": [rule, virtual_mapping_rule],
         "consumerCompatibility": create_consumer_compatibility(),
         "entryCount": len(entries),
@@ -578,9 +672,10 @@ def collect_source(
     tag_resolved = run_git(git_executable, repo, ["rev-parse", f"{AUTHORITY_TAG}^{{}}"] ).strip()
     if tag_resolved != AUTHORITY_REF:
         raise ValueError(f"authority tag does not resolve to authority ref: {tag_resolved}")
-    commit_time = run_git(
-        git_executable, repo, ["show", "-s", "--format=%cI", AUTHORITY_REF]
+    commit_epoch = run_git(
+        git_executable, repo, ["show", "-s", "--format=%ct", AUTHORITY_REF]
     ).strip()
+    commit_time = canonical_utc_from_epoch(commit_epoch)
     grep_output = run_git(
         git_executable,
         repo,
@@ -621,6 +716,58 @@ def write_json(path: Path, value: Any) -> None:
     )
 
 
+def load_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def bind_fixture_document(
+    fixtures: dict[str, Any],
+    registry: dict[str, Any],
+    profile: dict[str, Any],
+) -> dict[str, Any]:
+    bound = copy.deepcopy(fixtures)
+    reader = bound["readerTemplate"]
+    registry_envelope = reader["registryEnvelope"]
+    registry_envelope.update(
+        {
+            "profileSchemaVersion": profile["profileSchemaVersion"],
+            "profileRevision": profile["profileRevision"],
+            "profileHash": profile["profileHash"],
+            "registrySchemaVersion": profile["registrySchemaVersion"],
+            "registrySchemaHash": profile["registrySchemaHash"],
+            "registryRevision": registry["registryRevision"],
+            "registryHash": registry["registryHash"],
+            "authoritySourceRef": registry["authoritySourceRef"],
+            "authorityArtifactHash": registry["authorityArtifactHash"],
+            "platformFamily": profile["platformFamily"],
+            "platformBuild": profile["platformBuild"],
+        }
+    )
+    reader["platformBuild"] = profile["platformBuild"]
+    acquisition = reader["acquisitionEnvelope"]
+    acquisition.update(
+        {
+            "platformBuild": profile["platformBuild"],
+            "registryRevision": registry["registryRevision"],
+            "registryHash": registry["registryHash"],
+        }
+    )
+    physical = acquisition["physicalVolume"]
+    reference = acquisition["referenceVolume"]
+    physical["platformBuild"] = profile["platformBuild"]
+    reference.update(
+        {
+            "platformBuild": profile["platformBuild"],
+            "registryRevision": registry["registryRevision"],
+            "registryHash": registry["registryHash"],
+            "recordKind": profile["recordKind"],
+            "sourceKinds": profile["sourceKinds"],
+            "dispositions": profile["dispositions"],
+        }
+    )
+    return bound
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--spocore-repo", required=True)
@@ -642,6 +789,47 @@ def main() -> int:
     authority = build_authority(rows, blobs, redirect_blob, redirect_map, commit_time)
     registry = build_registry(authority, args.independent_review_ref)
 
+    registry_schema_path = (
+        args.output_root / "schema" / "aspx-platform-registry.schema.json"
+    )
+    if not registry_schema_path.is_file():
+        raise ValueError(f"registry schema is missing: {registry_schema_path}")
+    profile = build_profile(
+        registry,
+        authority,
+        artifact_sha256(registry_schema_path),
+    )
+    frozen_bindings = {
+        "authorityArtifactHash": (
+            authority["authorityArtifactHash"],
+            EXPECTED_AUTHORITY_ARTIFACT_HASH,
+        ),
+        "registryHash": (registry["registryHash"], EXPECTED_REGISTRY_HASH),
+        "registrySchemaHash": (
+            profile["registrySchemaHash"],
+            EXPECTED_REGISTRY_SCHEMA_HASH,
+        ),
+        "consumerCompatibilityHash": (
+            profile["consumerCompatibilityHash"],
+            EXPECTED_CONSUMER_COMPATIBILITY_HASH,
+        ),
+        "profileHash": (profile["profileHash"], EXPECTED_PROFILE_HASH),
+    }
+    drift = [
+        f"{key}: expected {expected}, got {actual}"
+        for key, (actual, expected) in frozen_bindings.items()
+        if actual != expected
+    ]
+    if drift:
+        raise ValueError(
+            "frozen registry profile drift requires a new reviewed revision: "
+            + "; ".join(drift)
+        )
+    fixture_path = args.output_root / "fixtures" / "contract-cases.json"
+    if not fixture_path.is_file():
+        raise ValueError(f"contract fixtures are missing: {fixture_path}")
+    fixtures = bind_fixture_document(load_json(fixture_path), registry, profile)
+
     write_json(
         args.output_root / "authority" / "spo-online-16.0.27606.12000.authority.json",
         authority,
@@ -650,6 +838,11 @@ def main() -> int:
         args.output_root / "registry" / "spo-online-16.0.27606.12000.registry.json",
         registry,
     )
+    write_json(
+        args.output_root / "profile" / "spo-online-16.0.27606.12000.profile.json",
+        profile,
+    )
+    write_json(fixture_path, fixtures)
     print(
         json.dumps(
             {
@@ -657,6 +850,9 @@ def main() -> int:
                 "authorityArtifactHash": authority["authorityArtifactHash"],
                 "registryRevision": registry["registryRevision"],
                 "registryHash": registry["registryHash"],
+                "profileRevision": profile["profileRevision"],
+                "profileHash": profile["profileHash"],
+                "registrySchemaHash": profile["registrySchemaHash"],
                 "entryCount": registry["entryCount"],
                 "platformBuildMin": registry["platformBuildMin"],
                 "platformBuildMax": registry["platformBuildMax"],

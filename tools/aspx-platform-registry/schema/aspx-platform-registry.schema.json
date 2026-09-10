@@ -1,17 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ccd:pnp:aspx-platform-registry:v1",
+  "$id": "urn:ccd:pnp:aspx-platform-registry:spo-online-16.0.27606.12000:r2",
   "title": "SharePoint setup and virtual ASPX platform registry",
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "$schema",
     "registrySchemaVersion",
     "registryRevision",
     "registryHash",
     "authorityKind",
     "authoritySourceRef",
+    "authoritySourceTag",
     "authorityArtifactHash",
+    "authorityArtifactPath",
     "reviewRef",
+    "contractReviewRef",
+    "compatibilityDecisionRef",
+    "generatedAtUtc",
     "platformFamily",
     "platformBuildMin",
     "platformBuildMax",
@@ -23,27 +29,29 @@
     "entries"
   ],
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": { "const": "../schema/aspx-platform-registry.schema.json" },
     "registrySchemaVersion": { "const": "aspx-platform-registry/v1" },
-    "registryRevision": { "type": "string", "minLength": 1 },
+    "registryRevision": { "const": "spo-online-16.0.27606.12000-r2" },
     "registryHash": { "$ref": "#/$defs/sha256" },
     "authorityKind": { "const": "SPOCoreReleaseShippingManifest" },
-    "authoritySourceRef": { "$ref": "#/$defs/gitSha" },
-    "authoritySourceTag": { "type": "string", "minLength": 1 },
+    "authoritySourceRef": { "const": "cee0ed61136e17c742c1cf98c9dea9446f10c564" },
+    "authoritySourceTag": { "const": "release/16.0.27606.12000" },
     "authorityArtifactHash": { "$ref": "#/$defs/sha256" },
-    "authorityArtifactPath": { "type": "string", "minLength": 1 },
+    "authorityArtifactPath": { "const": "authority/spo-online-16.0.27606.12000.authority.json" },
     "reviewRef": { "type": "string", "minLength": 1 },
-    "contractReviewRef": { "type": "string", "minLength": 1 },
-    "compatibilityDecisionRef": { "type": "string", "minLength": 1 },
-    "generatedAtUtc": { "type": "string", "format": "date-time" },
-    "platformFamily": { "type": "string", "minLength": 1 },
-    "platformBuildMin": { "$ref": "#/$defs/platformBuild" },
-    "platformBuildMax": { "$ref": "#/$defs/platformBuild" },
-    "normalization": { "type": "object" },
-    "failureSemantics": {
-      "type": "object",
-      "additionalProperties": { "const": "Unknown" }
+    "contractReviewRef": {
+      "const": "CCD-394#document-aspx-surface-applicability-denominator-v3@7d44f61d-919e-478a-ab8e-bb4c8f9b4b4a"
     },
+    "compatibilityDecisionRef": { "const": "CCD-411:approve_with_changes" },
+    "generatedAtUtc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "platformFamily": { "const": "SharePointOnline-16" },
+    "platformBuildMin": { "const": "16.0.27606.12000" },
+    "platformBuildMax": { "const": "16.0.27606.12000" },
+    "normalization": { "type": "object", "minProperties": 1 },
+    "failureSemantics": { "$ref": "#/$defs/failureSemantics" },
     "applicabilityRules": {
       "type": "array",
       "minItems": 1,
@@ -59,11 +67,6 @@
   },
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "platformBuild": {
-      "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"
-    },
     "disposition": {
       "enum": [
         "ReferenceOnlyAvailable",
@@ -74,6 +77,135 @@
         "NonAspx",
         "Unknown"
       ]
+    },
+    "failureSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unknownBuild",
+        "missingRegistryVolume",
+        "registryProfileMismatch",
+        "sameRevisionChangedHash",
+        "aliasCollision",
+        "runtimePathAbsent",
+        "unknownSourceKindOrDisposition",
+        "missingAcquisitionEnvelope",
+        "missingPhysicalVolume",
+        "missingReferenceVolume",
+        "unsupportedOutputVersion",
+        "unsupportedContractVersion",
+        "unsupportedStoreVersion",
+        "volumeHashMismatch",
+        "volumeRefMismatch",
+        "volumeFenceMismatch",
+        "volumeBuildMismatch",
+        "bindingMismatch"
+      ],
+      "properties": {
+        "unknownBuild": { "const": "Unknown" },
+        "missingRegistryVolume": { "const": "Unknown" },
+        "registryProfileMismatch": { "const": "Unknown" },
+        "sameRevisionChangedHash": { "const": "Unknown" },
+        "aliasCollision": { "const": "Unknown" },
+        "runtimePathAbsent": { "const": "Unknown" },
+        "unknownSourceKindOrDisposition": { "const": "Unknown" },
+        "missingAcquisitionEnvelope": { "const": "Unknown" },
+        "missingPhysicalVolume": { "const": "Unknown" },
+        "missingReferenceVolume": { "const": "Unknown" },
+        "unsupportedOutputVersion": { "const": "Unknown" },
+        "unsupportedContractVersion": { "const": "Unknown" },
+        "unsupportedStoreVersion": { "const": "Unknown" },
+        "volumeHashMismatch": { "const": "Unknown" },
+        "volumeRefMismatch": { "const": "Unknown" },
+        "volumeFenceMismatch": { "const": "Unknown" },
+        "volumeBuildMismatch": { "const": "Unknown" },
+        "bindingMismatch": { "const": "Unknown" }
+      }
+    },
+    "sourceKinds": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        { "const": "ListFormReference" },
+        { "const": "ListViewReference" },
+        { "const": "WebWelcomePageReference" },
+        { "const": "PlatformRegistryReference" },
+        { "const": "RuntimeRequestReference" }
+      ],
+      "items": false
+    },
+    "volumeCompatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physicalOutput",
+        "physicalContract",
+        "physicalStore",
+        "referenceOutput",
+        "referenceContract",
+        "referenceStore",
+        "aggregateOutput"
+      ],
+      "properties": {
+        "physicalOutput": { "const": "aspx-discovery-output/v2" },
+        "physicalContract": { "const": "aspx-discovery/v2" },
+        "physicalStore": { "const": "aspx-discovery-sqlite/v2" },
+        "referenceOutput": { "const": "aspx-reference-output/v1" },
+        "referenceContract": { "const": "aspx-reference/v1" },
+        "referenceStore": { "const": "aspx-reference-sqlite/v1" },
+        "aggregateOutput": { "const": "aspx-acquisition-verdict/v1" }
+      }
+    },
+    "consumerMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assessment", "pnpGraph", "repro", "compare"],
+      "properties": {
+        "assessment": { "type": "string", "minLength": 1 },
+        "pnpGraph": { "type": "string", "minLength": 1 },
+        "repro": { "type": "string", "minLength": 1 },
+        "compare": { "type": "string", "minLength": 1 }
+      }
+    },
+    "consumerCompatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatibilityDecisionRef",
+        "recordKind",
+        "sourceKinds",
+        "dispositions",
+        "volumeCompatibility"
+      ],
+      "properties": {
+        "compatibilityDecisionRef": { "const": "CCD-411:approve_with_changes" },
+        "recordKind": { "const": "AspxReferenceObservation" },
+        "sourceKinds": { "$ref": "#/$defs/sourceKinds" },
+        "dispositions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ReferenceOnlyAvailable",
+            "ReferenceUnavailable",
+            "LinkedPhysicalGhosted",
+            "LinkedPhysicalCustomized",
+            "VirtualHandler",
+            "NonAspx",
+            "Unknown"
+          ],
+          "properties": {
+            "ReferenceOnlyAvailable": { "$ref": "#/$defs/consumerMapping" },
+            "ReferenceUnavailable": { "$ref": "#/$defs/consumerMapping" },
+            "LinkedPhysicalGhosted": { "$ref": "#/$defs/consumerMapping" },
+            "LinkedPhysicalCustomized": { "$ref": "#/$defs/consumerMapping" },
+            "VirtualHandler": { "$ref": "#/$defs/consumerMapping" },
+            "NonAspx": { "$ref": "#/$defs/consumerMapping" },
+            "Unknown": { "$ref": "#/$defs/consumerMapping" }
+          }
+        },
+        "volumeCompatibility": { "$ref": "#/$defs/volumeCompatibility" }
+      }
     },
     "applicabilityRule": {
       "type": "object",
@@ -125,13 +257,8 @@
       ],
       "properties": {
         "referenceId": { "type": "string", "pattern": "^spo-layouts-[0-9a-f]{32}$" },
-        "surfaceKind": {
-          "enum": ["SetupLayoutApplicationPage", "VirtualMappedRequest"]
-        },
-        "canonicalRequestPath": {
-          "type": "string",
-          "pattern": "^/_layouts/15/.+\\.aspx$"
-        },
+        "surfaceKind": { "enum": ["SetupLayoutApplicationPage", "VirtualMappedRequest"] },
+        "canonicalRequestPath": { "type": "string", "pattern": "^/_layouts/15/.+\\.aspx$" },
         "aliases": {
           "type": "array",
           "minItems": 1,
@@ -144,18 +271,12 @@
           "items": { "type": "string" }
         },
         "handlerOrArtifactType": {
-          "enum": [
-            "SetupArtifact.AspxApplicationPage",
-            "VirtualHandler.SPLayoutsMappedFile"
-          ]
+          "enum": ["SetupArtifact.AspxApplicationPage", "VirtualHandler.SPLayoutsMappedFile"]
         },
         "applicabilityRuleId": { "type": "string", "minLength": 1 },
         "applicabilityRuleHash": { "$ref": "#/$defs/sha256" },
         "expectedAvailability": {
-          "enum": [
-            "AvailableForExactPlatformBuild",
-            "ReferenceTargetAbsentAtFrozenBuild"
-          ]
+          "enum": ["AvailableForExactPlatformBuild", "ReferenceTargetAbsentAtFrozenBuild"]
         },
         "downstreamDisposition": { "$ref": "#/$defs/disposition" },
         "identityAxes": {
@@ -190,13 +311,10 @@
           "if": {
             "properties": {
               "downstreamDisposition": {
-                "enum": [
-                  "ReferenceOnlyAvailable",
-                  "ReferenceUnavailable",
-                  "VirtualHandler"
-                ]
+                "enum": ["ReferenceOnlyAvailable", "ReferenceUnavailable", "VirtualHandler"]
               }
-            }
+            },
+            "required": ["downstreamDisposition"]
           },
           "then": {
             "properties": {
@@ -210,30 +328,6 @@
           }
         }
       ]
-    },
-    "consumerCompatibility": {
-      "type": "object",
-      "required": ["compatibilityDecisionRef", "sourceKinds", "dispositions", "volumeCompatibility"],
-      "properties": {
-        "compatibilityDecisionRef": { "type": "string" },
-        "sourceKinds": {
-          "type": "array",
-          "contains": { "const": "PlatformRegistryReference" }
-        },
-        "dispositions": {
-          "type": "object",
-          "required": [
-            "ReferenceOnlyAvailable",
-            "ReferenceUnavailable",
-            "LinkedPhysicalGhosted",
-            "LinkedPhysicalCustomized",
-            "VirtualHandler",
-            "NonAspx",
-            "Unknown"
-          ]
-        },
-        "volumeCompatibility": { "type": "object" }
-      }
     }
   }
 }

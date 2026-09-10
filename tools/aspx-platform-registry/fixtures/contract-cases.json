@@ -1,189 +1,525 @@
 {
-  "fixtureSchemaVersion": "aspx-platform-registry-fixtures/v1",
-  "positive": [
-    {
-      "id": "Q1",
-      "kind": "registryRequest",
-      "request": {
-        "platformBuild": "16.0.27606.12000",
-        "runtimePath": "/_layouts/15/accessdenied.aspx"
-      },
-      "expectedVerdict": "ReferenceOnlyAvailable",
-      "expectedReasonCode": "REGISTRY_MATCH"
-    },
-    {
-      "id": "Q2",
-      "kind": "registryRequest",
-      "request": {
-        "platformBuild": "16.0.27606.12000",
-        "runtimePath": "/_LAYOUTS/AccessDenied.aspx"
-      },
-      "expectedVerdict": "ReferenceOnlyAvailable",
-      "expectedReasonCode": "REGISTRY_MATCH"
-    },
-    {
-      "id": "Q3",
-      "kind": "referenceObservation",
-      "observation": {
-        "sourceKind": "PlatformRegistryReference",
-        "disposition": "ReferenceOnlyAvailable",
-        "linkedPhysicalCanonicalInventoryKey": null,
-        "linkedFileUniqueId": null,
-        "physicalLocator": null
-      },
-      "expectedVerdict": "ReferenceOnlyAvailable",
-      "expectedReasonCode": "OBSERVATION_VALID"
-    },
-    {
-      "id": "Q4",
-      "kind": "referenceObservation",
-      "physicalInventoryKeys": ["file:a"],
-      "observation": {
-        "sourceKind": "ListViewReference",
-        "disposition": "LinkedPhysicalGhosted",
-        "linkedPhysicalCanonicalInventoryKey": "file:a",
-        "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001",
-        "physicalLocator": "/lists/x/forms/allitems.aspx"
-      },
-      "expectedVerdict": "LinkedPhysicalGhosted",
-      "expectedReasonCode": "UNIQUE_PHYSICAL_JOIN"
-    },
-    {
-      "id": "Q5",
-      "kind": "registryRequest",
-      "request": {
-        "platformBuild": "16.0.27606.12000",
-        "runtimePath": "/_layouts/1033/aclver.aspx"
-      },
-      "expectedVerdict": "ReferenceUnavailable",
-      "expectedReasonCode": "REGISTRY_MATCH"
-    }
-  ],
+  "fixtureSchemaVersion": "aspx-platform-registry-fixtures/v2",
   "negative": [
     {
+      "artifactMutation": {
+        "kind": "widenBuildRangeAndRehash"
+      },
+      "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
+      "expectedVerdict": "Unknown",
+      "id": "F1-WIDENED-RANGE",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/platformBuild",
+          "value": "16.0.27606.12001"
+        }
+      ]
+    },
+    {
+      "artifactMutation": {
+        "kind": "reduceSourceKindsAndRehash"
+      },
+      "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
+      "expectedVerdict": "Unknown",
+      "id": "F2-SOURCE-KINDS",
+      "kind": "readerRequest"
+    },
+    {
+      "artifactMutation": {
+        "kind": "driftVolumeProfileAndRehash"
+      },
+      "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
+      "expectedVerdict": "Unknown",
+      "id": "F2-VOLUME-PROFILE",
+      "kind": "readerRequest"
+    },
+    {
+      "artifactMutation": {
+        "kind": "emptyFailureSemanticsAndRehash"
+      },
+      "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
+      "expectedVerdict": "Unknown",
+      "id": "F2-FAILURE-SEMANTICS",
+      "kind": "readerRequest"
+    },
+    {
+      "artifactMutation": {
+        "kind": "schemaHashDriftAndRehashProfile"
+      },
+      "expectedReasonCode": "REGISTRY_PROFILE_INVALID",
+      "expectedVerdict": "Unknown",
+      "id": "F4-SCHEMA-HASH",
+      "kind": "readerRequest"
+    },
+    {
+      "expectedReasonCode": "UNKNOWN_PLATFORM_BUILD",
+      "expectedVerdict": "Unknown",
       "id": "R1",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "unknown", "runtimePath": "/_layouts/15/accessdenied.aspx" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "UNKNOWN_PLATFORM_BUILD"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/platformBuild",
+          "value": "unknown"
+        }
+      ]
     },
     {
+      "expectedReasonCode": "SAME_REVISION_CHANGED_HASH",
+      "expectedVerdict": "Unknown",
       "id": "R2",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx", "registryHash": "0000000000000000000000000000000000000000000000000000000000000000" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "SAME_REVISION_CHANGED_HASH"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/registryEnvelope/registryHash",
+          "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ]
     },
     {
+      "artifactMutation": {
+        "kind": "aliasCollision"
+      },
+      "expectedReasonCode": "ALIAS_COLLISION",
+      "expectedVerdict": "Unknown",
       "id": "R3",
-      "kind": "registryRequest",
-      "mutation": { "kind": "aliasCollision" },
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "ALIAS_COLLISION"
+      "kind": "readerRequest"
     },
     {
+      "expectedReasonCode": "RUNTIME_PATH_ABSENT",
+      "expectedVerdict": "Unknown",
       "id": "R4",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/not-in-authority.aspx" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "RUNTIME_PATH_ABSENT"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/runtimePath",
+          "value": "/_layouts/15/not-in-authority.aspx"
+        }
+      ]
     },
     {
+      "expectedReasonCode": "REGISTRY_VOLUME_MISSING",
+      "expectedVerdict": "Unknown",
       "id": "R5",
-      "kind": "registryRequest",
-      "request": { "registryVolumePresent": false, "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx", "physicalAggregate": "Complete" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "REGISTRY_VOLUME_MISSING"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "remove",
+          "path": "/registryEnvelope"
+        }
+      ]
     },
     {
+      "expectedReasonCode": "NON_PHYSICAL_IDENTITY_PRESENT",
+      "expectedVerdict": "Invalid",
       "id": "I1",
       "kind": "referenceObservation",
-      "observation": { "sourceKind": "PlatformRegistryReference", "disposition": "ReferenceOnlyAvailable", "linkedPhysicalCanonicalInventoryKey": null, "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001", "physicalLocator": null },
-      "expectedVerdict": "Invalid",
-      "expectedReasonCode": "NON_PHYSICAL_IDENTITY_PRESENT"
+      "observation": {
+        "disposition": "ReferenceOnlyAvailable",
+        "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001",
+        "linkedPhysicalCanonicalInventoryKey": null,
+        "physicalLocator": null,
+        "sourceKind": "PlatformRegistryReference"
+      }
     },
     {
+      "expectedReasonCode": "NON_PHYSICAL_IDENTITY_PRESENT",
+      "expectedVerdict": "Invalid",
       "id": "I2",
       "kind": "referenceObservation",
-      "observation": { "sourceKind": "RuntimeRequestReference", "disposition": "ReferenceUnavailable", "linkedPhysicalCanonicalInventoryKey": null, "linkedFileUniqueId": null, "physicalLocator": "/fake.aspx" },
-      "expectedVerdict": "Invalid",
-      "expectedReasonCode": "NON_PHYSICAL_IDENTITY_PRESENT"
+      "observation": {
+        "disposition": "ReferenceUnavailable",
+        "linkedFileUniqueId": null,
+        "linkedPhysicalCanonicalInventoryKey": null,
+        "physicalLocator": "/fake.aspx",
+        "sourceKind": "RuntimeRequestReference"
+      }
     },
     {
+      "expectedReasonCode": "NON_PHYSICAL_IDENTITY_PRESENT",
+      "expectedVerdict": "Invalid",
       "id": "I3",
       "kind": "referenceObservation",
-      "observation": { "sourceKind": "RuntimeRequestReference", "disposition": "VirtualHandler", "linkedPhysicalCanonicalInventoryKey": "file:a", "linkedFileUniqueId": null, "physicalLocator": null },
-      "expectedVerdict": "Invalid",
-      "expectedReasonCode": "NON_PHYSICAL_IDENTITY_PRESENT"
+      "observation": {
+        "disposition": "VirtualHandler",
+        "linkedFileUniqueId": null,
+        "linkedPhysicalCanonicalInventoryKey": "file:a",
+        "physicalLocator": null,
+        "sourceKind": "RuntimeRequestReference"
+      }
     },
     {
+      "expectedPhysicalActionCount": 1,
+      "expectedReasonCode": "ONE_PHYSICAL_MANY_REFERENCES",
+      "expectedReferenceCount": 2,
+      "expectedVerdict": "Valid",
       "id": "I4",
       "kind": "dedupeJoin",
       "observations": [
-        { "sourceKind": "ListFormReference", "disposition": "LinkedPhysicalGhosted", "linkedPhysicalCanonicalInventoryKey": "file:a", "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001" },
-        { "sourceKind": "ListViewReference", "disposition": "LinkedPhysicalGhosted", "linkedPhysicalCanonicalInventoryKey": "file:a", "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001" }
+        {
+          "disposition": "LinkedPhysicalGhosted",
+          "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001",
+          "linkedPhysicalCanonicalInventoryKey": "file:a",
+          "sourceKind": "ListFormReference"
+        },
+        {
+          "disposition": "LinkedPhysicalGhosted",
+          "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001",
+          "linkedPhysicalCanonicalInventoryKey": "file:a",
+          "sourceKind": "ListViewReference"
+        }
       ],
-      "physicalInventoryKeys": ["file:a"],
-      "expectedReferenceCount": 2,
-      "expectedPhysicalActionCount": 1
+      "physicalInventoryKeys": [
+        "file:a"
+      ]
     },
     {
+      "expectedReasonCode": "PHYSICAL_JOIN_NOT_UNIQUE",
+      "expectedVerdict": "Unknown",
       "id": "I5",
       "kind": "referenceObservation",
-      "physicalInventoryKeys": ["file:a", "file:a"],
-      "observation": { "sourceKind": "ListViewReference", "disposition": "LinkedPhysicalGhosted", "linkedPhysicalCanonicalInventoryKey": "file:a", "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "PHYSICAL_JOIN_NOT_UNIQUE"
+      "observation": {
+        "disposition": "LinkedPhysicalGhosted",
+        "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001",
+        "linkedPhysicalCanonicalInventoryKey": "file:a",
+        "sourceKind": "ListViewReference"
+      },
+      "physicalInventoryKeys": [
+        "file:a",
+        "file:a"
+      ]
     },
     {
+      "expectedReasonCode": "REFERENCE_COMPLETENESS_UNSUPPORTED",
+      "expectedVerdict": "Unknown",
       "id": "V1",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx", "readerMode": "legacy-v2-physical-only" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "REFERENCE_COMPLETENESS_UNSUPPORTED"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "add",
+          "path": "/readerMode",
+          "value": "legacy-v2-physical-only"
+        }
+      ]
     },
     {
+      "expectedReasonCode": "REFERENCE_VOLUME_MISSING",
+      "expectedVerdict": "Unknown",
       "id": "V2",
-      "kind": "registryRequest",
-      "request": { "registryVolumePresent": false, "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "REGISTRY_VOLUME_MISSING"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "remove",
+          "path": "/acquisitionEnvelope/referenceVolume"
+        }
+      ]
     },
     {
+      "expectedReasonCode": "VOLUME_HASH_MISMATCH",
+      "expectedVerdict": "Unknown",
       "id": "V3",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx", "registryHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "SAME_REVISION_CHANGED_HASH"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/referenceArtifactHash",
+          "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ]
     },
     {
+      "expectedReasonCode": "UNKNOWN_SOURCE_KIND",
+      "expectedVerdict": "Unknown",
       "id": "V4",
       "kind": "referenceObservation",
-      "observation": { "sourceKind": "FutureSourceKind", "disposition": "FutureDisposition" },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "UNKNOWN_SOURCE_KIND"
+      "observation": {
+        "disposition": "FutureDisposition",
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "FutureSourceKind"
+      }
     },
     {
+      "expectedReasonCode": "VOLUME_FENCE_MISMATCH",
+      "expectedVerdict": "Unknown",
       "id": "V5",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx", "mixedBinding": true },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "BINDING_MISMATCH"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/referenceVolume/snapshotFence",
+          "value": "different-snapshot"
+        }
+      ]
     },
     {
+      "expectedReasonCode": "VOLUME_REF_MISMATCH",
+      "expectedVerdict": "Unknown",
       "id": "V6",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx", "preCompanionV2Incompatible": true },
-      "expectedVerdict": "Unknown",
-      "expectedReasonCode": "HISTORICAL_COMPOSITION_INCOMPATIBLE"
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/referenceVolume/scopeAuthorityHash",
+          "value": "6666666666666666666666666666666666666666666666666666666666666666"
+        }
+      ]
     },
     {
-      "id": "V7",
-      "kind": "registryRequest",
-      "request": { "platformBuild": "16.0.27606.12000", "runtimePath": "/_layouts/15/accessdenied.aspx", "referenceOutputVersion": "aspx-discovery-output/v2" },
+      "expectedReasonCode": "PHYSICAL_VOLUME_SHAPE_INVALID",
       "expectedVerdict": "Unknown",
-      "expectedReasonCode": "REFERENCE_OUTPUT_VERSION_UNSUPPORTED"
+      "id": "V7-OUTPUT",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "add",
+          "path": "/acquisitionEnvelope/physicalVolume/referenceRows",
+          "value": []
+        }
+      ]
+    },
+    {
+      "expectedReasonCode": "PHYSICAL_STORE_SHAPE_INVALID",
+      "expectedVerdict": "Unknown",
+      "id": "V7-SQLITE-SHAPE",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "add",
+          "path": "/acquisitionEnvelope/physicalVolume/store/referenceTables",
+          "value": [
+            "AspxReferenceObservation"
+          ]
+        }
+      ]
+    },
+    {
+      "expectedReasonCode": "UNSUPPORTED_STORE_VERSION",
+      "expectedVerdict": "Unknown",
+      "id": "V7-SQLITE-VERSION",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/referenceVolume/store/schemaVersion",
+          "value": "aspx-reference-sqlite/v2"
+        }
+      ]
     }
-  ]
+  ],
+  "positive": [
+    {
+      "expectedReasonCode": "REGISTRY_MATCH",
+      "expectedVerdict": "ReferenceOnlyAvailable",
+      "id": "Q1",
+      "kind": "readerRequest"
+    },
+    {
+      "expectedReasonCode": "REGISTRY_MATCH",
+      "expectedVerdict": "ReferenceOnlyAvailable",
+      "id": "Q2",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/runtimePath",
+          "value": "/_LAYOUTS/AccessDenied.aspx"
+        }
+      ]
+    },
+    {
+      "expectedReasonCode": "REGISTRY_MATCH",
+      "expectedVerdict": "ReferenceUnavailable",
+      "id": "Q5",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/runtimePath",
+          "value": "/_layouts/1033/aclver.aspx"
+        }
+      ]
+    },
+    {
+      "expectedReasonCode": "OBSERVATION_VALID",
+      "expectedVerdict": "ReferenceOnlyAvailable",
+      "id": "SK1",
+      "kind": "referenceObservation",
+      "observation": {
+        "disposition": "ReferenceOnlyAvailable",
+        "linkedFileUniqueId": null,
+        "linkedPhysicalCanonicalInventoryKey": null,
+        "physicalLocator": null,
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "ListFormReference"
+      }
+    },
+    {
+      "expectedReasonCode": "UNIQUE_PHYSICAL_JOIN",
+      "expectedVerdict": "LinkedPhysicalGhosted",
+      "id": "SK2",
+      "kind": "referenceObservation",
+      "observation": {
+        "disposition": "LinkedPhysicalGhosted",
+        "linkedFileUniqueId": "00000000-0000-0000-0000-000000000001",
+        "linkedPhysicalCanonicalInventoryKey": "file:a",
+        "physicalLocator": "/lists/x/forms/allitems.aspx",
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "ListViewReference"
+      },
+      "physicalInventoryKeys": [
+        "file:a"
+      ]
+    },
+    {
+      "expectedReasonCode": "UNIQUE_PHYSICAL_JOIN",
+      "expectedVerdict": "LinkedPhysicalCustomized",
+      "id": "SK3",
+      "kind": "referenceObservation",
+      "observation": {
+        "disposition": "LinkedPhysicalCustomized",
+        "linkedFileUniqueId": "00000000-0000-0000-0000-000000000002",
+        "linkedPhysicalCanonicalInventoryKey": "file:b",
+        "physicalLocator": "/sitepages/home.aspx",
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "WebWelcomePageReference"
+      },
+      "physicalInventoryKeys": [
+        "file:b"
+      ]
+    },
+    {
+      "expectedReasonCode": "OBSERVATION_VALID",
+      "expectedVerdict": "ReferenceUnavailable",
+      "id": "SK4",
+      "kind": "referenceObservation",
+      "observation": {
+        "disposition": "ReferenceUnavailable",
+        "linkedFileUniqueId": null,
+        "linkedPhysicalCanonicalInventoryKey": null,
+        "physicalLocator": null,
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "PlatformRegistryReference"
+      }
+    },
+    {
+      "expectedReasonCode": "OBSERVATION_VALID",
+      "expectedVerdict": "VirtualHandler",
+      "id": "SK5",
+      "kind": "referenceObservation",
+      "observation": {
+        "disposition": "VirtualHandler",
+        "linkedFileUniqueId": null,
+        "linkedPhysicalCanonicalInventoryKey": null,
+        "physicalLocator": null,
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "RuntimeRequestReference"
+      }
+    },
+    {
+      "expectedReasonCode": "OBSERVATION_VALID",
+      "expectedVerdict": "NonAspx",
+      "id": "D6",
+      "kind": "referenceObservation",
+      "observation": {
+        "disposition": "NonAspx",
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "PlatformRegistryReference"
+      }
+    },
+    {
+      "expectedReasonCode": "OBSERVATION_VALID",
+      "expectedVerdict": "Unknown",
+      "id": "D7",
+      "kind": "referenceObservation",
+      "observation": {
+        "disposition": "Unknown",
+        "recordKind": "AspxReferenceObservation",
+        "sourceKind": "RuntimeRequestReference"
+      }
+    }
+  ],
+  "readerTemplate": {
+    "acquisitionEnvelope": {
+      "aggregateVerdict": "Complete",
+      "asOfUtc": "2026-09-10T00:00:00Z",
+      "outputVersion": "aspx-acquisition-verdict/v1",
+      "physicalArtifactHash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "physicalVolume": {
+        "artifactHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "artifactLength": 1024,
+        "contractVersion": "aspx-discovery/v2",
+        "outputVersion": "aspx-discovery-output/v2",
+        "platformBuild": "16.0.27606.12000",
+        "producerRef": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "runId": "fixture-acquisition-001",
+        "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+        "snapshotFence": "fixture-snapshot-001",
+        "store": {
+          "manifestHash": "3333333333333333333333333333333333333333333333333333333333333333",
+          "schemaVersion": "aspx-discovery-sqlite/v2"
+        }
+      },
+      "platformBuild": "16.0.27606.12000",
+      "producerRef": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "referenceArtifactHash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "referenceVolume": {
+        "artifactHash": "2222222222222222222222222222222222222222222222222222222222222222",
+        "artifactLength": 2048,
+        "contractVersion": "aspx-reference/v1",
+        "dispositions": [
+          "ReferenceOnlyAvailable",
+          "ReferenceUnavailable",
+          "LinkedPhysicalGhosted",
+          "LinkedPhysicalCustomized",
+          "VirtualHandler",
+          "NonAspx",
+          "Unknown"
+        ],
+        "outputVersion": "aspx-reference-output/v1",
+        "platformBuild": "16.0.27606.12000",
+        "producerRef": "cccccccccccccccccccccccccccccccccccccccc",
+        "recordKind": "AspxReferenceObservation",
+        "registryHash": "1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680",
+        "registryRevision": "spo-online-16.0.27606.12000-r2",
+        "runId": "fixture-acquisition-001",
+        "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+        "snapshotFence": "fixture-snapshot-001",
+        "sourceKinds": [
+          "ListFormReference",
+          "ListViewReference",
+          "WebWelcomePageReference",
+          "PlatformRegistryReference",
+          "RuntimeRequestReference"
+        ],
+        "store": {
+          "manifestHash": "4444444444444444444444444444444444444444444444444444444444444444",
+          "schemaVersion": "aspx-reference-sqlite/v1"
+        }
+      },
+      "registryHash": "1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680",
+      "registryRevision": "spo-online-16.0.27606.12000-r2",
+      "runId": "fixture-acquisition-001",
+      "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+      "snapshotFence": "fixture-snapshot-001"
+    },
+    "platformBuild": "16.0.27606.12000",
+    "registryEnvelope": {
+      "authorityArtifactHash": "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab",
+      "authoritySourceRef": "cee0ed61136e17c742c1cf98c9dea9446f10c564",
+      "platformBuild": "16.0.27606.12000",
+      "platformFamily": "SharePointOnline-16",
+      "profileHash": "62283f038be997244cda11552e51a4974a62815653dcb9e025356c642de4e79f",
+      "profileRevision": "spo-online-16.0.27606.12000-profile-r1",
+      "profileSchemaVersion": "aspx-platform-registry-profile/v1",
+      "registryHash": "1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680",
+      "registryRevision": "spo-online-16.0.27606.12000-r2",
+      "registrySchemaHash": "85a2f0664c90d7fe5dfe013bcb938438d6f5e688888fada57bfef28ec2f9cfd2",
+      "registrySchemaVersion": "aspx-platform-registry/v1"
+    },
+    "runtimePath": "/_layouts/15/accessdenied.aspx"
+  }
 }

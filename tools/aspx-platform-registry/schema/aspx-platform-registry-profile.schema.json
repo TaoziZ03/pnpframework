@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27606.12000:r1",
+  "title": "Externally pinned ASPX platform registry compatibility profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "profileSchemaVersion",
+    "profileRevision",
+    "profileHash",
+    "registrySchemaVersion",
+    "registrySchemaHash",
+    "registryRevision",
+    "registryHash",
+    "authoritySchemaVersion",
+    "authorityKind",
+    "authoritySourceRef",
+    "authoritySourceTag",
+    "authorityArtifactHash",
+    "platformFamily",
+    "platformBuild",
+    "contractReviewRef",
+    "compatibilityDecisionRef",
+    "consumerCompatibilityHash",
+    "recordKind",
+    "sourceKinds",
+    "dispositions",
+    "volumeCompatibility",
+    "failureSemantics"
+  ],
+  "properties": {
+    "$schema": { "const": "../schema/aspx-platform-registry-profile.schema.json" },
+    "profileSchemaVersion": { "const": "aspx-platform-registry-profile/v1" },
+    "profileRevision": { "const": "spo-online-16.0.27606.12000-profile-r1" },
+    "profileHash": { "const": "62283f038be997244cda11552e51a4974a62815653dcb9e025356c642de4e79f" },
+    "registrySchemaVersion": { "const": "aspx-platform-registry/v1" },
+    "registrySchemaHash": { "const": "85a2f0664c90d7fe5dfe013bcb938438d6f5e688888fada57bfef28ec2f9cfd2" },
+    "registryRevision": { "const": "spo-online-16.0.27606.12000-r2" },
+    "registryHash": { "const": "1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680" },
+    "authoritySchemaVersion": { "const": "aspx-platform-authority/v1" },
+    "authorityKind": { "const": "SPOCoreReleaseShippingManifest" },
+    "authoritySourceRef": { "const": "cee0ed61136e17c742c1cf98c9dea9446f10c564" },
+    "authoritySourceTag": { "const": "release/16.0.27606.12000" },
+    "authorityArtifactHash": { "const": "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab" },
+    "platformFamily": { "const": "SharePointOnline-16" },
+    "platformBuild": { "const": "16.0.27606.12000" },
+    "contractReviewRef": {
+      "const": "CCD-394#document-aspx-surface-applicability-denominator-v3@7d44f61d-919e-478a-ab8e-bb4c8f9b4b4a"
+    },
+    "compatibilityDecisionRef": { "const": "CCD-411:approve_with_changes" },
+    "consumerCompatibilityHash": { "const": "ab5dd734ec7a7b40edaa0b5b8ff20be0bb60f863b76f8def3a30ec93581df2d1" },
+    "recordKind": { "const": "AspxReferenceObservation" },
+    "sourceKinds": { "$ref": "#/$defs/sourceKinds" },
+    "dispositions": { "$ref": "#/$defs/dispositions" },
+    "volumeCompatibility": { "$ref": "#/$defs/volumeCompatibility" },
+    "failureSemantics": { "$ref": "#/$defs/failureSemantics" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sourceKinds": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        { "const": "ListFormReference" },
+        { "const": "ListViewReference" },
+        { "const": "WebWelcomePageReference" },
+        { "const": "PlatformRegistryReference" },
+        { "const": "RuntimeRequestReference" }
+      ],
+      "items": false
+    },
+    "dispositions": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "prefixItems": [
+        { "const": "ReferenceOnlyAvailable" },
+        { "const": "ReferenceUnavailable" },
+        { "const": "LinkedPhysicalGhosted" },
+        { "const": "LinkedPhysicalCustomized" },
+        { "const": "VirtualHandler" },
+        { "const": "NonAspx" },
+        { "const": "Unknown" }
+      ],
+      "items": false
+    },
+    "volumeCompatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physicalOutput",
+        "physicalContract",
+        "physicalStore",
+        "referenceOutput",
+        "referenceContract",
+        "referenceStore",
+        "aggregateOutput"
+      ],
+      "properties": {
+        "physicalOutput": { "const": "aspx-discovery-output/v2" },
+        "physicalContract": { "const": "aspx-discovery/v2" },
+        "physicalStore": { "const": "aspx-discovery-sqlite/v2" },
+        "referenceOutput": { "const": "aspx-reference-output/v1" },
+        "referenceContract": { "const": "aspx-reference/v1" },
+        "referenceStore": { "const": "aspx-reference-sqlite/v1" },
+        "aggregateOutput": { "const": "aspx-acquisition-verdict/v1" }
+      }
+    },
+    "failureSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unknownBuild",
+        "missingRegistryVolume",
+        "registryProfileMismatch",
+        "sameRevisionChangedHash",
+        "aliasCollision",
+        "runtimePathAbsent",
+        "unknownSourceKindOrDisposition",
+        "missingAcquisitionEnvelope",
+        "missingPhysicalVolume",
+        "missingReferenceVolume",
+        "unsupportedOutputVersion",
+        "unsupportedContractVersion",
+        "unsupportedStoreVersion",
+        "volumeHashMismatch",
+        "volumeRefMismatch",
+        "volumeFenceMismatch",
+        "volumeBuildMismatch",
+        "bindingMismatch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "unknownBuild": { "const": "Unknown" },
+        "missingRegistryVolume": { "const": "Unknown" },
+        "registryProfileMismatch": { "const": "Unknown" },
+        "sameRevisionChangedHash": { "const": "Unknown" },
+        "aliasCollision": { "const": "Unknown" },
+        "runtimePathAbsent": { "const": "Unknown" },
+        "unknownSourceKindOrDisposition": { "const": "Unknown" },
+        "missingAcquisitionEnvelope": { "const": "Unknown" },
+        "missingPhysicalVolume": { "const": "Unknown" },
+        "missingReferenceVolume": { "const": "Unknown" },
+        "unsupportedOutputVersion": { "const": "Unknown" },
+        "unsupportedContractVersion": { "const": "Unknown" },
+        "unsupportedStoreVersion": { "const": "Unknown" },
+        "volumeHashMismatch": { "const": "Unknown" },
+        "volumeRefMismatch": { "const": "Unknown" },
+        "volumeFenceMismatch": { "const": "Unknown" },
+        "volumeBuildMismatch": { "const": "Unknown" },
+        "bindingMismatch": { "const": "Unknown" }
+      }
+    }
+  }
+}
