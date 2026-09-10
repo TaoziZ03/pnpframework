@@ -173,17 +173,17 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
             var sources = observations.Where(value => value.Origin == IngredientObservationOrigin.AuthenticatedSource).ToArray();
             var targets = observations.Where(value => value.Origin == IngredientObservationOrigin.CupCollectFreshReadback).ToArray();
             var expected = normalized.ValueDigests;
-            var sourceMatches = MatchesExpected(expected, sources);
-            var targetMatches = MatchesExpected(expected, targets);
-            var newestSource = sources.Length == 0 ? default : sources.Max(value => value.ObservedAtUtc);
-            var oldestTarget = targets.Length == 0 ? default : targets.Min(value => value.ObservedAtUtc);
-            var targetBound = IsTargetBound(context, source, target);
             var targetEvidenceReferences = evidence.TargetEvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToList()
                 ?? new List<string>();
             var sourceEvidenceReferences = evidence.SourceEvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToList()
                 ?? new List<string>();
+            var sourceMatches = MatchesExpected(expected, sources, sourceEvidenceReferences);
+            var targetMatches = MatchesExpected(expected, targets, targetEvidenceReferences);
+            var newestSource = sources.Length == 0 ? default : sources.Max(value => value.ObservedAtUtc);
+            var oldestTarget = targets.Length == 0 ? default : targets.Min(value => value.ObservedAtUtc);
+            var targetBound = IsTargetBound(context, source, target);
             var targetReferencesBound = target?.EvidenceReferences?.Where(value =>
                 !string.IsNullOrWhiteSpace(value)).All(value => targetEvidenceReferences.Contains(value, StringComparer.Ordinal)) == true;
             var substituted = evidence.HistoricalOrSyntheticSubstitution
@@ -475,11 +475,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
 
         private static bool MatchesExpected(
             IReadOnlyDictionary<string, string> expected,
-            IEnumerable<IngredientValueObservation> observations)
+            IEnumerable<IngredientValueObservation> observations,
+            IReadOnlyCollection<string> evidenceReferences)
         {
             var values = observations.ToArray();
             if (values.Length != expected.Count
-                || values.GroupBy(value => value.ValuePath, StringComparer.Ordinal).Any(group => group.Count() != 1))
+                || values.GroupBy(value => value.ValuePath, StringComparer.Ordinal).Any(group => group.Count() != 1)
+                || values.Select(value => value.EvidenceReference).Distinct(StringComparer.Ordinal).Count() != values.Length)
             {
                 return false;
             }
@@ -488,7 +490,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                 string.Equals(value.ValuePath, pair.Key, StringComparison.Ordinal)
                 && string.Equals(value.ValueDigest, pair.Value, StringComparison.OrdinalIgnoreCase)
                 && value.ObservedAtUtc != default
-                && !string.IsNullOrWhiteSpace(value.EvidenceReference)));
+                && IsExactEvidenceReference(value, evidenceReferences)));
+        }
+
+        private static bool IsExactEvidenceReference(
+            IngredientValueObservation observation,
+            IReadOnlyCollection<string> evidenceReferences)
+        {
+            var evidenceReference = observation.EvidenceReference;
+            if (string.IsNullOrWhiteSpace(evidenceReference)
+                || evidenceReferences?.Contains(evidenceReference, StringComparer.Ordinal) != true)
+            {
+                return false;
+            }
+
+            var fragmentSeparator = evidenceReference.IndexOf('#');
+            return fragmentSeparator > 0
+                && string.Equals(
+                    evidenceReference.Substring(fragmentSeparator + 1),
+                    observation.ValuePath,
+                    StringComparison.Ordinal);
         }
 
         private static string Digest(JsonElement value)
