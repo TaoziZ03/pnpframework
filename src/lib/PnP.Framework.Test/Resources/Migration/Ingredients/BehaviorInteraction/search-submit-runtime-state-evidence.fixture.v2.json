@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "pnp-behavior-interaction-runtime-state-fixture/v2",
+  "fixturePurpose": "hermetic-positive-contract-evidence-only",
+  "assertionId": "ccd.runtime-verification.interaction/v1:ff758937-6594-4e7d-be6a-e9f22d541889:search-submit",
+  "actionId": "action:ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
+  "sourcePageOrListItemIdentity": "urn:sha256:ea214daa09222c86deaf0aa4b6d91a86748450a124799a5716c8239fbb7c4f7b",
+  "sourceVersionIdentity": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
+  "sourceEvidenceDigestSha256": "d6c02c537d8941c84ef718c42d37949418027dca0e3c725b18ed5df7c1b591da",
+  "planDigest": "63bb1b1de76fb86b7f356b59bec3c5391d32854c8328acadc7873d4da8da24a2",
+  "targetIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+  "operationId": "ccd441-hermetic-runtime-v2-0001",
+  "producer": {
+    "producerId": "pnp-framework-behavior-interaction",
+    "implementationCommit": "0eef85db09cff9d5b8f6b2b5e23bc1a9786ab5d5",
+    "binaryDigestSha256": "b6776d876bed352f3e664f650b584e454146c25b48d2ab47a41d0cf53bd901fe"
+  },
+  "executionStartedAtUtc": "2026-09-10T06:03:30.0000000+00:00",
+  "completedAtUtc": "2026-09-10T06:03:38.3370000+00:00",
+  "observations": {
+    "initial": {
+      "observedAtUtc": "2026-09-10T06:03:31.0000000+00:00",
+      "rawStateJson": "{\n  \"input\": { \"enabled\": true, \"value\": \"\" },\n  \"network\": { \"ownedSubmitInFlight\": false },\n  \"page\": { \"sameDocument\": true }\n}"
+    },
+    "action": {
+      "observedAtUtc": "2026-09-10T06:03:32.0000000+00:00",
+      "rawStateJson": "{\n  \"action\": { \"attempt\": 1, \"kind\": \"replace-text-and-submit-once\", \"submittedQuery\": \"ccd-interaction-canary\" },\n  \"boundary\": { \"crossOriginNavigation\": false, \"dialog\": false, \"download\": false },\n  \"network\": { \"sameOriginSearchRequestCount\": 1 }\n}"
+    },
+    "final": {
+      "observedAtUtc": "2026-09-10T06:03:37.0000000+00:00",
+      "rawStateJson": "{\n  \"page\": { \"sameDocument\": true },\n  \"query\": { \"submitted\": \"ccd-interaction-canary\" },\n  \"resultRegion\": { \"changed\": true, \"explicitEmpty\": false, \"stateDigestAfter\": \"2222222222222222222222222222222222222222222222222222222222222222\", \"stateDigestBefore\": \"1111111111111111111111111111111111111111111111111111111111111111\" }\n}"
+    }
+  },
+  "preservedAdverseEvidence": {
+    "integrationCommit": "0eef85db09cff9d5b8f6b2b5e23bc1a9786ab5d5",
+    "receiptSha256": "71e4a95f10bf61e1c9bdc0cf54122dc26e3c48b51ada93366f649c8c81e4f875",
+    "typedVerdict": "fail",
+    "reasonCode": "EXPECTED_IN_PLACE_TRANSITION_NOT_OBSERVED",
+    "disposition": "preserved-negative-browser-observation-not-v2-valid"
+  }
+}
