@@ -27,11 +27,12 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
         public const string SourcePredicateId = "layout.wiki.source-binding/v1";
         public const string ContributorId = "pnp-page-layout-maturity/v1";
         public const string SemanticSchema = "pnp-page-layout-wiki-semantic/v1";
+        public const string WikiContentTypeLineage = "0x010108";
 
         private static readonly string[] RequiredValuePaths =
         {
             "layout.listBaseTemplate",
-            "layout.contentTypeId",
+            "layout.contentTypeLineage",
             "layout.contentTypeName",
             "layout.publishingPageLayout",
             "runtime.adapterId"
@@ -105,11 +106,83 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 ValueDigests = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["layout.listBaseTemplate"] = ScalarDigest(snapshot?.LibraryBaseTemplate ?? 0),
-                    ["layout.contentTypeId"] = ScalarDigest(source?.ContentTypeId),
+                    ["layout.contentTypeLineage"] = ScalarDigest(NormalizeWikiContentTypeLineage(source?.ContentTypeId)),
                     ["layout.contentTypeName"] = ScalarDigest(source?.ContentTypeName),
                     ["layout.publishingPageLayout"] = ScalarDigest(evidence?.PublishingPageLayout),
                     ["runtime.adapterId"] = ScalarDigest(snapshot?.Runtime?.AdapterId)
                 }
+            };
+        }
+
+        public static IngredientLiveEvidence ProjectTargetReadback(
+            IngredientMaturityEvaluationContext context,
+            PageLayoutWikiSourceEvidence source,
+            IngredientLiveEvidence live,
+            PageLayoutWikiTargetReadbackEvidence target)
+        {
+            if (target == null)
+            {
+                return live;
+            }
+
+            var observations = (live?.Observations ?? Array.Empty<IngredientValueObservation>())
+                .Where(value => value?.Origin != IngredientObservationOrigin.CupCollectFreshReadback)
+                .ToList();
+            var sourceObservedAtUtc = observations
+                .Where(value => value.Origin == IngredientObservationOrigin.AuthenticatedSource)
+                .Select(value => value.ObservedAtUtc)
+                .DefaultIfEmpty()
+                .Max();
+            var targetReferences = (target.EvidenceReferences ?? Array.Empty<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .ToList();
+            var sourceIdentity = source?.Snapshot?.Source;
+            var bindingMatched = context?.Identity != null
+                && context.Source != null
+                && context.Target != null
+                && context.Producer != null
+                && string.Equals(target.ClaimId, context.Identity.ClaimId, StringComparison.Ordinal)
+                && string.Equals(target.IngredientId, context.Identity.IngredientId, StringComparison.Ordinal)
+                && string.Equals(target.SourceListId, source?.ListId, StringComparison.OrdinalIgnoreCase)
+                && target.SourceItemId == sourceIdentity?.ListItemId
+                && string.Equals(target.SourceFileUniqueId, sourceIdentity?.FileUniqueId.ToString("D"), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(target.SourceVersion, source?.SourceVersion, StringComparison.Ordinal)
+                && string.Equals(target.ImplementationCommit, context.Producer.ImplementationCommit, StringComparison.Ordinal)
+                && string.Equals(target.TargetProfile, context.Target.TargetProfile, StringComparison.Ordinal)
+                && IngredientMaturityEvaluator.IsSha256(target.PlanDigest)
+                && !string.IsNullOrWhiteSpace(target.TargetPath)
+                && target.ObservedAtUtc != default
+                && (sourceObservedAtUtc == default || target.ObservedAtUtc >= sourceObservedAtUtc)
+                && targetReferences.Count > 0;
+
+            var targetValues = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["layout.listBaseTemplate"] = target.ListBaseTemplate,
+                ["layout.contentTypeLineage"] = NormalizeWikiContentTypeLineage(target.ContentTypeId),
+                ["layout.contentTypeName"] = target.ContentTypeName,
+                ["layout.publishingPageLayout"] = target.PublishingPageLayout,
+                ["runtime.adapterId"] = target.RuntimeAdapterId
+            };
+            foreach (var value in targetValues.Where(value => targetReferences.Count > 0))
+            {
+                observations.Add(new IngredientValueObservation
+                {
+                    ValuePath = value.Key,
+                    ValueDigest = ScalarDigest(value.Value),
+                    ObservedAtUtc = target.ObservedAtUtc,
+                    Origin = IngredientObservationOrigin.CupCollectFreshReadback,
+                    EvidenceReference = targetReferences[0] + "#" + value.Key
+                });
+            }
+
+            return new IngredientLiveEvidence
+            {
+                SourceAuthenticated = live?.SourceAuthenticated == true,
+                TargetFreshReadback = bindingMatched,
+                HistoricalOrSyntheticSubstitution = live?.HistoricalOrSyntheticSubstitution == true,
+                Observations = observations,
+                SourceEvidenceReferences = (live?.SourceEvidenceReferences ?? Array.Empty<string>()).ToList(),
+                TargetEvidenceReferences = targetReferences
             };
         }
 
@@ -173,6 +246,13 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
         {
             var canonical = value == null ? "null" : MigrationContractSerializer.SerializeCanonical(value);
             return MigrationDigest.ComputeSha256(canonical);
+        }
+
+        private static string NormalizeWikiContentTypeLineage(string contentTypeId)
+        {
+            return ClassicWikiPageDiscovery.IsClassicWikiContentType(contentTypeId)
+                ? WikiContentTypeLineage
+                : contentTypeId;
         }
 
         private sealed class WikiSemanticProjection
