@@ -1,0 +1,77 @@
+{
+  "schema": "pnp-webpart-instance-fixture/v1",
+  "claimId": "63a0866d0229e69631374dbedad35b14aaa02d8ea91dc2f16fe6ccd222795a47",
+  "canonicalIngredientId": "ccd.ingredient.webpart.instance/v1:d4fda766-a38d-4122-98cd-ddd3406d5a0a:cb9adc96-a41f-478f-b48d-e10d845d3752",
+  "sourceSnapshotSha256": "0a00c20393e4d13f3d5e005ab9c082b57942ccb211bd0dd136b42f8fede65fbd",
+  "source": {
+    "pageListId": "3155254a-3e47-425f-8900-8fe342056a10",
+    "pageItemId": 215,
+    "pageUniqueId": "d4fda766-a38d-4122-98cd-ddd3406d5a0a",
+    "pageServerRelativeUrl": "/sites/DevCenter/Learn/Pages/App-publishing-calendar.aspx",
+    "sourceVersion": "\"{D4FDA766-A38D-4122-98CD-DDD3406D5A0A},595\""
+  },
+  "instance": {
+    "instanceId": "cb9adc96-a41f-478f-b48d-e10d845d3752",
+    "title": "App Publishing Calendar",
+    "restTypeName": null,
+    "definitionTypeName": "Microsoft.SharePoint.WebPartPages.ListViewWebPart",
+    "assemblyIdentity": "Microsoft.SharePoint.Core, Version=16.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c",
+    "family": "list-view",
+    "scope": "shared",
+    "zoneId": "wpz",
+    "zoneIndex": 0,
+    "normalizedRestPayloadSha256": "6d89271c4aa92175463603122ac5e3e65c50dc307e21e5ecd3b7d48b58e90781",
+    "normalizedProperties": {
+      "AllowClose": true,
+      "AllowConnect": true,
+      "AllowEdit": true,
+      "AllowHide": true,
+      "AllowMinimize": true,
+      "AllowZoneChange": true,
+      "AuthorizationFilter": "",
+      "CatalogIconImageUrl": "/_layouts/15/images/itevent.png?rev=37",
+      "ChromeState": 0,
+      "ChromeType": 2,
+      "Description": "",
+      "Direction": 0,
+      "ExportMode": 0,
+      "Height": "",
+      "HelpMode": 1,
+      "HelpUrl": "",
+      "Hidden": false,
+      "ImportErrorMessage": "Cannot import this Web Part.",
+      "ListId": "edd50b31-96c8-4ab0-b607-45bdcb34f9b5",
+      "ListName": "{EDD50B31-96C8-4AB0-B607-45BDCB34F9B5}",
+      "ListViewXml": "<View Name=\"{CB9ADC96-A41F-478F-B48D-E10D845D3752}\" MobileView=\"TRUE\" Hidden=\"TRUE\" RecurrenceRowset=\"TRUE\" Type=\"CALENDAR\" TabularView=\"FALSE\" DisplayName=\"\" Url=\"/sites/DevCenter/Learn/Pages/App-publishing-calendar.aspx\" Level=\"1\" BaseViewID=\"2\" ContentTypeID=\"0x\" MobileUrl=\"_layouts/15/mobile/viewdaily.aspx\" ImageUrl=\"/_layouts/15/images/events.png?rev=50\"><Toolbar Type=\"None\" /><ViewHeader /><ViewBody /><ViewFooter /><ViewEmpty /><ParameterBindings><ParameterBinding Name=\"NoAnnouncements\" Location=\"Resource(wss,noXinviewofY_LIST)\" /><ParameterBinding Name=\"NoAnnouncementsHowTo\" Location=\"Resource(wss,noXinviewofY_DEFAULT)\" /></ParameterBindings><ViewFields><FieldRef Name=\"EventDate\" /><FieldRef Name=\"EndDate\" /><FieldRef Name=\"fRecurrence\" /><FieldRef Name=\"EventType\" /><FieldRef Name=\"WorkspaceLink\" /><FieldRef Name=\"Title\" /><FieldRef Name=\"Location\" /><FieldRef Name=\"Description\" /><FieldRef Name=\"Workspace\" /><FieldRef Name=\"MasterSeriesItemID\" /><FieldRef Name=\"fAllDayEvent\" /></ViewFields><ViewData><FieldRef Name=\"Title\" Type=\"CalendarMonthTitle\" /><FieldRef Name=\"Title\" Type=\"CalendarWeekTitle\" /><FieldRef Name=\"Location\" Type=\"CalendarWeekLocation\" /><FieldRef Name=\"Title\" Type=\"CalendarDayTitle\" /><FieldRef Name=\"Location\" Type=\"CalendarDayLocation\" /></ViewData><Query><Where><DateRangesOverlap><FieldRef Name=\"EventDate\" /><FieldRef Name=\"EndDate\" /><FieldRef Name=\"RecurrenceID\" /><Value Type=\"DateTime\"><Month /></Value></DateRangesOverlap></Where></Query></View>",
+      "MissingAssembly": "Cannot import this Web Part.",
+      "PageType": 1,
+      "Title": "App Publishing Calendar",
+      "TitleIconImageUrl": "",
+      "TitleUrl": "/sites/DevCenter/Learn/Lists/Events Calendar",
+      "ViewContentTypeId": "0x",
+      "ViewFlag": "8921097",
+      "ViewFlags": "8921097",
+      "WebId": "00000000-0000-0000-0000-000000000000",
+      "Width": ""
+    }
+  },
+  "binding": {
+    "boundListId": "edd50b31-96c8-4ab0-b607-45bdcb34f9b5",
+    "boundViewId": "cb9adc96-a41f-478f-b48d-e10d845d3752",
+    "viewType": "CALENDAR",
+    "baseViewId": 2
+  },
+  "dependencyIngredientIds": [
+    "feature:29e82ccbe58b7e8c18850702cef68f0c6f9506dd3f7720b6889877a764b02439",
+    "list:edd50b31-96c8-4ab0-b607-45bdcb34f9b5",
+    "list-schema:edd50b31-96c8-4ab0-b607-45bdcb34f9b5",
+    "runtime-capability:classic-list-view",
+    "view:cb9adc96-a41f-478f-b48d-e10d845d3752",
+    "webpart-definition:Microsoft.SharePoint.WebPartPages.ListViewWebPart"
+  ],
+  "evidenceReferences": [
+    "evidence/webpart-instance/authoritative-export-receipt.json",
+    "evidence/webpart-instance/fresh-rest-inventory.json",
+    "evidence/webpart-instance/zone-projection.json"
+  ]
+}
