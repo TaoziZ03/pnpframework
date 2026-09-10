@@ -9,6 +9,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
     {
         public DynamicRegionSourceEvidence Source { get; set; }
 
+        public DynamicRegionTargetEvidence Target { get; set; }
+
         public IngredientLiveEvidence Live { get; set; }
 
         public IngredientPlanEvidence Plan { get; set; }
@@ -63,6 +65,43 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
         public string LegacyLineTerminatedSemanticDigest { get; set; }
 
         public IList<string> Dependencies { get; set; } = new List<string>();
+
+        public IList<string> EvidenceReferences { get; set; } = new List<string>();
+    }
+
+    internal sealed class DynamicRegionTargetEvidence
+    {
+        public string TargetProfile { get; set; }
+
+        public string TargetIdentity { get; set; }
+
+        public string PageUrl { get; set; }
+
+        public string WebUrl { get; set; }
+
+        public string FileServerRelativeUrl { get; set; }
+
+        public string ListId { get; set; }
+
+        public int ItemId { get; set; }
+
+        public string UniqueId { get; set; }
+
+        public string TargetVersion { get; set; }
+
+        public string SourceProviderIngredientId { get; set; }
+
+        public string SourceProviderInstanceId { get; set; }
+
+        public string TargetProviderInstanceId { get; set; }
+
+        public string ProviderMappingDigest { get; set; }
+
+        public string ReviewedProviderPlanDigest { get; set; }
+
+        public string ReviewedProviderActionId { get; set; }
+
+        public DateTimeOffset ObservedAtUtc { get; set; }
 
         public IList<string> EvidenceReferences { get; set; } = new List<string>();
     }

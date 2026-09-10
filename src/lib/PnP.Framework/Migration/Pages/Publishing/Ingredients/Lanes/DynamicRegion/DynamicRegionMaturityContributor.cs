@@ -3,8 +3,10 @@ using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Ingredients;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegion
 {
@@ -23,8 +25,23 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
 
         public IngredientMaturityContribution Contribute(IngredientMaturityEvaluationContext context)
         {
-            var normalized = DynamicRegionEvidenceNormalizer.Normalize(context, evidence.Source);
             var receipts = new List<IngredientMaturityGateReceipt>();
+            DynamicRegionNormalizedEvidence normalized;
+            try
+            {
+                normalized = DynamicRegionEvidenceNormalizer.Normalize(context, evidence.Source);
+            }
+            catch (Exception exception) when (exception is ArgumentException
+                || exception is InvalidDataException
+                || exception is InvalidOperationException
+                || exception is JsonException)
+            {
+                receipts.AddRange(FailedLevel(
+                    IngredientMaturityLevel.M0,
+                    evidence.Source?.EvidenceReferences,
+                    "The dynamic region instance is unavailable or malformed: " + exception.Message));
+                return CreateContribution(context, receipts);
+            }
             receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM0(
                 context,
                 normalized.Node,
@@ -32,7 +49,12 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                 CreateOwnerRegistry(normalized.SourcePredicateMatched),
                 evidence.Source?.EvidenceReferences));
 
-            var live = DynamicRegionEvidenceNormalizer.ProjectLiveEvidence(evidence.Live, normalized);
+            var live = DynamicRegionEvidenceNormalizer.ProjectLiveEvidence(
+                evidence.Live,
+                normalized,
+                context,
+                evidence.Source,
+                evidence.Target);
             if (live != null)
             {
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(live));
@@ -58,11 +80,52 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
             }
             if (evidence.Plan != null)
             {
-                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM3(evidence.Plan));
+                if (DynamicRegionEvidenceNormalizer.IsPlanBound(
+                    context,
+                    normalized,
+                    evidence.Source,
+                    evidence.Target,
+                    evidence.Plan,
+                    out var planFailure))
+                {
+                    receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM3(evidence.Plan));
+                }
+                else
+                {
+                    receipts.AddRange(FailedLevel(
+                        IngredientMaturityLevel.M3,
+                        References(
+                            evidence.Plan.SnapshotPlanEvidenceReferences,
+                            evidence.Plan.ActionEvidenceReferences,
+                            evidence.Plan.DependencyPolicyEvidenceReferences),
+                        planFailure));
+                }
             }
             if (evidence.Operational != null)
             {
-                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM4(evidence.Operational));
+                if (DynamicRegionEvidenceNormalizer.IsOperationalBound(
+                    context,
+                    normalized,
+                    evidence.Source,
+                    evidence.Target,
+                    evidence.Plan,
+                    evidence.Operational,
+                    out var operationFailure))
+                {
+                    receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM4(evidence.Operational));
+                }
+                else
+                {
+                    receipts.AddRange(FailedLevel(
+                        IngredientMaturityLevel.M4,
+                        References(
+                            evidence.Operational.PlanAdmissionEvidenceReferences,
+                            evidence.Operational.ActionEvidenceReferences,
+                            evidence.Operational.ReceiptEvidenceReferences,
+                            evidence.Operational.FreshReadbackEvidenceReferences,
+                            evidence.Operational.RuntimeCleanupRetryEvidenceReferences),
+                        operationFailure));
+                }
             }
             if (evidence.Productization != null)
             {
@@ -72,6 +135,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                     evidence.Plan?.ExpectedPlanDigest));
             }
 
+            return CreateContribution(context, receipts);
+        }
+
+        private IngredientMaturityContribution CreateContribution(
+            IngredientMaturityEvaluationContext context,
+            IList<IngredientMaturityGateReceipt> receipts)
+        {
             return new IngredientMaturityContribution
             {
                 ContributorId = ContributorId,
@@ -80,6 +150,41 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                 IngredientId = context?.Identity?.IngredientId,
                 GateReceipts = receipts
             };
+        }
+
+        private static IEnumerable<IngredientMaturityGateReceipt> FailedLevel(
+            IngredientMaturityLevel level,
+            IEnumerable<string> evidenceReferences,
+            string failureReason)
+        {
+            var references = (evidenceReferences ?? Array.Empty<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(value => value, StringComparer.Ordinal)
+                .ToList();
+            if (references.Count == 0)
+            {
+                references.Add("dynamic.region/unavailable-instance");
+            }
+            return IngredientMaturityGateCatalog.ForLevel(level).Select(definition =>
+                new IngredientMaturityGateReceipt
+                {
+                    Level = definition.Level,
+                    GateId = definition.GateId,
+                    Category = definition.Category,
+                    ValidatorId = DynamicRegionEvidenceNormalizer.ContributorId,
+                    ValidatorVersion = "v1",
+                    Passed = false,
+                    FailureReason = failureReason,
+                    EvidenceReferences = references.ToList()
+                });
+        }
+
+        private static IEnumerable<string> References(params IEnumerable<string>[] values)
+        {
+            return (values ?? Array.Empty<IEnumerable<string>>())
+                .Where(value => value != null)
+                .SelectMany(value => value);
         }
 
         private static PublishingPageIngredientPrimaryOwnerRegistry CreateOwnerRegistry(bool sourcePredicateMatched)

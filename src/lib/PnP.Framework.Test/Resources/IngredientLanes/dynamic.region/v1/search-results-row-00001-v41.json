@@ -34,6 +34,28 @@
       "pnp-canonical-region#sha256=18004b9fe69ab8ef4179d594d2af9d4fab5274b11edaef7be208cd97c155891f"
     ]
   },
+  "target": {
+    "targetProfile": "cupcollect-classic-page/v1",
+    "targetIdentity": "runtime-region:cupcollect/search.aspx/search-results",
+    "pageUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+    "webUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive",
+    "fileServerRelativeUrl": "/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+    "listId": "96e24975-c62a-41c3-8eaa-79da85e6eac0",
+    "itemId": 1,
+    "uniqueId": "9180946c-1d69-487e-ab6d-d1e0bc157b82",
+    "targetVersion": "\"{9180946C-1D69-487E-AB6D-D1E0BC157B82},1\"",
+    "sourceProviderIngredientId": "ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+    "sourceProviderInstanceId": "f869d623-017d-42ff-90e8-b5bf14fff9b3",
+    "targetProviderInstanceId": "80f23203-7dd9-454e-926d-f1b38269974a",
+    "providerMappingDigest": "37bc63e2851b4a7eda94fc31aaa047aaa4198ea28ee2d47569de98a7562e61f4",
+    "reviewedProviderPlanDigest": "a0bb989a7c229aacc8725778eb8e83a78de3d6cb67f593f7a4d93155cfb68f9b",
+    "reviewedProviderActionId": "action:ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+    "observedAtUtc": "2026-09-10T02:36:24.865Z",
+    "evidenceReferences": [
+      "ccd309-handoff-receipt.json#provider-ready",
+      "ccd158-runtime-receipt.json#fresh-target"
+    ]
+  },
   "region": {
     "admission": {
       "definitionComplete": true,

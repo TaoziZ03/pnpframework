@@ -1,7 +1,12 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegion;
+using PnP.Framework.Migration.Pages.Publishing.Packaging;
+using PnP.Framework.Migration.Pages.Publishing.Planning;
+using PnP.Framework.Migration.Verification;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -64,6 +69,9 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
         [DataTestMethod]
         [DataRow("wrong-source-version", IngredientMaturityGateCatalog.SourceBinding)]
         [DataRow("wrong-source-host", IngredientMaturityGateCatalog.PrimaryOwner)]
+        [DataRow("foreign-canonical-ingredient", IngredientMaturityGateCatalog.CanonicalIdentity)]
+        [DataRow("foreign-provider-dependency", IngredientMaturityGateCatalog.PrimaryOwner)]
+        [DataRow("source-url-file-mismatch", IngredientMaturityGateCatalog.SourceBinding)]
         [DataRow("wrong-provider-instance", IngredientMaturityGateCatalog.PrimaryOwner)]
         [DataRow("missing-config-digest", IngredientMaturityGateCatalog.PrimaryOwner)]
         [DataRow("missing-dom-boundary", IngredientMaturityGateCatalog.PrimaryOwner)]
@@ -95,6 +103,293 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                 fixture.Evidence.Source.SemanticDigest);
         }
 
+        [TestMethod]
+        public void FreshObservationsCannotBeRelabelledToAnotherTarget()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Context.Target.TargetIdentity = "cupcollect:/sites/unrelated/Pages/Other.aspx#different-provider";
+            fixture.Context.Target.TargetProfile = "unrelated-target-profile/v1";
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
+        [TestMethod]
+        public void BorrowedForeignPlanCannotCloseM3()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Evidence.Plan = CreateForeignPlanEvidence();
+            Assert.IsTrue(IngredientMaturityEvidenceValidator.ValidateM3(fixture.Evidence.Plan).All(value => value.Passed));
+
+            var assessment = fixture.Evaluate();
+
+            Assert.IsTrue(assessment.Levels.Single(value => value.Level == IngredientMaturityLevel.M3)
+                .Gates.All(value => value.Status == IngredientMaturityGateStatus.Failed));
+        }
+
+        [TestMethod]
+        public void BoundDynamicRegionPlanClosesM3ThroughSharedValidator()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Evidence.Plan = CreateBoundPlanEvidence(fixture);
+            Assert.IsTrue(IngredientMaturityEvidenceValidator.ValidateM3(fixture.Evidence.Plan).All(value => value.Passed));
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M3, assessment.AttainedMaturity);
+            Assert.IsTrue(assessment.Levels.Single(value => value.Level == IngredientMaturityLevel.M3)
+                .Gates.All(value => value.Status == IngredientMaturityGateStatus.Passed));
+        }
+
+        [TestMethod]
+        public void BorrowedForeignPlanAndRuntimeWaiverCannotCloseM4()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Evidence.Plan = CreateForeignPlanEvidence();
+            fixture.Evidence.Operational = CreateForeignOperationalEvidence(fixture.Evidence.Plan);
+            Assert.IsTrue(IngredientMaturityEvidenceValidator.ValidateM4(fixture.Evidence.Operational).All(value => value.Passed));
+            Assert.IsFalse(fixture.Evidence.Operational.RuntimeRequired);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.IsTrue(assessment.Levels.Single(value => value.Level == IngredientMaturityLevel.M4)
+                .Gates.All(value => value.Status == IngredientMaturityGateStatus.Failed));
+        }
+
+        [DataTestMethod]
+        [DataRow("missing-provider-binding")]
+        [DataRow("null-source")]
+        public void MalformedInstanceProducesReceiptsAndDoesNotStopNextInstance(string mutation)
+        {
+            var malformed = Fixture.Create();
+            malformed.Mutate(mutation);
+            var valid = Fixture.Create();
+            var assessments = new List<IngredientMaturityAssessment>();
+
+            foreach (var fixture in new[] { malformed, valid })
+            {
+                assessments.Add(fixture.Evaluate());
+            }
+
+            Assert.IsNull(assessments[0].AttainedMaturity);
+            Assert.IsTrue(assessments[0].Levels.Single(value => value.Level == IngredientMaturityLevel.M0)
+                .Gates.All(value => value.Status == IngredientMaturityGateStatus.Failed));
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessments[1].AttainedMaturity);
+        }
+
+        private static IngredientPlanEvidence CreateForeignPlanEvidence()
+        {
+            var ingredientId = "content:body";
+            var sourceDigest = new string('a', 64);
+            var plan = new PublishingPageMigrationPlan
+            {
+                SourceSnapshotDigest = sourceDigest,
+                RuntimeVerification = new RuntimeVerificationManifest(),
+                IngredientGraph = new CanonicalPageIngredientGraph
+                {
+                    Nodes = new List<PageIngredientNode>
+                    {
+                        new PageIngredientNode
+                        {
+                            Id = ingredientId,
+                            Kind = PageIngredientKind.Content,
+                            Subtype = "text",
+                            SemanticRole = "body",
+                            SourcePredicateId = "content.body/v1",
+                            SourcePageOrListItemIdentity = "foreign-source",
+                            SourceVersionIdentity = "foreign-version",
+                            PrimaryOwnerLane = "content.text",
+                            EvidenceDigest = new string('b', 64),
+                            HasContent = true
+                        }
+                    }
+                },
+                IngredientActions = new List<PageIngredientAction>
+                {
+                    new PageIngredientAction
+                    {
+                        ActionId = "action:content-body",
+                        IngredientId = ingredientId,
+                        Capability = IngredientCapability.Available,
+                        Disposition = IngredientDisposition.Preserve,
+                        TargetIdentity = "foreign-target",
+                        PolicyId = "content.preserve/v1",
+                        PolicyVersion = "v1"
+                    }
+                }
+            };
+            var digest = PublishingPageDigest.ComputePlanDigest(plan);
+            return new IngredientPlanEvidence
+            {
+                Plan = plan,
+                ExpectedSourceSnapshotDigest = sourceDigest,
+                ExpectedPlanDigest = digest,
+                IngredientId = ingredientId,
+                SnapshotPlanEvidenceReferences = new List<string> { "foreign-plan.json" },
+                ActionEvidenceReferences = new List<string> { "foreign-action.json" },
+                DependencyPolicyEvidenceReferences = new List<string> { "foreign-dependencies.json" }
+            };
+        }
+
+        private static IngredientPlanEvidence CreateBoundPlanEvidence(Fixture fixture)
+        {
+            var normalized = DynamicRegionEvidenceNormalizer.Normalize(fixture.Context, fixture.Evidence.Source);
+            var target = fixture.Evidence.Target;
+            var plan = new PublishingPageMigrationPlan
+            {
+                SourceSnapshotDigest = fixture.Context.Source.SourceSnapshotDigest,
+                SourceWebUrl = fixture.Evidence.Source.WebUrl,
+                SourcePageServerRelativeUrl = fixture.Evidence.Source.FileServerRelativeUrl,
+                RuntimeVerification = new RuntimeVerificationManifest(),
+                IngredientGraph = new CanonicalPageIngredientGraph
+                {
+                    Nodes = new List<PageIngredientNode> { normalized.Node },
+                    Edges = new List<PageIngredientEdge>
+                    {
+                        new PageIngredientEdge
+                        {
+                            FromIngredientId = normalized.CanonicalIngredientId,
+                            ToIngredientId = normalized.CanonicalProviderIngredientId,
+                            Relationship = PageIngredientRelationship.RendersThrough,
+                            Requirement = PageIngredientRequirement.Required
+                        }
+                    },
+                    ExternalReferences = new List<PageIngredientExternalReference>
+                    {
+                        new PageIngredientExternalReference
+                        {
+                            IngredientId = normalized.CanonicalProviderIngredientId,
+                            Kind = PageIngredientKind.WebPart,
+                            Ownership = PageIngredientOwnership.Shared,
+                            SharedPlanDigest = target.ReviewedProviderPlanDigest,
+                            ExecutionGroupDigest = target.ProviderMappingDigest,
+                            SupportCohortDigest = target.ProviderMappingDigest,
+                            TargetSlotKey = target.TargetProviderInstanceId,
+                            LogicalActionKey = target.ReviewedProviderActionId,
+                            ExecutionGrantSignature = target.ProviderMappingDigest,
+                            OriginalIdentifier = target.SourceProviderInstanceId,
+                            ExpectedOwnership = "provider-owner",
+                            State = PageExternalIngredientState.PlannedGlobalAction,
+                            TargetIdentity = target.TargetProviderInstanceId,
+                            EvidenceDigest = target.ProviderMappingDigest
+                        }
+                    }
+                },
+                IngredientActions = new List<PageIngredientAction>
+                {
+                    new PageIngredientAction
+                    {
+                        ActionId = "action:" + normalized.CanonicalIngredientId,
+                        IngredientId = normalized.CanonicalIngredientId,
+                        Capability = IngredientCapability.Available,
+                        Disposition = IngredientDisposition.Preserve,
+                        TargetIdentity = fixture.Context.Target.TargetIdentity,
+                        PolicyId = "dynamic-region.preserve/v1",
+                        PolicyVersion = "v1",
+                        VerificationAssertions = new List<string>
+                        {
+                            "provider-mapping:" + target.ProviderMappingDigest
+                        }
+                    }
+                }
+            };
+            var digest = PublishingPageDigest.ComputePlanDigest(plan);
+            return new IngredientPlanEvidence
+            {
+                Plan = plan,
+                ExpectedSourceSnapshotDigest = fixture.Context.Source.SourceSnapshotDigest,
+                ExpectedPlanDigest = digest,
+                IngredientId = normalized.CanonicalIngredientId,
+                SnapshotPlanEvidenceReferences = new List<string> { "dynamic-region-plan.json" },
+                ActionEvidenceReferences = new List<string> { "dynamic-region-action.json" },
+                DependencyPolicyEvidenceReferences = new List<string> { "provider-handoff.json" }
+            };
+        }
+
+        private static IngredientOperationalEvidence CreateForeignOperationalEvidence(IngredientPlanEvidence planEvidence)
+        {
+            var now = DateTimeOffset.Parse("2026-09-10T02:36:24.865Z");
+            var startedAt = now.AddMinutes(-1);
+            var action = planEvidence.Plan.IngredientActions.Single();
+            var signature = MigrationActionSignature.Create(
+                action.ActionId,
+                "preserve-content",
+                new string('b', 64),
+                MigrationActionSignature.EmptySelectionReceiptDigest,
+                action.TargetIdentity,
+                MigrationDigest.ComputeSha256("foreign-semantic"));
+            var operationId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            return new IngredientOperationalEvidence
+            {
+                Plan = planEvidence.Plan,
+                AdmittedPlanDigest = planEvidence.ExpectedPlanDigest,
+                AdmissionPassed = true,
+                IngredientId = planEvidence.IngredientId,
+                ActionSignature = signature,
+                ImportReceipt = new PublishingPageImportReceipt
+                {
+                    OperationId = operationId,
+                    StartedAtUtc = startedAt,
+                    CompletedAtUtc = now,
+                    ApprovedPlanDigest = planEvidence.ExpectedPlanDigest,
+                    ExecutionStatus = MigrationExecutionStatus.Succeeded,
+                    Steps = new List<MigrationMutationReceipt>
+                    {
+                        new MigrationMutationReceipt
+                        {
+                            OperationId = operationId,
+                            PlanDigest = planEvidence.ExpectedPlanDigest,
+                            ActionId = signature.ActionId,
+                            ActionSignature = signature.Signature,
+                            Outcome = MutationOutcome.Applied,
+                            CompletedAtUtc = now
+                        }
+                    },
+                    OwnershipMatched = true,
+                    FreshReadbackPassed = true,
+                    StorageVerificationStatus = StorageVerificationStatus.Passed,
+                    RuntimeVerificationStatus = RuntimeVerificationStatus.NotRequired,
+                    VerifiedIngredientIds = new List<string> { planEvidence.IngredientId }
+                },
+                JournalState = new MigrationExecutionStateReceipt
+                {
+                    OperationId = operationId,
+                    PlanDigest = planEvidence.ExpectedPlanDigest,
+                    Status = MigrationExecutionStatus.Succeeded,
+                    RecordedAtUtc = now
+                },
+                VerificationReceipt = new MigrationMutationVerificationReceipt
+                {
+                    OperationId = operationId,
+                    PlanDigest = planEvidence.ExpectedPlanDigest,
+                    ActionId = signature.ActionId,
+                    ActionSignature = signature.Signature,
+                    FreshReadbackPassed = true,
+                    Ownership = MigrationTargetOwnership.MigrationOwned,
+                    ProvenanceMatched = true,
+                    VerifiedAtUtc = now
+                },
+                ExecutionStartedAtUtc = startedAt,
+                RuntimeRequired = false,
+                CleanupRequired = true,
+                CleanupPassed = true,
+                RetryEvidenceRequired = true,
+                RetryPassed = true,
+                PlanAdmissionEvidenceReferences = new List<string> { "foreign-admission.json" },
+                ActionEvidenceReferences = new List<string> { "foreign-signature.json" },
+                ReceiptEvidenceReferences = new List<string> { "foreign-receipts.json" },
+                FreshReadbackEvidenceReferences = new List<string> { "foreign-readback.json" },
+                RuntimeCleanupRetryEvidenceReferences = new List<string> { "foreign-cleanup.json" }
+            };
+        }
+
         private static IngredientMaturityGateResult Gate(IngredientMaturityAssessment assessment, string gateId)
         {
             return assessment.Levels.SelectMany(value => value.Gates).Single(value => value.GateId == gateId);
@@ -109,7 +404,7 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
             {
                 this.contract = contract;
                 contract.Source.RawRegion = contract.Region;
-                Evidence = CreateEvidence(contract.Source);
+                Evidence = CreateEvidence(contract.Source, contract.Target);
                 Context = CreateContext(contract, contract.Source);
                 expectedSourceVersion = contract.Source.SourceVersion;
             }
@@ -138,7 +433,7 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
 
             public void AddMatchingTargetObservations()
             {
-                var targetTime = contract.Source.ObservedAtUtc.AddMinutes(1);
+                var targetTime = contract.Target.ObservedAtUtc;
                 foreach (var source in Evidence.Live.Observations.ToArray())
                 {
                     Evidence.Live.Observations.Add(new IngredientValueObservation
@@ -163,6 +458,18 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                         break;
                     case "wrong-source-host":
                         Evidence.Source.PageUrl = "https://microsoft.evil.sharepoint.com/sites/example/Pages/Search.aspx";
+                        break;
+                    case "foreign-canonical-ingredient":
+                        Context.Identity.IngredientId = "ccd.ingredient.dynamic.region/v1:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:00002:11111111-1111-1111-1111-111111111111";
+                        break;
+                    case "foreign-provider-dependency":
+                        var originalProvider = Evidence.Source.ProviderIngredientId;
+                        Evidence.Source.ProviderIngredientId = "ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:11111111-1111-1111-1111-111111111111";
+                        Evidence.Source.Dependencies.Remove(originalProvider);
+                        Evidence.Source.Dependencies.Add(Evidence.Source.ProviderIngredientId);
+                        break;
+                    case "source-url-file-mismatch":
+                        Evidence.Source.PageUrl = "https://microsoft.sharepoint.com/sites/unrelated/Pages/Other.aspx";
                         break;
                     case "wrong-provider-instance":
                         Evidence.Source.ProviderInstanceId = "11111111-1111-1111-1111-111111111111";
@@ -190,18 +497,32 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                     case "legacy-newline-semantic-digest":
                         Evidence.Source.SemanticDigest = Evidence.Source.LegacyLineTerminatedSemanticDigest;
                         break;
+                    case "missing-provider-binding":
+                        using (var document = JsonDocument.Parse(Evidence.Source.RawRegion.GetRawText()))
+                        {
+                            var root = System.Text.Json.Nodes.JsonNode.Parse(document.RootElement.GetRawText());
+                            root["definition"].AsObject().Remove("providerBinding");
+                            Evidence.Source.RawRegion = JsonSerializer.SerializeToElement(root);
+                        }
+                        break;
+                    case "null-source":
+                        Evidence.Source = null;
+                        break;
                     default:
                         Assert.Fail("Unknown mutation " + mutation);
                         break;
                 }
             }
 
-            private static DynamicRegionMaturityEvidence CreateEvidence(DynamicRegionSourceEvidence source)
+            private static DynamicRegionMaturityEvidence CreateEvidence(
+                DynamicRegionSourceEvidence source,
+                DynamicRegionTargetEvidence target)
             {
                 var normalized = DynamicRegionEvidenceNormalizer.Normalize(null, source);
                 return new DynamicRegionMaturityEvidence
                 {
                     Source = source,
+                    Target = target,
                     Live = new IngredientLiveEvidence
                     {
                         SourceAuthenticated = true,
@@ -284,6 +605,8 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
             public string IngredientId { get; set; }
 
             public DynamicRegionSourceEvidence Source { get; set; }
+
+            public DynamicRegionTargetEvidence Target { get; set; }
 
             public JsonElement Region { get; set; }
         }
