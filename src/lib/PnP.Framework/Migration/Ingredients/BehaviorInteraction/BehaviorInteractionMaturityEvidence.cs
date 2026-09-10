@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Verification;
+using System;
 using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
@@ -53,6 +54,104 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
         public int MsBeforeShowingProgress { get; set; }
     }
 
+    internal enum BehaviorInteractionProviderAvailability
+    {
+        Unknown = 0,
+        Available = 1,
+        Missing = 2,
+        Cleaned = 3
+    }
+
+    internal sealed class BehaviorInteractionResultScriptProviderEvidence
+    {
+        public string CanonicalProviderInstanceId { get; set; }
+
+        public string CanonicalDynamicRegionId { get; set; }
+
+        public string PageIdentity { get; set; }
+
+        public string PageVersion { get; set; }
+
+        public string ProviderType { get; set; }
+
+        public string QueryGroupName { get; set; }
+
+        public bool UpdateAjaxNavigate { get; set; }
+
+        public string ConfigurationDigest { get; set; }
+
+        public DateTimeOffset ObservedAtUtc { get; set; }
+
+        public BehaviorInteractionProviderAvailability Availability { get; set; }
+
+        public DateTimeOffset? CleanupObservedAtUtc { get; set; }
+
+        public string OperationReference { get; set; }
+
+        public string MarkerReference { get; set; }
+    }
+
+    internal sealed class BehaviorInteractionResultScriptTargetMappingEvidence
+    {
+        public string SourceSearchBoxInstanceId { get; set; }
+
+        public string TargetSearchBoxInstanceId { get; set; }
+
+        public string SourceProviderInstanceId { get; set; }
+
+        public string TargetProviderInstanceId { get; set; }
+
+        public string SourceDynamicRegionId { get; set; }
+
+        public string TargetDynamicRegionId { get; set; }
+
+        public string SourcePageIdentity { get; set; }
+
+        public string SourcePageVersion { get; set; }
+
+        public string TargetPageIdentity { get; set; }
+
+        public string TargetPageVersion { get; set; }
+
+        public string EvidenceReference { get; set; }
+    }
+
+    internal sealed class BehaviorInteractionResultScriptLeaseEvidence
+    {
+        public string LeaseId { get; set; }
+
+        public string Status { get; set; }
+
+        public DateTimeOffset ActiveFromUtc { get; set; }
+
+        public DateTimeOffset RetainThroughUtc { get; set; }
+
+        public DateTimeOffset? ReleasedAtUtc { get; set; }
+
+        public string EvidenceReference { get; set; }
+    }
+
+    internal sealed class BehaviorInteractionResultScriptConsumerTopologyEvidence
+    {
+        public BehaviorInteractionResultScriptProviderEvidence SourceProvider { get; set; }
+
+        public BehaviorInteractionResultScriptProviderEvidence TargetProvider { get; set; }
+
+        public BehaviorInteractionResultScriptTargetMappingEvidence TargetMapping { get; set; }
+
+        public BehaviorInteractionResultScriptLeaseEvidence Lease { get; set; }
+
+        public string SearchBoxQueryGroupName { get; set; }
+
+        public string AdmittedReviewedConfigurationDigest { get; set; }
+
+        public DateTimeOffset TargetReadbackNotBeforeUtc { get; set; }
+
+        public DateTimeOffset RuntimeFinalEvidenceAtUtc { get; set; }
+
+        public string ProviderInventoryEvidenceReference { get; set; }
+    }
+
     internal sealed class BehaviorInteractionSearchSubmitSourceEvidence
     {
         public RuntimeVerificationAssertion Assertion { get; set; }
@@ -73,6 +172,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
         public BehaviorInteractionTypedVerdictPolicy TypedVerdictPolicy { get; set; }
 
         public BehaviorInteractionSearchConfiguration SearchConfiguration { get; set; }
+
+        public BehaviorInteractionResultScriptConsumerTopologyEvidence ResultScriptTopology { get; set; }
 
         public ArtifactReference RawArtifact { get; set; }
 

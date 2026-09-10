@@ -100,6 +100,62 @@
     "updatePageTitle": false,
     "msBeforeShowingProgress": 500
   },
+  "resultScriptConsumerTopology": {
+    "sourceProvider": {
+      "canonicalProviderInstanceId": "f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "canonicalDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "pageIdentity": "urn:sha256:ea214daa09222c86deaf0aa4b6d91a86748450a124799a5716c8239fbb7c4f7b",
+      "pageVersion": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
+      "providerType": "Microsoft.Office.Server.Search.WebControls.ResultScriptWebPart",
+      "queryGroupName": "Default",
+      "updateAjaxNavigate": true,
+      "configurationDigest": "7b858d82f7664a9f34d2649ab092ad63a22c4f697184098fdf7d4c73594c538e",
+      "observedAtUtc": "2026-09-09T19:28:07.652Z",
+      "availability": "available",
+      "operationReference": "operation:ccd109-row1-source-readback"
+    },
+    "targetProvider": {
+      "canonicalProviderInstanceId": "9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
+      "canonicalDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:target:9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
+      "pageIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+      "pageVersion": "fixture-target-v1",
+      "providerType": "Microsoft.Office.Server.Search.WebControls.ResultScriptWebPart",
+      "queryGroupName": "Default",
+      "updateAjaxNavigate": true,
+      "configurationDigest": "7b858d82f7664a9f34d2649ab092ad63a22c4f697184098fdf7d4c73594c538e",
+      "observedAtUtc": "2026-09-10T05:31:00Z",
+      "availability": "available",
+      "cleanupObservedAtUtc": null,
+      "operationReference": "operation:ccd347-fixture-provider-readback-v1",
+      "markerReference": "marker:ccd347-fixture-target-v1"
+    },
+    "targetMapping": {
+      "sourceSearchBoxInstanceId": "e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
+      "targetSearchBoxInstanceId": "e8d14bc1-22c9-4ccb-a989-63ea29924a75",
+      "sourceProviderInstanceId": "f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "targetProviderInstanceId": "9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
+      "sourceDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "targetDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:target:9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
+      "sourcePageIdentity": "urn:sha256:ea214daa09222c86deaf0aa4b6d91a86748450a124799a5716c8239fbb7c4f7b",
+      "sourcePageVersion": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
+      "targetPageIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+      "targetPageVersion": "fixture-target-v1",
+      "evidenceReference": "target-mapping.fixture.json"
+    },
+    "lease": {
+      "leaseId": "ccd347-search-inplace-cfa6f409-v1",
+      "status": "active",
+      "activeFromUtc": "2026-09-10T05:20:00Z",
+      "retainThroughUtc": "2026-09-10T06:00:00Z",
+      "releasedAtUtc": null,
+      "evidenceReference": "lease-ledger.fixture.json#ccd347-search-inplace-cfa6f409-v1"
+    },
+    "searchBoxQueryGroupName": "Default",
+    "admittedReviewedConfigurationDigest": "7b858d82f7664a9f34d2649ab092ad63a22c4f697184098fdf7d4c73594c538e",
+    "targetReadbackNotBeforeUtc": "2026-09-10T05:30:00Z",
+    "runtimeFinalEvidenceAtUtc": "2026-09-10T05:45:00Z",
+    "providerInventoryEvidenceReference": "provider-inventory.fixture.json"
+  },
   "redaction": {
     "rawSourceHtmlIncluded": false,
     "credentialsIncluded": false,

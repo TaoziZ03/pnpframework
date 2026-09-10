@@ -91,6 +91,33 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
         }
 
         [TestMethod]
+        public void FixtureCarriesMappedResultScriptTopologyAndActiveLease()
+        {
+            using var document = LoadFixture();
+            var topology = document.RootElement.GetProperty("resultScriptConsumerTopology");
+            var source = topology.GetProperty("sourceProvider");
+            var target = topology.GetProperty("targetProvider");
+            var mapping = topology.GetProperty("targetMapping");
+            var lease = topology.GetProperty("lease");
+
+            Assert.AreEqual("f869d623-017d-42ff-90e8-b5bf14fff9b3", source.GetProperty("canonicalProviderInstanceId").GetString());
+            Assert.AreEqual("Microsoft.Office.Server.Search.WebControls.ResultScriptWebPart", target.GetProperty("providerType").GetString());
+            Assert.AreEqual("Default", target.GetProperty("queryGroupName").GetString());
+            Assert.IsTrue(target.GetProperty("updateAjaxNavigate").GetBoolean());
+            Assert.AreEqual(
+                target.GetProperty("canonicalProviderInstanceId").GetString(),
+                mapping.GetProperty("targetProviderInstanceId").GetString());
+            Assert.AreEqual(
+                target.GetProperty("pageIdentity").GetString(),
+                mapping.GetProperty("targetPageIdentity").GetString());
+            Assert.AreEqual("ccd347-search-inplace-cfa6f409-v1", lease.GetProperty("leaseId").GetString());
+            Assert.AreEqual("active", lease.GetProperty("status").GetString());
+            Assert.IsTrue(
+                lease.GetProperty("retainThroughUtc").GetDateTimeOffset()
+                    >= topology.GetProperty("runtimeFinalEvidenceAtUtc").GetDateTimeOffset());
+        }
+
+        [TestMethod]
         public void ForeignActionBindingFailsClosed()
         {
             using var document = LoadFixture();

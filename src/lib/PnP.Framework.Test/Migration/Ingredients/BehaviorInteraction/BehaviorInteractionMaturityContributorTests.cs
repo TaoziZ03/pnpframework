@@ -39,10 +39,10 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
         }
 
         [TestMethod]
-        public void MatchingFreshTargetObservationsCloseM1ThroughSharedEvaluator()
+        public void MappedFreshTargetTopologyClosesM1ThroughSharedEvaluator()
         {
             var fixture = Fixture.Create();
-            fixture.AddMatchingTargetObservations();
+            fixture.AddMappedTargetTopologyReadback();
 
             var assessment = fixture.Evaluate();
 
@@ -51,11 +51,39 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.PerValueObservation).Status);
         }
 
+        [DataTestMethod]
+        [DataRow("missing-provider")]
+        [DataRow("wrong-mapping")]
+        [DataRow("wrong-group")]
+        [DataRow("stale-readback")]
+        [DataRow("cleanup-before-runtime")]
+        public void InvalidResultProviderTopologyStopsBeforeSubmit(string mutation)
+        {
+            var fixture = Fixture.Create();
+            fixture.MutateTargetTopology(mutation);
+            fixture.AddMappedTargetTopologyReadback();
+
+            var normalized = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(
+                fixture.Context,
+                fixture.Evidence.Source);
+            var assessment = fixture.Evaluate();
+            var targetGate = Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback);
+
+            Assert.IsFalse(normalized.TargetRuntimePreconditionPassed);
+            Assert.AreEqual(
+                BehaviorInteractionSearchSubmitEvidenceNormalizer.DependentResultProviderMissing,
+                normalized.TargetRuntimePreconditionReasonCode);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, targetGate.Status);
+            StringAssert.StartsWith(
+                targetGate.FailureReason,
+                BehaviorInteractionSearchSubmitEvidenceNormalizer.DependentResultProviderMissing + ":");
+        }
+
         [TestMethod]
         public void MismatchedFreshTargetTransitionValueFailsClosed()
         {
             var fixture = Fixture.Create();
-            fixture.AddMatchingTargetObservations();
+            fixture.AddMappedTargetTopologyReadback();
             fixture.Evidence.Live.Observations.Single(value =>
                 value.Origin == IngredientObservationOrigin.CupCollectFreshReadback
                 && value.ValuePath == "action.maximumAttempts").ValueDigest = new string('0', 64);
@@ -70,7 +98,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
         public void HistoricalSubstitutionCannotCloseFreshTargetGate()
         {
             var fixture = Fixture.Create();
-            fixture.AddMatchingTargetObservations();
+            fixture.AddMappedTargetTopologyReadback();
             fixture.Evidence.Live.HistoricalOrSyntheticSubstitution = true;
 
             var assessment = fixture.Evaluate();
@@ -116,8 +144,6 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
 
         private sealed class Fixture
         {
-            private readonly DateTimeOffset sourceObservedAtUtc = DateTimeOffset.Parse("2026-09-09T19:28:07.652Z");
-
             private Fixture(
                 IngredientMaturityEvaluationContext context,
                 BehaviorInteractionMaturityEvidence evidence)
@@ -199,6 +225,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 var boundary = assertionValue.GetProperty("runtimeBoundary");
                 var verdicts = assertionValue.GetProperty("typedVerdictPolicy");
                 var configuration = root.GetProperty("sourceConfiguration");
+                var topology = root.GetProperty("resultScriptConsumerTopology");
                 var bytes = Encoding.UTF8.GetBytes(fixtureJson);
                 var sourceEvidence = new BehaviorInteractionSearchSubmitSourceEvidence
                 {
@@ -249,6 +276,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         UpdatePageTitle = configuration.GetProperty("updatePageTitle").GetBoolean(),
                         MsBeforeShowingProgress = configuration.GetProperty("msBeforeShowingProgress").GetInt32()
                     },
+                    ResultScriptTopology = ResultScriptTopology(topology),
                     RawArtifact = new ArtifactReference
                     {
                         Sha256 = MigrationDigest.ComputeSha256(bytes),
@@ -301,7 +329,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 var normalized = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(context, sourceEvidence);
                 sourceEvidence.SemanticDigest = MigrationDigest.ComputeSha256(normalized.SemanticCanonicalJson);
                 context.Source.SourceSnapshotDigest = sourceEvidence.SemanticDigest;
-                var observations = normalized.ValueDigests.Select(value => new IngredientValueObservation
+                var observations = normalized.SourceValueDigests.Select(value => new IngredientValueObservation
                 {
                     ValuePath = value.Key,
                     ValueDigest = value.Value,
@@ -338,21 +366,52 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     new IngredientMaturityContributorCatalog(new[] { contributor }));
             }
 
-            public void AddMatchingTargetObservations()
+            public void AddMappedTargetTopologyReadback()
             {
-                foreach (var source in Evidence.Live.Observations.ToArray())
+                var normalized = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(Context, Evidence.Source);
+                foreach (var target in normalized.TargetValueDigests)
                 {
                     Evidence.Live.Observations.Add(new IngredientValueObservation
                     {
-                        ValuePath = source.ValuePath,
-                        ValueDigest = source.ValueDigest,
-                        ObservedAtUtc = sourceObservedAtUtc.AddMinutes(1),
+                        ValuePath = target.Key,
+                        ValueDigest = target.Value,
+                        ObservedAtUtc = Evidence.Source.ResultScriptTopology.TargetProvider?.ObservedAtUtc
+                            ?? Evidence.Source.ResultScriptTopology.RuntimeFinalEvidenceAtUtc,
                         Origin = IngredientObservationOrigin.CupCollectFreshReadback,
-                        EvidenceReference = "cupcollect-runtime-readback.json#" + source.ValuePath
+                        EvidenceReference = "cupcollect-runtime-readback.json#" + target.Key
                     });
                 }
                 Evidence.Live.TargetFreshReadback = true;
                 Evidence.Live.TargetEvidenceReferences.Add("cupcollect-runtime-readback.json");
+            }
+
+            public void MutateTargetTopology(string mutation)
+            {
+                var topology = Evidence.Source.ResultScriptTopology;
+                switch (mutation)
+                {
+                    case "missing-provider":
+                        topology.TargetProvider = null;
+                        break;
+                    case "wrong-mapping":
+                        topology.TargetMapping.TargetProviderInstanceId = "11111111-1111-1111-1111-111111111111";
+                        break;
+                    case "wrong-group":
+                        topology.TargetProvider.QueryGroupName = "WrongGroup";
+                        break;
+                    case "stale-readback":
+                        topology.TargetProvider.ObservedAtUtc = topology.TargetReadbackNotBeforeUtc.AddSeconds(-1);
+                        break;
+                    case "cleanup-before-runtime":
+                        topology.TargetProvider.Availability = BehaviorInteractionProviderAvailability.Cleaned;
+                        topology.TargetProvider.CleanupObservedAtUtc = topology.RuntimeFinalEvidenceAtUtc.AddMinutes(-1);
+                        topology.Lease.Status = "released";
+                        topology.Lease.ReleasedAtUtc = topology.TargetProvider.CleanupObservedAtUtc;
+                        break;
+                    default:
+                        Assert.Fail("Unknown target topology mutation " + mutation);
+                        break;
+                }
             }
 
             public void Mutate(string mutation)
@@ -396,6 +455,92 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         Assert.Fail("Unknown mutation " + mutation);
                         break;
                 }
+            }
+
+            private static BehaviorInteractionResultScriptConsumerTopologyEvidence ResultScriptTopology(
+                JsonElement value)
+            {
+                var source = value.GetProperty("sourceProvider");
+                var target = value.GetProperty("targetProvider");
+                var mapping = value.GetProperty("targetMapping");
+                var lease = value.GetProperty("lease");
+                return new BehaviorInteractionResultScriptConsumerTopologyEvidence
+                {
+                    SourceProvider = Provider(source),
+                    TargetProvider = Provider(target),
+                    TargetMapping = new BehaviorInteractionResultScriptTargetMappingEvidence
+                    {
+                        SourceSearchBoxInstanceId = mapping.GetProperty("sourceSearchBoxInstanceId").GetString(),
+                        TargetSearchBoxInstanceId = mapping.GetProperty("targetSearchBoxInstanceId").GetString(),
+                        SourceProviderInstanceId = mapping.GetProperty("sourceProviderInstanceId").GetString(),
+                        TargetProviderInstanceId = mapping.GetProperty("targetProviderInstanceId").GetString(),
+                        SourceDynamicRegionId = mapping.GetProperty("sourceDynamicRegionId").GetString(),
+                        TargetDynamicRegionId = mapping.GetProperty("targetDynamicRegionId").GetString(),
+                        SourcePageIdentity = mapping.GetProperty("sourcePageIdentity").GetString(),
+                        SourcePageVersion = mapping.GetProperty("sourcePageVersion").GetString(),
+                        TargetPageIdentity = mapping.GetProperty("targetPageIdentity").GetString(),
+                        TargetPageVersion = mapping.GetProperty("targetPageVersion").GetString(),
+                        EvidenceReference = mapping.GetProperty("evidenceReference").GetString()
+                    },
+                    Lease = new BehaviorInteractionResultScriptLeaseEvidence
+                    {
+                        LeaseId = lease.GetProperty("leaseId").GetString(),
+                        Status = lease.GetProperty("status").GetString(),
+                        ActiveFromUtc = lease.GetProperty("activeFromUtc").GetDateTimeOffset(),
+                        RetainThroughUtc = lease.GetProperty("retainThroughUtc").GetDateTimeOffset(),
+                        ReleasedAtUtc = NullableDate(lease.GetProperty("releasedAtUtc")),
+                        EvidenceReference = lease.GetProperty("evidenceReference").GetString()
+                    },
+                    SearchBoxQueryGroupName = value.GetProperty("searchBoxQueryGroupName").GetString(),
+                    AdmittedReviewedConfigurationDigest = value.GetProperty("admittedReviewedConfigurationDigest").GetString(),
+                    TargetReadbackNotBeforeUtc = value.GetProperty("targetReadbackNotBeforeUtc").GetDateTimeOffset(),
+                    RuntimeFinalEvidenceAtUtc = value.GetProperty("runtimeFinalEvidenceAtUtc").GetDateTimeOffset(),
+                    ProviderInventoryEvidenceReference = value.GetProperty("providerInventoryEvidenceReference").GetString()
+                };
+            }
+
+            private static BehaviorInteractionResultScriptProviderEvidence Provider(JsonElement value)
+            {
+                return new BehaviorInteractionResultScriptProviderEvidence
+                {
+                    CanonicalProviderInstanceId = value.GetProperty("canonicalProviderInstanceId").GetString(),
+                    CanonicalDynamicRegionId = value.GetProperty("canonicalDynamicRegionId").GetString(),
+                    PageIdentity = value.GetProperty("pageIdentity").GetString(),
+                    PageVersion = value.GetProperty("pageVersion").GetString(),
+                    ProviderType = value.GetProperty("providerType").GetString(),
+                    QueryGroupName = value.GetProperty("queryGroupName").GetString(),
+                    UpdateAjaxNavigate = value.GetProperty("updateAjaxNavigate").GetBoolean(),
+                    ConfigurationDigest = value.GetProperty("configurationDigest").GetString(),
+                    ObservedAtUtc = value.GetProperty("observedAtUtc").GetDateTimeOffset(),
+                    Availability = ProviderAvailability(value.GetProperty("availability").GetString()),
+                    CleanupObservedAtUtc = value.TryGetProperty("cleanupObservedAtUtc", out var cleanup)
+                        ? NullableDate(cleanup)
+                        : null,
+                    OperationReference = value.GetProperty("operationReference").GetString(),
+                    MarkerReference = value.TryGetProperty("markerReference", out var marker)
+                        ? marker.GetString()
+                        : null
+                };
+            }
+
+            private static BehaviorInteractionProviderAvailability ProviderAvailability(string value)
+            {
+                switch (value)
+                {
+                    case "available":
+                        return BehaviorInteractionProviderAvailability.Available;
+                    case "missing":
+                        return BehaviorInteractionProviderAvailability.Missing;
+                    case "cleaned":
+                        return BehaviorInteractionProviderAvailability.Cleaned;
+                    default:
+                        return BehaviorInteractionProviderAvailability.Unknown;
+                }
+            }
+
+            private static DateTimeOffset? NullableDate(JsonElement value)
+            {
+                return value.ValueKind == JsonValueKind.Null ? null : value.GetDateTimeOffset();
             }
 
             private static RuntimeVerificationStateExpectation State(JsonElement value)

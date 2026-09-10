@@ -36,7 +36,13 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             var live = BehaviorInteractionSearchSubmitEvidenceNormalizer.ProjectLiveEvidence(evidence.Live, normalized);
             if (live != null)
             {
-                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(live));
+                var liveReceipts = IngredientMaturityEvidenceValidator.ValidateM1(live).ToList();
+                FailClosed(
+                    liveReceipts,
+                    IngredientMaturityGateCatalog.CupCollectFreshReadback,
+                    normalized.TargetRuntimePreconditionPassed,
+                    normalized.TargetRuntimePreconditionReasonCode + ": " + normalized.TargetRuntimePreconditionFailure);
+                receipts.AddRange(liveReceipts);
             }
             if (evidence.Source != null)
             {
