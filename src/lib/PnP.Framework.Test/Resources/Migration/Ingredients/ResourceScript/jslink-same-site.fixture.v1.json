@@ -1,0 +1,42 @@
+{
+  "schema": "pnp-resource-script-jslink-fixture/v1",
+  "fixtureId": "resource-script-jslink-same-site-positive-v1",
+  "provenance": {
+    "derivedFromClaimId": "bf157aae38e9e5b8c2b2b98d4ecf778e27ec887738b2bb8b237ce25b7cbacc02",
+    "containsCustomerIdentity": false,
+    "containsSourceScriptBytes": false,
+    "networkRequired": false,
+    "currentTimeRequired": false
+  },
+  "source": {
+    "siteId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "webId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "pageUniqueId": "11111111-1111-4111-8111-111111111111",
+    "pageItemId": 2,
+    "pageETag": "\"{11111111-1111-4111-8111-111111111111},6\"",
+    "webUrl": "https://source.example.invalid/sites/canary",
+    "pageServerRelativeUrl": "/sites/canary/SitePages/defaulttest.aspx"
+  },
+  "host": {
+    "instanceId": "22222222-2222-4222-8222-222222222222",
+    "title": "Posts",
+    "zoneIndex": 1,
+    "embeddedCompanionJSLink": "sp.ui.blogs.js"
+  },
+  "ingredient": {
+    "kind": "Reference",
+    "subtype": "reference.jslink",
+    "semanticRole": "Posts list-view Web Part persisted JSLink binding to a same-site script asset",
+    "rawLocator": "~Site/SiteAssets/canary.js",
+    "normalizedLocator": "https://source.example.invalid/sites/canary/SiteAssets/canary.js",
+    "sourceRelativePath": "/sites/canary/SiteAssets/canary.js",
+    "persistedReferenceOrder": 0,
+    "payload": {
+      "file": "canary.js",
+      "bytes": 39,
+      "sha256": "f061f39016e8aac5ce814c0b5786cd29a35f7f2a0551985fecb679f35c41982a",
+      "contentType": "application/javascript",
+      "encoding": "us-ascii"
+    }
+  }
+}
