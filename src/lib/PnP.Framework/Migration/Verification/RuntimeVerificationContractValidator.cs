@@ -129,11 +129,77 @@ namespace PnP.Framework.Migration.Verification
                     expectedTargetIdentity,
                     executionStartedAtUtc);
             }
-            var allPassed = results.All(value => value.Passed);
-            if ((allPassed && receipt.Status != RuntimeVerificationStatus.Passed)
-                || (!allPassed && receipt.Status != RuntimeVerificationStatus.Failed))
+            ValidateAggregateStatus(manifest, receipt);
+        }
+
+        /// <summary>
+        /// Validates the single aggregate status shared by legacy required
+        /// results and v2 assertion results. Optional legacy requirements do
+        /// not affect the aggregate outcome.
+        /// </summary>
+        public static void ValidateAggregateStatus(
+            RuntimeVerificationManifest manifest,
+            RuntimeVerificationReceipt receipt)
+        {
+            if (manifest == null || receipt == null)
             {
-                throw new InvalidDataException("The runtime receipt status does not agree with its assertion results.");
+                throw new InvalidDataException("Runtime verification requires both a manifest and a receipt.");
+            }
+
+            var requirements = (manifest.Requirements ?? Array.Empty<RuntimeVerificationRequirement>()).ToArray();
+            var required = requirements.Where(value => value != null && value.Required).ToArray();
+            var results = (receipt.Results ?? Array.Empty<RuntimeVerificationResult>()).ToArray();
+            var duplicateResult = results
+                .GroupBy(value => value?.RequirementId ?? string.Empty, StringComparer.Ordinal)
+                .FirstOrDefault(group => string.IsNullOrWhiteSpace(group.Key) || group.Count() != 1);
+            var knownRequirementIds = new HashSet<string>(
+                requirements.Where(value => value != null).Select(value => value.Id),
+                StringComparer.Ordinal);
+            if (duplicateResult != null
+                || results.Any(value => value == null || !knownRequirementIds.Contains(value.RequirementId)))
+            {
+                throw new InvalidDataException("Runtime results contain a missing, duplicate, or unknown requirement ID.");
+            }
+            if (required.Any(requirement => results.Count(result => string.Equals(
+                    result.RequirementId,
+                    requirement.Id,
+                    StringComparison.Ordinal)) != 1))
+            {
+                throw new InvalidDataException("The runtime receipt does not cover every required requirement exactly once.");
+            }
+
+            var assertions = string.Equals(manifest.SchemaVersion, ManifestSchemaV2, StringComparison.Ordinal)
+                ? (manifest.Assertions ?? Array.Empty<RuntimeVerificationAssertion>()).ToArray()
+                : Array.Empty<RuntimeVerificationAssertion>();
+            var assertionResults = receipt.AssertionResults ?? Array.Empty<RuntimeVerificationAssertionResult>();
+            if (assertions.Length > 0
+                && (assertionResults.Count != assertions.Length
+                    || assertions.Any(assertion => assertionResults.Count(result => result != null
+                        && string.Equals(result.AssertionId, assertion.AssertionId, StringComparison.Ordinal)) != 1)))
+            {
+                throw new InvalidDataException("The runtime receipt must contain exactly one result for each sealed assertion.");
+            }
+
+            var hasRequiredEvidence = required.Length > 0 || assertions.Length > 0;
+            var allRequiredPassed = required.All(requirement => results.Single(result => string.Equals(
+                result.RequirementId,
+                requirement.Id,
+                StringComparison.Ordinal)).Passed);
+            var allAssertionsPassed = assertions.All(assertion => assertionResults.Single(result => string.Equals(
+                result.AssertionId,
+                assertion.AssertionId,
+                StringComparison.Ordinal)).Passed);
+            var aggregatePassed = allRequiredPassed && allAssertionsPassed;
+            var validStatus = hasRequiredEvidence
+                ? receipt.Status == (aggregatePassed
+                    ? RuntimeVerificationStatus.Passed
+                    : RuntimeVerificationStatus.Failed)
+                : receipt.Status == RuntimeVerificationStatus.NotRequired
+                    || (string.Equals(manifest.SchemaVersion, ManifestSchemaV1, StringComparison.Ordinal)
+                        && receipt.Status == RuntimeVerificationStatus.Passed);
+            if (!validStatus)
+            {
+                throw new InvalidDataException("The runtime receipt status does not agree with required results and assertion results.");
             }
         }
 

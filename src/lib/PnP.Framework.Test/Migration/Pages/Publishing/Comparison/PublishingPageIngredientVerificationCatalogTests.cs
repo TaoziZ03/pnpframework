@@ -210,6 +210,52 @@ namespace PnP.Framework.Test.Migration.Pages.Publishing.Comparison
         }
 
         [TestMethod]
+        public void V1NoRequiredRuntimeEvidencePreservesPassedAndNotRequiredReaderCompatibility()
+        {
+            foreach (var optionalResultPassed in new[] { true, false })
+            {
+                var optionalRequest = CreateRequest();
+                foreach (var requirement in optionalRequest.Package.Plan.RuntimeVerification.Requirements)
+                {
+                    requirement.Required = false;
+                }
+                foreach (var result in optionalRequest.RuntimeReceipt.Results)
+                {
+                    result.Passed = optionalResultPassed;
+                }
+                ResealV1RuntimeRequest(optionalRequest);
+                Assert.AreEqual("not-required", Reconcile(optionalRequest).Runtime.Status);
+            }
+
+            var optionalNotRequiredRequest = CreateRequest();
+            foreach (var requirement in optionalNotRequiredRequest.Package.Plan.RuntimeVerification.Requirements)
+            {
+                requirement.Required = false;
+            }
+            optionalNotRequiredRequest.RuntimeReceipt.Status = RuntimeVerificationStatus.NotRequired;
+            ResealV1RuntimeRequest(optionalNotRequiredRequest);
+            Assert.AreEqual("not-required", Reconcile(optionalNotRequiredRequest).Runtime.Status);
+
+            foreach (var status in new[]
+            {
+                RuntimeVerificationStatus.Passed,
+                RuntimeVerificationStatus.NotRequired
+            })
+            {
+                var emptyRequest = CreateRequest();
+                emptyRequest.Package.Plan.RuntimeVerification.Requirements.Clear();
+                emptyRequest.RuntimeReceipt.Results.Clear();
+                foreach (var observation in emptyRequest.Ingredients)
+                {
+                    observation.RuntimeRequirementId = null;
+                }
+                emptyRequest.RuntimeReceipt.Status = status;
+                ResealV1RuntimeRequest(emptyRequest);
+                Assert.AreEqual("not-required", Reconcile(emptyRequest).Runtime.Status);
+            }
+        }
+
+        [TestMethod]
         public void V2AssertionResultsContributeDeterministicCompareRowsAndPendingCoverage()
         {
             var request = CreateRequest();
@@ -243,6 +289,47 @@ namespace PnP.Framework.Test.Migration.Pages.Publishing.Comparison
                 catalog,
                 new PermissiveArtifactStore());
             Assert.AreEqual(PublishingPageCompareContract.ResultClasses.RuntimePending, pending.Assertions[0].ResultClass);
+        }
+
+        [TestMethod]
+        public void V2RequirementAndAssertionOutcomeMatrixReachesCompare()
+        {
+            foreach (var requirementPassed in new[] { true, false })
+            {
+                foreach (var assertionPassed in new[] { true, false })
+                {
+                    var request = CreateRequest(runtimePassed: requirementPassed);
+                    UpgradeToV2Assertion(request);
+                    request.RuntimeReceipt.AssertionResults[0].Passed = assertionPassed;
+                    request.RuntimeReceipt.AssertionResults[0].FailureReasonCode = assertionPassed
+                        ? null
+                        : "ASSERTION_FAILED";
+                    request.RuntimeReceipt.Status = requirementPassed && assertionPassed
+                        ? RuntimeVerificationStatus.Passed
+                        : RuntimeVerificationStatus.Failed;
+                    request.ImportReceipt.RuntimeVerificationStatus = request.RuntimeReceipt.Status;
+                    request.ImportReceiptDigestSha256 = ContractDigest(request.ImportReceipt);
+                    request.Bindings.ImportReceiptDigestSha256 = request.ImportReceiptDigestSha256;
+                    request.RuntimeReceiptDigestSha256 = ContractDigest(request.RuntimeReceipt);
+                    request.Bindings.RuntimeReceiptDigestSha256 = request.RuntimeReceiptDigestSha256;
+
+                    var report = PublishingPageCompareReconciler.ReconcileWithContributors(
+                        request,
+                        new PublishingPageIngredientVerificationCatalog(
+                            PublishingPageIngredientHandlerCatalog.Empty,
+                            Array.Empty<IPublishingPageIngredientVerificationContributor>()),
+                        new PermissiveArtifactStore());
+
+                    Assert.AreEqual(
+                        requirementPassed && assertionPassed ? "passed" : "failed",
+                        report.Runtime.Status);
+                    Assert.AreEqual(
+                        assertionPassed
+                            ? PublishingPageCompareContract.ResultClasses.Exact
+                            : PublishingPageCompareContract.ResultClasses.Mismatch,
+                        report.Assertions.Single().ResultClass);
+                }
+            }
         }
 
         private static IngredientCompareObservation FreshObservation(
@@ -546,6 +633,29 @@ namespace PnP.Framework.Test.Migration.Pages.Publishing.Comparison
             };
             request.RuntimeReceiptDigestSha256 = ContractDigest(request.RuntimeReceipt);
             request.Bindings.RuntimeReceiptSchemaVersion = request.RuntimeReceipt.SchemaVersion;
+            request.Bindings.RuntimeReceiptDigestSha256 = request.RuntimeReceiptDigestSha256;
+        }
+
+        private static PublishingPageCompareReport Reconcile(PublishingPageCompareRequest request)
+        {
+            return PublishingPageCompareReconciler.ReconcileWithContributors(
+                request,
+                new PublishingPageIngredientVerificationCatalog(
+                    PublishingPageIngredientHandlerCatalog.Empty,
+                    Array.Empty<IPublishingPageIngredientVerificationContributor>()),
+                new PermissiveArtifactStore());
+        }
+
+        private static void ResealV1RuntimeRequest(PublishingPageCompareRequest request)
+        {
+            request.Package.PlanDigest = PublishingPageDigest.ComputePlanDigest(request.Package.Plan);
+            request.Bindings.PlanDigestSha256 = request.Package.PlanDigest;
+            request.ImportReceipt.ApprovedPlanDigest = request.Package.PlanDigest;
+            request.ImportReceipt.RuntimeVerificationStatus = request.RuntimeReceipt.Status;
+            request.RuntimeReceipt.PlanDigest = request.Package.PlanDigest;
+            request.ImportReceiptDigestSha256 = ContractDigest(request.ImportReceipt);
+            request.Bindings.ImportReceiptDigestSha256 = request.ImportReceiptDigestSha256;
+            request.RuntimeReceiptDigestSha256 = ContractDigest(request.RuntimeReceipt);
             request.Bindings.RuntimeReceiptDigestSha256 = request.RuntimeReceiptDigestSha256;
         }
 

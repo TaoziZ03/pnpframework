@@ -91,7 +91,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             }
         }
 
-        private static void BindBuiltInNode(PublishingPageCaptureBundle snapshot, PageIngredientNode node)
+        internal static void BindBuiltInNode(PublishingPageCaptureBundle snapshot, PageIngredientNode node)
         {
             var tuple = Classify(snapshot, node);
             node.Subtype = tuple.Subtype;
@@ -135,6 +135,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 case PageIngredientKind.View:
                     return ("view.generic", "dependency-provider", "view.captured-list-view");
                 case PageIngredientKind.Asset:
+                    var asset = PublishingPagePageReferenceAssetGraphProjector.FindSourceNode(snapshot, node.Id);
+                    if (asset != null)
+                    {
+                        return (asset.Subtype, asset.SemanticRole, asset.SourcePredicateId);
+                    }
                     return ("asset.other", "unassigned-typed-asset", "asset.non-image-file-script");
                 case PageIngredientKind.Taxonomy:
                     return ("taxonomy.generic", "taxonomy-binding-or-term-relationship", "taxonomy.typed-relationship");
@@ -331,6 +336,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     return node.Id?.StartsWith("list:", StringComparison.Ordinal) == true;
                 case "view.captured-list-view":
                     return node.Id?.StartsWith("view:", StringComparison.Ordinal) == true;
+                case "asset.typed-image":
+                case "asset.direct-page-file":
+                    return PublishingPagePageReferenceAssetGraphProjector.MatchesSourceNode(snapshot, node)
+                        && string.Equals(node.SourcePageOrListItemIdentity, SourceIdentity(snapshot, node), StringComparison.Ordinal)
+                        && string.Equals(node.SourceVersionIdentity, SourceVersionIdentity(snapshot), StringComparison.Ordinal);
                 case "asset.non-image-file-script":
                     return node.Id?.StartsWith("layout-resource:", StringComparison.Ordinal) == true
                         || node.Id?.StartsWith("view-rendering-resource:", StringComparison.Ordinal) == true;
