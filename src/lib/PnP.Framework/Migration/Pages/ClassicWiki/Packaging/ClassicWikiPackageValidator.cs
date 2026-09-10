@@ -81,8 +81,21 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
             {
                 throw new InvalidDataException("Migration package requires a sealed target Web URL and identity.");
             }
-            if (!Uri.TryCreate(package.Plan.TargetLocation.TargetWebUrl, UriKind.Absolute, out var targetWebUri)
-                || !PagePath.IsWithin(
+            if (!TryCreateCanonicalTargetWebUri(
+                    package.Plan.TargetLocation.TargetWebUrl,
+                    out var targetWebUri)
+                || !IsCanonicalServerRelativePath(
+                    package.Plan.TargetLocation.TargetLibraryServerRelativeUrl)
+                || !IsCanonicalServerRelativePath(
+                    package.Plan.TargetLocation.TargetFolderServerRelativeUrl)
+                || !IsCanonicalServerRelativePath(
+                    package.Plan.TargetPageServerRelativeUrl)
+                || !IsCanonicalFileName(package.Plan.TargetLocation.FileName))
+            {
+                throw new InvalidDataException(
+                    "Target Web, library, folder, page, and file paths must be canonical and must not contain dot segments.");
+            }
+            if (!PagePath.IsWithin(
                     package.Plan.TargetLocation.TargetLibraryServerRelativeUrl,
                     Uri.UnescapeDataString(targetWebUri.AbsolutePath))
                 || !PagePath.IsWithin(
@@ -158,6 +171,60 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
         private static string CombineServerRelative(string folder, string fileName)
         {
             return (folder ?? string.Empty).TrimEnd('/') + "/" + (fileName ?? string.Empty).TrimStart('/');
+        }
+
+        private static bool TryCreateCanonicalTargetWebUri(string value, out Uri targetWebUri)
+        {
+            targetWebUri = null;
+            if (!Uri.TryCreate(value, UriKind.Absolute, out var parsed)
+                || string.IsNullOrEmpty(parsed.Host)
+                || !string.IsNullOrEmpty(parsed.Query)
+                || !string.IsNullOrEmpty(parsed.Fragment))
+            {
+                return false;
+            }
+
+            var authorityEnd = value.IndexOf("://", StringComparison.Ordinal);
+            if (authorityEnd < 0)
+            {
+                return false;
+            }
+            var pathStart = value.IndexOf('/', authorityEnd + 3);
+            var originalPath = pathStart < 0 ? "/" : value.Substring(pathStart);
+            if (!IsCanonicalServerRelativePath(originalPath))
+            {
+                return false;
+            }
+
+            targetWebUri = parsed;
+            return true;
+        }
+
+        private static bool IsCanonicalServerRelativePath(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)
+                || !value.StartsWith("/", StringComparison.Ordinal)
+                || value.IndexOf('\\') >= 0
+                || value.IndexOf('?') >= 0
+                || value.IndexOf('#') >= 0)
+            {
+                return false;
+            }
+
+            return !value.Split('/').Any(segment =>
+                string.Equals(segment, ".", StringComparison.Ordinal)
+                || string.Equals(segment, "..", StringComparison.Ordinal));
+        }
+
+        private static bool IsCanonicalFileName(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value)
+                && value.IndexOf('/') < 0
+                && value.IndexOf('\\') < 0
+                && value.IndexOf('?') < 0
+                && value.IndexOf('#') < 0
+                && !string.Equals(value, ".", StringComparison.Ordinal)
+                && !string.Equals(value, "..", StringComparison.Ordinal);
         }
     }
 }
