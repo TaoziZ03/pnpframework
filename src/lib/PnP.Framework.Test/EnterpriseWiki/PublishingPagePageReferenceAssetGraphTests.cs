@@ -8,6 +8,7 @@ using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.References;
+using PnP.Framework.Utilities;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -163,19 +164,26 @@ namespace PnP.Framework.Test.EnterpriseWiki
         }
 
         [DataTestMethod]
-        [DataRow("denied-pdf")]
-        [DataRow("denied-txt")]
-        [DataRow("denied-png")]
-        [DataRow("valid-png")]
-        [DataRow("valid-pdf")]
-        [DataRow("empty-txt")]
-        [DataRow("missing-pdf-independent")]
-        public void R1SemanticAcquisitionProofClosesTheSevenProbeMatrix(string condition)
+        [DataRow("denied-pdf", ".pdf", "Anchor", "application/pdf")]
+        [DataRow("denied-txt", ".txt", "Anchor", "text/plain")]
+        [DataRow("denied-png", ".png", "Image", "image/png")]
+        [DataRow("valid-png", ".png", "Image", "image/png")]
+        [DataRow("valid-pdf", ".pdf", "Anchor", "application/pdf")]
+        [DataRow("empty-txt", ".txt", "Anchor", "text/plain")]
+        [DataRow("missing-pdf-independent", ".pdf", "Anchor", "application/pdf")]
+        public void R1SemanticAcquisitionProofClosesTheSevenProbeMatrix(
+            string condition, string extension, string referenceKind, string expectedMediaType)
         {
             var snapshot = CreateClaimSnapshot();
             var reference = snapshot.Dependencies.Single();
-            var expectedAssetPath = AssetPath;
-            var expectedPredicate = "asset.typed-image";
+            var expectedKind = (PageReferenceKind)Enum.Parse(typeof(PageReferenceKind), referenceKind);
+            var probePath = AssetPath.Replace(".png", extension);
+            reference.Kind = expectedKind;
+            ChangePath(reference, probePath);
+            var expectedAssetPath = probePath;
+            var expectedPredicate = expectedKind == PageReferenceKind.Image
+                ? "asset.typed-image"
+                : "asset.direct-page-file";
             string unavailablePath = null;
 
             switch (condition)
@@ -183,39 +191,36 @@ namespace PnP.Framework.Test.EnterpriseWiki
                 case "denied-pdf":
                 case "denied-txt":
                 case "denied-png":
-                    var extension = condition.Substring("denied".Length);
-                    unavailablePath = AssetPath.Replace(".png", extension);
-                    reference.Kind = extension == ".png" ? PageReferenceKind.Image : PageReferenceKind.Anchor;
-                    ChangePath(reference, unavailablePath);
+                    unavailablePath = probePath;
                     SetPayload(reference, Encoding.UTF8.GetBytes("<!doctype html><title>Access Denied</title>"));
                     var independent = Reference(snapshot, AssetPath.Replace("andManifest.png", "independent.png"), "img[src]");
                     snapshot.Dependencies.Add(independent);
                     expectedAssetPath = independent.SourceServerRelativeUrl;
+                    expectedPredicate = "asset.typed-image";
                     break;
                 case "valid-pdf":
-                    reference.Kind = PageReferenceKind.Anchor;
-                    ChangePath(reference, AssetPath.Replace(".png", ".pdf"));
                     SetPayload(reference, Encoding.UTF8.GetBytes("%PDF-1.4\nfixture\n%%EOF"));
-                    expectedAssetPath = reference.SourceServerRelativeUrl;
-                    expectedPredicate = "asset.direct-page-file";
                     break;
                 case "empty-txt":
-                    reference.Kind = PageReferenceKind.Anchor;
-                    ChangePath(reference, AssetPath.Replace(".png", ".txt"));
                     SetPayload(reference, Array.Empty<byte>());
-                    expectedAssetPath = reference.SourceServerRelativeUrl;
-                    expectedPredicate = "asset.direct-page-file";
                     break;
                 case "missing-pdf-independent":
-                    reference.Kind = PageReferenceKind.Anchor;
-                    unavailablePath = AssetPath.Replace(".png", ".pdf");
-                    ChangePath(reference, unavailablePath);
+                    unavailablePath = probePath;
                     reference.CaptureStatus = PageCaptureStatus.NotReturned;
                     var later = Reference(snapshot, AssetPath.Replace("andManifest.png", "independent.png"), "img[src]");
                     snapshot.Dependencies.Add(later);
                     expectedAssetPath = later.SourceServerRelativeUrl;
+                    expectedPredicate = "asset.typed-image";
                     break;
             }
+            StringAssert.EndsWith(reference.SourceServerRelativeUrl, extension);
+            Assert.AreEqual(expectedKind, reference.Kind);
+            var mediaTypes = new FileExtensionContentTypeProvider();
+            Assert.IsTrue(mediaTypes.TryGetContentType(reference.SourceServerRelativeUrl, out var actualMediaType));
+            Assert.AreEqual(expectedMediaType, actualMediaType);
+            var capturedBytes = Convert.FromBase64String(reference.ContentBase64);
+            Assert.AreEqual(capturedBytes.LongLength, reference.ContentLength);
+            Assert.AreEqual(MigrationDigest.ComputeSha256(capturedBytes), reference.ContentSha256);
             var retained = MigrationContractSerializer.SerializeCanonical(reference);
             var graph = Project(snapshot);
 
