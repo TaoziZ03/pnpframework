@@ -2,7 +2,7 @@
 
 Contract: `pnp-ingredient-maturity-assessment/v1`
 
-Evaluator: `pnp-ingredient-maturity-evaluator/v1`
+Evaluator: `pnp-ingredient-maturity-evaluator/v2`
 Scope: internal migration tooling. This revision does not add M0-M5 to the public PnP API.
 
 ## Decision
@@ -20,7 +20,36 @@ The assessment binds:
 - every required gate receipt, validator identity/version, and evidence references;
 - target maturity, computed attained maturity, confidence, first missing promotion gate, independent technical outcome, evaluator version, and canonical assessment digest.
 
-`behavior.interaction` uses work-item type `runtime-verification`, has no persisted `PageIngredientKind`, and identifies an assertion bound to canonical ingredient/action IDs in its lane evidence. All other lanes use `canonical-ingredient` and must resolve exactly one primary owner through `PublishingPageIngredientPrimaryOwnerRegistry`.
+`behavior.interaction` uses work-item type `runtime-verification`, has no persisted `PageIngredientKind`, and identifies an assertion bound to canonical ingredient/action IDs in its lane evidence. Its M0 call supplies `IngredientRuntimeAssertionEvidence`: a nonblank, matching source predicate, the existing canonical `PageIngredientNode`, and the existing `PageIngredientAction`. The action must address that node and list the assertion ID exactly once in `VerificationAssertions`; the dependency must match the claim's source identity/version/artifact digest. This is a read-only dependency, not ownership of the persisted node. All other lanes use `canonical-ingredient` and must resolve exactly one primary owner through `PublishingPageIngredientPrimaryOwnerRegistry`.
+
+## Consumer validation and trust boundary
+
+`ValidateAssessment(assessment)` revalidates the intrinsic summary after deserialization:
+
+- exact schema/evaluator versions and canonical digest;
+- complete, ordered M0-M5 levels and the single frozen gate catalog (no missing, extra, duplicate, reordered or misclassified gates);
+- recognized work-item/lane/kind/status/outcome enums, required identity/source/target/producer/predicate/reason fields;
+- supported common-validator identity/version, canonical references and passed/failed/missing gate metadata;
+- independently recomputed continuous `Levels[].Passed`, `AttainedMaturity`, `Confidence` and `MissingPromotionGate`.
+
+A canonical digest is **not a signature or an authenticity boundary**. A coherent replacement of an entire summary, including a valid different technical outcome or invented gate evidence, cannot be disproved from that same summary alone. Admission consumers must use:
+
+```csharp
+IngredientMaturityEvaluator.ValidateAssessment(
+    independentlyReadAssessment,
+    independentlyObtainedContext,
+    contributorsThatRevalidateOriginalEvidence);
+```
+
+This overload reruns the contributor/common-evaluator path against the independent context and compares the entire resulting canonical assessment. Never construct that context from the submitted assessment or implement a contributor by echoing its submitted gates. The overload binds `TechnicalOutcome` without inventing domain outcome rules. It also rejects a coherently reawarded missing gate. `Evaluate` returns a detached snapshot rather than retaining aliases to the caller's mutable bindings.
+
+## M1 observation binding
+
+Use `ValidateM1(context, liveEvidence)`. The consumer supplies `ObservationWindowStartUtc` and `ObservationWindowEndUtc` from its collection/readback run; neither comes from wall-clock inference during validation or from the submitted summary.
+
+Each `IngredientValueObservation` carries the exact claim ID, ingredient ID, existing source binding (page/item, version, artifact digest, snapshot digest), existing target binding (profile, canonical identity), canonical value path, value digest, UTC observation time, live origin and evidence reference. The reference must be present in the corresponding source/target evidence-reference set. Source observations must lie between the start fence and `ReadbackStartedAtUtc`; target observations must lie between that readback start and the end fence.
+
+Every canonical value path requires exactly one authenticated-source and one fresh-target observation. Duplicate, missing, foreign, stale, future, unknown-origin, historical or synthetic observations fail M1. Lanes own the mapping from domain locators into value paths. Different source and target value digests are retained, not declared equal or used to manufacture a shared outcome rule: a reviewed transform can legitimately remain conditional.
 
 ## Required gates
 
@@ -49,7 +78,7 @@ internal sealed class ContentTextMaturityContributor : IIngredientMaturityContri
     {
         var receipts = new List<IngredientMaturityGateReceipt>();
         receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM0(/* typed node + owner registry */));
-        receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(/* authenticated live evidence */));
+        receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(context, /* bound authenticated live evidence */));
         receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM2(/* artifact + semantic evidence */));
         receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM3(/* existing PnP plan */));
         receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM4(/* existing receipts */));
@@ -81,6 +110,32 @@ The recognized lane IDs are frozen in v1:
 
 The catalog permits one contributor per lane and deterministic lane ordering. Lane registration happens in the integration composition root, not by changing the evaluator. Unknown lanes fail closed.
 
+## Frozen shared paths and contributor conformance
+
+The shared boundary remains these eight paths; lanes do not edit them:
+
+- `docs/ccd-182-ingredient-maturity-contract.md`
+- `src/lib/PnP.Framework.Test/Migration/Pages/Assessment/IngredientMaturityEvaluatorTests.cs`
+- `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityContracts.cs`
+- `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityContributorCatalog.cs`
+- `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityEvaluator.cs`
+- `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityEvidence.cs`
+- `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityEvidenceValidator.cs`
+- `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityGateCatalog.cs`
+
+Contributors generate receipts through the current common-validator wrappers (`pnp-ingredient-maturity-common-validator`, `v2`), which reuse the PnP domain validators. Unsupported/self-awarded validator IDs or versions fail closed. A lane does not emit an assessment, register new gates, change continuity, or normalize another lane's values.
+
+Permanent shared controls include:
+
+- `AssessmentRejectsRedigestedSemanticTamper` and `AssessmentRejectsRedigestedContinuityBypass`;
+- `BoundAssessmentRejectsCoherentRedigestedSubstitution` and `BoundAssessmentRejectsCoherentlyReawardedMissingGate`;
+- `EveryContinuousLevelRoundTripsWithRecomputedPromotionGate`;
+- `M1RejectsForeignUnpairedOrStaleObservations`, `M1LegacyUnboundOverloadCannotAwardMaturity` and `M1RecordsDifferentValueDigestsWithoutInventingAnOutcomeRule`;
+- `RuntimeM0RequiresPredicateAndCanonicalActionDependency`;
+- `ContributorUnknownNullDuplicateAndUnsupportedValidatorReceiptsFailClosed`.
+
+These are hermetic contract controls, not evidence of a lane's live M5. PnP Lead non-author review, CTO cross-system review and Independent Verification remain separate gates.
+
 ## Compatibility
 
 - Existing graph, package, plan, digest, action, journal, mutation, import/runtime receipt, and Compare wire contracts are reused and unchanged.
@@ -88,3 +143,6 @@ The catalog permits one contributor per lane and deterministic lane ordering. La
 - Assessment digest uses the existing canonical serializer and SHA-256 implementation. There is no second digest algorithm.
 - Source/site/page-family differences remain lane evidence and fixture concerns. They do not enter the evaluator.
 - The evaluator consumes existing `PageMigrationOutcome`; it does not replace product outcome or Compare acceptance.
+- The assessment JSON schema remains v1; the strengthened evaluation semantics are explicitly versioned as evaluator v2. Old evaluator-v1 assessments must be regenerated from their original bound evidence, not relabeled.
+- Existing contributor and M0 call signatures remain source-compatible; runtime-verification M0 additionally requires the optional typed assertion evidence to pass. The old single-argument `ValidateM1(evidence)` overload remains callable but returns failed receipts because it has no independent claim/time binding. Callers must adopt the context-bound overload to attain M1.
+- No graph/action/receipt/Compare/owner-registry or tenant change is part of this remediation. Integration admission belongs to a non-author reviewer on the implementation issue's native review stage; implementation tests do not self-approve admission.

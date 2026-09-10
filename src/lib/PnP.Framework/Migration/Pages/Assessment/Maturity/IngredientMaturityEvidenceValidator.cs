@@ -17,25 +17,27 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
 {
     internal static class IngredientMaturityEvidenceValidator
     {
-        private const string ValidatorId = "pnp-ingredient-maturity-common-validator";
-        private const string ValidatorVersion = "v1";
+        internal const string ValidatorId = "pnp-ingredient-maturity-common-validator";
+        internal const string ValidatorVersion = "v2";
 
         public static IReadOnlyList<IngredientMaturityGateReceipt> ValidateM0(
             IngredientMaturityEvaluationContext context,
             PageIngredientNode node,
             PublishingPageCaptureBundle snapshot,
             PublishingPageIngredientPrimaryOwnerRegistry ownerRegistry,
-            IEnumerable<string> evidenceReferences)
+            IEnumerable<string> evidenceReferences,
+            IngredientRuntimeAssertionEvidence runtimeAssertion = null)
         {
             return new[]
             {
                 Validate(IngredientMaturityGateCatalog.CanonicalIdentity, evidenceReferences, () =>
                 {
-                    Require(context?.Identity != null, "The canonical identity is missing.");
+                    IngredientMaturityEvaluator.ValidateContext(context);
                     Require(IngredientMaturityEvaluator.IsSha256(context.Identity.ClaimId), "The claim ID is not a canonical SHA-256 identity.");
                     Require(!string.IsNullOrWhiteSpace(context.Identity.IngredientId)
                         && !string.IsNullOrWhiteSpace(context.Identity.Subtype)
-                        && !string.IsNullOrWhiteSpace(context.Identity.SemanticRole),
+                        && !string.IsNullOrWhiteSpace(context.Identity.SemanticRole)
+                        && !string.IsNullOrWhiteSpace(context.Identity.SourcePredicateId),
                         "The ingredient tuple is incomplete.");
                     var runtimeWork = string.Equals(context.Identity.WorkItemType, IngredientMaturityContract.RuntimeVerificationWorkItem, StringComparison.Ordinal);
                     if (runtimeWork)
@@ -44,6 +46,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
                             && !context.Identity.Kind.HasValue
                             && string.Equals(context.Identity.Lane, "behavior.interaction", StringComparison.Ordinal),
                             "A runtime-verification assertion cannot claim a persisted PageIngredientKind node.");
+                        RequireRuntimeAssertion(context, runtimeAssertion);
                         return;
                     }
                     Require(node != null
@@ -56,9 +59,11 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
                 }),
                 Validate(IngredientMaturityGateCatalog.PrimaryOwner, evidenceReferences, () =>
                 {
+                    Require(context?.Identity != null, "The canonical identity is missing.");
                     if (string.Equals(context.Identity.WorkItemType, IngredientMaturityContract.RuntimeVerificationWorkItem, StringComparison.Ordinal))
                     {
-                        Require(string.Equals(context.Identity.Lane, "behavior.interaction", StringComparison.Ordinal),
+                        Require(node == null && !context.Identity.Kind.HasValue
+                            && string.Equals(context.Identity.Lane, "behavior.interaction", StringComparison.Ordinal),
                             "Only behavior.interaction owns runtime-verification assertions.");
                         return;
                     }
@@ -70,56 +75,157 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
                 }),
                 Validate(IngredientMaturityGateCatalog.SourceBinding, evidenceReferences, () =>
                 {
-                    Require(context.Source != null
+                    Require(context?.Source != null
                         && !string.IsNullOrWhiteSpace(context.Source.PageOrListItemIdentity)
                         && !string.IsNullOrWhiteSpace(context.Source.SourceVersion)
                         && IngredientMaturityEvaluator.IsSha256(context.Source.SourceArtifactDigest)
                         && IngredientMaturityEvaluator.IsSha256(context.Source.SourceSnapshotDigest),
                         "The version-bound source evidence is incomplete.");
-                    if (node != null)
+                    var boundNode = node;
+                    if (string.Equals(context.Identity?.WorkItemType, IngredientMaturityContract.RuntimeVerificationWorkItem, StringComparison.Ordinal))
                     {
-                        Require(string.Equals(node.SourcePageOrListItemIdentity, context.Source.PageOrListItemIdentity, StringComparison.Ordinal)
-                            && string.Equals(node.SourceVersionIdentity, context.Source.SourceVersion, StringComparison.Ordinal)
-                            && string.Equals(node.EvidenceDigest, context.Source.SourceArtifactDigest, StringComparison.OrdinalIgnoreCase),
-                            "The source binding differs from the projected ingredient evidence.");
+                        RequireRuntimeAssertion(context, runtimeAssertion);
+                        boundNode = runtimeAssertion.CanonicalIngredient;
                     }
+                    Require(boundNode != null
+                        && string.Equals(boundNode.SourcePageOrListItemIdentity, context.Source.PageOrListItemIdentity, StringComparison.Ordinal)
+                        && string.Equals(boundNode.SourceVersionIdentity, context.Source.SourceVersion, StringComparison.Ordinal)
+                        && string.Equals(boundNode.EvidenceDigest, context.Source.SourceArtifactDigest, StringComparison.OrdinalIgnoreCase),
+                        "The source binding differs from the canonical ingredient evidence.");
                 })
             };
         }
 
         public static IReadOnlyList<IngredientMaturityGateReceipt> ValidateM1(IngredientLiveEvidence evidence)
         {
+            // Preserve source compatibility, but unbound v1 evidence cannot grant M1.
+            return ValidateM1(null, evidence);
+        }
+
+        public static IReadOnlyList<IngredientMaturityGateReceipt> ValidateM1(
+            IngredientMaturityEvaluationContext context,
+            IngredientLiveEvidence evidence)
+        {
             var observations = evidence?.Observations ?? new List<IngredientValueObservation>();
             return new[]
             {
                 Validate(IngredientMaturityGateCatalog.AuthenticatedSourceCollect, evidence?.SourceEvidenceReferences, () =>
                 {
+                    RequireLiveContext(context, evidence);
                     Require(evidence != null && evidence.SourceAuthenticated && !evidence.HistoricalOrSyntheticSubstitution,
                         "Authenticated source collection is absent or substituted.");
                     Require(observations.Any(value => value?.Origin == IngredientObservationOrigin.AuthenticatedSource),
                         "No authenticated source observation is present.");
+                    foreach (var observation in observations.Where(value => value?.Origin == IngredientObservationOrigin.AuthenticatedSource))
+                    {
+                        RequireObservation(context, evidence, observation);
+                    }
                 }),
                 Validate(IngredientMaturityGateCatalog.CupCollectFreshReadback, evidence?.TargetEvidenceReferences, () =>
                 {
+                    RequireLiveContext(context, evidence);
                     Require(evidence != null && evidence.TargetFreshReadback && !evidence.HistoricalOrSyntheticSubstitution,
                         "Fresh CUPCollect readback is absent or substituted.");
                     Require(observations.Any(value => value?.Origin == IngredientObservationOrigin.CupCollectFreshReadback),
                         "No fresh target observation is present.");
+                    foreach (var observation in observations.Where(value => value?.Origin == IngredientObservationOrigin.CupCollectFreshReadback))
+                    {
+                        RequireObservation(context, evidence, observation);
+                    }
                 }),
                 Validate(IngredientMaturityGateCatalog.PerValueObservation,
                     observations.Where(value => value != null).Select(value => value.EvidenceReference), () =>
                 {
-                    Require(observations.Count > 0
-                        && observations.All(value => value != null
-                            && !string.IsNullOrWhiteSpace(value.ValuePath)
-                            && IngredientMaturityEvaluator.IsSha256(value.ValueDigest)
-                            && value.ObservedAtUtc != default
-                            && !string.IsNullOrWhiteSpace(value.EvidenceReference)
-                            && value.Origin != IngredientObservationOrigin.Historical
-                            && value.Origin != IngredientObservationOrigin.Synthetic),
-                        "Per-value observations are incomplete, historical, or synthetic.");
+                    RequireLiveContext(context, evidence);
+                    Require(evidence.SourceAuthenticated && evidence.TargetFreshReadback
+                        && !evidence.HistoricalOrSyntheticSubstitution && observations.Count > 0,
+                        "Per-value evidence is absent or substituted.");
+                    foreach (var observation in observations)
+                    {
+                        RequireObservation(context, evidence, observation);
+                    }
+                    foreach (var pair in observations.GroupBy(value => value.ValuePath, StringComparer.Ordinal))
+                    {
+                        Require(pair.Count() == 2
+                            && pair.Count(value => value.Origin == IngredientObservationOrigin.AuthenticatedSource) == 1
+                            && pair.Count(value => value.Origin == IngredientObservationOrigin.CupCollectFreshReadback) == 1,
+                            "Every canonical value path requires exactly one source and one target observation.");
+                    }
                 })
             };
+        }
+
+        private static void RequireRuntimeAssertion(
+            IngredientMaturityEvaluationContext context,
+            IngredientRuntimeAssertionEvidence evidence)
+        {
+            Require(context?.Identity != null && !string.IsNullOrWhiteSpace(context.Identity.SourcePredicateId)
+                && evidence?.CanonicalIngredient != null && evidence.Action != null
+                && string.Equals(evidence.SourcePredicateId, context.Identity.SourcePredicateId, StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(evidence.CanonicalIngredient.Id)
+                && !string.IsNullOrWhiteSpace(evidence.Action.ActionId)
+                && string.Equals(evidence.Action.IngredientId, evidence.CanonicalIngredient.Id, StringComparison.Ordinal)
+                && evidence.Action.VerificationAssertions != null
+                && evidence.Action.VerificationAssertions.Count(value =>
+                    string.Equals(value, context.Identity.IngredientId, StringComparison.Ordinal)) == 1,
+                "The runtime predicate/assertion is not bound to one canonical ingredient and action.");
+        }
+
+        private static void RequireLiveContext(
+            IngredientMaturityEvaluationContext context,
+            IngredientLiveEvidence evidence)
+        {
+            IngredientMaturityEvaluator.ValidateContext(context);
+            Require(evidence != null
+                && context.ObservationWindowStartUtc.HasValue
+                && context.ObservationWindowEndUtc.HasValue
+                && context.ObservationWindowStartUtc.Value != default
+                && context.ObservationWindowEndUtc.Value != default
+                && context.ObservationWindowStartUtc.Value.Offset == TimeSpan.Zero
+                && context.ObservationWindowEndUtc.Value.Offset == TimeSpan.Zero
+                && context.ObservationWindowStartUtc <= context.ObservationWindowEndUtc
+                && evidence.ReadbackStartedAtUtc != default
+                && evidence.ReadbackStartedAtUtc.Offset == TimeSpan.Zero
+                && evidence.ReadbackStartedAtUtc >= context.ObservationWindowStartUtc
+                && evidence.ReadbackStartedAtUtc <= context.ObservationWindowEndUtc,
+                "Live observations require the consumer's UTC time fence and a bound target readback start.");
+        }
+
+        private static void RequireObservation(
+            IngredientMaturityEvaluationContext context,
+            IngredientLiveEvidence evidence,
+            IngredientValueObservation observation)
+        {
+            Require(observation != null
+                && string.Equals(observation.ClaimId, context.Identity.ClaimId, StringComparison.Ordinal)
+                && string.Equals(observation.IngredientId, context.Identity.IngredientId, StringComparison.Ordinal)
+                && observation.Source != null && observation.Target != null
+                && string.Equals(MigrationContractSerializer.SerializeCanonical(observation.Source),
+                    MigrationContractSerializer.SerializeCanonical(context.Source), StringComparison.Ordinal)
+                && string.Equals(MigrationContractSerializer.SerializeCanonical(observation.Target),
+                    MigrationContractSerializer.SerializeCanonical(context.Target), StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(observation.ValuePath)
+                && IngredientMaturityEvaluator.IsSha256(observation.ValueDigest)
+                && !string.IsNullOrWhiteSpace(observation.EvidenceReference)
+                && observation.ObservedAtUtc.Offset == TimeSpan.Zero
+                && observation.ObservedAtUtc >= context.ObservationWindowStartUtc
+                && observation.ObservedAtUtc <= context.ObservationWindowEndUtc,
+                "The value observation is incomplete, stale, or bound to a different claim/source/target.");
+            if (observation.Origin == IngredientObservationOrigin.AuthenticatedSource)
+            {
+                Require(observation.ObservedAtUtc <= evidence.ReadbackStartedAtUtc
+                    && evidence.SourceEvidenceReferences != null
+                    && evidence.SourceEvidenceReferences.Contains(observation.EvidenceReference, StringComparer.Ordinal),
+                    "The source observation is not bound to collection before target readback.");
+            }
+            else
+            {
+                Require(observation.Origin == IngredientObservationOrigin.CupCollectFreshReadback
+                    && observation.ObservedAtUtc >= evidence.ReadbackStartedAtUtc
+                    && evidence.TargetEvidenceReferences != null
+                    && evidence.TargetEvidenceReferences.Contains(observation.EvidenceReference, StringComparer.Ordinal),
+                    "The target observation is not fresh readback or uses unsupported/historical/synthetic evidence.");
+            }
         }
 
         public static IReadOnlyList<IngredientMaturityGateReceipt> ValidateM2(IngredientContentIntegrityEvidence evidence)
