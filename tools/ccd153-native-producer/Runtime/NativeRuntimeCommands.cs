@@ -1,10 +1,13 @@
 using PnP.Framework.Migration.Evidence.ProducerBuild;
+using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Verification;
 using PnP.Framework.Migration.Pages.Comparison;
 using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Verification.NativePageRuntime;
 using System.Reflection;
+using System.Linq;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -23,95 +26,72 @@ internal static class NativeRuntimeCommands
             "native_runtime_profile_unsupported");
         ValidateImplementationRef(request.ImplementationRef);
 
-        var admittedPlan = ReadStrict<AdmittedReproExecutionPlan>(
-            Resolve(requestPath, request.AdmittedPlanPath),
-            options);
-        var aggregate = ReadStrict<NativePageImportReceiptAggregate>(
-            Resolve(requestPath, request.ReceiptAggregatePath),
-            options);
+        var package = ReadStrict<ClassicWikiMigrationPackage>(Resolve(requestPath, request.PackagePath), options);
+        var admittedPlan = ReadStrict<AdmittedReproExecutionPlan>(Resolve(requestPath, request.AdmittedPlanPath), options);
+        var aggregate = ReadStrict<NativePageImportReceiptAggregate>(Resolve(requestPath, request.ReceiptAggregatePath), options);
+        var binding = ReadStrict<NativePageRuntimeBinding>(Resolve(requestPath, request.BindingPath), options);
+        var external = ReadOptional<ExternalPageRuntimeEvidence>(requestPath, request.ExternalEvidencePath, options);
+        var provenanceManifest = ReadStrict<ProducerBuildProvenanceManifest>(
+            Resolve(requestPath, request.ProducerBuildManifestPath), options);
+        var artifactStorePath = Resolve(requestPath, request.ArtifactStorePath);
+        Require(Directory.Exists(artifactStorePath), "runtime_artifact_store_missing");
+        var artifactStore = new DirectoryMigrationArtifactStore(artifactStorePath);
         var admittedDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
             admittedPlan,
-            admittedPlan.PlanDigest,
+            package.PlanDigest,
             admittedPlan.TargetIdentity);
+        Require(string.Equals(binding.ContractProducerRef, request.ImplementationRef, StringComparison.OrdinalIgnoreCase),
+            "runtime_binding_contract_producer_ref_mismatch");
 
-        var externalEvidence = ReadOptional<ExternalPageRuntimeEvidence>(
-            requestPath,
-            request.ExternalEvidencePath,
-            options);
-        var provenanceManifest = ReadOptional<ProducerBuildProvenanceManifest>(
-            requestPath,
-            request.ProducerBuildManifestPath,
-            options);
-        var provenanceReceipt = ReadOptional<ProducerBuildProvenanceReceipt>(
-            requestPath,
-            request.ProducerBuildReceiptPath,
-            options);
-
-        RuntimeVerificationReceipt runtimeReceipt = null;
-        RuntimeVerificationManifest runtimeManifest = null;
-        IMigrationArtifactStore artifactStore = null;
-        NativePageRuntimeBinding binding;
-        if (!string.IsNullOrWhiteSpace(request.RuntimeReceiptPath))
-        {
-            Require(!string.IsNullOrWhiteSpace(request.RuntimeManifestPath),
-                "runtime_manifest_path_required");
-            runtimeReceipt = ReadStrict<RuntimeVerificationReceipt>(
-                Resolve(requestPath, request.RuntimeReceiptPath),
-                options);
-            runtimeManifest = ReadStrict<RuntimeVerificationManifest>(
-                Resolve(requestPath, request.RuntimeManifestPath),
-                options);
-            var artifactStorePath = Resolve(requestPath, request.ArtifactStorePath);
-            Require(Directory.Exists(artifactStorePath), "runtime_artifact_store_missing");
-            artifactStore = new DirectoryMigrationArtifactStore(artifactStorePath);
-            binding = ClassicWikiRuntimeBindingFactory.CreateNative(
-                admittedPlan,
-                admittedDigest,
-                aggregate,
-                request.Target,
-                runtimeReceipt,
-                runtimeManifest,
-                request.ImplementationRef,
-                artifactStore,
-                provenanceReceipt,
-                provenanceManifest);
-        }
-        else
-        {
-            Require(string.IsNullOrWhiteSpace(request.RuntimeManifestPath),
-                "runtime_receipt_path_required");
-            binding = ClassicWikiRuntimeBindingFactory.CreatePending(
-                admittedPlan,
-                admittedDigest,
-                aggregate,
-                request.Target,
-                externalEvidence,
-                provenanceReceipt,
-                provenanceManifest);
-        }
-
-        var acceptance = ClassicWikiNativeRuntimeAcceptance.Decide(
-            binding,
+        var acceptance = ClassicWikiNativeRuntimeAcceptance.Evaluate(
+            package,
             admittedPlan,
             admittedDigest,
             aggregate,
-            request.Target,
-            new ClassicWikiRuntimeEvidencePolicy(),
-            request.HasExplicitExclusions,
-            runtimeReceipt,
-            runtimeManifest,
-            request.ImplementationRef,
+            binding,
+            external,
             artifactStore,
-            externalEvidence,
-            provenanceReceipt,
+            new ClassicWikiRuntimeEvidencePolicy(),
             provenanceManifest,
-            request.DecidedAtUtc == default ? DateTimeOffset.UtcNow : request.DecidedAtUtc);
+            new UnverifiedProducerBuildProvenanceVerifier(),
+            "ccd153-native-producer.runtime-evaluator",
+            request.ImplementationRef,
+            request.EvaluatedAtUtc == default ? DateTimeOffset.UtcNow : request.EvaluatedAtUtc);
+
+        var acceptanceBytes = Encoding.UTF8.GetBytes(ClassicWikiPackageSerializer.SerializeCanonical(acceptance));
+        ArtifactReference acceptanceArtifact;
+        using (var acceptanceStream = new MemoryStream(acceptanceBytes, writable: false))
+        {
+            acceptanceArtifact = artifactStore.Put(
+                acceptanceStream,
+                "application/vnd.pnp.native-runtime-acceptance+json",
+                "native-page-runtime-acceptance-receipt-v1.json");
+        }
+        var action = MigrationActionSignature.Create(
+            "classic-wiki.runtime:" + binding.Operations.RuntimeOperationId.ToString("D"),
+            "RuntimeVerification",
+            binding.ContentSha256,
+            external?.ContentSha256,
+            binding.TargetStorageIdentity.CanonicalUrl,
+            acceptance.ContentSha256);
+        var journalReference = new MigrationExecutionArtifactReference
+        {
+            OperationId = binding.Operations.RuntimeOperationId,
+            PlanDigest = binding.PlanDigest,
+            ActionId = action.ActionId,
+            ActionSignature = action.Signature,
+            WrittenAtUtc = acceptance.EvaluatedAtUtc,
+            ArtifactKind = MigrationExecutionArtifactKind.VerificationEvidence,
+            ArtifactSchemaVersion = acceptance.SchemaVersion,
+            Sha256 = acceptanceArtifact.Sha256,
+            Length = acceptanceArtifact.Length,
+            MediaType = acceptanceArtifact.MediaType
+        };
+        AppendJournalReference(Resolve(requestPath, request.VerificationJournalPath), journalReference);
 
         var outputDirectory = Resolve(requestPath, request.OutputDirectory);
         Directory.CreateDirectory(outputDirectory);
-        var bindingPath = Path.Combine(outputDirectory, "native-page-runtime-binding-v1.json");
         var acceptancePath = Path.Combine(outputDirectory, "native-page-runtime-acceptance-receipt-v1.json");
-        Write(bindingPath, binding, indented);
         Write(acceptancePath, acceptance, indented);
         var result = new
         {
@@ -121,14 +101,15 @@ internal static class NativeRuntimeCommands
             request.ImplementationRef,
             binarySha256 = CurrentBinarySha256(),
             admittedPlanDigestSha256 = admittedDigest,
-            importReceiptDigestSha256 = binding.ImportReceiptDigestSha256,
-            runtimeEvidenceDigestSha256 = binding.RuntimeEvidenceDigestSha256,
-            bindingDigestSha256 = acceptance.BindingDigestSha256,
+            importReceiptDigestSha256 = aggregate.ReceiptDigestSha256,
+            bindingDigestSha256 = binding.ContentSha256,
+            externalEvidenceDigestSha256 = external?.ContentSha256,
+            acceptance.BindingValidationStatus,
             acceptance.RuntimeVerificationStatus,
             acceptance.AcceptanceStatus,
-            acceptance.DecisionCode,
-            acceptance.ProducerBuildProvenanceStatus,
-            bindingPath = Path.GetFileName(bindingPath),
+            acceptance.ProvenanceStatus,
+            verificationEvidenceSha256 = acceptanceArtifact.Sha256,
+            verificationJournalPath = request.VerificationJournalPath,
             acceptancePath = Path.GetFileName(acceptancePath)
         };
         Write(Path.Combine(outputDirectory, "native-runtime-manifest.json"), result, indented);
@@ -136,15 +117,9 @@ internal static class NativeRuntimeCommands
         Environment.ExitCode = acceptance.AcceptanceStatus == MigrationAcceptanceStatus.Rejected ? 2 : 0;
     }
 
-    private static T ReadOptional<T>(
-        string requestPath,
-        string path,
-        JsonSerializerOptions options)
-        where T : class
+    private static T ReadOptional<T>(string requestPath, string path, JsonSerializerOptions options) where T : class
     {
-        return string.IsNullOrWhiteSpace(path)
-            ? null
-            : ReadStrict<T>(Resolve(requestPath, path), options);
+        return string.IsNullOrWhiteSpace(path) ? null : ReadStrict<T>(Resolve(requestPath, path), options);
     }
 
     private static T ReadStrict<T>(string path, JsonSerializerOptions options)
@@ -167,8 +142,7 @@ internal static class NativeRuntimeCommands
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var property in element.EnumerateObject())
             {
-                Require(names.Add(property.Name),
-                    "duplicate_json_key:" + path + ":" + locator + "." + property.Name);
+                Require(names.Add(property.Name), "duplicate_json_key:" + path + ":" + locator + "." + property.Name);
                 RejectDuplicateKeys(property.Value, locator + "." + property.Name, path);
             }
         }
@@ -186,17 +160,23 @@ internal static class NativeRuntimeCommands
     private static string Resolve(string requestPath, string path)
     {
         Require(!string.IsNullOrWhiteSpace(path), "path_required");
-        return Path.GetFullPath(Path.IsPathRooted(path)
-            ? path
-            : Path.Combine(Path.GetDirectoryName(requestPath), path));
+        return Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(Path.GetDirectoryName(requestPath), path));
     }
 
     private static void Write<T>(string path, T value, JsonSerializerOptions options)
     {
-        File.WriteAllText(
-            path,
-            JsonSerializer.Serialize(value, options) + Environment.NewLine,
-            new UTF8Encoding(false));
+        File.WriteAllText(path, JsonSerializer.Serialize(value, options) + Environment.NewLine, new UTF8Encoding(false));
+    }
+
+    private static void AppendJournalReference(string path, MigrationExecutionArtifactReference reference)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        var bytes = Encoding.UTF8.GetBytes(ClassicWikiPackageSerializer.SerializeCanonical(reference) + Environment.NewLine);
+        using (var output = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read))
+        {
+            output.Write(bytes, 0, bytes.Length);
+            output.Flush(true);
+        }
     }
 
     private static JsonSerializerOptions CreateOptions(bool writeIndented)
@@ -216,9 +196,7 @@ internal static class NativeRuntimeCommands
 
     private static void ValidateImplementationRef(string implementationRef)
     {
-        Require(implementationRef != null
-            && implementationRef.Length == 40
-            && implementationRef.All(Uri.IsHexDigit),
+        Require(implementationRef != null && implementationRef.Length == 40 && implementationRef.All(Uri.IsHexDigit),
             "implementation_ref_invalid");
         var informational = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
@@ -251,34 +229,17 @@ internal static class NativeRuntimeCommands
 internal sealed class NativeRuntimeRequest
 {
     public string Schema { get; set; }
-
     public string CaseId { get; set; }
-
     public string ProfileId { get; set; }
-
     public string ImplementationRef { get; set; }
-
+    public string PackagePath { get; set; }
     public string AdmittedPlanPath { get; set; }
-
     public string ReceiptAggregatePath { get; set; }
-
-    public NativePageRuntimeTargetIdentity Target { get; set; }
-
-    public string RuntimeReceiptPath { get; set; }
-
-    public string RuntimeManifestPath { get; set; }
-
+    public string BindingPath { get; set; }
     public string ExternalEvidencePath { get; set; }
-
     public string ArtifactStorePath { get; set; }
-
     public string ProducerBuildManifestPath { get; set; }
-
-    public string ProducerBuildReceiptPath { get; set; }
-
+    public string VerificationJournalPath { get; set; }
     public string OutputDirectory { get; set; }
-
-    public bool HasExplicitExclusions { get; set; }
-
-    public DateTimeOffset DecidedAtUtc { get; set; }
+    public DateTimeOffset EvaluatedAtUtc { get; set; }
 }

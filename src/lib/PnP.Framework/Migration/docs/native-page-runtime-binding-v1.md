@@ -1,52 +1,79 @@
-# Native page runtime binding v1
+# Native page runtime acceptance contracts v1
 
-`pnp-native-page-runtime-binding/v1` is the identity boundary between a native
-page import and the runtime decision for that exact target object. The first
-implemented profile is `profile.classic-wiki`.
+The Classic Wiki profile is `classic-wiki.synthetic.runtime-acceptance/v1`.
+It is page-first and binds the reviewed `node:runtime / Runtime / runtime.page`
+claim. It does not establish Enterprise Wiki, canonical Reconcile, M5, release,
+or customer acceptance.
 
-The binding seals all of the following in one canonical digest:
+## Pre-capture binding
 
-- admitted runtime operation ID;
-- source identity and source-version digests;
-- admitted-plan and typed native import-receipt digests;
-- target Site/Web IDs, Web URL, page path, File UniqueId, list item ID, version,
-  and ETag;
-- requested and final runtime URLs;
-- the canonical runtime receipt schema, digest, and derived status;
-- optional external-report and producer-build provenance receipt digests.
+`pnp-native-page-runtime-binding/v1` is sealed before browser capture. Its
+`contentSha256` is computed with
+`SerializeCanonicalWithNullRootProperty(value, nameof(ContentSha256))`.
+The binding contains the exact package/source/snapshot, admitted plan, all four
+operation IDs, native import receipt, fresh target Site/Web/List/File/item/
+version/ETag identity, fixed profile manifest, bounded capture window, and
+separate import/contract producer refs. Package, native receipt, target identity,
+and policy bytes are stored in CAS and reopened by the consumer.
 
-## Authority
+The fixed required set is:
 
-`runtimeEvidenceAuthority=native-producer` is the only authority that may
-produce a terminal runtime status and change acceptance. The validator reopens
-every HTML/DOM/screenshot artifact through `IMigrationArtifactStore`, recomputes
-length and SHA-256, checks the fresh browser context and no-store HTTP evidence,
-and derives the status again from the requirement manifest.
+- `runtime.wiki` / `PageReachability` / `Exact admitted Wiki surface`
+- `runtime.wiki.error-shell-absence` / `ErrorShellAbsence` /
+  `No login, access-denied or error shell`
+- `runtime.wiki.screenshot` / `ScreenshotCapture` /
+  `Bound screenshot captured`
 
-`runtimeEvidenceAuthority=external-report` is supplemental only. Its
-self-sealed digest and identity fields are retained, but even a report that
-claims `Passed` leaves native `runtimeVerificationStatus=Pending` and
-`acceptanceStatus=Pending`.
+All are required and remain in ordinal ID order. A caller cannot clear or make
+them optional to obtain `NotRequired`.
 
-`runtimeEvidenceAuthority=none` requires a clean Pending shape without runtime
-URLs or evidence digests.
+## External observation envelope
 
-## Fail-closed rules
+`pnp-external-page-runtime-evidence/v1` is binding-bound and contains exactly
+one of:
 
-The contract rejects unknown schema/profile/status values; stale source,
-operation, plan, import or target identity; unsafe artifact locators; absent
-artifact stores; missing, altered or un-reopened bytes; duplicate/unknown
-runtime requirements; and status values not derived from canonical evidence.
-The native producer command additionally rejects duplicate JSON keys before
-deserialization.
+- an existing `RuntimeVerificationReceipt`, with complete artifact/context/
+  operation lineage; or
+- a terminal negative observation such as 401/403, semantic HTTP-200 denial,
+  redirect, transport failure, or incomplete capture.
 
-An HTTP or semantic access-denied observation is valid terminal negative
-evidence when its receipt is complete. It produces runtime `Failed` and
-acceptance `Rejected`; it is not reported as copied, equal, or accepted.
+The envelope records a distinct capture producer, pre/post target identity
+readbacks, bounded ordered attempts, request-ID availability, detector identity,
+and a sealed artifact manifest. It cannot set native acceptance.
 
-## Producer build provenance
+## Native evaluation authority
 
-`pnp-producer-build-provenance-manifest/v1` and
-`pnp-producer-build-provenance-receipt/v1` are seeded by this contract. The
-default verifier result is exactly `UNVERIFIED`. A provenance manifest and
-receipt must be supplied together and must bind the same binary digest.
+`ClassicWikiNativeRuntimeAcceptance.Evaluate` consumes the immutable package,
+admission, native import, pre-capture binding, external envelope, artifact store,
+the unique Classic Wiki semantic policy, and a host-owned provenance verifier.
+The semantic policy returns only a per-result boolean. The common consumer owns
+binding/storage/runtime/provenance gates and calls the existing
+`ClassicWikiImportStatusPolicy.Acceptance`.
+
+Positive runtime evidence remains `Pending` unless provenance is independently
+`VERIFIED`. The production default verifier returns `UNVERIFIED`. A JSON receipt
+or a caller-provided `VERIFIED` string is not an acceptance input. Complete
+negative evidence remains `Failed / Rejected`, including 401/403 and semantic
+HTTP-200 access-denied shells.
+
+The append-only `pnp-native-page-runtime-acceptance-receipt/v1` records evaluator
+identity/ref, all input digests, validation/storage/runtime/acceptance/provenance
+statuses, explicit exclusions, reason codes, and evidence refs. The original
+native import receipt and its `Pending` fields are not modified.
+
+## Fail-closed behavior
+
+Unknown schema/profile/policy, invalid seals, unnamed extensions, missing CAS,
+altered or un-reopened bytes, unsafe locators, stale source or operation IDs,
+same-URL/different target identity, capture outside the import-bound window,
+pre/post drift, missing screenshot, weakened manifests, and unsupported result
+shapes cannot produce positive acceptance. Unknown extensions must be
+namespaced and losslessly retained.
+
+## Provenance seam
+
+The v1 provenance manifest binds clean source/tree, toolchain, locked dependency
+graph, command, logs, outputs, runtime closure, historical binary request, and
+schema compatibility. The receipt records independent verifier identity/ref and
+separate source, artifact, rebuild, and historical-binary gates. All applicable
+gates must be `VERIFIED` before the overall result can be `VERIFIED`.

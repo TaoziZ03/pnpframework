@@ -1,55 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "ccd153.native-runtime-request/v1",
-  "title": "CCD153 native page runtime request v1",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema",
-    "caseId",
-    "profileId",
-    "implementationRef",
-    "admittedPlanPath",
-    "receiptAggregatePath",
-    "target",
-    "outputDirectory",
-    "hasExplicitExclusions"
-  ],
+  "required": ["schema", "caseId", "profileId", "implementationRef", "packagePath", "admittedPlanPath", "receiptAggregatePath", "bindingPath", "artifactStorePath", "producerBuildManifestPath", "verificationJournalPath", "outputDirectory"],
   "properties": {
     "schema": { "const": "ccd153.native-runtime-request/v1" },
     "caseId": { "type": "string", "minLength": 1 },
-    "profileId": { "const": "profile.classic-wiki" },
+    "profileId": { "const": "classic-wiki.synthetic.runtime-acceptance/v1" },
     "implementationRef": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "packagePath": { "$ref": "#/$defs/path" },
     "admittedPlanPath": { "$ref": "#/$defs/path" },
     "receiptAggregatePath": { "$ref": "#/$defs/path" },
-    "target": { "$ref": "#/$defs/target" },
-    "runtimeReceiptPath": { "type": ["string", "null"], "minLength": 1 },
-    "runtimeManifestPath": { "type": ["string", "null"], "minLength": 1 },
-    "externalEvidencePath": { "type": ["string", "null"], "minLength": 1 },
-    "artifactStorePath": { "type": ["string", "null"], "minLength": 1 },
-    "producerBuildManifestPath": { "type": ["string", "null"], "minLength": 1 },
-    "producerBuildReceiptPath": { "type": ["string", "null"], "minLength": 1 },
+    "bindingPath": { "$ref": "#/$defs/path" },
+    "externalEvidencePath": { "type": ["string", "null"] },
+    "artifactStorePath": { "$ref": "#/$defs/path" },
+    "producerBuildManifestPath": { "$ref": "#/$defs/path" },
+    "verificationJournalPath": { "$ref": "#/$defs/path" },
     "outputDirectory": { "$ref": "#/$defs/path" },
-    "hasExplicitExclusions": { "type": "boolean" },
-    "decidedAtUtc": { "type": "string", "format": "date-time" }
+    "evaluatedAtUtc": { "type": "string", "format": "date-time" }
   },
-  "$defs": {
-    "path": { "type": "string", "minLength": 1 },
-    "guid": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
-    "target": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["siteId", "webId", "webUrl", "pageServerRelativeUrl", "fileUniqueId", "listItemId", "listItemVersion", "listItemETag"],
-      "properties": {
-        "siteId": { "$ref": "#/$defs/guid" },
-        "webId": { "$ref": "#/$defs/guid" },
-        "webUrl": { "type": "string", "format": "uri" },
-        "pageServerRelativeUrl": { "type": "string", "pattern": "^/" },
-        "fileUniqueId": { "$ref": "#/$defs/guid" },
-        "listItemId": { "type": "integer", "minimum": 1 },
-        "listItemVersion": { "type": "string", "minLength": 1 },
-        "listItemETag": { "type": "string", "minLength": 1 }
-      }
-    }
-  }
+  "$defs": { "path": { "type": "string", "minLength": 1 } }
 }
