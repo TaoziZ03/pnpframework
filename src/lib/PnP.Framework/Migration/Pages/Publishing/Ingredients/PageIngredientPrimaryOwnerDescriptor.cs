@@ -5,6 +5,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
 {
     public sealed class PageIngredientPrimaryOwnerDescriptor
     {
+        // An opt-in rule for descriptive roles carried by typed source evidence.
+        // The executable predicate must bind the exact role, not just accept it.
+        internal const string SourceBoundSemanticRole = "$source-bound";
+
         public PageIngredientPrimaryOwnerDescriptor(
             string id,
             PageIngredientKind kind,
@@ -59,7 +63,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             return node != null
                 && node.Kind == Kind
                 && MatchesSubtype(node.Subtype)
-                && string.Equals(node.SemanticRole, SemanticRole, StringComparison.Ordinal)
+                && (string.Equals(node.SemanticRole, SemanticRole, StringComparison.Ordinal)
+                    || (string.Equals(SemanticRole, SourceBoundSemanticRole, StringComparison.Ordinal)
+                        && !string.IsNullOrWhiteSpace(node.SemanticRole)))
                 && string.Equals(node.SourcePredicateId, SourcePredicateId, StringComparison.Ordinal);
         }
 

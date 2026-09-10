@@ -77,7 +77,7 @@ namespace PnP.Framework.Test.EnterpriseWiki
         public void PrimaryOwnerRegistryCoversAllKindsAndRejectsUnboundUnknownAndOverlappingPredicates()
         {
             var registry = PublishingPageIngredientPrimaryOwnerRegistry.Default;
-            Assert.AreEqual(36, registry.Entries.Count);
+            Assert.AreEqual(38, registry.Entries.Count);
             CollectionAssert.AreEquivalent(
                 Enum.GetValues(typeof(PageIngredientKind)).Cast<PageIngredientKind>().ToArray(),
                 registry.Entries.Select(value => value.Kind).Distinct().ToArray());

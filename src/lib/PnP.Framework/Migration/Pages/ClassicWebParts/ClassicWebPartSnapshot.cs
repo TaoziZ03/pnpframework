@@ -1,4 +1,6 @@
 using System;
+using PnP.Framework.Migration.Packaging;
+using System.Text.Json.Serialization;
 
 namespace PnP.Framework.Migration.Pages.ClassicWebParts
 {
@@ -19,5 +21,16 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts
         public string ExportXml { get; set; }
 
         public string ExportSha256 { get; set; }
+
+        // A REST property observation is not native ExportWebPart XML. Preserve
+        // its exact artifact/format separately; it does not authorize replay.
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string PropertyEvidenceFormat { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string PropertyEvidenceJson { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ArtifactReference PropertyEvidenceArtifact { get; set; }
     }
 }

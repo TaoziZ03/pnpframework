@@ -216,6 +216,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             {
                 throw new InvalidDataException($"Ingredient evidence digest mismatch for '{envelope.HandlerId}:{envelope.IngredientKey}'.");
             }
+            if (string.Equals(envelope.EvidenceSchemaVersion, PublishingPageJsLinkReferenceEvidence.SchemaVersion, StringComparison.Ordinal))
+            {
+                PublishingPageJsLinkReferenceProjector.ReadEvidence(envelope);
+            }
         }
     }
 }

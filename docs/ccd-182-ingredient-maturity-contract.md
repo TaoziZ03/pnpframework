@@ -88,3 +88,13 @@ The catalog permits one contributor per lane and deterministic lane ordering. La
 - Assessment digest uses the existing canonical serializer and SHA-256 implementation. There is no second digest algorithm.
 - Source/site/page-family differences remain lane evidence and fixture concerns. They do not enter the evaluator.
 - The evaluator consumes existing `PageMigrationOutcome`; it does not replace product outcome or Compare acceptance.
+
+### Additive persisted JSLink identity payload
+
+[CCD-306](ccd-306-jslink-m0-contract.md) defines the opt-in
+`pnp-publishing-page-jslink-reference-evidence/v1` payload over the existing v8
+ingredient extension seam. It retains the active `reference.jslink` claim ID
+and semantic role, binds the exact persisted host/order/source ETag and script
+digest, and resolves through the default owner registry. The frozen maturity
+interfaces and `ValidateM0` are unchanged. See that supplement for source
+requirements, the lane-local handler template and compatibility tests.

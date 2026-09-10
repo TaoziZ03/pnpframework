@@ -15,14 +15,16 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             foreach (var webPart in snapshot.WebParts.OrderBy(value => value.Id))
             {
                 var id = PublishingPageIngredientIds.WebPart(webPart.Id);
+                var propertyObservation = string.IsNullOrWhiteSpace(webPart.ExportXml)
+                    && webPart.PropertyEvidenceFormat != null;
                 graph.Nodes.Add(Node(
                     id,
                     PageIngredientKind.WebPart,
                     webPart.TypeName ?? webPart.Title,
                     true,
                     PageIngredientOwnership.SourceOwned,
-                    "Shared Web Part store export",
-                    webPart.ExportSha256,
+                    propertyObservation ? "REST-expanded persisted Web Part properties; not native export XML" : "Shared Web Part store export",
+                    propertyObservation ? webPart.PropertyEvidenceArtifact?.Sha256 : webPart.ExportSha256,
                     webPart.TypeName));
                 graph.Edges.Add(PublishingPageIngredientGraphProjector.UsesTransactionDependencies(revision)
                     ? Edge(id, PublishingPageIngredientIds.PageArtifact, PageIngredientRelationship.PlacedIn, PageIngredientRequirement.Required)

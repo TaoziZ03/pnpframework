@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.References;
+using PnP.Framework.Migration.Pages.ClassicWebParts;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -129,6 +130,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                         ? ("field.page-content-type-schema", "page-content-type-field-schema", "field.page-content-type-closure")
                         : ("field.generic-value-or-schema", "non-body-field", "field.non-body");
                 case PageIngredientKind.WebPart:
+                    var host = FindWebPart(snapshot, node);
+                    if (string.IsNullOrWhiteSpace(host?.ExportXml) && host?.PropertyEvidenceFormat != null)
+                    {
+                        return ("classic.webpart.instance", "persisted-instance", "webpart.rest-persisted-properties/v1");
+                    }
                     return ("classic.webpart.instance", "persisted-instance", "webpart.classic-export");
                 case PageIngredientKind.List:
                     return ("list.generic", "dependency-provider", "list.captured-closure");
@@ -193,7 +199,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             }
         }
 
-        private static string SourceIdentity(PublishingPageCaptureBundle snapshot, PageIngredientNode node)
+        internal static string SourceIdentity(PublishingPageCaptureBundle snapshot, PageIngredientNode node)
         {
             var source = snapshot?.Source;
             if (source == null
@@ -216,10 +222,18 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
             });
         }
 
-        private static string SourceVersionIdentity(PublishingPageCaptureBundle snapshot)
+        internal static string SourceVersionIdentity(PublishingPageCaptureBundle snapshot)
         {
             var fence = snapshot?.SourceFence;
             var source = snapshot?.Source;
+            if (!string.IsNullOrWhiteSpace(fence?.ETag))
+            {
+                if (source == null || source.FileUniqueId == Guid.Empty || fence.FileUniqueId != source.FileUniqueId)
+                {
+                    throw new InvalidDataException("The ETag source fence belongs to a different page file.");
+                }
+                return "etag=" + fence.ETag;
+            }
             var versionLabel = fence?.VersionLabel ?? source?.VersionLabel;
             var modifiedUtc = fence?.ModifiedUtc ?? source?.ModifiedUtc ?? DateTime.MinValue;
             var length = fence?.Length ?? source?.Length ?? -1;
@@ -261,6 +275,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                 Entry("reference.image", PageIngredientKind.Reference, "reference.image", "typed-image-reference", "reference.kind-image", "resource.image"),
                 Entry("reference.file", PageIngredientKind.Reference, "reference.file", "typed-file-reference", "reference.direct-file-binding", "resource.image"),
                 Entry("reference.script", PageIngredientKind.Reference, "reference.script", "typed-script-reference", "reference.kind-script", "resource.script"),
+                Entry("reference.jslink", PageIngredientKind.Reference, PublishingPageJsLinkReferenceEvidence.SubtypeId,
+                    PageIngredientPrimaryOwnerDescriptor.SourceBoundSemanticRole,
+                    PublishingPageJsLinkReferenceEvidence.SourcePredicateId, "resource.script"),
+                Entry("webpart.rest-persisted-properties", PageIngredientKind.WebPart, "classic.webpart.instance", "persisted-instance",
+                    "webpart.rest-persisted-properties/v1", "webpart.instance"),
                 Entry("reference.embed.iframe", PageIngredientKind.Reference, "reference.embed.iframe", "embedded-frame-reference", "reference.kind-iframe", "embed.iframe"),
                 Entry("reference.other", PageIngredientKind.Reference, "reference.other", "non-lane-reference", "reference.non-image-file-script-iframe", "shared.pnp-framework"),
                 Entry("topology.generic", PageIngredientKind.Topology, "topology.generic", "target-topology", "topology.typed-plan", "shared.cross-site-repro-integration"),
@@ -327,6 +346,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                         || node.Id?.StartsWith("list-field:", StringComparison.Ordinal) == true;
                 case "webpart.classic-export":
                     return node.Id?.StartsWith("webpart:", StringComparison.Ordinal) == true;
+                case "webpart.rest-persisted-properties/v1":
+                    return MatchesRestPropertyHost(snapshot, node);
                 case "list.captured-closure":
                     return node.Id?.StartsWith("list:", StringComparison.Ordinal) == true;
                 case "view.captured-list-view":
@@ -340,6 +361,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                     return ReferenceKind(snapshot, node, PageReferenceKind.Image);
                 case "reference.kind-script":
                     return ReferenceKind(snapshot, node, PageReferenceKind.Script);
+                case PublishingPageJsLinkReferenceEvidence.SourcePredicateId:
+                    return PublishingPageJsLinkReferenceProjector.MatchesSource(snapshot, node);
                 case "reference.kind-iframe":
                     return ReferenceKind(snapshot, node, PageReferenceKind.IFrame);
                 case "reference.direct-file-binding":
@@ -371,6 +394,30 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
                         || node.Id?.StartsWith("list-document-information-protection:", StringComparison.Ordinal) == true;
                 default:
                     return node.Id != null;
+            }
+        }
+
+        private static ClassicWebPartSnapshot FindWebPart(PublishingPageCaptureBundle snapshot, PageIngredientNode node)
+        {
+            var matches = (snapshot?.WebParts ?? Array.Empty<ClassicWebPartSnapshot>())
+                .Where(value => value != null && string.Equals(PublishingPageIngredientIds.WebPart(value.Id), node?.Id, StringComparison.Ordinal)).ToArray();
+            return matches.Length == 1 ? matches[0] : null;
+        }
+
+        private static bool MatchesRestPropertyHost(PublishingPageCaptureBundle snapshot, PageIngredientNode node)
+        {
+            try
+            {
+                var host = FindWebPart(snapshot, node);
+                ClassicWebPartPropertyEvidenceValidator.Validate(host);
+                return string.IsNullOrWhiteSpace(host.ExportXml)
+                    && string.Equals(node.SourcePageOrListItemIdentity, SourceIdentity(snapshot, node), StringComparison.Ordinal)
+                    && string.Equals(node.SourceVersionIdentity, SourceVersionIdentity(snapshot), StringComparison.Ordinal)
+                    && string.Equals(node.EvidenceDigest, host.PropertyEvidenceArtifact.Sha256, StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception exception) when (exception is InvalidDataException || exception is System.Text.Json.JsonException || exception is ArgumentException || exception is InvalidOperationException)
+            {
+                return false;
             }
         }
 

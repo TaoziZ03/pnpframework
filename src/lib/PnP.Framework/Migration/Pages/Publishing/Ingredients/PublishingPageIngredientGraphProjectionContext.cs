@@ -34,6 +34,21 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients
 
         public string ProjectionVersion { get; }
 
+        internal void AddPersistedJsLinkReference(
+            PublishingPageIngredientEvidenceEnvelope envelope,
+            PublishingPageJsLinkReferenceEvidence evidence)
+        {
+            var node = PublishingPageJsLinkReferenceProjector.CreateNode(snapshot, envelope, evidence);
+            AddNode(node);
+            AddEdge(new PageIngredientEdge
+            {
+                FromIngredientId = node.Id,
+                ToIngredientId = PublishingPageIngredientIds.WebPart(evidence.HostWebPartId),
+                Relationship = PageIngredientRelationship.DependsOn,
+                Requirement = PageIngredientRequirement.Required
+            });
+        }
+
         public void AddNode(PageIngredientNode node)
         {
             if (node == null || string.IsNullOrWhiteSpace(node.Id))

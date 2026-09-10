@@ -530,7 +530,7 @@ namespace PnP.Framework.Migration.Pages.References
             }
         }
 
-        private static bool TryResolveUri(
+        internal static bool TryResolveUri(
             Uri sourcePageUri,
             Uri sourceWebUri,
             string sourceSiteCollectionUrl,
