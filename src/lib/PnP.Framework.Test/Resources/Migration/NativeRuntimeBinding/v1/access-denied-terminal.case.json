@@ -1,0 +1,7 @@
+{
+  "caseId": "access-denied-terminal",
+  "httpStatus": 403,
+  "semanticOutcome": "access_denied",
+  "expectedRuntimeVerificationStatus": "Failed",
+  "expectedAcceptanceStatus": "Rejected"
+}

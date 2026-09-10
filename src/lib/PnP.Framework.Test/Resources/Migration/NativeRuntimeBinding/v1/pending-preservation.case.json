@@ -1,0 +1,6 @@
+{
+  "caseId": "pending-preservation",
+  "runtimeEvidenceAuthority": "none",
+  "expectedRuntimeVerificationStatus": "Pending",
+  "expectedAcceptanceStatus": "Pending"
+}

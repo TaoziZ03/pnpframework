@@ -79,6 +79,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Content Include="Resources\Migration\NativeRuntimeBinding\v1\**\*">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
 		<Content Include="Resources\Migration\ccd35-*.actual.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>

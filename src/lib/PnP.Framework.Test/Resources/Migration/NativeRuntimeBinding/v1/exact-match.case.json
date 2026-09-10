@@ -1,0 +1,6 @@
+{
+  "caseId": "exact-match",
+  "expectedRuntimeVerificationStatus": "Passed",
+  "expectedAcceptanceStatus": "Accepted",
+  "expectedDecisionCode": "NATIVE_RUNTIME_PASSED"
+}

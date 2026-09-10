@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pnp-native-page-runtime-acceptance-receipt/v1",
+  "title": "PnP native page runtime acceptance receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "decidedAtUtc",
+    "acceptanceAuthority",
+    "binding",
+    "bindingDigestSha256",
+    "runtimeVerificationStatus",
+    "acceptanceStatus",
+    "decisionCode",
+    "producerBuildProvenanceStatus",
+    "diagnostics"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "pnp-native-page-runtime-acceptance-receipt/v1" },
+    "decidedAtUtc": { "type": "string", "format": "date-time" },
+    "acceptanceAuthority": { "const": "native-producer" },
+    "binding": { "$ref": "native-page-runtime-binding-v1.schema.json" },
+    "bindingDigestSha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "runtimeVerificationStatus": { "enum": ["NotRun", "NotRequired", "Pending", "Passed", "Failed"] },
+    "acceptanceStatus": { "enum": ["Pending", "Accepted", "Rejected", "PartiallyAccepted"] },
+    "decisionCode": { "type": "string", "minLength": 1 },
+    "producerBuildProvenanceStatus": { "enum": ["UNVERIFIED", "VERIFIED", "REJECTED"] },
+    "diagnostics": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -1,13 +1,16 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Execution;
+using PnP.Framework.Migration.Evidence.ProducerBuild;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Execution;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Pages.ClassicWiki.Verification;
 using PnP.Framework.Migration.Pages.Comparison;
 using PnP.Framework.Migration.Pages.Publishing.Comparison;
 using PnP.Framework.Migration.Pages.Publishing.Execution;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
 using PnP.Framework.Migration.Verification;
+using PnP.Framework.Migration.Verification.NativePageRuntime;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -16,10 +19,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using IOFile = System.IO.File;
 
+if (args.Length == 2 && args[0] == "runtime")
+{
+    NativeRuntimeCommands.Run(Path.GetFullPath(args[1]));
+    return;
+}
+
 if (args.Length != 2 || (args[0] != "import" && args[0] != "reconcile" && args[0] != "validate-import"))
 {
     throw new ArgumentException(
-        "usage: ccd153-native-producer <import|reconcile|validate-import> <request.json>");
+        "usage: ccd153-native-producer <import|reconcile|validate-import|runtime> <request.json>");
 }
 
 var options = CreateJsonOptions(writeIndented: false);

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pnp-external-page-runtime-evidence/v1",
+  "title": "PnP external page runtime evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "profileId",
+    "reportId",
+    "runtimeOperationId",
+    "sourceVersionDigestSha256",
+    "admittedPlanDigestSha256",
+    "importReceiptDigestSha256",
+    "target",
+    "requestedUrl",
+    "finalUrl",
+    "evidenceDigestSha256",
+    "claimedStatus",
+    "observedAtUtc",
+    "reportDigestSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "pnp-external-page-runtime-evidence/v1" },
+    "profileId": { "const": "profile.classic-wiki" },
+    "reportId": { "type": "string", "minLength": 1 },
+    "runtimeOperationId": { "type": "string", "format": "uuid" },
+    "sourceVersionDigestSha256": { "$ref": "#/$defs/sha256" },
+    "admittedPlanDigestSha256": { "$ref": "#/$defs/sha256" },
+    "importReceiptDigestSha256": { "$ref": "#/$defs/sha256" },
+    "target": { "$ref": "native-page-runtime-binding-v1.schema.json#/$defs/target" },
+    "requestedUrl": { "type": "string", "format": "uri" },
+    "finalUrl": { "type": "string", "format": "uri" },
+    "evidenceDigestSha256": { "$ref": "#/$defs/sha256" },
+    "claimedStatus": { "enum": ["NotRun", "NotRequired", "Pending", "Passed", "Failed"] },
+    "observedAtUtc": { "type": "string", "format": "date-time" },
+    "reportDigestSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+  }
+}
