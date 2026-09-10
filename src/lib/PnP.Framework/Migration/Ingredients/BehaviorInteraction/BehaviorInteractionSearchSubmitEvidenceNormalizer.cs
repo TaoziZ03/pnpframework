@@ -211,6 +211,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
         }
 
         public static IngredientLiveEvidence ProjectLiveEvidence(
+            IngredientMaturityEvaluationContext context,
             IngredientLiveEvidence evidence,
             BehaviorInteractionSearchSubmitNormalization normalized)
         {
@@ -228,14 +229,18 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             return new IngredientLiveEvidence
             {
                 SourceAuthenticated = evidence.SourceAuthenticated
-                    && ValuesMatch(
+                    && BoundValuesMatch(
+                        context,
+                        evidence,
                         observations,
                         IngredientObservationOrigin.AuthenticatedSource,
                         RequiredSourceValuePaths,
                         normalized?.SourceValueDigests),
                 TargetFreshReadback = evidence.TargetFreshReadback
                     && normalized?.TargetRuntimePreconditionPassed == true
-                    && ValuesMatch(
+                    && BoundValuesMatch(
+                        context,
+                        evidence,
                         observations,
                         IngredientObservationOrigin.CupCollectFreshReadback,
                         RequiredTargetValuePaths,
@@ -598,28 +603,103 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                 && ingredientId.EndsWith(":" + instanceId, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool ValuesMatch(
+        private static bool BoundValuesMatch(
+            IngredientMaturityEvaluationContext context,
+            IngredientLiveEvidence evidence,
             IEnumerable<IngredientValueObservation> observations,
             IngredientObservationOrigin origin,
             IEnumerable<string> requiredValuePaths,
             IReadOnlyDictionary<string, string> expected)
         {
-            if (expected == null)
+            if (context?.Identity == null
+                || context.Source == null
+                || context.Target == null
+                || evidence == null
+                || expected == null
+                || !context.ObservationWindowStartUtc.HasValue
+                || !context.ObservationWindowEndUtc.HasValue
+                || context.ObservationWindowStartUtc.Value == default
+                || context.ObservationWindowEndUtc.Value == default
+                || context.ObservationWindowStartUtc.Value.Offset != TimeSpan.Zero
+                || context.ObservationWindowEndUtc.Value.Offset != TimeSpan.Zero
+                || context.ObservationWindowStartUtc > context.ObservationWindowEndUtc
+                || evidence.ReadbackStartedAtUtc == default
+                || evidence.ReadbackStartedAtUtc.Offset != TimeSpan.Zero
+                || evidence.ReadbackStartedAtUtc < context.ObservationWindowStartUtc
+                || evidence.ReadbackStartedAtUtc > context.ObservationWindowEndUtc)
             {
                 return false;
             }
+            var expectedSource = MigrationContractSerializer.SerializeCanonical(context.Source);
+            var expectedTarget = MigrationContractSerializer.SerializeCanonical(context.Target);
             foreach (var path in requiredValuePaths)
             {
                 var candidates = observations.Where(value => value.Origin == origin
                     && string.Equals(value.ValuePath, path, StringComparison.Ordinal)).ToArray();
                 if (candidates.Length != 1
                     || !expected.TryGetValue(path, out var digest)
-                    || !string.Equals(candidates[0].ValueDigest, digest, StringComparison.OrdinalIgnoreCase))
+                    || !ObservationMatches(
+                        context,
+                        evidence,
+                        candidates[0],
+                        origin,
+                        digest,
+                        expectedSource,
+                        expectedTarget))
                 {
                     return false;
                 }
             }
             return true;
+        }
+
+        private static bool ObservationMatches(
+            IngredientMaturityEvaluationContext context,
+            IngredientLiveEvidence evidence,
+            IngredientValueObservation observation,
+            IngredientObservationOrigin origin,
+            string expectedDigest,
+            string expectedSource,
+            string expectedTarget)
+        {
+            if (observation == null
+                || observation.Origin != origin
+                || !string.Equals(observation.ClaimId, context.Identity.ClaimId, StringComparison.Ordinal)
+                || !string.Equals(observation.IngredientId, context.Identity.IngredientId, StringComparison.Ordinal)
+                || observation.Source == null
+                || observation.Target == null
+                || !string.Equals(
+                    MigrationContractSerializer.SerializeCanonical(observation.Source),
+                    expectedSource,
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    MigrationContractSerializer.SerializeCanonical(observation.Target),
+                    expectedTarget,
+                    StringComparison.Ordinal)
+                || !string.Equals(observation.ValueDigest, expectedDigest, StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(observation.EvidenceReference)
+                || observation.ObservedAtUtc == default
+                || observation.ObservedAtUtc.Offset != TimeSpan.Zero
+                || observation.ObservedAtUtc < context.ObservationWindowStartUtc
+                || observation.ObservedAtUtc > context.ObservationWindowEndUtc)
+            {
+                return false;
+            }
+
+            if (origin == IngredientObservationOrigin.AuthenticatedSource)
+            {
+                return observation.ObservedAtUtc <= evidence.ReadbackStartedAtUtc
+                    && evidence.SourceEvidenceReferences != null
+                    && evidence.SourceEvidenceReferences.Contains(
+                        observation.EvidenceReference,
+                        StringComparer.Ordinal);
+            }
+
+            return observation.ObservedAtUtc >= evidence.ReadbackStartedAtUtc
+                && evidence.TargetEvidenceReferences != null
+                && evidence.TargetEvidenceReferences.Contains(
+                    observation.EvidenceReference,
+                    StringComparer.Ordinal);
         }
 
         private static IReadOnlyDictionary<string, string> SourceValueDigests(

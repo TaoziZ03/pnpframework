@@ -35,7 +35,10 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                 normalized.SourceBindingMatched,
                 "The runtime assertion source identity, version, or evidence digest does not match the evaluation context.");
 
-            var live = BehaviorInteractionSearchSubmitEvidenceNormalizer.ProjectLiveEvidence(evidence.Live, normalized);
+            var live = BehaviorInteractionSearchSubmitEvidenceNormalizer.ProjectLiveEvidence(
+                context,
+                evidence.Live,
+                normalized);
             if (live != null)
             {
                 var liveReceipts = IngredientMaturityEvidenceValidator.ValidateM1(context, live).ToList();

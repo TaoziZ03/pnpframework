@@ -212,6 +212,42 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
         }
 
+        [DataTestMethod]
+        [DataRow("foreign-binding")]
+        [DataRow("stale")]
+        [DataRow("unbound-reference")]
+        public void NonComparableSourceTopologyObservationCannotCloseM1(string mutation)
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMappedTargetTopologyReadback();
+            fixture.MutateNonComparableSourceTopologyObservation(mutation);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(
+                IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
+        }
+
+        [DataTestMethod]
+        [DataRow("foreign-binding")]
+        [DataRow("stale")]
+        [DataRow("unbound-reference")]
+        public void NonComparableTargetTopologyObservationCannotCloseM1(string mutation)
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMappedTargetTopologyReadback();
+            fixture.MutateNonComparableTargetTopologyObservation(mutation);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(
+                IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
         [TestMethod]
         public void ReadbackStartOutsideConsumerUtcWindowCannotCloseM1()
         {
@@ -533,6 +569,66 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 Evidence.Live.TargetEvidenceReferences.Clear();
                 Evidence.Live.TargetFreshReadback = false;
                 AddMappedTargetTopologyReadback();
+            }
+
+            public void MutateNonComparableSourceTopologyObservation(string mutation)
+            {
+                var path = mutation == "foreign-binding"
+                    ? "topology.source.providerCanonicalInstanceId"
+                    : mutation == "stale"
+                        ? "topology.source.pageIdentity"
+                        : "topology.source.availability";
+                MutateNonComparableObservation(
+                    IngredientObservationOrigin.AuthenticatedSource,
+                    path,
+                    mutation);
+            }
+
+            public void MutateNonComparableTargetTopologyObservation(string mutation)
+            {
+                var path = mutation == "foreign-binding"
+                    ? "topology.mapping.targetPageIdentity"
+                    : mutation == "stale"
+                        ? "topology.target.providerCanonicalInstanceId"
+                        : "topology.lease.claimId";
+                MutateNonComparableObservation(
+                    IngredientObservationOrigin.CupCollectFreshReadback,
+                    path,
+                    mutation);
+            }
+
+            private void MutateNonComparableObservation(
+                IngredientObservationOrigin origin,
+                string path,
+                string mutation)
+            {
+                var observation = Evidence.Live.Observations.Single(value =>
+                    value.Origin == origin
+                    && string.Equals(value.ValuePath, path, StringComparison.Ordinal));
+                switch (mutation)
+                {
+                    case "foreign-binding":
+                        observation.ClaimId = new string('0', 64);
+                        break;
+                    case "stale":
+                        observation.ObservedAtUtc = origin == IngredientObservationOrigin.AuthenticatedSource
+                            ? Context.ObservationWindowStartUtc.Value.AddTicks(-1)
+                            : Context.ObservationWindowEndUtc.Value.AddTicks(1);
+                        break;
+                    case "unbound-reference":
+                        if (origin == IngredientObservationOrigin.AuthenticatedSource)
+                        {
+                            Evidence.Live.SourceEvidenceReferences.Remove(observation.EvidenceReference);
+                        }
+                        else
+                        {
+                            Evidence.Live.TargetEvidenceReferences.Remove(observation.EvidenceReference);
+                        }
+                        break;
+                    default:
+                        Assert.Fail("Unknown observation mutation " + mutation);
+                        break;
+                }
             }
 
             public void RemoveTargetOperationalEvidence()
