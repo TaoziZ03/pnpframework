@@ -433,7 +433,8 @@ namespace PnP.Framework.Migration.Ingredients.WebPartInstance
 
             var values = observations.ToArray();
             return values.Length == expected.Count
-                && values.All(value => expected.ContainsKey(value.ValuePath))
+                && values.All(value => !string.IsNullOrWhiteSpace(value.ValuePath)
+                    && expected.ContainsKey(value.ValuePath))
                 && expected.All(pair =>
             {
                 var matches = values.Where(value => string.Equals(value.ValuePath, pair.Key, StringComparison.Ordinal)).ToArray();

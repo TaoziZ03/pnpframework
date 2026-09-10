@@ -171,6 +171,21 @@ namespace PnP.Framework.Test.Migration.Ingredients.WebPartInstance
         }
 
         [TestMethod]
+        public void MissingTargetObservationPathFailsFreshReadbackWithoutThrowing()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            fixture.Evidence.Live.Observations.First(value =>
+                value.Origin == IngredientObservationOrigin.CupCollectFreshReadback).ValuePath = null;
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback, IngredientMaturityGateStatus.Failed);
+        }
+
+        [TestMethod]
         public void StaleSourceVersionBindingFailsM0()
         {
             var fixture = Fixture.Create();
