@@ -41,7 +41,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
         public const string SemanticRole = "interaction-state-transition";
         public const string SourcePredicateId = "interaction.search-box.try-in-place";
         public const string SourcePredicateVersion = "1";
-        public const string SemanticSchema = "pnp-behavior-interaction-search-submit-semantic/v1";
+        public const string SemanticSchema = "pnp-behavior-interaction-search-submit-semantic/v2";
+        public const string LegacySemanticSchema = "pnp-behavior-interaction-search-submit-semantic/v1";
         public const string ResultScriptProviderType = "Microsoft.Office.Server.Search.WebControls.ResultScriptWebPart";
         public const string DependentResultProviderMissing = "DEPENDENT_RESULT_PROVIDER_MISSING";
 
@@ -83,6 +84,23 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             "topology.mapping.sourcePageVersion",
             "topology.mapping.targetPageIdentity",
             "topology.mapping.targetPageVersion",
+            "topology.mapping.targetIdentity",
+            "topology.mapping.searchBoxActionId",
+            "topology.mapping.providerActionId",
+            "topology.mapping.admittedPlanDigest",
+            "topology.searchBox.canonicalInstanceId",
+            "topology.searchBox.pageIdentity",
+            "topology.searchBox.pageVersion",
+            "topology.searchBox.configuration.allowEmptySearch",
+            "topology.searchBox.configuration.maintainQueryState",
+            "topology.searchBox.configuration.queryGroupNames",
+            "topology.searchBox.configuration.resultsPageAddress",
+            "topology.searchBox.configuration.tryInplaceQuery",
+            "topology.searchBox.configuration.updatePageTitle",
+            "topology.searchBox.configuration.msBeforeShowingProgress",
+            "topology.searchBox.observedAtUtc",
+            "topology.searchBox.operationReference",
+            "topology.searchBox.markerReference",
             "topology.target.providerCanonicalInstanceId",
             "topology.target.dynamicRegionCanonicalId",
             "topology.target.pageIdentity",
@@ -97,12 +115,22 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             "topology.target.markerReference",
             "topology.searchBoxQueryGroupName",
             "topology.admittedReviewedConfigurationDigest",
+            "topology.admittedTargetConfigurationDigest",
+            "topology.admittedPlanDigest",
             "topology.targetReadbackNotBeforeUtc",
             "topology.runtimeFinalEvidenceAtUtc",
             "topology.lease.leaseId",
             "topology.lease.status",
             "topology.lease.activeFromUtc",
             "topology.lease.retainThroughUtc",
+            "topology.lease.claimId",
+            "topology.lease.sourceVersion",
+            "topology.lease.targetIdentity",
+            "topology.lease.searchBoxInstanceId",
+            "topology.lease.providerInstanceId",
+            "topology.lease.operationReference",
+            "topology.lease.markerReference",
+            "topology.lease.planDigest",
             "topology.lease.evidenceReference",
             "topology.providerInventoryEvidenceReference"
         };
@@ -145,7 +173,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                     Forbidden = CanonicalStrings(evidence?.RuntimeBoundary?.Forbidden)
                 },
                 SearchConfiguration = Configuration(evidence?.SearchConfiguration),
-                ResultScriptTopology = Topology(evidence?.ResultScriptTopology),
+                ResultScriptTopology = SourceTopology(evidence?.ResultScriptTopology),
                 TypedVerdictPolicy = Verdicts(evidence?.TypedVerdictPolicy)
             };
             var canonical = MigrationContractSerializer.SerializeCanonical(semantic);
@@ -154,7 +182,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             var predicateMatched = runtimeValid && sourceTopologyValid && SafeSearchSubmitPredicate(evidence);
             var identityMatched = IdentityMatches(context, assertion);
             var sourceMatched = SourceMatches(context, evidence);
-            var targetTopologyReady = ValidateTargetTopology(evidence, out var targetTopologyFailure);
+            var targetTopologyReady = ValidateTargetTopology(context, evidence, out var targetTopologyFailure);
 
             return new BehaviorInteractionSearchSubmitNormalization
             {
@@ -278,32 +306,29 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             var assertion = evidence?.Assertion;
             var topology = evidence?.ResultScriptTopology;
             var provider = topology?.SourceProvider;
-            var mapping = topology?.TargetMapping;
             var references = assertion?.AttachedActionReferences ?? Array.Empty<RuntimeVerificationActionReference>();
-            if (provider == null || mapping == null)
+            if (provider == null)
             {
-                failureReason = "The typed source ResultScript provider topology or target mapping is missing.";
+                failureReason = "The typed source ResultScript provider topology is missing.";
                 return false;
             }
             if (provider.Availability != BehaviorInteractionProviderAvailability.Available
                 || !string.Equals(provider.CanonicalProviderInstanceId, evidence?.Target?.CanonicalOwnerInstanceId, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(provider.CanonicalProviderInstanceId, mapping.SourceProviderInstanceId, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(provider.CanonicalDynamicRegionId, mapping.SourceDynamicRegionId, StringComparison.Ordinal)
                 || !references.Any(value => value != null
                     && string.Equals(value.IngredientId, provider.CanonicalDynamicRegionId, StringComparison.Ordinal)))
             {
-                failureReason = "The source ResultScript provider identity is unavailable or does not match the attached dynamic region and target mapping.";
+                failureReason = "The source ResultScript provider identity is unavailable or does not match the attached dynamic region.";
                 return false;
             }
             if (!string.Equals(provider.PageIdentity, assertion?.SourcePageOrListItemIdentity, StringComparison.Ordinal)
-                || !string.Equals(provider.PageVersion, assertion?.SourceVersionIdentity, StringComparison.Ordinal)
-                || !string.Equals(mapping.SourcePageIdentity, provider.PageIdentity, StringComparison.Ordinal)
-                || !string.Equals(mapping.SourcePageVersion, provider.PageVersion, StringComparison.Ordinal))
+                || !string.Equals(provider.PageVersion, assertion?.SourceVersionIdentity, StringComparison.Ordinal))
             {
                 failureReason = "The source ResultScript provider does not bind the asserted page identity and version.";
                 return false;
             }
             if (!ProviderConfigurationMatches(evidence, provider, topology)
+                || !IngredientMaturityEvaluator.IsSha256(topology.AdmittedReviewedConfigurationDigest)
+                || !string.Equals(provider.ConfigurationDigest, topology.AdmittedReviewedConfigurationDigest, StringComparison.OrdinalIgnoreCase)
                 || provider.ObservedAtUtc == default
                 || string.IsNullOrWhiteSpace(provider.OperationReference))
             {
@@ -315,6 +340,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
         }
 
         private static bool ValidateTargetTopology(
+            IngredientMaturityEvaluationContext context,
             BehaviorInteractionSearchSubmitSourceEvidence evidence,
             out string failureReason)
         {
@@ -325,11 +351,12 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
 
             var topology = evidence.ResultScriptTopology;
             var provider = topology.TargetProvider;
+            var searchBox = topology.TargetSearchBox;
             var mapping = topology.TargetMapping;
             var lease = topology.Lease;
-            if (provider == null || lease == null)
+            if (provider == null || searchBox == null || mapping == null || lease == null)
             {
-                failureReason = "The mapped target ResultScript provider or consumer lease is missing.";
+                failureReason = "The independently observed target Search Box, mapped ResultScript provider, target mapping, or consumer lease is missing.";
                 return false;
             }
             if (provider.Availability != BehaviorInteractionProviderAvailability.Available
@@ -345,6 +372,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                 || !string.Equals(mapping.SourceSearchBoxInstanceId, evidence.Trigger?.CanonicalOwnerInstanceId, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(mapping.SourceProviderInstanceId, topology.SourceProvider.CanonicalProviderInstanceId, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(mapping.TargetProviderInstanceId, provider.CanonicalProviderInstanceId, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(mapping.TargetSearchBoxInstanceId, searchBox.CanonicalSearchBoxInstanceId, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(searchBox.CanonicalSearchBoxInstanceId, provider.CanonicalProviderInstanceId, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(mapping.TargetDynamicRegionId, provider.CanonicalDynamicRegionId, StringComparison.Ordinal)
                 || !EndsWithInstance(provider.CanonicalDynamicRegionId, provider.CanonicalProviderInstanceId)
                 || string.IsNullOrWhiteSpace(mapping.EvidenceReference))
@@ -352,18 +381,27 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                 failureReason = "The target Search Box, ResultScript provider, or dynamic-region mapping is incomplete or wrong.";
                 return false;
             }
-            if (!string.Equals(provider.PageIdentity, mapping.TargetPageIdentity, StringComparison.Ordinal)
+            if (!string.Equals(context?.Target?.TargetProfile, evidence.Assertion?.TargetProfileId, StringComparison.Ordinal)
+                || !string.Equals(context?.Target?.TargetIdentity, mapping.TargetIdentity, StringComparison.Ordinal)
+                || !string.Equals(provider.PageIdentity, mapping.TargetPageIdentity, StringComparison.Ordinal)
                 || !string.Equals(provider.PageVersion, mapping.TargetPageVersion, StringComparison.Ordinal)
+                || !string.Equals(searchBox.PageIdentity, mapping.TargetPageIdentity, StringComparison.Ordinal)
+                || !string.Equals(searchBox.PageVersion, mapping.TargetPageVersion, StringComparison.Ordinal)
                 || string.IsNullOrWhiteSpace(provider.PageIdentity)
                 || string.IsNullOrWhiteSpace(provider.PageVersion))
             {
                 failureReason = "The mapped ResultScript provider is not freshly bound to the same target page identity and version as the Search Box.";
                 return false;
             }
-            if (!ProviderConfigurationMatches(evidence, provider, topology)
+            if (!TargetActionsMatch(context, evidence, mapping)
+                || !SearchBoxConfigurationMatches(evidence.SearchConfiguration, searchBox.Configuration)
+                || !ProviderConfigurationMatches(evidence, provider, topology)
                 || !IngredientMaturityEvaluator.IsSha256(topology.AdmittedReviewedConfigurationDigest)
-                || !string.Equals(provider.ConfigurationDigest, topology.AdmittedReviewedConfigurationDigest, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(topology.SourceProvider.ConfigurationDigest, topology.AdmittedReviewedConfigurationDigest, StringComparison.OrdinalIgnoreCase))
+                || !IngredientMaturityEvaluator.IsSha256(topology.AdmittedTargetConfigurationDigest)
+                || !IngredientMaturityEvaluator.IsSha256(topology.AdmittedPlanDigest)
+                || !string.Equals(provider.ConfigurationDigest, topology.AdmittedTargetConfigurationDigest, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(topology.SourceProvider.ConfigurationDigest, topology.AdmittedReviewedConfigurationDigest, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(mapping.AdmittedPlanDigest, topology.AdmittedPlanDigest, StringComparison.OrdinalIgnoreCase))
             {
                 failureReason = "The mapped ResultScript provider does not match the Search Box query group or the admitted reviewed configuration.";
                 return false;
@@ -371,6 +409,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             if (topology.TargetReadbackNotBeforeUtc == default
                 || topology.RuntimeFinalEvidenceAtUtc == default
                 || topology.TargetReadbackNotBeforeUtc > topology.RuntimeFinalEvidenceAtUtc
+                || searchBox.ObservedAtUtc < topology.TargetReadbackNotBeforeUtc
+                || searchBox.ObservedAtUtc > topology.RuntimeFinalEvidenceAtUtc
                 || provider.ObservedAtUtc < topology.TargetReadbackNotBeforeUtc
                 || provider.ObservedAtUtc > topology.RuntimeFinalEvidenceAtUtc)
             {
@@ -384,6 +424,18 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                 || lease.ActiveFromUtc > provider.ObservedAtUtc
                 || lease.RetainThroughUtc < topology.RuntimeFinalEvidenceAtUtc
                 || lease.ReleasedAtUtc.HasValue && lease.ReleasedAtUtc.Value <= topology.RuntimeFinalEvidenceAtUtc
+                || !string.Equals(lease.ClaimId, context?.Identity?.ClaimId, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(lease.SourceVersion, evidence.Assertion?.SourceVersionIdentity, StringComparison.Ordinal)
+                || !string.Equals(lease.TargetIdentity, context?.Target?.TargetIdentity, StringComparison.Ordinal)
+                || !string.Equals(lease.SearchBoxInstanceId, searchBox.CanonicalSearchBoxInstanceId, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(lease.ProviderInstanceId, provider.CanonicalProviderInstanceId, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(lease.OperationReference, provider.OperationReference, StringComparison.Ordinal)
+                || !string.Equals(lease.OperationReference, searchBox.OperationReference, StringComparison.Ordinal)
+                || !string.Equals(lease.MarkerReference, provider.MarkerReference, StringComparison.Ordinal)
+                || !string.Equals(lease.MarkerReference, searchBox.MarkerReference, StringComparison.Ordinal)
+                || !string.Equals(lease.PlanDigest, topology.AdmittedPlanDigest, StringComparison.OrdinalIgnoreCase)
+                || !ReferenceContainsToken(lease.MarkerReference, lease.LeaseId)
+                || !ReferenceContainsToken(lease.EvidenceReference, lease.LeaseId)
                 || string.IsNullOrWhiteSpace(lease.EvidenceReference))
             {
                 failureReason = "The ResultScript consumer lease is not active through final runtime evidence.";
@@ -391,6 +443,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             }
             if (string.IsNullOrWhiteSpace(provider.OperationReference)
                 || string.IsNullOrWhiteSpace(provider.MarkerReference)
+                || string.IsNullOrWhiteSpace(searchBox.OperationReference)
+                || string.IsNullOrWhiteSpace(searchBox.MarkerReference)
                 || string.IsNullOrWhiteSpace(topology.ProviderInventoryEvidenceReference))
             {
                 failureReason = "The target provider operation, ownership marker, or inventory evidence reference is missing.";
@@ -398,6 +452,48 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             }
             failureReason = null;
             return true;
+        }
+
+        private static bool TargetActionsMatch(
+            IngredientMaturityEvaluationContext context,
+            BehaviorInteractionSearchSubmitSourceEvidence evidence,
+            BehaviorInteractionResultScriptTargetMappingEvidence mapping)
+        {
+            var actions = evidence?.IngredientActions ?? Array.Empty<PageIngredientAction>();
+            var searchBoxActions = actions.Where(value => value != null
+                && string.Equals(value.ActionId, mapping?.SearchBoxActionId, StringComparison.Ordinal)).ToArray();
+            var providerActions = actions.Where(value => value != null
+                && string.Equals(value.ActionId, mapping?.ProviderActionId, StringComparison.Ordinal)).ToArray();
+            return searchBoxActions.Length == 1
+                && providerActions.Length == 1
+                && string.Equals(mapping.SearchBoxActionId, evidence.Assertion?.Intent?.Action?.ActionId, StringComparison.Ordinal)
+                && EndsWithInstance(searchBoxActions[0].IngredientId, mapping.SourceSearchBoxInstanceId)
+                && string.Equals(providerActions[0].IngredientId, mapping.SourceDynamicRegionId, StringComparison.Ordinal)
+                && string.Equals(searchBoxActions[0].TargetIdentity, context?.Target?.TargetIdentity, StringComparison.Ordinal)
+                && string.Equals(providerActions[0].TargetIdentity, context?.Target?.TargetIdentity, StringComparison.Ordinal);
+        }
+
+        private static bool SearchBoxConfigurationMatches(
+            BehaviorInteractionSearchConfiguration expected,
+            BehaviorInteractionSearchConfiguration observed)
+        {
+            return expected != null
+                && observed != null
+                && expected.AllowEmptySearch == observed.AllowEmptySearch
+                && expected.MaintainQueryState == observed.MaintainQueryState
+                && expected.TryInplaceQuery == observed.TryInplaceQuery
+                && expected.UpdatePageTitle == observed.UpdatePageTitle
+                && expected.MsBeforeShowingProgress == observed.MsBeforeShowingProgress
+                && string.Equals(expected.ResultsPageAddress, observed.ResultsPageAddress, StringComparison.Ordinal)
+                && CanonicalStrings(expected.QueryGroupNames)
+                    .SequenceEqual(CanonicalStrings(observed.QueryGroupNames), StringComparer.Ordinal);
+        }
+
+        private static bool ReferenceContainsToken(string reference, string token)
+        {
+            return !string.IsNullOrWhiteSpace(reference)
+                && !string.IsNullOrWhiteSpace(token)
+                && reference.IndexOf(token, StringComparison.Ordinal) >= 0;
         }
 
         private static bool ProviderConfigurationMatches(
@@ -506,6 +602,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             var values = CommonValueDigests(evidence);
             var topology = evidence?.ResultScriptTopology;
             var target = topology?.TargetProvider;
+            var searchBox = topology?.TargetSearchBox;
             var mapping = topology?.TargetMapping;
             var lease = topology?.Lease;
             values["topology.mapping.sourceSearchBoxInstanceId"] = ScalarDigest(mapping?.SourceSearchBoxInstanceId);
@@ -518,6 +615,23 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             values["topology.mapping.sourcePageVersion"] = ScalarDigest(mapping?.SourcePageVersion);
             values["topology.mapping.targetPageIdentity"] = ScalarDigest(mapping?.TargetPageIdentity);
             values["topology.mapping.targetPageVersion"] = ScalarDigest(mapping?.TargetPageVersion);
+            values["topology.mapping.targetIdentity"] = ScalarDigest(mapping?.TargetIdentity);
+            values["topology.mapping.searchBoxActionId"] = ScalarDigest(mapping?.SearchBoxActionId);
+            values["topology.mapping.providerActionId"] = ScalarDigest(mapping?.ProviderActionId);
+            values["topology.mapping.admittedPlanDigest"] = ScalarDigest(mapping?.AdmittedPlanDigest);
+            values["topology.searchBox.canonicalInstanceId"] = ScalarDigest(searchBox?.CanonicalSearchBoxInstanceId);
+            values["topology.searchBox.pageIdentity"] = ScalarDigest(searchBox?.PageIdentity);
+            values["topology.searchBox.pageVersion"] = ScalarDigest(searchBox?.PageVersion);
+            values["topology.searchBox.configuration.allowEmptySearch"] = ScalarDigest(searchBox?.Configuration?.AllowEmptySearch ?? true);
+            values["topology.searchBox.configuration.maintainQueryState"] = ScalarDigest(searchBox?.Configuration?.MaintainQueryState ?? false);
+            values["topology.searchBox.configuration.queryGroupNames"] = ScalarDigest(CanonicalStrings(searchBox?.Configuration?.QueryGroupNames));
+            values["topology.searchBox.configuration.resultsPageAddress"] = ScalarDigest(searchBox?.Configuration?.ResultsPageAddress);
+            values["topology.searchBox.configuration.tryInplaceQuery"] = ScalarDigest(searchBox?.Configuration?.TryInplaceQuery ?? false);
+            values["topology.searchBox.configuration.updatePageTitle"] = ScalarDigest(searchBox?.Configuration?.UpdatePageTitle ?? false);
+            values["topology.searchBox.configuration.msBeforeShowingProgress"] = ScalarDigest(searchBox?.Configuration?.MsBeforeShowingProgress ?? 0);
+            values["topology.searchBox.observedAtUtc"] = ScalarDigest(searchBox?.ObservedAtUtc ?? default);
+            values["topology.searchBox.operationReference"] = ScalarDigest(searchBox?.OperationReference);
+            values["topology.searchBox.markerReference"] = ScalarDigest(searchBox?.MarkerReference);
             values["topology.target.providerCanonicalInstanceId"] = ScalarDigest(target?.CanonicalProviderInstanceId);
             values["topology.target.dynamicRegionCanonicalId"] = ScalarDigest(target?.CanonicalDynamicRegionId);
             values["topology.target.pageIdentity"] = ScalarDigest(target?.PageIdentity);
@@ -532,12 +646,22 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             values["topology.target.markerReference"] = ScalarDigest(target?.MarkerReference);
             values["topology.searchBoxQueryGroupName"] = ScalarDigest(topology?.SearchBoxQueryGroupName);
             values["topology.admittedReviewedConfigurationDigest"] = ScalarDigest(topology?.AdmittedReviewedConfigurationDigest);
+            values["topology.admittedTargetConfigurationDigest"] = ScalarDigest(topology?.AdmittedTargetConfigurationDigest);
+            values["topology.admittedPlanDigest"] = ScalarDigest(topology?.AdmittedPlanDigest);
             values["topology.targetReadbackNotBeforeUtc"] = ScalarDigest(topology?.TargetReadbackNotBeforeUtc ?? default);
             values["topology.runtimeFinalEvidenceAtUtc"] = ScalarDigest(topology?.RuntimeFinalEvidenceAtUtc ?? default);
             values["topology.lease.leaseId"] = ScalarDigest(lease?.LeaseId);
             values["topology.lease.status"] = ScalarDigest(lease?.Status);
             values["topology.lease.activeFromUtc"] = ScalarDigest(lease?.ActiveFromUtc ?? default);
             values["topology.lease.retainThroughUtc"] = ScalarDigest(lease?.RetainThroughUtc ?? default);
+            values["topology.lease.claimId"] = ScalarDigest(lease?.ClaimId);
+            values["topology.lease.sourceVersion"] = ScalarDigest(lease?.SourceVersion);
+            values["topology.lease.targetIdentity"] = ScalarDigest(lease?.TargetIdentity);
+            values["topology.lease.searchBoxInstanceId"] = ScalarDigest(lease?.SearchBoxInstanceId);
+            values["topology.lease.providerInstanceId"] = ScalarDigest(lease?.ProviderInstanceId);
+            values["topology.lease.operationReference"] = ScalarDigest(lease?.OperationReference);
+            values["topology.lease.markerReference"] = ScalarDigest(lease?.MarkerReference);
+            values["topology.lease.planDigest"] = ScalarDigest(lease?.PlanDigest);
             values["topology.lease.evidenceReference"] = ScalarDigest(lease?.EvidenceReference);
             values["topology.providerInventoryEvidenceReference"] = ScalarDigest(topology?.ProviderInventoryEvidenceReference);
             return values;
@@ -602,74 +726,31 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             };
         }
 
-        private static ResultScriptTopologyProjection Topology(
+        private static SourceResultScriptTopologyProjection SourceTopology(
             BehaviorInteractionResultScriptConsumerTopologyEvidence value)
         {
-            return new ResultScriptTopologyProjection
+            return new SourceResultScriptTopologyProjection
             {
                 AdmittedReviewedConfigurationDigest = value?.AdmittedReviewedConfigurationDigest,
-                Lease = Lease(value?.Lease),
-                ProviderInventoryEvidenceReference = value?.ProviderInventoryEvidenceReference,
-                RuntimeFinalEvidenceAtUtc = value?.RuntimeFinalEvidenceAtUtc ?? default,
                 SearchBoxQueryGroupName = value?.SearchBoxQueryGroupName,
-                SourceProvider = Provider(value?.SourceProvider),
-                TargetMapping = Mapping(value?.TargetMapping),
-                TargetProvider = Provider(value?.TargetProvider),
-                TargetReadbackNotBeforeUtc = value?.TargetReadbackNotBeforeUtc ?? default
+                SourceProvider = SourceProvider(value?.SourceProvider)
             };
         }
 
-        private static ResultScriptProviderProjection Provider(
+        private static SourceResultScriptProviderProjection SourceProvider(
             BehaviorInteractionResultScriptProviderEvidence value)
         {
-            return new ResultScriptProviderProjection
+            return new SourceResultScriptProviderProjection
             {
                 Availability = value?.Availability ?? BehaviorInteractionProviderAvailability.Unknown,
                 CanonicalDynamicRegionId = value?.CanonicalDynamicRegionId,
                 CanonicalProviderInstanceId = value?.CanonicalProviderInstanceId,
-                CleanupObservedAtUtc = value?.CleanupObservedAtUtc,
                 ConfigurationDigest = value?.ConfigurationDigest,
-                MarkerReference = value?.MarkerReference,
-                ObservedAtUtc = value?.ObservedAtUtc ?? default,
-                OperationReference = value?.OperationReference,
                 PageIdentity = value?.PageIdentity,
                 PageVersion = value?.PageVersion,
                 ProviderType = value?.ProviderType,
                 QueryGroupName = value?.QueryGroupName,
                 UpdateAjaxNavigate = value?.UpdateAjaxNavigate ?? false
-            };
-        }
-
-        private static ResultScriptTargetMappingProjection Mapping(
-            BehaviorInteractionResultScriptTargetMappingEvidence value)
-        {
-            return new ResultScriptTargetMappingProjection
-            {
-                EvidenceReference = value?.EvidenceReference,
-                SourceDynamicRegionId = value?.SourceDynamicRegionId,
-                SourcePageIdentity = value?.SourcePageIdentity,
-                SourcePageVersion = value?.SourcePageVersion,
-                SourceProviderInstanceId = value?.SourceProviderInstanceId,
-                SourceSearchBoxInstanceId = value?.SourceSearchBoxInstanceId,
-                TargetDynamicRegionId = value?.TargetDynamicRegionId,
-                TargetPageIdentity = value?.TargetPageIdentity,
-                TargetPageVersion = value?.TargetPageVersion,
-                TargetProviderInstanceId = value?.TargetProviderInstanceId,
-                TargetSearchBoxInstanceId = value?.TargetSearchBoxInstanceId
-            };
-        }
-
-        private static ResultScriptLeaseProjection Lease(
-            BehaviorInteractionResultScriptLeaseEvidence value)
-        {
-            return new ResultScriptLeaseProjection
-            {
-                ActiveFromUtc = value?.ActiveFromUtc ?? default,
-                EvidenceReference = value?.EvidenceReference,
-                LeaseId = value?.LeaseId,
-                ReleasedAtUtc = value?.ReleasedAtUtc,
-                RetainThroughUtc = value?.RetainThroughUtc ?? default,
-                Status = value?.Status
             };
         }
 
@@ -709,7 +790,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
 
             public SearchConfigurationProjection SearchConfiguration { get; set; }
 
-            public ResultScriptTopologyProjection ResultScriptTopology { get; set; }
+            public SourceResultScriptTopologyProjection ResultScriptTopology { get; set; }
 
             public TypedVerdictProjection TypedVerdictPolicy { get; set; }
         }
@@ -773,28 +854,16 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             public bool UpdatePageTitle { get; set; }
         }
 
-        private sealed class ResultScriptTopologyProjection
+        private sealed class SourceResultScriptTopologyProjection
         {
             public string AdmittedReviewedConfigurationDigest { get; set; }
 
-            public ResultScriptLeaseProjection Lease { get; set; }
-
-            public string ProviderInventoryEvidenceReference { get; set; }
-
-            public DateTimeOffset RuntimeFinalEvidenceAtUtc { get; set; }
-
             public string SearchBoxQueryGroupName { get; set; }
 
-            public ResultScriptProviderProjection SourceProvider { get; set; }
-
-            public ResultScriptTargetMappingProjection TargetMapping { get; set; }
-
-            public ResultScriptProviderProjection TargetProvider { get; set; }
-
-            public DateTimeOffset TargetReadbackNotBeforeUtc { get; set; }
+            public SourceResultScriptProviderProjection SourceProvider { get; set; }
         }
 
-        private sealed class ResultScriptProviderProjection
+        private sealed class SourceResultScriptProviderProjection
         {
             public BehaviorInteractionProviderAvailability Availability { get; set; }
 
@@ -802,15 +871,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
 
             public string CanonicalProviderInstanceId { get; set; }
 
-            public DateTimeOffset? CleanupObservedAtUtc { get; set; }
-
             public string ConfigurationDigest { get; set; }
-
-            public string MarkerReference { get; set; }
-
-            public DateTimeOffset ObservedAtUtc { get; set; }
-
-            public string OperationReference { get; set; }
 
             public string PageIdentity { get; set; }
 
@@ -821,46 +882,6 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             public string QueryGroupName { get; set; }
 
             public bool UpdateAjaxNavigate { get; set; }
-        }
-
-        private sealed class ResultScriptTargetMappingProjection
-        {
-            public string EvidenceReference { get; set; }
-
-            public string SourceDynamicRegionId { get; set; }
-
-            public string SourcePageIdentity { get; set; }
-
-            public string SourcePageVersion { get; set; }
-
-            public string SourceProviderInstanceId { get; set; }
-
-            public string SourceSearchBoxInstanceId { get; set; }
-
-            public string TargetDynamicRegionId { get; set; }
-
-            public string TargetPageIdentity { get; set; }
-
-            public string TargetPageVersion { get; set; }
-
-            public string TargetProviderInstanceId { get; set; }
-
-            public string TargetSearchBoxInstanceId { get; set; }
-        }
-
-        private sealed class ResultScriptLeaseProjection
-        {
-            public DateTimeOffset ActiveFromUtc { get; set; }
-
-            public string EvidenceReference { get; set; }
-
-            public string LeaseId { get; set; }
-
-            public DateTimeOffset? ReleasedAtUtc { get; set; }
-
-            public DateTimeOffset RetainThroughUtc { get; set; }
-
-            public string Status { get; set; }
         }
 
         private sealed class TypedVerdictProjection

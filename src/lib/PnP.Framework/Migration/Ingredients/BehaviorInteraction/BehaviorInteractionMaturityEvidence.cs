@@ -91,6 +91,23 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
         public string MarkerReference { get; set; }
     }
 
+    internal sealed class BehaviorInteractionSearchBoxTargetEvidence
+    {
+        public string CanonicalSearchBoxInstanceId { get; set; }
+
+        public string PageIdentity { get; set; }
+
+        public string PageVersion { get; set; }
+
+        public BehaviorInteractionSearchConfiguration Configuration { get; set; }
+
+        public DateTimeOffset ObservedAtUtc { get; set; }
+
+        public string OperationReference { get; set; }
+
+        public string MarkerReference { get; set; }
+    }
+
     internal sealed class BehaviorInteractionResultScriptTargetMappingEvidence
     {
         public string SourceSearchBoxInstanceId { get; set; }
@@ -113,6 +130,14 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
 
         public string TargetPageVersion { get; set; }
 
+        public string TargetIdentity { get; set; }
+
+        public string SearchBoxActionId { get; set; }
+
+        public string ProviderActionId { get; set; }
+
+        public string AdmittedPlanDigest { get; set; }
+
         public string EvidenceReference { get; set; }
     }
 
@@ -128,6 +153,22 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
 
         public DateTimeOffset? ReleasedAtUtc { get; set; }
 
+        public string ClaimId { get; set; }
+
+        public string SourceVersion { get; set; }
+
+        public string TargetIdentity { get; set; }
+
+        public string SearchBoxInstanceId { get; set; }
+
+        public string ProviderInstanceId { get; set; }
+
+        public string OperationReference { get; set; }
+
+        public string MarkerReference { get; set; }
+
+        public string PlanDigest { get; set; }
+
         public string EvidenceReference { get; set; }
     }
 
@@ -137,6 +178,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
 
         public BehaviorInteractionResultScriptProviderEvidence TargetProvider { get; set; }
 
+        public BehaviorInteractionSearchBoxTargetEvidence TargetSearchBox { get; set; }
+
         public BehaviorInteractionResultScriptTargetMappingEvidence TargetMapping { get; set; }
 
         public BehaviorInteractionResultScriptLeaseEvidence Lease { get; set; }
@@ -144,6 +187,10 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
         public string SearchBoxQueryGroupName { get; set; }
 
         public string AdmittedReviewedConfigurationDigest { get; set; }
+
+        public string AdmittedTargetConfigurationDigest { get; set; }
+
+        public string AdmittedPlanDigest { get; set; }
 
         public DateTimeOffset TargetReadbackNotBeforeUtc { get; set; }
 

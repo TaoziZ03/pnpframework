@@ -55,6 +55,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
         [DataRow("missing-provider")]
         [DataRow("wrong-mapping")]
         [DataRow("wrong-group")]
+        [DataRow("wrong-searchbox-config")]
         [DataRow("stale-readback")]
         [DataRow("cleanup-before-runtime")]
         public void InvalidResultProviderTopologyStopsBeforeSubmit(string mutation)
@@ -77,6 +78,75 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
             StringAssert.StartsWith(
                 targetGate.FailureReason,
                 BehaviorInteractionSearchSubmitEvidenceNormalizer.DependentResultProviderMissing + ":");
+        }
+
+        [DataTestMethod]
+        [DataRow("wrong-target-searchbox")]
+        [DataRow("searchbox-is-provider")]
+        [DataRow("unrelated-target-page")]
+        [DataRow("unrelated-lease-id")]
+        [DataRow("unrelated-claim-lease")]
+        public void IndependentTargetConsumerAndLeaseBindingsFailClosed(string mutation)
+        {
+            var fixture = Fixture.Create();
+            fixture.MutateTargetTopology(mutation);
+            fixture.AddMappedTargetTopologyReadback();
+
+            var normalized = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(
+                fixture.Context,
+                fixture.Evidence.Source);
+            var assessment = fixture.Evaluate();
+
+            Assert.IsFalse(normalized.TargetRuntimePreconditionPassed);
+            Assert.AreEqual(
+                IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
+        [TestMethod]
+        public void TargetOnlyRefreshDoesNotResealSourceSemanticSnapshot()
+        {
+            var fixture = Fixture.Create();
+            var sourceDigest = fixture.Evidence.Source.SemanticDigest;
+            var sourceSnapshotDigest = fixture.Context.Source.SourceSnapshotDigest;
+            var before = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(
+                fixture.Context,
+                fixture.Evidence.Source).SemanticCanonicalJson;
+
+            fixture.Evidence.Source.ResultScriptTopology.TargetProvider.ObservedAtUtc =
+                fixture.Evidence.Source.ResultScriptTopology.TargetProvider.ObservedAtUtc.AddSeconds(5);
+            fixture.Evidence.Source.ResultScriptTopology.TargetSearchBox.ObservedAtUtc =
+                fixture.Evidence.Source.ResultScriptTopology.TargetSearchBox.ObservedAtUtc.AddSeconds(5);
+            fixture.ReplaceMappedTargetTopologyReadback();
+
+            var after = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(
+                fixture.Context,
+                fixture.Evidence.Source).SemanticCanonicalJson;
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(sourceDigest, fixture.Evidence.Source.SemanticDigest);
+            Assert.AreEqual(sourceSnapshotDigest, fixture.Context.Source.SourceSnapshotDigest);
+            Assert.AreEqual(before, after);
+            Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.SemanticIntegrity).Status);
+            Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
+        [TestMethod]
+        public void SourceDiscoverabilitySurvivesMissingTargetOperationalEvidence()
+        {
+            var fixture = Fixture.Create();
+            fixture.RemoveTargetOperationalEvidence();
+
+            var normalized = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(
+                fixture.Context,
+                fixture.Evidence.Source);
+            var assessment = fixture.Evaluate();
+
+            Assert.IsTrue(normalized.SourcePredicateMatched);
+            Assert.IsFalse(normalized.TargetRuntimePreconditionPassed);
+            Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.CanonicalIdentity).Status);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+            Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.SemanticIntegrity).Status);
         }
 
         [TestMethod]
@@ -218,7 +288,9 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     ActionId = reference.ActionId,
                     IngredientId = reference.IngredientId,
                     Capability = IngredientCapability.Available,
-                    Disposition = IngredientDisposition.Preserve
+                    Disposition = IngredientDisposition.Preserve,
+                    TargetIdentity = root.GetProperty("resultScriptConsumerTopology")
+                        .GetProperty("targetMapping").GetProperty("targetIdentity").GetString()
                 }).ToList();
                 var trigger = assertionValue.GetProperty("trigger");
                 var target = assertionValue.GetProperty("target");
@@ -264,18 +336,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         Unknown = verdicts.GetProperty("unknown").GetString(),
                         Fail = verdicts.GetProperty("fail").GetString()
                     },
-                    SearchConfiguration = new BehaviorInteractionSearchConfiguration
-                    {
-                        AllowEmptySearch = configuration.GetProperty("allowEmptySearch").GetBoolean(),
-                        MaintainQueryState = configuration.GetProperty("maintainQueryState").GetBoolean(),
-                        QueryGroupNames = Strings(configuration.GetProperty("queryGroupNames")),
-                        ResultsPageAddress = configuration.GetProperty("resultsPageAddress").ValueKind == JsonValueKind.Null
-                            ? null
-                            : configuration.GetProperty("resultsPageAddress").GetString(),
-                        TryInplaceQuery = configuration.GetProperty("tryInplaceQuery").GetBoolean(),
-                        UpdatePageTitle = configuration.GetProperty("updatePageTitle").GetBoolean(),
-                        MsBeforeShowingProgress = configuration.GetProperty("msBeforeShowingProgress").GetInt32()
-                    },
+                    SearchConfiguration = Configuration(configuration),
                     ResultScriptTopology = ResultScriptTopology(topology),
                     RawArtifact = new ArtifactReference
                     {
@@ -285,6 +346,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         OriginalName = "search-submit.fixture.v1.json"
                     },
                     RawArtifactBase64 = Convert.ToBase64String(bytes),
+                    SemanticDigest = source.GetProperty("freshNormalizedSemanticDigestSha256").GetString(),
                     EvidenceReferences = new List<string> { "search-submit.fixture.v1.json" }
                 };
                 var context = new IngredientMaturityEvaluationContext
@@ -310,7 +372,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     Target = new IngredientMaturityTargetBinding
                     {
                         TargetProfile = assertion.TargetProfileId,
-                        TargetIdentity = "https://a830edad9050849cupcollect.sharepoint.com/"
+                        TargetIdentity = topology.GetProperty("targetMapping").GetProperty("targetIdentity").GetString()
                     },
                     Producer = new IngredientMaturityProducerBinding
                     {
@@ -327,8 +389,13 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     }
                 };
                 var normalized = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(context, sourceEvidence);
-                sourceEvidence.SemanticDigest = MigrationDigest.ComputeSha256(normalized.SemanticCanonicalJson);
-                context.Source.SourceSnapshotDigest = sourceEvidence.SemanticDigest;
+                var recomputedSemanticDigest = MigrationDigest.ComputeSha256(normalized.SemanticCanonicalJson);
+                if (!string.Equals(sourceEvidence.SemanticDigest, recomputedSemanticDigest, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        "The fixture source semantic digest does not match the v2 projection. Expected "
+                        + recomputedSemanticDigest + ".");
+                }
                 var observations = normalized.SourceValueDigests.Select(value => new IngredientValueObservation
                 {
                     ValuePath = value.Key,
@@ -385,6 +452,26 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 Evidence.Live.TargetEvidenceReferences.Add("cupcollect-runtime-readback.json");
             }
 
+            public void ReplaceMappedTargetTopologyReadback()
+            {
+                Evidence.Live.Observations = Evidence.Live.Observations
+                    .Where(value => value.Origin != IngredientObservationOrigin.CupCollectFreshReadback)
+                    .ToList();
+                Evidence.Live.TargetEvidenceReferences.Clear();
+                Evidence.Live.TargetFreshReadback = false;
+                AddMappedTargetTopologyReadback();
+            }
+
+            public void RemoveTargetOperationalEvidence()
+            {
+                var topology = Evidence.Source.ResultScriptTopology;
+                topology.TargetProvider = null;
+                topology.TargetSearchBox = null;
+                topology.TargetMapping = null;
+                topology.Lease = null;
+                Evidence.Live.TargetFreshReadback = false;
+            }
+
             public void MutateTargetTopology(string mutation)
             {
                 var topology = Evidence.Source.ResultScriptTopology;
@@ -399,6 +486,9 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     case "wrong-group":
                         topology.TargetProvider.QueryGroupName = "WrongGroup";
                         break;
+                    case "wrong-searchbox-config":
+                        topology.TargetSearchBox.Configuration.TryInplaceQuery = false;
+                        break;
                     case "stale-readback":
                         topology.TargetProvider.ObservedAtUtc = topology.TargetReadbackNotBeforeUtc.AddSeconds(-1);
                         break;
@@ -407,6 +497,31 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         topology.TargetProvider.CleanupObservedAtUtc = topology.RuntimeFinalEvidenceAtUtc.AddMinutes(-1);
                         topology.Lease.Status = "released";
                         topology.Lease.ReleasedAtUtc = topology.TargetProvider.CleanupObservedAtUtc;
+                        break;
+                    case "wrong-target-searchbox":
+                        topology.TargetMapping.TargetSearchBoxInstanceId = "11111111-1111-1111-1111-111111111111";
+                        break;
+                    case "searchbox-is-provider":
+                        topology.TargetMapping.TargetSearchBoxInstanceId = topology.TargetProvider.CanonicalProviderInstanceId;
+                        topology.TargetSearchBox.CanonicalSearchBoxInstanceId = topology.TargetProvider.CanonicalProviderInstanceId;
+                        topology.Lease.SearchBoxInstanceId = topology.TargetProvider.CanonicalProviderInstanceId;
+                        break;
+                    case "unrelated-target-page":
+                        const string unrelatedPage = "https://a830edad9050849cupcollect.sharepoint.com/sites/unrelated/Pages/Search.aspx";
+                        topology.TargetProvider.PageIdentity = unrelatedPage;
+                        topology.TargetSearchBox.PageIdentity = unrelatedPage;
+                        topology.TargetMapping.TargetPageIdentity = unrelatedPage;
+                        topology.TargetMapping.TargetIdentity = unrelatedPage;
+                        topology.Lease.TargetIdentity = unrelatedPage;
+                        break;
+                    case "unrelated-claim-lease":
+                        topology.Lease.LeaseId = "unrelated-claim-lease-v1";
+                        topology.Lease.ClaimId = new string('1', 64);
+                        topology.Lease.EvidenceReference = "ccd.shared-target-consumer-lease/v1#unrelated-claim-lease-v1";
+                        break;
+                    case "unrelated-lease-id":
+                        topology.Lease.LeaseId = "unrelated-lease-id-v1";
+                        topology.Lease.EvidenceReference = "ccd.shared-target-consumer-lease/v1#unrelated-lease-id-v1";
                         break;
                     default:
                         Assert.Fail("Unknown target topology mutation " + mutation);
@@ -462,12 +577,23 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
             {
                 var source = value.GetProperty("sourceProvider");
                 var target = value.GetProperty("targetProvider");
+                var searchBox = value.GetProperty("targetSearchBox");
                 var mapping = value.GetProperty("targetMapping");
                 var lease = value.GetProperty("lease");
                 return new BehaviorInteractionResultScriptConsumerTopologyEvidence
                 {
                     SourceProvider = Provider(source),
                     TargetProvider = Provider(target),
+                    TargetSearchBox = new BehaviorInteractionSearchBoxTargetEvidence
+                    {
+                        CanonicalSearchBoxInstanceId = searchBox.GetProperty("canonicalSearchBoxInstanceId").GetString(),
+                        PageIdentity = searchBox.GetProperty("pageIdentity").GetString(),
+                        PageVersion = searchBox.GetProperty("pageVersion").GetString(),
+                        Configuration = Configuration(searchBox.GetProperty("configuration")),
+                        ObservedAtUtc = searchBox.GetProperty("observedAtUtc").GetDateTimeOffset(),
+                        OperationReference = searchBox.GetProperty("operationReference").GetString(),
+                        MarkerReference = searchBox.GetProperty("markerReference").GetString()
+                    },
                     TargetMapping = new BehaviorInteractionResultScriptTargetMappingEvidence
                     {
                         SourceSearchBoxInstanceId = mapping.GetProperty("sourceSearchBoxInstanceId").GetString(),
@@ -480,6 +606,10 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         SourcePageVersion = mapping.GetProperty("sourcePageVersion").GetString(),
                         TargetPageIdentity = mapping.GetProperty("targetPageIdentity").GetString(),
                         TargetPageVersion = mapping.GetProperty("targetPageVersion").GetString(),
+                        TargetIdentity = mapping.GetProperty("targetIdentity").GetString(),
+                        SearchBoxActionId = mapping.GetProperty("searchBoxActionId").GetString(),
+                        ProviderActionId = mapping.GetProperty("providerActionId").GetString(),
+                        AdmittedPlanDigest = mapping.GetProperty("admittedPlanDigest").GetString(),
                         EvidenceReference = mapping.GetProperty("evidenceReference").GetString()
                     },
                     Lease = new BehaviorInteractionResultScriptLeaseEvidence
@@ -489,10 +619,20 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         ActiveFromUtc = lease.GetProperty("activeFromUtc").GetDateTimeOffset(),
                         RetainThroughUtc = lease.GetProperty("retainThroughUtc").GetDateTimeOffset(),
                         ReleasedAtUtc = NullableDate(lease.GetProperty("releasedAtUtc")),
+                        ClaimId = lease.GetProperty("claimId").GetString(),
+                        SourceVersion = lease.GetProperty("sourceVersion").GetString(),
+                        TargetIdentity = lease.GetProperty("targetIdentity").GetString(),
+                        SearchBoxInstanceId = lease.GetProperty("searchBoxInstanceId").GetString(),
+                        ProviderInstanceId = lease.GetProperty("providerInstanceId").GetString(),
+                        OperationReference = lease.GetProperty("operationReference").GetString(),
+                        MarkerReference = lease.GetProperty("markerReference").GetString(),
+                        PlanDigest = lease.GetProperty("planDigest").GetString(),
                         EvidenceReference = lease.GetProperty("evidenceReference").GetString()
                     },
                     SearchBoxQueryGroupName = value.GetProperty("searchBoxQueryGroupName").GetString(),
                     AdmittedReviewedConfigurationDigest = value.GetProperty("admittedReviewedConfigurationDigest").GetString(),
+                    AdmittedTargetConfigurationDigest = value.GetProperty("admittedTargetConfigurationDigest").GetString(),
+                    AdmittedPlanDigest = value.GetProperty("admittedPlanDigest").GetString(),
                     TargetReadbackNotBeforeUtc = value.GetProperty("targetReadbackNotBeforeUtc").GetDateTimeOffset(),
                     RuntimeFinalEvidenceAtUtc = value.GetProperty("runtimeFinalEvidenceAtUtc").GetDateTimeOffset(),
                     ProviderInventoryEvidenceReference = value.GetProperty("providerInventoryEvidenceReference").GetString()
@@ -536,6 +676,22 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     default:
                         return BehaviorInteractionProviderAvailability.Unknown;
                 }
+            }
+
+            private static BehaviorInteractionSearchConfiguration Configuration(JsonElement value)
+            {
+                return new BehaviorInteractionSearchConfiguration
+                {
+                    AllowEmptySearch = value.GetProperty("allowEmptySearch").GetBoolean(),
+                    MaintainQueryState = value.GetProperty("maintainQueryState").GetBoolean(),
+                    QueryGroupNames = Strings(value.GetProperty("queryGroupNames")),
+                    ResultsPageAddress = value.GetProperty("resultsPageAddress").ValueKind == JsonValueKind.Null
+                        ? null
+                        : value.GetProperty("resultsPageAddress").GetString(),
+                    TryInplaceQuery = value.GetProperty("tryInplaceQuery").GetBoolean(),
+                    UpdatePageTitle = value.GetProperty("updatePageTitle").GetBoolean(),
+                    MsBeforeShowingProgress = value.GetProperty("msBeforeShowingProgress").GetInt32()
+                };
             }
 
             private static DateTimeOffset? NullableDate(JsonElement value)

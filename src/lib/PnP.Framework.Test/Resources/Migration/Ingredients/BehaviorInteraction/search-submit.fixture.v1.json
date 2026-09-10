@@ -14,7 +14,7 @@
     "pageOrListItemIdentity": "urn:sha256:ea214daa09222c86deaf0aa4b6d91a86748450a124799a5716c8239fbb7c4f7b",
     "sourceVersionIdentity": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
     "sourceEvidenceDigestSha256": "d6c02c537d8941c84ef718c42d37949418027dca0e3c725b18ed5df7c1b591da",
-    "freshNormalizedSemanticDigestSha256": "abbb2e44d523ea9e6ccacc5f8e30849f0339d7e01e73c38b855c6867b5521156",
+    "freshNormalizedSemanticDigestSha256": "dfe0ca3e8e4708576d1d8b3289e07e852c339b25b3e4ee12467abf46e3ebe9a5",
     "freshRawWebPartResponseDigestSha256": "3c5cc89313bcb0908519d21624b3b98f87ac9e4a2880be882cedce58852c22e8",
     "controlledSourceObservationArtifactSha256": "ab4701cfce26db17e11d9c7bc69d82ef3f0c4fb70744ad9ab6687e9d94aad06f"
   },
@@ -115,46 +115,79 @@
       "operationReference": "operation:ccd109-row1-source-readback"
     },
     "targetProvider": {
-      "canonicalProviderInstanceId": "9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
-      "canonicalDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:target:9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
+      "canonicalProviderInstanceId": "b9a0446a-05d7-4d93-850b-cf11b521d36b",
+      "canonicalDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:target:b9a0446a-05d7-4d93-850b-cf11b521d36b",
       "pageIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
-      "pageVersion": "fixture-target-v1",
+      "pageVersion": "\"{9180946C-1D69-487E-AB6D-D1E0BC157B82},1\"",
       "providerType": "Microsoft.Office.Server.Search.WebControls.ResultScriptWebPart",
       "queryGroupName": "Default",
       "updateAjaxNavigate": true,
-      "configurationDigest": "7b858d82f7664a9f34d2649ab092ad63a22c4f697184098fdf7d4c73594c538e",
-      "observedAtUtc": "2026-09-10T05:31:00Z",
+      "configurationDigest": "085dc4e01f352298f5b1e5d50cadef333aa64256f6e199d10bc664adf56a038e",
+      "observedAtUtc": "2026-09-10T06:01:36.518Z",
       "availability": "available",
       "cleanupObservedAtUtc": null,
-      "operationReference": "operation:ccd347-fixture-provider-readback-v1",
-      "markerReference": "marker:ccd347-fixture-target-v1"
+      "operationReference": "ccd311-ccd347-readback-4c0f7028",
+      "markerReference": "/SiteAssets/ccd311-lease-ccd347-search-inplace-cfa6f409-v1.json"
+    },
+    "targetSearchBox": {
+      "canonicalSearchBoxInstanceId": "f1effbcd-4b5f-4310-9706-a83a76d4f49e",
+      "pageIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+      "pageVersion": "\"{9180946C-1D69-487E-AB6D-D1E0BC157B82},1\"",
+      "configuration": {
+        "allowEmptySearch": false,
+        "maintainQueryState": false,
+        "queryGroupNames": [
+          "Default"
+        ],
+        "resultsPageAddress": null,
+        "tryInplaceQuery": true,
+        "updatePageTitle": false,
+        "msBeforeShowingProgress": 500
+      },
+      "observedAtUtc": "2026-09-10T06:01:36.518Z",
+      "operationReference": "ccd311-ccd347-readback-4c0f7028",
+      "markerReference": "/SiteAssets/ccd311-lease-ccd347-search-inplace-cfa6f409-v1.json"
     },
     "targetMapping": {
       "sourceSearchBoxInstanceId": "e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
-      "targetSearchBoxInstanceId": "e8d14bc1-22c9-4ccb-a989-63ea29924a75",
+      "targetSearchBoxInstanceId": "f1effbcd-4b5f-4310-9706-a83a76d4f49e",
       "sourceProviderInstanceId": "f869d623-017d-42ff-90e8-b5bf14fff9b3",
-      "targetProviderInstanceId": "9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
+      "targetProviderInstanceId": "b9a0446a-05d7-4d93-850b-cf11b521d36b",
       "sourceDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
-      "targetDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:target:9a6cf457-a387-4f0e-9bd1-7fe3380867aa",
+      "targetDynamicRegionId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:target:b9a0446a-05d7-4d93-850b-cf11b521d36b",
       "sourcePageIdentity": "urn:sha256:ea214daa09222c86deaf0aa4b6d91a86748450a124799a5716c8239fbb7c4f7b",
       "sourcePageVersion": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
       "targetPageIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
-      "targetPageVersion": "fixture-target-v1",
-      "evidenceReference": "target-mapping.fixture.json"
+      "targetPageVersion": "\"{9180946C-1D69-487E-AB6D-D1E0BC157B82},1\"",
+      "targetIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+      "searchBoxActionId": "action:ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:e156d14d-d3b9-4b0e-8a54-6ed38a7180fe",
+      "providerActionId": "action:ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "admittedPlanDigest": "63bb1b1de76fb86b7f356b59bec3c5391d32854c8328acadc7873d4da8da24a2",
+      "evidenceReference": "ccd311.ccd347-search-target-handoff/v1"
     },
     "lease": {
       "leaseId": "ccd347-search-inplace-cfa6f409-v1",
       "status": "active",
-      "activeFromUtc": "2026-09-10T05:20:00Z",
-      "retainThroughUtc": "2026-09-10T06:00:00Z",
+      "activeFromUtc": "2026-09-10T05:59:37.724Z",
+      "retainThroughUtc": "2026-09-10T07:00:00Z",
       "releasedAtUtc": null,
-      "evidenceReference": "lease-ledger.fixture.json#ccd347-search-inplace-cfa6f409-v1"
+      "claimId": "cfa6f409e9d3ec2f7a8789cce24100b2cfb189545889fb20cc9520a9119f40b3",
+      "sourceVersion": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
+      "targetIdentity": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+      "searchBoxInstanceId": "f1effbcd-4b5f-4310-9706-a83a76d4f49e",
+      "providerInstanceId": "b9a0446a-05d7-4d93-850b-cf11b521d36b",
+      "operationReference": "ccd311-ccd347-readback-4c0f7028",
+      "markerReference": "/SiteAssets/ccd311-lease-ccd347-search-inplace-cfa6f409-v1.json",
+      "planDigest": "63bb1b1de76fb86b7f356b59bec3c5391d32854c8328acadc7873d4da8da24a2",
+      "evidenceReference": "ccd.shared-target-consumer-lease/v1#ccd347-search-inplace-cfa6f409-v1"
     },
     "searchBoxQueryGroupName": "Default",
     "admittedReviewedConfigurationDigest": "7b858d82f7664a9f34d2649ab092ad63a22c4f697184098fdf7d4c73594c538e",
-    "targetReadbackNotBeforeUtc": "2026-09-10T05:30:00Z",
-    "runtimeFinalEvidenceAtUtc": "2026-09-10T05:45:00Z",
-    "providerInventoryEvidenceReference": "provider-inventory.fixture.json"
+    "admittedTargetConfigurationDigest": "085dc4e01f352298f5b1e5d50cadef333aa64256f6e199d10bc664adf56a038e",
+    "admittedPlanDigest": "63bb1b1de76fb86b7f356b59bec3c5391d32854c8328acadc7873d4da8da24a2",
+    "targetReadbackNotBeforeUtc": "2026-09-10T06:01:24.270Z",
+    "runtimeFinalEvidenceAtUtc": "2026-09-10T06:03:38.337Z",
+    "providerInventoryEvidenceReference": "ccd311.ccd347-search-lease-readback/v1"
   },
   "redaction": {
     "rawSourceHtmlIncluded": false,

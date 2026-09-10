@@ -97,6 +97,7 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
             var topology = document.RootElement.GetProperty("resultScriptConsumerTopology");
             var source = topology.GetProperty("sourceProvider");
             var target = topology.GetProperty("targetProvider");
+            var searchBox = topology.GetProperty("targetSearchBox");
             var mapping = topology.GetProperty("targetMapping");
             var lease = topology.GetProperty("lease");
 
@@ -108,13 +109,31 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 target.GetProperty("canonicalProviderInstanceId").GetString(),
                 mapping.GetProperty("targetProviderInstanceId").GetString());
             Assert.AreEqual(
+                searchBox.GetProperty("canonicalSearchBoxInstanceId").GetString(),
+                mapping.GetProperty("targetSearchBoxInstanceId").GetString());
+            Assert.AreNotEqual(
+                searchBox.GetProperty("canonicalSearchBoxInstanceId").GetString(),
+                target.GetProperty("canonicalProviderInstanceId").GetString());
+            Assert.AreEqual(
                 target.GetProperty("pageIdentity").GetString(),
                 mapping.GetProperty("targetPageIdentity").GetString());
+            Assert.AreEqual(
+                searchBox.GetProperty("pageVersion").GetString(),
+                mapping.GetProperty("targetPageVersion").GetString());
             Assert.AreEqual("ccd347-search-inplace-cfa6f409-v1", lease.GetProperty("leaseId").GetString());
             Assert.AreEqual("active", lease.GetProperty("status").GetString());
+            Assert.AreEqual(RootClaim(document), lease.GetProperty("claimId").GetString());
+            Assert.AreEqual(
+                topology.GetProperty("admittedPlanDigest").GetString(),
+                lease.GetProperty("planDigest").GetString());
             Assert.IsTrue(
                 lease.GetProperty("retainThroughUtc").GetDateTimeOffset()
                     >= topology.GetProperty("runtimeFinalEvidenceAtUtc").GetDateTimeOffset());
+        }
+
+        private static string RootClaim(JsonDocument document)
+        {
+            return document.RootElement.GetProperty("claimId").GetString();
         }
 
         [TestMethod]
