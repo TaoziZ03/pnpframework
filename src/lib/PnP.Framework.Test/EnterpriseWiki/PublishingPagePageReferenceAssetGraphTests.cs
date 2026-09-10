@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Packaging;
-using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Capture;
@@ -29,38 +28,19 @@ namespace PnP.Framework.Test.EnterpriseWiki
         private const string AssetId = "asset:page-reference:" + PageFileId + ":" + AssetPath;
 
         [TestMethod]
-        public void FrozenM0ValidatorRequiresTheReviewedTupleCorrection()
+        public void FrozenOwnerRegistryRequiresTheReviewedTupleCorrection()
         {
             var snapshot = CreateClaimSnapshot();
             var asset = Project(snapshot).Nodes.Single(value => value.Subtype == "asset.image");
-            var context = new IngredientMaturityEvaluationContext
-            {
-                Identity = new IngredientMaturityIdentity
-                {
-                    ClaimId = "7e33f3195851ac58a96fcc49d5924b1c382128dace6ae5fcd53df0cc3b5ad497",
-                    Lane = "resource.image",
-                    Kind = PageIngredientKind.Asset,
-                    IngredientId = "ccd.ingredient.resource.image/v1:" + PageFileId + ":" + AssetPath,
-                    Subtype = "asset.image",
-                    SemanticRole = "direct-page-reference",
-                    SourcePredicateId = "asset.typed-image"
-                },
-                Source = new IngredientMaturitySourceBinding
-                {
-                    PageOrListItemIdentity = asset.SourcePageOrListItemIdentity,
-                    SourceVersion = asset.SourceVersionIdentity,
-                    SourceArtifactDigest = AssetDigest,
-                    SourceSnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(snapshot)
-                }
-            };
-            var priorClaim = IngredientMaturityEvidenceValidator.ValidateM0(context, asset, snapshot,
-                PublishingPageIngredientPrimaryOwnerRegistry.Default, asset.EvidenceReferences);
-            Assert.IsFalse(priorClaim.Single(value => value.GateId == IngredientMaturityGateCatalog.CanonicalIdentity).Passed);
-            context.Identity.IngredientId = AssetId;
-            context.Identity.SemanticRole = "rendered-image-bytes";
-            var correctedClaim = IngredientMaturityEvidenceValidator.ValidateM0(context, asset, snapshot,
-                PublishingPageIngredientPrimaryOwnerRegistry.Default, asset.EvidenceReferences);
-            Assert.IsTrue(correctedClaim.All(value => value.Passed));
+            asset.SemanticRole = "direct-page-reference";
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, asset));
+
+            asset.SemanticRole = "rendered-image-bytes";
+            var correctedOwner = PublishingPageIngredientPrimaryOwnerRegistry.Default.Resolve(snapshot, asset);
+            Assert.AreEqual("resource.image", correctedOwner.PrimaryOwnerLane);
+            Assert.AreEqual(AssetId, asset.Id);
+            Assert.AreEqual("asset.typed-image", asset.SourcePredicateId);
         }
 
         [TestMethod]
