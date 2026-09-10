@@ -30,7 +30,12 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 CreateOwnerRegistry(normalized.SourcePredicateMatched),
                 evidence.WikiSource?.EvidenceReferences));
 
-            var live = PageLayoutWikiEvidenceNormalizer.ProjectLiveEvidence(evidence.Live, normalized);
+            var liveInput = PageLayoutWikiEvidenceNormalizer.ProjectTargetReadback(
+                context,
+                evidence.WikiSource,
+                evidence.Live,
+                evidence.WikiTargetReadback);
+            var live = PageLayoutWikiEvidenceNormalizer.ProjectLiveEvidence(liveInput, normalized);
             if (live != null)
             {
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(live));

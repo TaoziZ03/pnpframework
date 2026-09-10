@@ -35,13 +35,14 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
         }
 
         [TestMethod]
-        public void MatchingFreshTargetValuesCloseM1WithoutAssigningMaturityInContributor()
+        public void FreshCcd255WikiReadbackClosesM1ByContentTypeLineageWithoutAssigningMaturityInContributor()
         {
             var fixture = Fixture.Create();
-            fixture.AddMatchingTargetObservations();
+            fixture.AddCcd255TargetReadback();
             var contribution = fixture.Contribute();
             var assessment = fixture.Evaluate();
 
+            Assert.AreNotEqual(fixture.SourceContentTypeId, fixture.TargetContentTypeId);
             Assert.IsFalse(contribution.GetType().GetProperties().Any(value =>
                 string.Equals(value.Name, "AttainedMaturity", StringComparison.Ordinal)));
             Assert.AreEqual(IngredientMaturityLevel.M2, assessment.AttainedMaturity);
@@ -53,10 +54,31 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
         public void MismatchedFreshTargetLayoutValueFailsM1Closed()
         {
             var fixture = Fixture.Create();
-            fixture.AddMatchingTargetObservations();
-            fixture.Evidence.Live.Observations.Single(value =>
-                value.Origin == IngredientObservationOrigin.CupCollectFreshReadback
-                && value.ValuePath == "layout.listBaseTemplate").ValueDigest = new string('0', 64);
+            fixture.AddCcd255TargetReadback();
+            fixture.Evidence.WikiTargetReadback.ListBaseTemplate = 101;
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
+        [DataTestMethod]
+        [DataRow("wrong-target-claim")]
+        [DataRow("wrong-target-ingredient")]
+        [DataRow("wrong-target-source-version")]
+        [DataRow("wrong-target-source-file")]
+        [DataRow("wrong-target-implementation")]
+        [DataRow("wrong-target-profile")]
+        [DataRow("wrong-target-content-type-lineage")]
+        [DataRow("stale-target-observation")]
+        [DataRow("invalid-target-plan-digest")]
+        [DataRow("missing-target-reference")]
+        public void WrongTargetBindingAndLineageCasesFailM1Closed(string mutation)
+        {
+            var fixture = Fixture.Create();
+            fixture.AddCcd255TargetReadback();
+            fixture.MutateTarget(mutation);
 
             var assessment = fixture.Evaluate();
 
@@ -125,6 +147,10 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
 
             public PageLayoutMaturityEvidence Evidence { get; }
 
+            public string SourceContentTypeId => contract.Source.ContentTypeId;
+
+            public string TargetContentTypeId => Evidence.WikiTargetReadback?.ContentTypeId;
+
             public static Fixture Create()
             {
                 return new Fixture(LoadContract());
@@ -143,22 +169,69 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     new IngredientMaturityContributorCatalog(new[] { contributor }));
             }
 
-            public void AddMatchingTargetObservations()
+            public void AddCcd255TargetReadback()
             {
-                var targetTime = contract.SourceObservedAtUtc.AddMinutes(1);
-                foreach (var source in Evidence.Live.Observations.ToArray())
+                var target = LoadTargetContract();
+                Evidence.WikiTargetReadback = new PageLayoutWikiTargetReadbackEvidence
                 {
-                    Evidence.Live.Observations.Add(new IngredientValueObservation
-                    {
-                        ValuePath = source.ValuePath,
-                        ValueDigest = source.ValueDigest,
-                        ObservedAtUtc = targetTime,
-                        Origin = IngredientObservationOrigin.CupCollectFreshReadback,
-                        EvidenceReference = "cupcollect-readback.json#" + source.ValuePath
-                    });
+                    ClaimId = target.ClaimId,
+                    IngredientId = target.IngredientId,
+                    SourceListId = target.SourceListId,
+                    SourceItemId = target.SourceItemId,
+                    SourceFileUniqueId = target.SourceFileUniqueId,
+                    SourceVersion = target.SourceVersion,
+                    ImplementationCommit = target.ImplementationCommit,
+                    PlanDigest = target.PlanDigest,
+                    TargetProfile = target.TargetProfile,
+                    TargetPath = target.TargetPath,
+                    ObservedAtUtc = target.ObservedAtUtc,
+                    ListBaseTemplate = target.ListBaseTemplate,
+                    ContentTypeId = target.ContentTypeId,
+                    ContentTypeName = target.ContentTypeName,
+                    PublishingPageLayout = target.PublishingPageLayout,
+                    RuntimeAdapterId = target.RuntimeAdapterId,
+                    EvidenceReferences = target.EvidenceReferences
+                };
+            }
+
+            public void MutateTarget(string mutation)
+            {
+                switch (mutation)
+                {
+                    case "wrong-target-claim":
+                        Evidence.WikiTargetReadback.ClaimId = new string('a', 64);
+                        break;
+                    case "wrong-target-ingredient":
+                        Evidence.WikiTargetReadback.IngredientId += ":wrong";
+                        break;
+                    case "wrong-target-source-version":
+                        Evidence.WikiTargetReadback.SourceVersion += "-stale";
+                        break;
+                    case "wrong-target-source-file":
+                        Evidence.WikiTargetReadback.SourceFileUniqueId = "11111111-1111-1111-1111-111111111111";
+                        break;
+                    case "wrong-target-implementation":
+                        Evidence.WikiTargetReadback.ImplementationCommit = new string('0', 40);
+                        break;
+                    case "wrong-target-profile":
+                        Evidence.WikiTargetReadback.TargetProfile = "wrong-profile/v1";
+                        break;
+                    case "wrong-target-content-type-lineage":
+                        Evidence.WikiTargetReadback.ContentTypeId = "0x0101";
+                        break;
+                    case "stale-target-observation":
+                        Evidence.WikiTargetReadback.ObservedAtUtc = contract.SourceObservedAtUtc.AddSeconds(-1);
+                        break;
+                    case "invalid-target-plan-digest":
+                        Evidence.WikiTargetReadback.PlanDigest = "not-a-digest";
+                        break;
+                    case "missing-target-reference":
+                        Evidence.WikiTargetReadback.EvidenceReferences.Clear();
+                        break;
+                    default:
+                        Assert.Fail("Unknown target mutation " + mutation);
+                        break;
                 }
-                Evidence.Live.TargetFreshReadback = true;
-                Evidence.Live.TargetEvidenceReferences.Add("cupcollect-readback.json");
             }
 
             public void Mutate(string mutation)
@@ -285,7 +358,8 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     {
                         ProducerId = "pnp-framework",
                         ProducerVersion = "ccd-182-v1",
-                        ImplementationCommit = "aff892f119a20dd764af6b005087e7af5dad3a1c"
+                        ImplementationCommit = "5a9f634da422a92b2493967e32dc74edacac9777",
+                        BinaryDigest = "dfbe85ab6b0e6c51a0efa1b3c09bc8ad8e222cd16a0f6647cc14766e29f5717a"
                     },
                     TargetMaturity = IngredientMaturityLevel.M5,
                     TechnicalOutcome = new IngredientTechnicalOutcome
@@ -316,6 +390,16 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     Path.GetDirectoryName(callerPath),
                     "../../../../Resources/Migration/Pages/Layout/wiki-row-00003.fixture.json"));
                 return JsonSerializer.Deserialize<FixtureContract>(
+                    File.ReadAllText(path),
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+
+            private static TargetReadbackContract LoadTargetContract([CallerFilePath] string callerPath = null)
+            {
+                var path = Path.GetFullPath(Path.Combine(
+                    Path.GetDirectoryName(callerPath),
+                    "../../../../Resources/Migration/Pages/Layout/wiki-row-00003.cupcollect-readback.fixture.json"));
+                return JsonSerializer.Deserialize<TargetReadbackContract>(
                     File.ReadAllText(path),
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
@@ -368,6 +452,43 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
             public long Length { get; set; }
 
             public string Base64 { get; set; }
+        }
+
+        private sealed class TargetReadbackContract
+        {
+            public string ClaimId { get; set; }
+
+            public string IngredientId { get; set; }
+
+            public string SourceListId { get; set; }
+
+            public int SourceItemId { get; set; }
+
+            public string SourceFileUniqueId { get; set; }
+
+            public string SourceVersion { get; set; }
+
+            public string ImplementationCommit { get; set; }
+
+            public string PlanDigest { get; set; }
+
+            public string TargetProfile { get; set; }
+
+            public string TargetPath { get; set; }
+
+            public DateTimeOffset ObservedAtUtc { get; set; }
+
+            public int ListBaseTemplate { get; set; }
+
+            public string ContentTypeId { get; set; }
+
+            public string ContentTypeName { get; set; }
+
+            public string PublishingPageLayout { get; set; }
+
+            public string RuntimeAdapterId { get; set; }
+
+            public List<string> EvidenceReferences { get; set; }
         }
     }
 }

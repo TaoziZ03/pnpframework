@@ -1,0 +1,25 @@
+{
+  "schema": "ccd.page-layout-target-readback-fixture/v1",
+  "evidencePackageSha256": "488dc7007f2b906d6c08c77e323935030718576fa11492b1f4273d0aa2022c11",
+  "receiptSha256": "601c2600b6b35ce1f26c4d9b5fd885015692d3ceb54c1e05d9023391296a056e",
+  "adapterCommit": "a0f34fe93473152818ef30842bcb82c2216135d3",
+  "claimId": "f411b3cf66979cbcb16479dd79ef2faefecc237df164c6d1e3642967d869c7c7",
+  "ingredientId": "ccd.ingredient.page.layout/v1:df8c03a5-8f4b-4966-bbe6-fc82992c0234:wiki-runtime-binding",
+  "sourceListId": "6779e40e-3e8f-41c3-bbd4-9a5020797f2f",
+  "sourceItemId": 1,
+  "sourceFileUniqueId": "df8c03a5-8f4b-4966-bbe6-fc82992c0234",
+  "sourceVersion": "\"{DF8C03A5-8F4B-4966-BBE6-FC82992C0234},12\"",
+  "implementationCommit": "5a9f634da422a92b2493967e32dc74edacac9777",
+  "planDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
+  "targetProfile": "cupcollect-classic-page/v1",
+  "targetPath": "/sites/biatmicrosoft-ccd35-8d6a662a/blog_Archive/SitePages/rss.aspx",
+  "observedAtUtc": "2026-09-10T10:17:12.013Z",
+  "listBaseTemplate": 119,
+  "contentTypeId": "0x01010800D65A4C8E8921CB45997C56B581768441",
+  "contentTypeName": "Wiki Page",
+  "publishingPageLayout": null,
+  "runtimeAdapterId": "runtime.wiki",
+  "evidenceReferences": [
+    "paperclip:attachment/ce0b0647-ac20-44f5-954d-630f728af504#final-run/receipts/fresh-readback.json"
+  ]
+}

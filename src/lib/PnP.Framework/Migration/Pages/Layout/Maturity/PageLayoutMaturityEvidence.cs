@@ -1,5 +1,6 @@
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Capture;
+using System;
 using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
@@ -23,9 +24,48 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
         public IList<string> EvidenceReferences { get; set; } = new List<string>();
     }
 
+    internal sealed class PageLayoutWikiTargetReadbackEvidence
+    {
+        public string ClaimId { get; set; }
+
+        public string IngredientId { get; set; }
+
+        public string SourceListId { get; set; }
+
+        public int SourceItemId { get; set; }
+
+        public string SourceFileUniqueId { get; set; }
+
+        public string SourceVersion { get; set; }
+
+        public string ImplementationCommit { get; set; }
+
+        public string PlanDigest { get; set; }
+
+        public string TargetProfile { get; set; }
+
+        public string TargetPath { get; set; }
+
+        public DateTimeOffset ObservedAtUtc { get; set; }
+
+        public int ListBaseTemplate { get; set; }
+
+        public string ContentTypeId { get; set; }
+
+        public string ContentTypeName { get; set; }
+
+        public string PublishingPageLayout { get; set; }
+
+        public string RuntimeAdapterId { get; set; }
+
+        public IList<string> EvidenceReferences { get; set; } = new List<string>();
+    }
+
     internal sealed class PageLayoutMaturityEvidence
     {
         public PageLayoutWikiSourceEvidence WikiSource { get; set; }
+
+        public PageLayoutWikiTargetReadbackEvidence WikiTargetReadback { get; set; }
 
         public IngredientLiveEvidence Live { get; set; }
 
