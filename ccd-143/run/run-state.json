@@ -1,0 +1,57 @@
+{
+  "schema": "ccd.shared-target-lifecycle-run-state/v1",
+  "startedAtUtc": "2026-09-09T13:24:19.744Z",
+  "phases": [
+    {
+      "phase": "admission",
+      "verdict": "pass",
+      "reasonCode": "TARGET_ADMISSION_PASS",
+      "receipt": "receipts/admission.json"
+    },
+    {
+      "phase": "provision",
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_CREATE_ACCEPTED",
+      "receipt": "receipts/provision.json"
+    },
+    {
+      "phase": "readiness",
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READINESS_PASS",
+      "receipt": "receipts/readiness.json"
+    },
+    {
+      "phase": "capability",
+      "verdict": "pass",
+      "reasonCode": "CAPABILITY_READINESS_PASS",
+      "receipt": "receipts/capability.json"
+    },
+    {
+      "phase": "native-create",
+      "verdict": "pass",
+      "reasonCode": "NATIVE_CREATE_30_OF_30_PASS",
+      "receipt": "receipts/native-create.json"
+    },
+    {
+      "phase": "fresh-readback",
+      "verdict": "fail",
+      "reasonCode": "FRESH_READBACK_COVERAGE_FAIL",
+      "receipt": "receipts/fresh-readback.json"
+    },
+    {
+      "phase": "cleanup",
+      "verdict": "pass",
+      "reasonCode": "OWNERSHIP_GUARDED_CLEANUP_PASS",
+      "receipt": "receipts/cleanup.json"
+    },
+    {
+      "phase": "post-cleanup",
+      "verdict": "pass",
+      "reasonCode": "FRESH_POST_CLEANUP_ABSENCE_PASS",
+      "receipt": "receipts/post-cleanup.json"
+    }
+  ],
+  "failure": "lifecycle_fence:fresh-readback:FRESH_READBACK_COVERAGE_FAIL",
+  "finishedAtUtc": "2026-09-09T13:40:10.726Z",
+  "verdict": "fail"
+}

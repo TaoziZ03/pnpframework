@@ -1,0 +1,340 @@
+{
+  "schema": "ccd.shared-target-lifecycle-verification/v3",
+  "issue": "CCD-143",
+  "generatedAtUtc": "2026-09-09T14:12:38.611Z",
+  "verdict": "pass",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "runId": "fc772393-1529-40e9-bcb5-398f8be4aa08",
+  "sourcePlanDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
+  "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+  "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+  "producerRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+  },
+  "producerArchiveRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/run/source/build-lifecycle-expressions.live.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801",
+    "bytes": 57248
+  },
+  "postRunBuilderRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "d6e4ca3776b538cd907995fe7dc18875f5279ecc47f58e015bed64b28b00f854",
+    "bytes": 60447,
+    "role": "post-run-corrected-builder-not-the-live-producer"
+  },
+  "sitePathMappings": [
+    {
+      "sourceTargetPath": "/sites/DevCenter",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3",
+      "reason": "TARGET_SITE_CONFLICT"
+    },
+    {
+      "sourceTargetPath": "/sites/biatmicrosoft",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "reason": "TARGET_SITE_CONFLICT"
+    },
+    {
+      "sourceTargetPath": "/sites/catalog",
+      "targetPath": "/sites/catalog-ccd35-fc772393-3",
+      "reason": "TARGET_SITE_CONFLICT"
+    }
+  ],
+  "artifactDigests": {
+    "receipts/admission.json": {
+      "sha256": "f6eca0fb52542bfa44a7d4151298a777c1e2bd1a8af83f8ba14337aa6fac2258",
+      "bytes": 2494
+    },
+    "receipts/provision.json": {
+      "sha256": "ca665ab41f59d1ccfa765277a55ad345938b191eb621204be91f414644658d65",
+      "bytes": 18039
+    },
+    "receipts/readiness.json": {
+      "sha256": "00c67bcc5b1500554dd85776b756aecf99611b4f9e42244035712ad7c66a31d9",
+      "bytes": 18438
+    },
+    "receipts/capability.json": {
+      "sha256": "93fedf824ea42e21a4f704e80d4396751ba8590e4bf9224747ef6f6fb94997cd",
+      "bytes": 32593
+    },
+    "receipts/native-create.json": {
+      "sha256": "089246f33d9b37e7103e39d823a8fa6407d9bdc6ef95429543fb53fa0e31619a",
+      "bytes": 170691
+    },
+    "receipts/fresh-readback.json": {
+      "sha256": "7bca5b59a60398d26fce135e1c2ce2d30ae08fd1a9fe8d4810cc537a03ce3638",
+      "bytes": 222396
+    },
+    "receipts/cleanup.json": {
+      "sha256": "687f478791e1aedc03ff70faab5cb02d55bde228abfec864ce6b5f43e8d19a54",
+      "bytes": 24285
+    },
+    "receipts/post-cleanup.json": {
+      "sha256": "871628b07b1c7ea15dc5dc851854b9d38c491c69129fe9a958405fc36b249900",
+      "bytes": 2024
+    }
+  },
+  "expressionDigests": {
+    "00-site-manager-status.js": {
+      "declared": {
+        "bytes": 337009,
+        "sha256": "0de5732dd543396dde470e36c857741243dce1f27ff69d2c8202a50f9958f772"
+      },
+      "actual": {
+        "sha256": "0de5732dd543396dde470e36c857741243dce1f27ff69d2c8202a50f9958f772",
+        "bytes": 337009
+      },
+      "matches": true
+    },
+    "01-admission.js": {
+      "declared": {
+        "bytes": 337717,
+        "sha256": "6b8d2ba1232b6db8007f788d2bd5c9eafac6c59370365f9b97e6847b69d4d192"
+      },
+      "actual": {
+        "sha256": "6b8d2ba1232b6db8007f788d2bd5c9eafac6c59370365f9b97e6847b69d4d192",
+        "bytes": 337717
+      },
+      "matches": true
+    },
+    "02-provision.js": {
+      "declared": {
+        "bytes": 343324,
+        "sha256": "1e74472bae77d6ad7b795e6fe5a16e52a5e3a5a52a805b063898d3efeedd6426"
+      },
+      "actual": {
+        "sha256": "1e74472bae77d6ad7b795e6fe5a16e52a5e3a5a52a805b063898d3efeedd6426",
+        "bytes": 343324
+      },
+      "matches": true
+    },
+    "03-readiness.js": {
+      "declared": {
+        "bytes": 340444,
+        "sha256": "8998875a6ecbedb57129f9bfb822925300d3481fb66f7e087fbec8595aaedc72"
+      },
+      "actual": {
+        "sha256": "8998875a6ecbedb57129f9bfb822925300d3481fb66f7e087fbec8595aaedc72",
+        "bytes": 340444
+      },
+      "matches": true
+    },
+    "04-capability-readiness.js": {
+      "declared": {
+        "bytes": 341375,
+        "sha256": "728bce8c39cd2d38ab2a89a7539c97110db4756cf14c625038448a8c226cc7b9"
+      },
+      "actual": {
+        "sha256": "728bce8c39cd2d38ab2a89a7539c97110db4756cf14c625038448a8c226cc7b9",
+        "bytes": 341375
+      },
+      "matches": true
+    },
+    "05-native-create.js": {
+      "declared": {
+        "bytes": 342134,
+        "sha256": "2b203df934dc69fa9a8f0dbdef9b42a8244183ade892a305151a615f9c3c9871"
+      },
+      "actual": {
+        "sha256": "2b203df934dc69fa9a8f0dbdef9b42a8244183ade892a305151a615f9c3c9871",
+        "bytes": 342134
+      },
+      "matches": true
+    },
+    "06-fresh-readback.js": {
+      "declared": {
+        "bytes": 344815,
+        "sha256": "1fc2913f854286b4915e3479dc02f06a6fa89e5feb0abd233622cd8226300684"
+      },
+      "actual": {
+        "sha256": "1fc2913f854286b4915e3479dc02f06a6fa89e5feb0abd233622cd8226300684",
+        "bytes": 344815
+      },
+      "matches": true
+    },
+    "07-cleanup.js": {
+      "declared": {
+        "bytes": 341529,
+        "sha256": "aadf1a529ac2253e2fd2afa077c037418b3adfdf06cdbeacfb6529b5a3872f7e"
+      },
+      "actual": {
+        "sha256": "aadf1a529ac2253e2fd2afa077c037418b3adfdf06cdbeacfb6529b5a3872f7e",
+        "bytes": 341529
+      },
+      "matches": true
+    },
+    "08-post-cleanup.js": {
+      "declared": {
+        "bytes": 337210,
+        "sha256": "7d86eb01100c9103133e7ad2766669cf05a31e1bcff8d23e59cbbe31cf4d03af"
+      },
+      "actual": {
+        "sha256": "7d86eb01100c9103133e7ad2766669cf05a31e1bcff8d23e59cbbe31cf4d03af",
+        "bytes": 337210
+      },
+      "matches": true
+    }
+  },
+  "archiveIntegrity": {
+    "producerArchiveMatchesDeclaredLiveProducer": true,
+    "allExpressionsMatchManifest": true,
+    "allReceiptsMatchRunPlanLifecycleAndProducer": true,
+    "recoveryEvidence": "The prior run log records expression generation at 13:24:07Z and the post-run aggregation edit at 13:41:16Z. Removing that later eight-line replacement block reproduces the declared live producer SHA-256 exactly; no target rerun was required."
+  },
+  "coverage": {
+    "expectedPages": 30,
+    "nativeCreateIdentityBound": 30,
+    "freshLifecycleReadbackPass": 30,
+    "freshListSchemaReceipts": 30,
+    "freshContentTypeReceipts": 30,
+    "freshRuntime200": 30,
+    "exactStorageRows": [],
+    "expectedUnavailableStorageRows": [
+      2,
+      3,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      22,
+      23
+    ],
+    "actualUnavailableStorageRows": [],
+    "expectedAndActualUnavailableStorageRows": [],
+    "mismatchDeferredStorageRows": [
+      1,
+      4,
+      5,
+      6,
+      7,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37
+    ],
+    "deferredIngredientRows": [
+      1,
+      4,
+      5,
+      6,
+      7,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37
+    ],
+    "evidenceInvalidRows": []
+  },
+  "nativeWebReadiness": [
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+      "operationId": "ccd143-native-web-create-10646e13e432",
+      "webId": "4c2666ea-5884-4287-a070-99d76c695090",
+      "objectIdentity": "498839a2-407a-0000-1bcb-47549c879417|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:4c2666ea-5884-4287-a070-99d76c695090",
+      "isProvisioningComplete": true,
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+      "operationId": "ccd143-native-web-create-4039312eaa3b",
+      "webId": "494024f9-13bc-4683-8691-89584c04bc60",
+      "objectIdentity": "4d8839a2-1028-0000-1bcb-4fbc4b3d76cc|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:494024f9-13bc-4683-8691-89584c04bc60",
+      "isProvisioningComplete": true,
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+      "operationId": "ccd143-native-web-create-dc32f2c4e4f8",
+      "webId": "56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+      "objectIdentity": "4f8839a2-005a-0000-1bcb-4aeb694f2c74|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+      "isProvisioningComplete": true,
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+      "operationId": "ccd143-native-web-create-2c9b2460e68f",
+      "webId": "0526218f-81ac-4e80-98b4-08c826e3b9df",
+      "objectIdentity": "518839a2-b071-0000-1bcb-46a511c6a706|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:0526218f-81ac-4e80-98b4-08c826e3b9df",
+      "isProvisioningComplete": true,
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3/BingNom",
+      "operationId": "ccd143-native-web-create-a6417b3ae508",
+      "webId": "734de474-5244-4335-8754-d818dd9ef3cf",
+      "objectIdentity": "538839a2-40bc-0000-1bcb-444e780a16ad|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:734de474-5244-4335-8754-d818dd9ef3cf",
+      "isProvisioningComplete": true,
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3/Learn",
+      "operationId": "ccd143-native-web-create-bd70f41f96db",
+      "webId": "75f489a3-ad74-4906-9dec-2e3190e8d93d",
+      "objectIdentity": "558839a2-30d2-0000-1bcb-4bda5de7cdcf|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:75f489a3-ad74-4906-9dec-2e3190e8d93d",
+      "isProvisioningComplete": true,
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    }
+  ],
+  "cleanup": {
+    "pageDeletesPass": 30,
+    "siteDeletesPass": 3,
+    "markerPostDeleteStatus": 404,
+    "freshSiteAbsence": [
+      {
+        "path": "/sites/DevCenter-ccd35-fc772393-3",
+        "status": 404
+      },
+      {
+        "path": "/sites/biatmicrosoft-ccd35-fc772393-3",
+        "status": 404
+      },
+      {
+        "path": "/sites/catalog-ccd35-fc772393-3",
+        "status": 404
+      }
+    ],
+    "markerFreshStatus": 404
+  },
+  "independentOutcomes": {
+    "lifecycle": "pass",
+    "storageExactness": "conditional",
+    "ingredientAssessment": "deferred-to-ingredient-owners",
+    "rawReadbackAggregatorVerdict": "fail",
+    "rawReadbackAggregatorReasonCode": "FRESH_READBACK_COVERAGE_FAIL",
+    "reconciliation": "The v1 raw receipt over-gated shared lifecycle on source-equal ASPX bytes. Missing expected or actual digests now fail closed and cannot count as exact. Fresh identity, binary presence, list schema/content type and runtime remain first-class receipts; PublishingPageContent/Web Part fidelity is not claimed."
+  },
+  "sourceRequests": 0,
+  "sourceMutations": 0
+}

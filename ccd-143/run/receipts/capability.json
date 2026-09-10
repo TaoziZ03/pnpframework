@@ -1,0 +1,858 @@
+{
+  "schema": "ccd.shared-target-lifecycle-receipt/v1",
+  "issue": "CCD-143",
+  "runId": "fc772393-1529-40e9-bcb5-398f8be4aa08",
+  "phase": "capability-readiness",
+  "stateBefore": "native-web-ready",
+  "stateAfter": "capability-ready",
+  "startedAtUtc": "2026-09-09T13:26:01.821Z",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+  "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+  "digestLineage": {
+    "parentPlanDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+    "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+    "producer": {
+      "kind": "workspace-file",
+      "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+      "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+    }
+  },
+  "producerRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+  },
+  "sourceRequests": 0,
+  "sourceMutations": 0,
+  "libraries": [
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages",
+      "title": "Pages",
+      "semantic": "publishing-fallback-conditional",
+      "preStatus": 404,
+      "create": {
+        "status": 201,
+        "requestGuid": "5f8839a2-b07b-0000-1bcb-4f82725d41fe"
+      },
+      "readiness": {
+        "kind": "list-provision",
+        "state": "ready",
+        "startedAtUtc": "2026-09-09T13:26:25.303Z",
+        "finishedAtUtc": "2026-09-09T13:26:27.722Z",
+        "elapsedMs": 2419,
+        "attempts": 3,
+        "timeoutMs": 15000,
+        "samples": [
+          {
+            "attempt": 1,
+            "atUtc": "2026-09-09T13:26:25.601Z",
+            "status": 200,
+            "requestGuid": "608839a2-d019-0000-1bcb-449cf4bbdb88",
+            "objectId": "59d81753-e22e-4532-aee1-8bc3ff96353d",
+            "readyStreak": 1
+          },
+          {
+            "attempt": 2,
+            "atUtc": "2026-09-09T13:26:26.68Z",
+            "status": 200,
+            "requestGuid": "608839a2-605b-0000-1bcb-457d7c40d522",
+            "objectId": "59d81753-e22e-4532-aee1-8bc3ff96353d",
+            "readyStreak": 2
+          },
+          {
+            "attempt": 3,
+            "atUtc": "2026-09-09T13:26:27.722Z",
+            "status": 200,
+            "requestGuid": "608839a2-d09e-0000-1bcb-4663a6e76c85",
+            "objectId": "59d81753-e22e-4532-aee1-8bc3ff96353d",
+            "readyStreak": 3
+          }
+        ],
+        "lastBody": {
+          "RootFolder": {
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages"
+          },
+          "BaseTemplate": 101,
+          "Id": "59d81753-e22e-4532-aee1-8bc3ff96353d",
+          "ListItemEntityTypeFullName": "SP.Data.PagesItem",
+          "Title": "Pages"
+        }
+      },
+      "readStatus": 200,
+      "listId": "59d81753-e22e-4532-aee1-8bc3ff96353d",
+      "entityType": "SP.Data.PagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages",
+      "title": "Site Pages",
+      "semantic": "wiki-native",
+      "preStatus": 200,
+      "readStatus": 200,
+      "listId": "e4cc7fd0-43d7-4553-86a7-21fcc1d790c4",
+      "entityType": "SP.Data.SitePagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages",
+      "title": "Pages",
+      "semantic": "publishing-fallback-conditional",
+      "preStatus": 404,
+      "create": {
+        "status": 201,
+        "requestGuid": "668839a2-60e2-0000-1bcb-4e83848a1246"
+      },
+      "readiness": {
+        "kind": "list-provision",
+        "state": "ready",
+        "startedAtUtc": "2026-09-09T13:26:53.745Z",
+        "finishedAtUtc": "2026-09-09T13:26:56.128Z",
+        "elapsedMs": 2383,
+        "attempts": 3,
+        "timeoutMs": 15000,
+        "samples": [
+          {
+            "attempt": 1,
+            "atUtc": "2026-09-09T13:26:54.035Z",
+            "status": 200,
+            "requestGuid": "678839a2-800b-0000-1bcb-4a13323f2ac8",
+            "objectId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+            "readyStreak": 1
+          },
+          {
+            "attempt": 2,
+            "atUtc": "2026-09-09T13:26:55.082Z",
+            "status": 200,
+            "requestGuid": "678839a2-d04c-0000-1bcb-4e1168e7ac7d",
+            "objectId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+            "readyStreak": 2
+          },
+          {
+            "attempt": 3,
+            "atUtc": "2026-09-09T13:26:56.128Z",
+            "status": 200,
+            "requestGuid": "678839a2-608e-0000-1bcb-4de6310eceeb",
+            "objectId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+            "readyStreak": 3
+          }
+        ],
+        "lastBody": {
+          "RootFolder": {
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages"
+          },
+          "BaseTemplate": 101,
+          "Id": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+          "ListItemEntityTypeFullName": "SP.Data.PagesItem",
+          "Title": "Pages"
+        }
+      },
+      "readStatus": 200,
+      "listId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+      "entityType": "SP.Data.PagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages",
+      "title": "Site Pages",
+      "semantic": "wiki-native",
+      "preStatus": 200,
+      "readStatus": 200,
+      "listId": "3bc3558e-842e-4809-a4a2-9c2fc244d6d8",
+      "entityType": "SP.Data.SitePagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages",
+      "title": "Site Pages",
+      "semantic": "wiki-native",
+      "preStatus": 200,
+      "readStatus": 200,
+      "listId": "14f58a96-15e5-4469-945c-568850cee6ae",
+      "entityType": "SP.Data.SitePagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages",
+      "title": "Site Pages",
+      "semantic": "wiki-native",
+      "preStatus": 200,
+      "readStatus": 200,
+      "listId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+      "entityType": "SP.Data.SitePagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/catalog-ccd35-fc772393-3",
+      "rootPath": "/sites/catalog-ccd35-fc772393-3/SitePages",
+      "title": "Site Pages",
+      "semantic": "wiki-native",
+      "preStatus": 200,
+      "readStatus": 200,
+      "listId": "14f58a96-15e5-4469-945c-568850cee6ae",
+      "entityType": "SP.Data.SitePagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom",
+      "rootPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages",
+      "title": "Site Pages",
+      "semantic": "wiki-native",
+      "preStatus": 200,
+      "readStatus": 200,
+      "listId": "268ed52b-72c9-46c4-8521-5474589f05c7",
+      "entityType": "SP.Data.SitePagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/DevCenter-ccd35-fc772393-3/Learn",
+      "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages",
+      "title": "Pages",
+      "semantic": "publishing-fallback-conditional",
+      "preStatus": 404,
+      "create": {
+        "status": 201,
+        "requestGuid": "708839a2-802f-0000-1bcb-49c12b5803a0"
+      },
+      "readiness": {
+        "kind": "list-provision",
+        "state": "ready",
+        "startedAtUtc": "2026-09-09T13:27:31.762Z",
+        "finishedAtUtc": "2026-09-09T13:27:34.149Z",
+        "elapsedMs": 2387,
+        "attempts": 3,
+        "timeoutMs": 15000,
+        "samples": [
+          {
+            "attempt": 1,
+            "atUtc": "2026-09-09T13:27:32.052Z",
+            "status": 200,
+            "requestGuid": "708839a2-8053-0000-1bcb-4659add9bd31",
+            "objectId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+            "readyStreak": 1
+          },
+          {
+            "attempt": 2,
+            "atUtc": "2026-09-09T13:27:33.102Z",
+            "status": 200,
+            "requestGuid": "708839a2-1095-0000-1bcb-412e47c700ce",
+            "objectId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+            "readyStreak": 2
+          },
+          {
+            "attempt": 3,
+            "atUtc": "2026-09-09T13:27:34.149Z",
+            "status": 200,
+            "requestGuid": "708839a2-40d6-0000-1bcb-49f1a515738b",
+            "objectId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+            "readyStreak": 3
+          }
+        ],
+        "lastBody": {
+          "RootFolder": {
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+          },
+          "BaseTemplate": 101,
+          "Id": "1cb00e48-4f26-4874-874a-c82c108ea745",
+          "ListItemEntityTypeFullName": "SP.Data.PagesItem",
+          "Title": "Pages"
+        }
+      },
+      "readStatus": 200,
+      "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+      "entityType": "SP.Data.PagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/PublishingImages",
+      "title": "PublishingImages",
+      "semantic": "asset-library",
+      "preStatus": 404,
+      "create": {
+        "status": 201,
+        "requestGuid": "768839a2-4086-0000-1bcb-42aa45fe39bd"
+      },
+      "readiness": {
+        "kind": "list-provision",
+        "state": "ready",
+        "startedAtUtc": "2026-09-09T13:27:57.706Z",
+        "finishedAtUtc": "2026-09-09T13:28:00.1Z",
+        "elapsedMs": 2394,
+        "attempts": 3,
+        "timeoutMs": 15000,
+        "samples": [
+          {
+            "attempt": 1,
+            "atUtc": "2026-09-09T13:27:58.003Z",
+            "status": 200,
+            "requestGuid": "768839a2-10a9-0000-1bcb-4904691e05c2",
+            "objectId": "b0ca4a20-c686-4187-9680-7631c0312bcc",
+            "readyStreak": 1
+          },
+          {
+            "attempt": 2,
+            "atUtc": "2026-09-09T13:27:59.057Z",
+            "status": 200,
+            "requestGuid": "768839a2-10eb-0000-1bcb-4e3f159cc14e",
+            "objectId": "b0ca4a20-c686-4187-9680-7631c0312bcc",
+            "readyStreak": 2
+          },
+          {
+            "attempt": 3,
+            "atUtc": "2026-09-09T13:28:00.1Z",
+            "status": 200,
+            "requestGuid": "778839a2-802c-0000-1bcb-4c0c5fab5506",
+            "objectId": "b0ca4a20-c686-4187-9680-7631c0312bcc",
+            "readyStreak": 3
+          }
+        ],
+        "lastBody": {
+          "RootFolder": {
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/PublishingImages"
+          },
+          "BaseTemplate": 101,
+          "Id": "b0ca4a20-c686-4187-9680-7631c0312bcc",
+          "ListItemEntityTypeFullName": "SP.Data.PublishingImagesItem",
+          "Title": "PublishingImages"
+        }
+      },
+      "readStatus": 200,
+      "listId": "b0ca4a20-c686-4187-9680-7631c0312bcc",
+      "entityType": "SP.Data.PublishingImagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+      "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/PublishingImages",
+      "title": "PublishingImages",
+      "semantic": "asset-library",
+      "preStatus": 404,
+      "create": {
+        "status": 201,
+        "requestGuid": "7c8839a2-b0d6-0000-1bcb-4d2022ebbbed"
+      },
+      "readiness": {
+        "kind": "list-provision",
+        "state": "ready",
+        "startedAtUtc": "2026-09-09T13:28:23.55Z",
+        "finishedAtUtc": "2026-09-09T13:28:25.96Z",
+        "elapsedMs": 2410,
+        "attempts": 3,
+        "timeoutMs": 15000,
+        "samples": [
+          {
+            "attempt": 1,
+            "atUtc": "2026-09-09T13:28:23.84Z",
+            "status": 200,
+            "requestGuid": "7c8839a2-50f8-0000-1bcb-48f8ac3e6832",
+            "objectId": "7846973a-62b7-46f5-b0c0-8378a170987e",
+            "readyStreak": 1
+          },
+          {
+            "attempt": 2,
+            "atUtc": "2026-09-09T13:28:24.895Z",
+            "status": 200,
+            "requestGuid": "7d8839a2-403a-0000-1bcb-48f10cb5d467",
+            "objectId": "7846973a-62b7-46f5-b0c0-8378a170987e",
+            "readyStreak": 2
+          },
+          {
+            "attempt": 3,
+            "atUtc": "2026-09-09T13:28:25.96Z",
+            "status": 200,
+            "requestGuid": "7d8839a2-a07b-0000-1bcb-4b75e44b4dad",
+            "objectId": "7846973a-62b7-46f5-b0c0-8378a170987e",
+            "readyStreak": 3
+          }
+        ],
+        "lastBody": {
+          "RootFolder": {
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/PublishingImages"
+          },
+          "BaseTemplate": 101,
+          "Id": "7846973a-62b7-46f5-b0c0-8378a170987e",
+          "ListItemEntityTypeFullName": "SP.Data.PublishingImagesItem",
+          "Title": "PublishingImages"
+        }
+      },
+      "readStatus": 200,
+      "listId": "7846973a-62b7-46f5-b0c0-8378a170987e",
+      "entityType": "SP.Data.PublishingImagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    },
+    {
+      "webPath": "/sites/DevCenter-ccd35-fc772393-3/Learn",
+      "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/PublishingImages",
+      "title": "PublishingImages",
+      "semantic": "asset-library",
+      "preStatus": 404,
+      "create": {
+        "status": 201,
+        "requestGuid": "838839a2-c027-0000-1bcb-4f413deb4767"
+      },
+      "readiness": {
+        "kind": "list-provision",
+        "state": "ready",
+        "startedAtUtc": "2026-09-09T13:28:49.439Z",
+        "finishedAtUtc": "2026-09-09T13:28:51.84Z",
+        "elapsedMs": 2401,
+        "attempts": 3,
+        "timeoutMs": 15000,
+        "samples": [
+          {
+            "attempt": 1,
+            "atUtc": "2026-09-09T13:28:49.731Z",
+            "status": 200,
+            "requestGuid": "838839a2-604a-0000-1bcb-47ac2aa9ee4c",
+            "objectId": "c0c57c89-424f-41fa-a466-2fc6a14d2a53",
+            "readyStreak": 1
+          },
+          {
+            "attempt": 2,
+            "atUtc": "2026-09-09T13:28:50.786Z",
+            "status": 200,
+            "requestGuid": "838839a2-508c-0000-1bcb-440f25b8d41b",
+            "objectId": "c0c57c89-424f-41fa-a466-2fc6a14d2a53",
+            "readyStreak": 2
+          },
+          {
+            "attempt": 3,
+            "atUtc": "2026-09-09T13:28:51.84Z",
+            "status": 200,
+            "requestGuid": "838839a2-e0cd-0000-1bcb-4279085463e2",
+            "objectId": "c0c57c89-424f-41fa-a466-2fc6a14d2a53",
+            "readyStreak": 3
+          }
+        ],
+        "lastBody": {
+          "RootFolder": {
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/PublishingImages"
+          },
+          "BaseTemplate": 101,
+          "Id": "c0c57c89-424f-41fa-a466-2fc6a14d2a53",
+          "ListItemEntityTypeFullName": "SP.Data.PublishingImagesItem",
+          "Title": "PublishingImages"
+        }
+      },
+      "readStatus": 200,
+      "listId": "c0c57c89-424f-41fa-a466-2fc6a14d2a53",
+      "entityType": "SP.Data.PublishingImagesItem",
+      "verdict": "pass",
+      "reasonCode": "LIST_READY"
+    }
+  ],
+  "folders": [
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive",
+      "ownerWebPath": "/sites/DevCenter-ccd35-fc772393-3/Learn",
+      "preStatus": 200,
+      "preExists": false,
+      "create": {
+        "status": 200,
+        "requestGuid": "848839a2-d099-0000-1bcb-43c9747df576"
+      },
+      "readiness": {
+        "kind": "folder-readiness",
+        "state": "ready",
+        "startedAtUtc": "2026-09-09T13:28:55.148Z",
+        "finishedAtUtc": "2026-09-09T13:28:57.531Z",
+        "elapsedMs": 2383,
+        "attempts": 3,
+        "timeoutMs": 15000,
+        "samples": [
+          {
+            "attempt": 1,
+            "atUtc": "2026-09-09T13:28:55.441Z",
+            "status": 200,
+            "requestGuid": "848839a2-30af-0000-1bcb-40a16eb3934f",
+            "objectId": null,
+            "readyStreak": 1
+          },
+          {
+            "attempt": 2,
+            "atUtc": "2026-09-09T13:28:56.485Z",
+            "status": 200,
+            "requestGuid": "848839a2-c0f0-0000-1bcb-421473d181be",
+            "objectId": null,
+            "readyStreak": 2
+          },
+          {
+            "attempt": 3,
+            "atUtc": "2026-09-09T13:28:57.531Z",
+            "status": 200,
+            "requestGuid": "858839a2-2032-0000-1bcb-4114bf24ccc2",
+            "objectId": null,
+            "readyStreak": 3
+          }
+        ],
+        "lastBody": {
+          "Exists": true,
+          "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive"
+        }
+      },
+      "readStatus": 200,
+      "readExists": true,
+      "verdict": "pass",
+      "reasonCode": "FOLDER_READY"
+    }
+  ],
+  "pageAdmissions": [
+    {
+      "rowNumber": 1,
+      "operationId": "ccd143-native-page-ac0108c9d27aee01",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 2,
+      "operationId": "ccd143-native-page-fa43e0f5c73151a5",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 3,
+      "operationId": "ccd143-native-page-0bf16c4b800d8d41",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 4,
+      "operationId": "ccd143-native-page-6c3f79254c1341fb",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 5,
+      "operationId": "ccd143-native-page-b37054aa07963973",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 6,
+      "operationId": "ccd143-native-page-6c57f929f2a18879",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 7,
+      "operationId": "ccd143-native-page-18491b1c1a253506",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 8,
+      "operationId": "ccd143-native-page-925a9ea425165e32",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "mappingReason": "SYSTEM_DEFAULT_PAGE_CONFLICT",
+      "preferredStatus": 200,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 9,
+      "operationId": "ccd143-native-page-182b22210d0393a1",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 10,
+      "operationId": "ccd143-native-page-4d767fca8482e42c",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 11,
+      "operationId": "ccd143-native-page-5f735a3286de8825",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "mappingReason": "SYSTEM_DEFAULT_PAGE_CONFLICT",
+      "preferredStatus": 200,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 12,
+      "operationId": "ccd143-native-page-15399bd7ea8c2592",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 13,
+      "operationId": "ccd143-native-page-42a57ab3a10bb903",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 14,
+      "operationId": "ccd143-native-page-d2f42f34a6f14e41",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 22,
+      "operationId": "ccd143-native-page-4eeded5058b0c283",
+      "preferredPath": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 23,
+      "operationId": "ccd143-native-page-e4ea9cbf636ed7d8",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "mappingReason": "SYSTEM_DEFAULT_PAGE_CONFLICT",
+      "preferredStatus": 200,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 24,
+      "operationId": "ccd143-native-page-8f8e93081bfaed83",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 25,
+      "operationId": "ccd143-native-page-642dec524a4addb4",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 26,
+      "operationId": "ccd143-native-page-4fed10b2e38cec05",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 27,
+      "operationId": "ccd143-native-page-f2d557c7e3c16462",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 28,
+      "operationId": "ccd143-native-page-54aef83bb39c3113",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 29,
+      "operationId": "ccd143-native-page-d4f0acbdc9fdd667",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 30,
+      "operationId": "ccd143-native-page-f806556459606517",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 31,
+      "operationId": "ccd143-native-page-1c7a5ff7e2d47826",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 32,
+      "operationId": "ccd143-native-page-83a30bd3f1bb7f35",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 33,
+      "operationId": "ccd143-native-page-a631205023eecbd5",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 34,
+      "operationId": "ccd143-native-page-63b79c3543d18f5f",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 35,
+      "operationId": "ccd143-native-page-11dab05483ba00e6",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 36,
+      "operationId": "ccd143-native-page-2fbd6d62d4af0ec1",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    },
+    {
+      "rowNumber": 37,
+      "operationId": "ccd143-native-page-aa375edd2e64cee7",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "preferredStatus": 404,
+      "mappedStatus": 404,
+      "verdict": "pass",
+      "reasonCode": "PAGE_PATH_ADMISSION_PASS"
+    }
+  ],
+  "ownership": {
+    "status": 200,
+    "valid": true,
+    "updateStatus": 200,
+    "updateRequestGuid": "878839a2-50bd-0000-1bcb-4ada500bfd50"
+  },
+  "finishedAtUtc": "2026-09-09T13:29:07.924Z",
+  "verdict": "pass",
+  "reasonCode": "CAPABILITY_READINESS_PASS"
+}

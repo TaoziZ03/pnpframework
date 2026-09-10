@@ -1,0 +1,360 @@
+{
+  "schema": "ccd.shared-target-lifecycle-receipt/v1",
+  "issue": "CCD-143",
+  "runId": "fc772393-1529-40e9-bcb5-398f8be4aa08",
+  "phase": "native-web-readiness",
+  "stateBefore": "native-web-created",
+  "stateAfter": "native-web-ready",
+  "startedAtUtc": "2026-09-09T13:25:52.974Z",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+  "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+  "digestLineage": {
+    "parentPlanDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+    "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+    "producer": {
+      "kind": "workspace-file",
+      "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+      "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+    }
+  },
+  "producerRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+  },
+  "sourceRequests": 0,
+  "sourceMutations": 0,
+  "sites": [
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3",
+      "siteStatus": 200,
+      "webStatus": 200,
+      "ownedSiteId": "202cf149-66cd-4cdc-8441-c86b28f5e96e",
+      "siteId": "202cf149-66cd-4cdc-8441-c86b28f5e96e",
+      "rootWebId": "041e70b3-0d2d-4040-91a3-1f57c3b9df53",
+      "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3",
+      "serverRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3",
+      "description": "[CCD-143 fc772393] page-centric repro",
+      "isProvisioningComplete": false,
+      "identityMatches": true,
+      "ownershipMatches": true,
+      "contextInfoStatus": 200,
+      "requestGuid": "588839a2-505a-0000-1bcb-4b701ff3476e",
+      "verdict": "pass",
+      "reasonCode": "READINESS_SITE_IDENTITY_BOUND"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "siteStatus": 200,
+      "webStatus": 200,
+      "ownedSiteId": "9b71173c-f046-4c4b-a472-49d10a6d9bf9",
+      "siteId": "9b71173c-f046-4c4b-a472-49d10a6d9bf9",
+      "rootWebId": "041e70b3-0d2d-4040-91a3-1f57c3b9df53",
+      "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3",
+      "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "description": "[CCD-143 fc772393] page-centric repro",
+      "isProvisioningComplete": false,
+      "identityMatches": true,
+      "ownershipMatches": true,
+      "contextInfoStatus": 200,
+      "requestGuid": "588839a2-9091-0000-1bcb-4b64d33f7a81",
+      "verdict": "pass",
+      "reasonCode": "READINESS_SITE_IDENTITY_BOUND"
+    },
+    {
+      "path": "/sites/catalog-ccd35-fc772393-3",
+      "siteStatus": 200,
+      "webStatus": 200,
+      "ownedSiteId": "dd9ea772-358f-496a-b1ac-1f0dc0161656",
+      "siteId": "dd9ea772-358f-496a-b1ac-1f0dc0161656",
+      "rootWebId": "041e70b3-0d2d-4040-91a3-1f57c3b9df53",
+      "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/catalog-ccd35-fc772393-3",
+      "serverRelativeUrl": "/sites/catalog-ccd35-fc772393-3",
+      "description": "[CCD-143 fc772393] page-centric repro",
+      "isProvisioningComplete": false,
+      "identityMatches": true,
+      "ownershipMatches": true,
+      "contextInfoStatus": 200,
+      "requestGuid": "588839a2-00c9-0000-1bcb-4607623b25d7",
+      "verdict": "pass",
+      "reasonCode": "READINESS_SITE_IDENTITY_BOUND"
+    }
+  ],
+  "webs": [
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+      "sitePath": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "operationId": "ccd143-native-web-create-10646e13e432",
+      "ownedWebId": "4c2666ea-5884-4287-a070-99d76c695090",
+      "ownedObjectIdentity": "498839a2-407a-0000-1bcb-47549c879417|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:4c2666ea-5884-4287-a070-99d76c695090",
+      "ownershipFingerprint": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+      "startedAtUtc": "2026-09-09T13:25:56.219Z",
+      "finishedAtUtc": "2026-09-09T13:25:56.824Z",
+      "elapsedMs": 605,
+      "attempts": 1,
+      "timeoutMs": 180000,
+      "samples": [
+        {
+          "attempt": 1,
+          "atUtc": "2026-09-09T13:25:56.824Z",
+          "status": 200,
+          "requestGuid": "598839a2-3012-0000-1bcb-4dd9b3e89b9d",
+          "traceCorrelationId": "598839a2-3012-0000-1bcb-4dd9b3e89b9d",
+          "errorInfo": null,
+          "identityMatches": true,
+          "ownershipMatches": true,
+          "web": {
+            "objectIdentity": "598839a2-3012-0000-1bcb-4dd9b3e89b9d|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:4c2666ea-5884-4287-a070-99d76c695090",
+            "webId": "4c2666ea-5884-4287-a070-99d76c695090",
+            "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+            "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+            "isProvisioningComplete": true,
+            "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive"
+          },
+          "ready": true
+        }
+      ],
+      "identity": {
+        "objectIdentity": "598839a2-3012-0000-1bcb-4dd9b3e89b9d|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:4c2666ea-5884-4287-a070-99d76c695090",
+        "webId": "4c2666ea-5884-4287-a070-99d76c695090",
+        "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+        "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive",
+        "isProvisioningComplete": true,
+        "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive"
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+      "sitePath": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "operationId": "ccd143-native-web-create-4039312eaa3b",
+      "ownedWebId": "494024f9-13bc-4683-8691-89584c04bc60",
+      "ownedObjectIdentity": "4d8839a2-1028-0000-1bcb-4fbc4b3d76cc|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:494024f9-13bc-4683-8691-89584c04bc60",
+      "ownershipFingerprint": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+      "startedAtUtc": "2026-09-09T13:25:56.824Z",
+      "finishedAtUtc": "2026-09-09T13:25:57.415Z",
+      "elapsedMs": 591,
+      "attempts": 1,
+      "timeoutMs": 180000,
+      "samples": [
+        {
+          "attempt": 1,
+          "atUtc": "2026-09-09T13:25:57.415Z",
+          "status": 200,
+          "requestGuid": "598839a2-e037-0000-1bcb-47db7498618d",
+          "traceCorrelationId": "598839a2-e037-0000-1bcb-47db7498618d",
+          "errorInfo": null,
+          "identityMatches": true,
+          "ownershipMatches": true,
+          "web": {
+            "objectIdentity": "598839a2-e037-0000-1bcb-47db7498618d|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:494024f9-13bc-4683-8691-89584c04bc60",
+            "webId": "494024f9-13bc-4683-8691-89584c04bc60",
+            "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+            "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+            "isProvisioningComplete": true,
+            "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive"
+          },
+          "ready": true
+        }
+      ],
+      "identity": {
+        "objectIdentity": "598839a2-e037-0000-1bcb-47db7498618d|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:494024f9-13bc-4683-8691-89584c04bc60",
+        "webId": "494024f9-13bc-4683-8691-89584c04bc60",
+        "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+        "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive",
+        "isProvisioningComplete": true,
+        "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive"
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+      "sitePath": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "operationId": "ccd143-native-web-create-dc32f2c4e4f8",
+      "ownedWebId": "56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+      "ownedObjectIdentity": "4f8839a2-005a-0000-1bcb-4aeb694f2c74|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+      "ownershipFingerprint": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+      "startedAtUtc": "2026-09-09T13:25:57.415Z",
+      "finishedAtUtc": "2026-09-09T13:25:57.991Z",
+      "elapsedMs": 576,
+      "attempts": 1,
+      "timeoutMs": 180000,
+      "samples": [
+        {
+          "attempt": 1,
+          "atUtc": "2026-09-09T13:25:57.991Z",
+          "status": 200,
+          "requestGuid": "598839a2-f05c-0000-1bcb-43bc316f309b",
+          "traceCorrelationId": "598839a2-f05c-0000-1bcb-43bc316f309b",
+          "errorInfo": null,
+          "identityMatches": true,
+          "ownershipMatches": true,
+          "web": {
+            "objectIdentity": "598839a2-f05c-0000-1bcb-43bc316f309b|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+            "webId": "56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+            "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+            "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+            "isProvisioningComplete": true,
+            "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/data_Archive"
+          },
+          "ready": true
+        }
+      ],
+      "identity": {
+        "objectIdentity": "598839a2-f05c-0000-1bcb-43bc316f309b|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+        "webId": "56d6b488-7eae-49e3-92c3-ced34ffa54fc",
+        "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+        "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive",
+        "isProvisioningComplete": true,
+        "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/data_Archive"
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+      "sitePath": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "operationId": "ccd143-native-web-create-2c9b2460e68f",
+      "ownedWebId": "0526218f-81ac-4e80-98b4-08c826e3b9df",
+      "ownedObjectIdentity": "518839a2-b071-0000-1bcb-46a511c6a706|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:0526218f-81ac-4e80-98b4-08c826e3b9df",
+      "ownershipFingerprint": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+      "startedAtUtc": "2026-09-09T13:25:57.991Z",
+      "finishedAtUtc": "2026-09-09T13:25:58.575Z",
+      "elapsedMs": 584,
+      "attempts": 1,
+      "timeoutMs": 180000,
+      "samples": [
+        {
+          "attempt": 1,
+          "atUtc": "2026-09-09T13:25:58.575Z",
+          "status": 200,
+          "requestGuid": "598839a2-f080-0000-1bcb-41265ae4e30d",
+          "traceCorrelationId": "598839a2-f080-0000-1bcb-41265ae4e30d",
+          "errorInfo": null,
+          "identityMatches": true,
+          "ownershipMatches": true,
+          "web": {
+            "objectIdentity": "598839a2-f080-0000-1bcb-41265ae4e30d|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:0526218f-81ac-4e80-98b4-08c826e3b9df",
+            "webId": "0526218f-81ac-4e80-98b4-08c826e3b9df",
+            "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+            "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+            "isProvisioningComplete": true,
+            "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/userfeedback"
+          },
+          "ready": true
+        }
+      ],
+      "identity": {
+        "objectIdentity": "598839a2-f080-0000-1bcb-41265ae4e30d|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:9b71173c-f046-4c4b-a472-49d10a6d9bf9:web:0526218f-81ac-4e80-98b4-08c826e3b9df",
+        "webId": "0526218f-81ac-4e80-98b4-08c826e3b9df",
+        "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+        "serverRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback",
+        "isProvisioningComplete": true,
+        "description": "[CCD-143 fc772393] /sites/biatmicrosoft-ccd35-fc772393-3/userfeedback"
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3/BingNom",
+      "sitePath": "/sites/DevCenter-ccd35-fc772393-3",
+      "operationId": "ccd143-native-web-create-a6417b3ae508",
+      "ownedWebId": "734de474-5244-4335-8754-d818dd9ef3cf",
+      "ownedObjectIdentity": "538839a2-40bc-0000-1bcb-444e780a16ad|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:734de474-5244-4335-8754-d818dd9ef3cf",
+      "ownershipFingerprint": "[CCD-143 fc772393] /sites/DevCenter-ccd35-fc772393-3/BingNom",
+      "startedAtUtc": "2026-09-09T13:25:58.575Z",
+      "finishedAtUtc": "2026-09-09T13:25:59.157Z",
+      "elapsedMs": 582,
+      "attempts": 1,
+      "timeoutMs": 180000,
+      "samples": [
+        {
+          "attempt": 1,
+          "atUtc": "2026-09-09T13:25:59.157Z",
+          "status": 200,
+          "requestGuid": "598839a2-60a5-0000-1bcb-433da6037209",
+          "traceCorrelationId": "598839a2-60a5-0000-1bcb-433da6037209",
+          "errorInfo": null,
+          "identityMatches": true,
+          "ownershipMatches": true,
+          "web": {
+            "objectIdentity": "598839a2-60a5-0000-1bcb-433da6037209|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:734de474-5244-4335-8754-d818dd9ef3cf",
+            "webId": "734de474-5244-4335-8754-d818dd9ef3cf",
+            "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/BingNom",
+            "serverRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/BingNom",
+            "isProvisioningComplete": true,
+            "description": "[CCD-143 fc772393] /sites/DevCenter-ccd35-fc772393-3/BingNom"
+          },
+          "ready": true
+        }
+      ],
+      "identity": {
+        "objectIdentity": "598839a2-60a5-0000-1bcb-433da6037209|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:734de474-5244-4335-8754-d818dd9ef3cf",
+        "webId": "734de474-5244-4335-8754-d818dd9ef3cf",
+        "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/BingNom",
+        "serverRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/BingNom",
+        "isProvisioningComplete": true,
+        "description": "[CCD-143 fc772393] /sites/DevCenter-ccd35-fc772393-3/BingNom"
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    },
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3/Learn",
+      "sitePath": "/sites/DevCenter-ccd35-fc772393-3",
+      "operationId": "ccd143-native-web-create-bd70f41f96db",
+      "ownedWebId": "75f489a3-ad74-4906-9dec-2e3190e8d93d",
+      "ownedObjectIdentity": "558839a2-30d2-0000-1bcb-4bda5de7cdcf|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:75f489a3-ad74-4906-9dec-2e3190e8d93d",
+      "ownershipFingerprint": "[CCD-143 fc772393] /sites/DevCenter-ccd35-fc772393-3/Learn",
+      "startedAtUtc": "2026-09-09T13:25:59.157Z",
+      "finishedAtUtc": "2026-09-09T13:25:59.735Z",
+      "elapsedMs": 578,
+      "attempts": 1,
+      "timeoutMs": 180000,
+      "samples": [
+        {
+          "attempt": 1,
+          "atUtc": "2026-09-09T13:25:59.735Z",
+          "status": 200,
+          "requestGuid": "598839a2-c0c9-0000-1bcb-4234c9d2c3d7",
+          "traceCorrelationId": "598839a2-c0c9-0000-1bcb-4234c9d2c3d7",
+          "errorInfo": null,
+          "identityMatches": true,
+          "ownershipMatches": true,
+          "web": {
+            "objectIdentity": "598839a2-c0c9-0000-1bcb-4234c9d2c3d7|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:75f489a3-ad74-4906-9dec-2e3190e8d93d",
+            "webId": "75f489a3-ad74-4906-9dec-2e3190e8d93d",
+            "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn",
+            "serverRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn",
+            "isProvisioningComplete": true,
+            "description": "[CCD-143 fc772393] /sites/DevCenter-ccd35-fc772393-3/Learn"
+          },
+          "ready": true
+        }
+      ],
+      "identity": {
+        "objectIdentity": "598839a2-c0c9-0000-1bcb-4234c9d2c3d7|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:202cf149-66cd-4cdc-8441-c86b28f5e96e:web:75f489a3-ad74-4906-9dec-2e3190e8d93d",
+        "webId": "75f489a3-ad74-4906-9dec-2e3190e8d93d",
+        "url": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn",
+        "serverRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn",
+        "isProvisioningComplete": true,
+        "description": "[CCD-143 fc772393] /sites/DevCenter-ccd35-fc772393-3/Learn"
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_WEB_READY_OPEN_BY_ID"
+    }
+  ],
+  "ownership": {
+    "status": 200,
+    "valid": true,
+    "phase": "native-web-created",
+    "updateStatus": 200,
+    "updateRequestGuid": "598839a2-60fb-0000-1bcb-4960df379fd0"
+  },
+  "finishedAtUtc": "2026-09-09T13:26:00.504Z",
+  "verdict": "pass",
+  "reasonCode": "NATIVE_WEB_READINESS_PASS"
+}

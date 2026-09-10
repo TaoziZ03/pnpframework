@@ -1,0 +1,89 @@
+{
+  "schema": "ccd.shared-target-lifecycle-manifest/v1",
+  "issue": "CCD-143",
+  "runId": "fc772393-1529-40e9-bcb5-398f8be4aa08",
+  "runShortId": "fc772393",
+  "generatedAtUtc": "2026-09-09T13:24:08.541Z",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+  "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+  "producerRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+  },
+  "sourcePlanDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
+  "pageCount": 30,
+  "sitePathMappings": [
+    {
+      "sourceTargetPath": "/sites/DevCenter",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3",
+      "reason": "TARGET_SITE_CONFLICT"
+    },
+    {
+      "sourceTargetPath": "/sites/biatmicrosoft",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "reason": "TARGET_SITE_CONFLICT"
+    },
+    {
+      "sourceTargetPath": "/sites/catalog",
+      "targetPath": "/sites/catalog-ccd35-fc772393-3",
+      "reason": "TARGET_SITE_CONFLICT"
+    }
+  ],
+  "systemConflictMappings": [
+    {
+      "rowNumber": 8,
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx"
+    },
+    {
+      "rowNumber": 11,
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx"
+    },
+    {
+      "rowNumber": 23,
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx"
+    }
+  ],
+  "expressions": {
+    "00-site-manager-status.js": {
+      "bytes": 337009,
+      "sha256": "0de5732dd543396dde470e36c857741243dce1f27ff69d2c8202a50f9958f772"
+    },
+    "01-admission.js": {
+      "bytes": 337717,
+      "sha256": "6b8d2ba1232b6db8007f788d2bd5c9eafac6c59370365f9b97e6847b69d4d192"
+    },
+    "02-provision.js": {
+      "bytes": 343324,
+      "sha256": "1e74472bae77d6ad7b795e6fe5a16e52a5e3a5a52a805b063898d3efeedd6426"
+    },
+    "03-readiness.js": {
+      "bytes": 340444,
+      "sha256": "8998875a6ecbedb57129f9bfb822925300d3481fb66f7e087fbec8595aaedc72"
+    },
+    "04-capability-readiness.js": {
+      "bytes": 341375,
+      "sha256": "728bce8c39cd2d38ab2a89a7539c97110db4756cf14c625038448a8c226cc7b9"
+    },
+    "05-native-create.js": {
+      "bytes": 342134,
+      "sha256": "2b203df934dc69fa9a8f0dbdef9b42a8244183ade892a305151a615f9c3c9871"
+    },
+    "06-fresh-readback.js": {
+      "bytes": 344815,
+      "sha256": "1fc2913f854286b4915e3479dc02f06a6fa89e5feb0abd233622cd8226300684"
+    },
+    "07-cleanup.js": {
+      "bytes": 341529,
+      "sha256": "aadf1a529ac2253e2fd2afa077c037418b3adfdf06cdbeacfb6529b5a3872f7e"
+    },
+    "08-post-cleanup.js": {
+      "bytes": 337210,
+      "sha256": "7d86eb01100c9103133e7ad2766669cf05a31e1bcff8d23e59cbbe31cf4d03af"
+    }
+  }
+}

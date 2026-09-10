@@ -1,0 +1,72 @@
+{
+  "schema": "ccd.shared-target-lifecycle-receipt/v1",
+  "issue": "CCD-143",
+  "runId": "fc772393-1529-40e9-bcb5-398f8be4aa08",
+  "phase": "admission",
+  "stateBefore": "absent",
+  "stateAfter": "admitted",
+  "startedAtUtc": "2026-09-09T13:24:21.119Z",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+  "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+  "digestLineage": {
+    "parentPlanDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+    "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+    "producer": {
+      "kind": "workspace-file",
+      "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+      "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+    }
+  },
+  "producerRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+  },
+  "sourceRequests": 0,
+  "sourceMutations": 0,
+  "identity": {
+    "status": 200,
+    "id": 11,
+    "email": "admin@a830edad9050849cupcollect.onmicrosoft.com",
+    "loginName": "i:0#.f|membership|admin@a830edad9050849cupcollect.onmicrosoft.com",
+    "isSiteAdmin": true,
+    "requestGuid": "428839a2-0009-0000-1bcb-4cee86c7e7fc"
+  },
+  "root": {
+    "status": 200,
+    "id": "e12c257b-8020-4851-aaed-dbbba61b0008",
+    "url": "https://a830edad9050849cupcollect.sharepoint.com",
+    "requestGuid": "428839a2-401b-0000-1bcb-447bfac3ff74"
+  },
+  "marker": {
+    "path": "/SiteAssets/ccd143-ownership-fc772393.json",
+    "status": 404
+  },
+  "sites": [
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3",
+      "status": 404,
+      "id": null,
+      "requestGuid": "428839a2-603f-0000-1bcb-41b6675a091a",
+      "classification": "ADMISSION_ABSENT"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "status": 404,
+      "id": null,
+      "requestGuid": "428839a2-4051-0000-1bcb-4e7751962167",
+      "classification": "ADMISSION_ABSENT"
+    },
+    {
+      "path": "/sites/catalog-ccd35-fc772393-3",
+      "status": 404,
+      "id": null,
+      "requestGuid": "428839a2-5063-0000-1bcb-46c09b541d89",
+      "classification": "ADMISSION_ABSENT"
+    }
+  ],
+  "finishedAtUtc": "2026-09-09T13:24:23.882Z",
+  "verdict": "pass",
+  "reasonCode": "TARGET_ADMISSION_PASS"
+}

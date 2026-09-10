@@ -1,0 +1,58 @@
+{
+  "schema": "ccd.shared-target-lifecycle-receipt/v1",
+  "issue": "CCD-143",
+  "runId": "fc772393-1529-40e9-bcb5-398f8be4aa08",
+  "phase": "post-cleanup",
+  "stateBefore": "cleaned",
+  "stateAfter": "absent",
+  "startedAtUtc": "2026-09-09T13:40:09.405Z",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+  "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+  "digestLineage": {
+    "parentPlanDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+    "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+    "producer": {
+      "kind": "workspace-file",
+      "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+      "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+    }
+  },
+  "producerRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+  },
+  "sourceRequests": 0,
+  "sourceMutations": 0,
+  "sites": [
+    {
+      "path": "/sites/DevCenter-ccd35-fc772393-3",
+      "status": 404,
+      "id": null,
+      "requestGuid": "298939a2-a04b-0000-1bcb-428ed77556ba",
+      "classification": "POST_CLEANUP_ABSENT"
+    },
+    {
+      "path": "/sites/biatmicrosoft-ccd35-fc772393-3",
+      "status": 404,
+      "id": null,
+      "requestGuid": "298939a2-f05b-0000-1bcb-4210c448f315",
+      "classification": "POST_CLEANUP_ABSENT"
+    },
+    {
+      "path": "/sites/catalog-ccd35-fc772393-3",
+      "status": 404,
+      "id": null,
+      "requestGuid": "298939a2-706c-0000-1bcb-4591aca57ac6",
+      "classification": "POST_CLEANUP_ABSENT"
+    }
+  ],
+  "ownership": {
+    "path": "/SiteAssets/ccd143-ownership-fc772393.json",
+    "status": 404
+  },
+  "finishedAtUtc": "2026-09-09T13:40:10.482Z",
+  "verdict": "pass",
+  "reasonCode": "FRESH_POST_CLEANUP_ABSENCE_PASS"
+}

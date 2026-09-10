@@ -1,0 +1,4268 @@
+{
+  "schema": "ccd.shared-target-lifecycle-receipt/v1",
+  "issue": "CCD-143",
+  "runId": "fc772393-1529-40e9-bcb5-398f8be4aa08",
+  "phase": "native-create",
+  "stateBefore": "capability-ready",
+  "stateAfter": "created",
+  "startedAtUtc": "2026-09-09T13:29:09.316Z",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+  "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+  "digestLineage": {
+    "parentPlanDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+    "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+    "producer": {
+      "kind": "workspace-file",
+      "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+      "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+    }
+  },
+  "producerRef": {
+    "kind": "workspace-file",
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+  },
+  "sourceRequests": 0,
+  "sourceMutations": 0,
+  "pages": [
+    {
+      "rowNumber": 1,
+      "operationId": "ccd143-native-page-ac0108c9d27aee01",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "888839a2-a039-0000-1bcb-46363a5f97bc"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "888839a2-505e-0000-1bcb-479fd1749482",
+        "timestampUtc": "2026-09-09T13:29:10.657Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "59d81753-e22e-4532-aee1-8bc3ff96353d",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": null
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "ed1c9709-264e-429c-b531-077a363bcc3e",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+        "itemStatus": 200,
+        "itemId": 1,
+        "itemUniqueId": "ed1c9709-264e-429c-b531-077a363bcc3e",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+        "itemFileUniqueId": "ed1c9709-264e-429c-b531-077a363bcc3e",
+        "parentListId": "59d81753-e22e-4532-aee1-8bc3ff96353d",
+        "contentTypeId": "0x0101009B32AEC3FCD4044EBD3F1520C141D3F0",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:18.284Z",
+          "finishedAtUtc": "2026-09-09T13:29:20.664Z",
+          "elapsedMs": 2380,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:29:18.572Z",
+              "status": 200,
+              "requestGuid": "8a8839a2-2055-0000-1bcb-486a59c7d52f",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:29:19.62Z",
+              "status": 200,
+              "requestGuid": "8a8839a2-9096-0000-1bcb-4809626ef937",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:29:20.664Z",
+              "status": 200,
+              "requestGuid": "8a8839a2-b0d7-0000-1bcb-48988d76e0e8",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "Search.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+            "TimeCreated": "2026-09-09T13:29:10Z",
+            "TimeLastModified": "2026-09-09T13:29:10Z",
+            "UniqueId": "ed1c9709-264e-429c-b531-077a363bcc3e"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:20.664Z",
+          "finishedAtUtc": "2026-09-09T13:29:23.188Z",
+          "elapsedMs": 2524,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:29:20.999Z",
+              "status": 200,
+              "requestGuid": "8a8839a2-10ea-0000-1bcb-461f06f3866e",
+              "objectId": 1,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:29:22.116Z",
+              "status": 200,
+              "requestGuid": "8b8839a2-002e-0000-1bcb-4842fb003135",
+              "objectId": 1,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:29:23.188Z",
+              "status": 200,
+              "requestGuid": "8b8839a2-1074-0000-1bcb-406e1848f14d",
+              "objectId": 1,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "ed1c9709-264e-429c-b531-077a363bcc3e"
+            },
+            "ParentList": {
+              "Id": "59d81753-e22e-4532-aee1-8bc3ff96353d"
+            },
+            "Id": 1,
+            "ID": 1,
+            "ContentTypeId": "0x0101009B32AEC3FCD4044EBD3F1520C141D3F0",
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/Pages/Search.aspx",
+            "FileLeafRef": "Search.aspx",
+            "UniqueId": "ed1c9709-264e-429c-b531-077a363bcc3e"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 2,
+      "operationId": "ccd143-native-page-fa43e0f5c73151a5",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive/SitePages/defaulttest.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "8b8839a2-d087-0000-1bcb-48e855d69799"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "8b8839a2-00ac-0000-1bcb-4404b3ae9e35",
+        "timestampUtc": "2026-09-09T13:29:24.122Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "e4cc7fd0-43d7-4553-86a7-21fcc1d790c4",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": null
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "7e6f2ade-d0c2-4592-b902-4ffdfae547fc",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+        "itemStatus": 200,
+        "itemId": 3,
+        "itemUniqueId": "7e6f2ade-d0c2-4592-b902-4ffdfae547fc",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+        "itemFileUniqueId": "7e6f2ade-d0c2-4592-b902-4ffdfae547fc",
+        "parentListId": "e4cc7fd0-43d7-4553-86a7-21fcc1d790c4",
+        "contentTypeId": "0x010108009BE83B1E8DCC264FAC405242113284C8",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:31.399Z",
+          "finishedAtUtc": "2026-09-09T13:29:33.786Z",
+          "elapsedMs": 2387,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:29:31.689Z",
+              "status": 200,
+              "requestGuid": "8d8839a2-f088-0000-1bcb-4316b9569b13",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:29:32.728Z",
+              "status": 200,
+              "requestGuid": "8d8839a2-d0c9-0000-1bcb-473f9a2d9fb4",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:29:33.786Z",
+              "status": 200,
+              "requestGuid": "8e8839a2-d00b-0000-1bcb-4e278dea5c54",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "defaulttest.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+            "TimeCreated": "2026-09-09T13:29:24Z",
+            "TimeLastModified": "2026-09-09T13:29:24Z",
+            "UniqueId": "7e6f2ade-d0c2-4592-b902-4ffdfae547fc"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:33.786Z",
+          "finishedAtUtc": "2026-09-09T13:29:36.262Z",
+          "elapsedMs": 2476,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:29:34.11Z",
+              "status": 200,
+              "requestGuid": "8e8839a2-101e-0000-1bcb-4b9a47f8f567",
+              "objectId": 3,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:29:35.182Z",
+              "status": 200,
+              "requestGuid": "8e8839a2-6061-0000-1bcb-4591591a2ebf",
+              "objectId": 3,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:29:36.262Z",
+              "status": 200,
+              "requestGuid": "8e8839a2-60a4-0000-1bcb-417c09b42cbe",
+              "objectId": 3,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "7e6f2ade-d0c2-4592-b902-4ffdfae547fc"
+            },
+            "ParentList": {
+              "Id": "e4cc7fd0-43d7-4553-86a7-21fcc1d790c4"
+            },
+            "Id": 3,
+            "ContentTypeId": "0x010108009BE83B1E8DCC264FAC405242113284C8",
+            "FileLeafRef": "defaulttest.aspx",
+            "ID": 3,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/defaulttest.aspx",
+            "UniqueId": "7e6f2ade-d0c2-4592-b902-4ffdfae547fc"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 3,
+      "operationId": "ccd143-native-page-0bf16c4b800d8d41",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive/SitePages/rss.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "8e8839a2-d0b8-0000-1bcb-499411e84abf"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "8e8839a2-50dd-0000-1bcb-41e793317f0a",
+        "timestampUtc": "2026-09-09T13:29:37.183Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "e4cc7fd0-43d7-4553-86a7-21fcc1d790c4",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "NOT_ATTEMPTED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "1eb265e5-7cbe-4919-ac29-92e1211e5b66",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+        "itemStatus": 200,
+        "itemId": 4,
+        "itemUniqueId": "1eb265e5-7cbe-4919-ac29-92e1211e5b66",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+        "itemFileUniqueId": "1eb265e5-7cbe-4919-ac29-92e1211e5b66",
+        "parentListId": "e4cc7fd0-43d7-4553-86a7-21fcc1d790c4",
+        "contentTypeId": "0x010108009BE83B1E8DCC264FAC405242113284C8",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:44.437Z",
+          "finishedAtUtc": "2026-09-09T13:29:46.82Z",
+          "elapsedMs": 2383,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:29:44.728Z",
+              "status": 200,
+              "requestGuid": "908839a2-d0b7-0000-1bcb-493f38f2e923",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:29:45.778Z",
+              "status": 200,
+              "requestGuid": "908839a2-90f9-0000-1bcb-46caa2b87d10",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:29:46.82Z",
+              "status": 200,
+              "requestGuid": "918839a2-b03a-0000-1bcb-40bff48bc0eb",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "rss.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+            "TimeCreated": "2026-09-09T13:29:37Z",
+            "TimeLastModified": "2026-09-09T13:29:37Z",
+            "UniqueId": "1eb265e5-7cbe-4919-ac29-92e1211e5b66"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:46.82Z",
+          "finishedAtUtc": "2026-09-09T13:29:49.278Z",
+          "elapsedMs": 2458,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:29:47.138Z",
+              "status": 200,
+              "requestGuid": "918839a2-d04c-0000-1bcb-473905679418",
+              "objectId": 4,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:29:48.207Z",
+              "status": 200,
+              "requestGuid": "918839a2-808f-0000-1bcb-4e48d412cc74",
+              "objectId": 4,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:29:49.278Z",
+              "status": 200,
+              "requestGuid": "918839a2-90d2-0000-1bcb-41cb93d31ab2",
+              "objectId": 4,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "1eb265e5-7cbe-4919-ac29-92e1211e5b66"
+            },
+            "ParentList": {
+              "Id": "e4cc7fd0-43d7-4553-86a7-21fcc1d790c4"
+            },
+            "Id": 4,
+            "ContentTypeId": "0x010108009BE83B1E8DCC264FAC405242113284C8",
+            "FileLeafRef": "rss.aspx",
+            "ID": 4,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/blog_Archive/SitePages/rss.aspx",
+            "UniqueId": "1eb265e5-7cbe-4919-ac29-92e1211e5b66"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 4,
+      "operationId": "ccd143-native-page-6c3f79254c1341fb",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "918839a2-70e6-0000-1bcb-4ebaba4ce43f"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "928839a2-c00a-0000-1bcb-4bec54d1c340",
+        "timestampUtc": "2026-09-09T13:29:50.303Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "5544c09a-5193-43d7-9539-f4e1e559ba84",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+        "itemStatus": 200,
+        "itemId": 1,
+        "itemUniqueId": "5544c09a-5193-43d7-9539-f4e1e559ba84",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+        "itemFileUniqueId": "5544c09a-5193-43d7-9539-f4e1e559ba84",
+        "parentListId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "contentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:57.558Z",
+          "finishedAtUtc": "2026-09-09T13:29:59.933Z",
+          "elapsedMs": 2375,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:29:57.852Z",
+              "status": 200,
+              "requestGuid": "938839a2-d0eb-0000-1bcb-428f488285f4",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:29:58.89Z",
+              "status": 200,
+              "requestGuid": "948839a2-002d-0000-1bcb-4257715bfa59",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:29:59.932Z",
+              "status": 200,
+              "requestGuid": "948839a2-006e-0000-1bcb-44418c2a2a3a",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+            "TimeCreated": "2026-09-09T13:29:50Z",
+            "TimeLastModified": "2026-09-09T13:29:50Z",
+            "UniqueId": "5544c09a-5193-43d7-9539-f4e1e559ba84"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:29:59.933Z",
+          "finishedAtUtc": "2026-09-09T13:30:02.416Z",
+          "elapsedMs": 2483,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:00.252Z",
+              "status": 200,
+              "requestGuid": "948839a2-4080-0000-1bcb-416e1f7b3982",
+              "objectId": 1,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:01.329Z",
+              "status": 200,
+              "requestGuid": "948839a2-50c3-0000-1bcb-4ec93238f7fc",
+              "objectId": 1,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:02.416Z",
+              "status": 200,
+              "requestGuid": "958839a2-3007-0000-1bcb-4039b6579521",
+              "objectId": 1,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "5544c09a-5193-43d7-9539-f4e1e559ba84"
+            },
+            "ParentList": {
+              "Id": "995e25ca-419d-4d7b-ad3a-4552d6ea3060"
+            },
+            "Id": 1,
+            "ID": 1,
+            "ContentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+            "FileLeafRef": "Clean-up-a-cluttered-stock-situation-with-Power-BI.aspx",
+            "UniqueId": "5544c09a-5193-43d7-9539-f4e1e559ba84"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 5,
+      "operationId": "ccd143-native-page-b37054aa07963973",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "958839a2-801b-0000-1bcb-411180735377"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "958839a2-c03f-0000-1bcb-413fddc3a104",
+        "timestampUtc": "2026-09-09T13:30:03.392Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "857e0bd7-7c5e-43c8-bb87-b452a2508783",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+        "itemStatus": 200,
+        "itemId": 2,
+        "itemUniqueId": "857e0bd7-7c5e-43c8-bb87-b452a2508783",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+        "itemFileUniqueId": "857e0bd7-7c5e-43c8-bb87-b452a2508783",
+        "parentListId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "contentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:10.648Z",
+          "finishedAtUtc": "2026-09-09T13:30:13.036Z",
+          "elapsedMs": 2388,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:10.938Z",
+              "status": 200,
+              "requestGuid": "978839a2-e01d-0000-1bcb-490273da9675",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:11.994Z",
+              "status": 200,
+              "requestGuid": "978839a2-a05f-0000-1bcb-48296b30ed83",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:13.036Z",
+              "status": 200,
+              "requestGuid": "978839a2-00a1-0000-1bcb-4b2fc4197d0f",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "How-Power-BI-helps-reduce-service-order-delays.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+            "TimeCreated": "2026-09-09T13:30:03Z",
+            "TimeLastModified": "2026-09-09T13:30:03Z",
+            "UniqueId": "857e0bd7-7c5e-43c8-bb87-b452a2508783"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:13.036Z",
+          "finishedAtUtc": "2026-09-09T13:30:15.53Z",
+          "elapsedMs": 2494,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:13.373Z",
+              "status": 200,
+              "requestGuid": "978839a2-50b3-0000-1bcb-4125d67835b3",
+              "objectId": 2,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:14.453Z",
+              "status": 200,
+              "requestGuid": "978839a2-10f8-0000-1bcb-4650c1937b37",
+              "objectId": 2,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:15.53Z",
+              "status": 200,
+              "requestGuid": "988839a2-603b-0000-1bcb-46c23444f2da",
+              "objectId": 2,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "857e0bd7-7c5e-43c8-bb87-b452a2508783"
+            },
+            "ParentList": {
+              "Id": "995e25ca-419d-4d7b-ad3a-4552d6ea3060"
+            },
+            "Id": 2,
+            "ID": 2,
+            "ContentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/How-Power-BI-helps-reduce-service-order-delays.aspx",
+            "FileLeafRef": "How-Power-BI-helps-reduce-service-order-delays.aspx",
+            "UniqueId": "857e0bd7-7c5e-43c8-bb87-b452a2508783"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 6,
+      "operationId": "ccd143-native-page-6c57f929f2a18879",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "988839a2-204f-0000-1bcb-414ddf30950e"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "988839a2-f073-0000-1bcb-44faba2d41b6",
+        "timestampUtc": "2026-09-09T13:30:16.52Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "084d4536-4386-4e03-a446-6c39c57845a3",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+        "itemStatus": 200,
+        "itemId": 3,
+        "itemUniqueId": "084d4536-4386-4e03-a446-6c39c57845a3",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+        "itemFileUniqueId": "084d4536-4386-4e03-a446-6c39c57845a3",
+        "parentListId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "contentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:23.77Z",
+          "finishedAtUtc": "2026-09-09T13:30:26.163Z",
+          "elapsedMs": 2393,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:24.064Z",
+              "status": 200,
+              "requestGuid": "9a8839a2-1052-0000-1bcb-4007789c5db4",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:25.112Z",
+              "status": 200,
+              "requestGuid": "9a8839a2-f093-0000-1bcb-4af2e02a0986",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:26.163Z",
+              "status": 200,
+              "requestGuid": "9a8839a2-80d5-0000-1bcb-470818b8b040",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+            "TimeCreated": "2026-09-09T13:30:16Z",
+            "TimeLastModified": "2026-09-09T13:30:16Z",
+            "UniqueId": "084d4536-4386-4e03-a446-6c39c57845a3"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:26.163Z",
+          "finishedAtUtc": "2026-09-09T13:30:28.638Z",
+          "elapsedMs": 2475,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:26.48Z",
+              "status": 200,
+              "requestGuid": "9a8839a2-a0e7-0000-1bcb-40d64acd29f8",
+              "objectId": 3,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:27.565Z",
+              "status": 200,
+              "requestGuid": "9b8839a2-602b-0000-1bcb-4c9a3d2fa856",
+              "objectId": 3,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:28.638Z",
+              "status": 200,
+              "requestGuid": "9b8839a2-b06e-0000-1bcb-414d06e88f15",
+              "objectId": 3,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "084d4536-4386-4e03-a446-6c39c57845a3"
+            },
+            "ParentList": {
+              "Id": "995e25ca-419d-4d7b-ad3a-4552d6ea3060"
+            },
+            "Id": 3,
+            "ID": 3,
+            "ContentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+            "FileLeafRef": "Microsoft-treasury-power-bi-us-consumer-personal-spending-dashboard.aspx",
+            "UniqueId": "084d4536-4386-4e03-a446-6c39c57845a3"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 7,
+      "operationId": "ccd143-native-page-18491b1c1a253506",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/Campaigns_Archive/Pages/Q1Story.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "9b8839a2-5082-0000-1bcb-4872d426c892"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "9b8839a2-90a6-0000-1bcb-497a644f7a3c",
+        "timestampUtc": "2026-09-09T13:30:29.638Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "fae0b8b3-0b9c-4e89-9c8f-842cc3ee6961",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+        "itemStatus": 200,
+        "itemId": 4,
+        "itemUniqueId": "fae0b8b3-0b9c-4e89-9c8f-842cc3ee6961",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+        "itemFileUniqueId": "fae0b8b3-0b9c-4e89-9c8f-842cc3ee6961",
+        "parentListId": "995e25ca-419d-4d7b-ad3a-4552d6ea3060",
+        "contentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:36.897Z",
+          "finishedAtUtc": "2026-09-09T13:30:39.286Z",
+          "elapsedMs": 2389,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:37.187Z",
+              "status": 200,
+              "requestGuid": "9d8839a2-9086-0000-1bcb-48024f254a66",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:38.24Z",
+              "status": 200,
+              "requestGuid": "9d8839a2-50c8-0000-1bcb-41b6387f1c12",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:39.286Z",
+              "status": 200,
+              "requestGuid": "9e8839a2-c009-0000-1bcb-4f07dc96f2c2",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "Q1Story.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+            "TimeCreated": "2026-09-09T13:30:29Z",
+            "TimeLastModified": "2026-09-09T13:30:29Z",
+            "UniqueId": "fae0b8b3-0b9c-4e89-9c8f-842cc3ee6961"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:39.286Z",
+          "finishedAtUtc": "2026-09-09T13:30:41.748Z",
+          "elapsedMs": 2462,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:39.6Z",
+              "status": 200,
+              "requestGuid": "9e8839a2-d01b-0000-1bcb-4f5d96e49a29",
+              "objectId": 4,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:40.672Z",
+              "status": 200,
+              "requestGuid": "9e8839a2-b05e-0000-1bcb-4e7c9a2a34cd",
+              "objectId": 4,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:41.748Z",
+              "status": 200,
+              "requestGuid": "9e8839a2-30a2-0000-1bcb-49ec179a0e49",
+              "objectId": 4,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "fae0b8b3-0b9c-4e89-9c8f-842cc3ee6961"
+            },
+            "ParentList": {
+              "Id": "995e25ca-419d-4d7b-ad3a-4552d6ea3060"
+            },
+            "Id": 4,
+            "ID": 4,
+            "ContentTypeId": "0x0101005AED8630DF5DEA40B1B2AD759A240F18",
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/Campaigns_Archive/Pages/Q1Story.aspx",
+            "FileLeafRef": "Q1Story.aspx",
+            "UniqueId": "fae0b8b3-0b9c-4e89-9c8f-842cc3ee6961"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 8,
+      "operationId": "ccd143-native-page-925a9ea425165e32",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/data_Archive/SitePages/How To Use This Library.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "mappingReason": "SYSTEM_DEFAULT_PAGE_CONFLICT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "9e8839a2-c0b5-0000-1bcb-419f02c25499"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "9e8839a2-90dc-0000-1bcb-4d6cd083ab19",
+        "timestampUtc": "2026-09-09T13:30:42.712Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "3bc3558e-842e-4809-a4a2-9c2fc244d6d8",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "NOT_ATTEMPTED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "7c7d1f6d-13a5-42a3-a6ff-a7b63eb1b049",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+        "itemStatus": 200,
+        "itemId": 3,
+        "itemUniqueId": "7c7d1f6d-13a5-42a3-a6ff-a7b63eb1b049",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+        "itemFileUniqueId": "7c7d1f6d-13a5-42a3-a6ff-a7b63eb1b049",
+        "parentListId": "3bc3558e-842e-4809-a4a2-9c2fc244d6d8",
+        "contentTypeId": "0x0101080016F55737DA82C04B891B813B1C1AA86A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:49.976Z",
+          "finishedAtUtc": "2026-09-09T13:30:52.365Z",
+          "elapsedMs": 2389,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:50.265Z",
+              "status": 200,
+              "requestGuid": "a08839a2-e0b7-0000-1bcb-48f070ae7084",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:51.319Z",
+              "status": 200,
+              "requestGuid": "a08839a2-c0f9-0000-1bcb-41ae2f412202",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:52.365Z",
+              "status": 200,
+              "requestGuid": "a18839a2-103b-0000-1bcb-499d62042fb8",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "How To Use This Library-ccd35-fc772393.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+            "TimeCreated": "2026-09-09T13:30:43Z",
+            "TimeLastModified": "2026-09-09T13:30:43Z",
+            "UniqueId": "7c7d1f6d-13a5-42a3-a6ff-a7b63eb1b049"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:30:52.365Z",
+          "finishedAtUtc": "2026-09-09T13:30:54.848Z",
+          "elapsedMs": 2483,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:30:52.688Z",
+              "status": 200,
+              "requestGuid": "a18839a2-604d-0000-1bcb-485384d30b56",
+              "objectId": 3,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:30:53.765Z",
+              "status": 200,
+              "requestGuid": "a18839a2-1091-0000-1bcb-4a2d5dbefea1",
+              "objectId": 3,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:30:54.848Z",
+              "status": 200,
+              "requestGuid": "a18839a2-70d4-0000-1bcb-4d4420c27c66",
+              "objectId": 3,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "7c7d1f6d-13a5-42a3-a6ff-a7b63eb1b049"
+            },
+            "ParentList": {
+              "Id": "3bc3558e-842e-4809-a4a2-9c2fc244d6d8"
+            },
+            "Id": 3,
+            "ContentTypeId": "0x0101080016F55737DA82C04B891B813B1C1AA86A",
+            "FileLeafRef": "How To Use This Library-ccd35-fc772393.aspx",
+            "ID": 3,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/data_Archive/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+            "UniqueId": "7c7d1f6d-13a5-42a3-a6ff-a7b63eb1b049"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 9,
+      "operationId": "ccd143-native-page-182b22210d0393a1",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/SitePages/BIWebSurvey-ThankYou.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "a18839a2-70e8-0000-1bcb-43126d80449e"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "a28839a2-900c-0000-1bcb-48822f7b23dc",
+        "timestampUtc": "2026-09-09T13:30:55.822Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "14f58a96-15e5-4469-945c-568850cee6ae",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": null
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "23f876d5-edc1-483d-99d6-8fee4a745ef8",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+        "itemStatus": 200,
+        "itemId": 2,
+        "itemUniqueId": "23f876d5-edc1-483d-99d6-8fee4a745ef8",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+        "itemFileUniqueId": "23f876d5-edc1-483d-99d6-8fee4a745ef8",
+        "parentListId": "14f58a96-15e5-4469-945c-568850cee6ae",
+        "contentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C4118009806FE6C4F5DAD4A920D55E708B21634",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:03.052Z",
+          "finishedAtUtc": "2026-09-09T13:31:05.425Z",
+          "elapsedMs": 2373,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:03.339Z",
+              "status": 200,
+              "requestGuid": "a38839a2-30e9-0000-1bcb-4999a1501df0",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:04.382Z",
+              "status": 200,
+              "requestGuid": "a48839a2-202a-0000-1bcb-46e4e556fbbe",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:05.425Z",
+              "status": 200,
+              "requestGuid": "a48839a2-706b-0000-1bcb-41b817d22efa",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "BIWebSurvey-ThankYou.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+            "TimeCreated": "2026-09-09T13:30:56Z",
+            "TimeLastModified": "2026-09-09T13:30:56Z",
+            "UniqueId": "23f876d5-edc1-483d-99d6-8fee4a745ef8"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:05.425Z",
+          "finishedAtUtc": "2026-09-09T13:31:07.892Z",
+          "elapsedMs": 2467,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:05.738Z",
+              "status": 200,
+              "requestGuid": "a48839a2-807d-0000-1bcb-4cbbe16ecb57",
+              "objectId": 2,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:06.818Z",
+              "status": 200,
+              "requestGuid": "a48839a2-b0c0-0000-1bcb-4bd44f64e306",
+              "objectId": 2,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:07.892Z",
+              "status": 200,
+              "requestGuid": "a58839a2-f003-0000-1bcb-4643819b2ff2",
+              "objectId": 2,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "23f876d5-edc1-483d-99d6-8fee4a745ef8"
+            },
+            "ParentList": {
+              "Id": "14f58a96-15e5-4469-945c-568850cee6ae"
+            },
+            "Id": 2,
+            "ContentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C4118009806FE6C4F5DAD4A920D55E708B21634",
+            "FileLeafRef": "BIWebSurvey-ThankYou.aspx",
+            "ID": 2,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/BIWebSurvey-ThankYou.aspx",
+            "UniqueId": "23f876d5-edc1-483d-99d6-8fee4a745ef8"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 10,
+      "operationId": "ccd143-native-page-4d767fca8482e42c",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/SitePages/Redirect.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "a58839a2-c017-0000-1bcb-48117ff4a0e4"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "a58839a2-203c-0000-1bcb-4ddd4d5ae08a",
+        "timestampUtc": "2026-09-09T13:31:08.813Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "14f58a96-15e5-4469-945c-568850cee6ae",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": null
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "7b73f6b2-da63-49f4-ab68-00de161cc7aa",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+        "itemStatus": 200,
+        "itemId": 3,
+        "itemUniqueId": "7b73f6b2-da63-49f4-ab68-00de161cc7aa",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+        "itemFileUniqueId": "7b73f6b2-da63-49f4-ab68-00de161cc7aa",
+        "parentListId": "14f58a96-15e5-4469-945c-568850cee6ae",
+        "contentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C4118009806FE6C4F5DAD4A920D55E708B21634",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:16.145Z",
+          "finishedAtUtc": "2026-09-09T13:31:18.536Z",
+          "elapsedMs": 2391,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:16.442Z",
+              "status": 200,
+              "requestGuid": "a78839a2-901b-0000-1bcb-4c0b8dacd09f",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:17.49Z",
+              "status": 200,
+              "requestGuid": "a78839a2-705d-0000-1bcb-4ede1c72efb2",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:18.536Z",
+              "status": 200,
+              "requestGuid": "a78839a2-e09e-0000-1bcb-43f30cff3583",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "Redirect.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+            "TimeCreated": "2026-09-09T13:31:09Z",
+            "TimeLastModified": "2026-09-09T13:31:09Z",
+            "UniqueId": "7b73f6b2-da63-49f4-ab68-00de161cc7aa"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:18.536Z",
+          "finishedAtUtc": "2026-09-09T13:31:21.034Z",
+          "elapsedMs": 2498,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:18.893Z",
+              "status": 200,
+              "requestGuid": "a78839a2-e0b0-0000-1bcb-4c03d8560c24",
+              "objectId": 3,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:19.968Z",
+              "status": 200,
+              "requestGuid": "a78839a2-d0f6-0000-1bcb-4909d711fd77",
+              "objectId": 3,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:21.034Z",
+              "status": 200,
+              "requestGuid": "a88839a2-6039-0000-1bcb-455508fd574d",
+              "objectId": 3,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "7b73f6b2-da63-49f4-ab68-00de161cc7aa"
+            },
+            "ParentList": {
+              "Id": "14f58a96-15e5-4469-945c-568850cee6ae"
+            },
+            "Id": 3,
+            "ContentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C4118009806FE6C4F5DAD4A920D55E708B21634",
+            "FileLeafRef": "Redirect.aspx",
+            "ID": 3,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/SitePages/Redirect.aspx",
+            "UniqueId": "7b73f6b2-da63-49f4-ab68-00de161cc7aa"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 11,
+      "operationId": "ccd143-native-page-5f735a3286de8825",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/userfeedback/SitePages/How To Use This Library.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "mappingReason": "SYSTEM_DEFAULT_PAGE_CONFLICT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "a88839a2-204d-0000-1bcb-4a14c8ad437d"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "a88839a2-6071-0000-1bcb-4cd5bf9be5f8",
+        "timestampUtc": "2026-09-09T13:31:22.074Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "NOT_ATTEMPTED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "b7ab8e21-ce28-4697-b7ac-c42f27b0d92f",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+        "itemStatus": 200,
+        "itemId": 3,
+        "itemUniqueId": "b7ab8e21-ce28-4697-b7ac-c42f27b0d92f",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+        "itemFileUniqueId": "b7ab8e21-ce28-4697-b7ac-c42f27b0d92f",
+        "parentListId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "contentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:29.565Z",
+          "finishedAtUtc": "2026-09-09T13:31:31.962Z",
+          "elapsedMs": 2397,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:29.858Z",
+              "status": 200,
+              "requestGuid": "aa8839a2-5062-0000-1bcb-44b13296d174",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:30.917Z",
+              "status": 200,
+              "requestGuid": "aa8839a2-60a4-0000-1bcb-4f56e630d9e9",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:31.962Z",
+              "status": 200,
+              "requestGuid": "aa8839a2-e0e5-0000-1bcb-4c19c61a67b2",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "How To Use This Library-ccd35-fc772393.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+            "TimeCreated": "2026-09-09T13:31:22Z",
+            "TimeLastModified": "2026-09-09T13:31:22Z",
+            "UniqueId": "b7ab8e21-ce28-4697-b7ac-c42f27b0d92f"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:31.962Z",
+          "finishedAtUtc": "2026-09-09T13:31:34.443Z",
+          "elapsedMs": 2481,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:32.284Z",
+              "status": 200,
+              "requestGuid": "aa8839a2-20f8-0000-1bcb-4a1111ebff73",
+              "objectId": 3,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:33.364Z",
+              "status": 200,
+              "requestGuid": "ab8839a2-c03b-0000-1bcb-4ef07ad30d25",
+              "objectId": 3,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:34.443Z",
+              "status": 200,
+              "requestGuid": "ab8839a2-107f-0000-1bcb-43d9c74ccb01",
+              "objectId": 3,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "b7ab8e21-ce28-4697-b7ac-c42f27b0d92f"
+            },
+            "ParentList": {
+              "Id": "93a02f2c-e174-4e7c-a8e9-af193e91bc65"
+            },
+            "Id": 3,
+            "ContentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+            "FileLeafRef": "How To Use This Library-ccd35-fc772393.aspx",
+            "ID": 3,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+            "UniqueId": "b7ab8e21-ce28-4697-b7ac-c42f27b0d92f"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 12,
+      "operationId": "ccd143-native-page-15399bd7ea8c2592",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/userfeedback/SitePages/UListv2.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "ab8839a2-3093-0000-1bcb-49b1c0a07074"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "ab8839a2-70b8-0000-1bcb-42b2a5868b88",
+        "timestampUtc": "2026-09-09T13:31:35.389Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": null
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "2aa056b2-0da0-4d0e-99d0-e725d7c8d3e6",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+        "itemStatus": 200,
+        "itemId": 4,
+        "itemUniqueId": "2aa056b2-0da0-4d0e-99d0-e725d7c8d3e6",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+        "itemFileUniqueId": "2aa056b2-0da0-4d0e-99d0-e725d7c8d3e6",
+        "parentListId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "contentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:42.702Z",
+          "finishedAtUtc": "2026-09-09T13:31:45.085Z",
+          "elapsedMs": 2383,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:42.994Z",
+              "status": 200,
+              "requestGuid": "ad8839a2-4097-0000-1bcb-4b6d991d34ff",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:44.036Z",
+              "status": 200,
+              "requestGuid": "ad8839a2-90d8-0000-1bcb-44a2a2e162a5",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:45.085Z",
+              "status": 200,
+              "requestGuid": "ae8839a2-201a-0000-1bcb-449ec3b9cf2d",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "UListv2.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+            "TimeCreated": "2026-09-09T13:31:35Z",
+            "TimeLastModified": "2026-09-09T13:31:35Z",
+            "UniqueId": "2aa056b2-0da0-4d0e-99d0-e725d7c8d3e6"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:45.085Z",
+          "finishedAtUtc": "2026-09-09T13:31:47.564Z",
+          "elapsedMs": 2479,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:45.411Z",
+              "status": 200,
+              "requestGuid": "ae8839a2-402c-0000-1bcb-44974e3c970d",
+              "objectId": 4,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:46.493Z",
+              "status": 200,
+              "requestGuid": "ae8839a2-2070-0000-1bcb-462cd95094f9",
+              "objectId": 4,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:47.564Z",
+              "status": 200,
+              "requestGuid": "ae8839a2-70b3-0000-1bcb-447aab070678",
+              "objectId": 4,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "2aa056b2-0da0-4d0e-99d0-e725d7c8d3e6"
+            },
+            "ParentList": {
+              "Id": "93a02f2c-e174-4e7c-a8e9-af193e91bc65"
+            },
+            "Id": 4,
+            "ContentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+            "FileLeafRef": "UListv2.aspx",
+            "ID": 4,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UListv2.aspx",
+            "UniqueId": "2aa056b2-0da0-4d0e-99d0-e725d7c8d3e6"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 13,
+      "operationId": "ccd143-native-page-42a57ab3a10bb903",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/userfeedback/SitePages/UseConfirmation.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "ae8839a2-20c7-0000-1bcb-4338731488c2"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "ae8839a2-40eb-0000-1bcb-4263c3757f98",
+        "timestampUtc": "2026-09-09T13:31:48.485Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": null
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "b39088f7-ae2b-467b-8605-2b57577af0e9",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+        "itemStatus": 200,
+        "itemId": 5,
+        "itemUniqueId": "b39088f7-ae2b-467b-8605-2b57577af0e9",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+        "itemFileUniqueId": "b39088f7-ae2b-467b-8605-2b57577af0e9",
+        "parentListId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "contentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:55.742Z",
+          "finishedAtUtc": "2026-09-09T13:31:58.131Z",
+          "elapsedMs": 2389,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:56.034Z",
+              "status": 200,
+              "requestGuid": "b08839a2-50c6-0000-1bcb-49e591717677",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:57.085Z",
+              "status": 200,
+              "requestGuid": "b18839a2-2008-0000-1bcb-46a2de274743",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:31:58.131Z",
+              "status": 200,
+              "requestGuid": "b18839a2-8049-0000-1bcb-4d01f0af5154",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "UseConfirmation.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+            "TimeCreated": "2026-09-09T13:31:48Z",
+            "TimeLastModified": "2026-09-09T13:31:48Z",
+            "UniqueId": "b39088f7-ae2b-467b-8605-2b57577af0e9"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:31:58.131Z",
+          "finishedAtUtc": "2026-09-09T13:32:00.625Z",
+          "elapsedMs": 2494,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:31:58.457Z",
+              "status": 200,
+              "requestGuid": "b18839a2-905b-0000-1bcb-4fd305de94c8",
+              "objectId": 5,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:31:59.552Z",
+              "status": 200,
+              "requestGuid": "b18839a2-a09f-0000-1bcb-4699f71f2023",
+              "objectId": 5,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:00.625Z",
+              "status": 200,
+              "requestGuid": "b18839a2-c0e3-0000-1bcb-44a38ccfe63b",
+              "objectId": 5,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "b39088f7-ae2b-467b-8605-2b57577af0e9"
+            },
+            "ParentList": {
+              "Id": "93a02f2c-e174-4e7c-a8e9-af193e91bc65"
+            },
+            "Id": 5,
+            "ContentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+            "FileLeafRef": "UseConfirmation.aspx",
+            "ID": 5,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UseConfirmation.aspx",
+            "UniqueId": "b39088f7-ae2b-467b-8605-2b57577af0e9"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 14,
+      "operationId": "ccd143-native-page-d2f42f34a6f14e41",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/userfeedback/SitePages/UsesList.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+      "preferredPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+      "targetPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "b18839a2-b0f7-0000-1bcb-4b388f739455"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "b28839a2-f01b-0000-1bcb-47a85347e814",
+        "timestampUtc": "2026-09-09T13:32:01.548Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": null
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "328261e1-00e7-4bc3-8d0f-6a3810106cbb",
+        "fileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+        "itemStatus": 200,
+        "itemId": 6,
+        "itemUniqueId": "328261e1-00e7-4bc3-8d0f-6a3810106cbb",
+        "itemFileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+        "itemFileUniqueId": "328261e1-00e7-4bc3-8d0f-6a3810106cbb",
+        "parentListId": "93a02f2c-e174-4e7c-a8e9-af193e91bc65",
+        "contentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:08.793Z",
+          "finishedAtUtc": "2026-09-09T13:32:11.179Z",
+          "elapsedMs": 2386,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:09.081Z",
+              "status": 200,
+              "requestGuid": "b38839a2-f0f5-0000-1bcb-483d3267e6af",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:10.135Z",
+              "status": 200,
+              "requestGuid": "b48839a2-b037-0000-1bcb-4fd33107ce6d",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:11.179Z",
+              "status": 200,
+              "requestGuid": "b48839a2-0079-0000-1bcb-41f06b32e5d0",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "UsesList.aspx",
+            "ServerRelativeUrl": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+            "TimeCreated": "2026-09-09T13:32:01Z",
+            "TimeLastModified": "2026-09-09T13:32:01Z",
+            "UniqueId": "328261e1-00e7-4bc3-8d0f-6a3810106cbb"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:11.179Z",
+          "finishedAtUtc": "2026-09-09T13:32:13.664Z",
+          "elapsedMs": 2485,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:11.5Z",
+              "status": 200,
+              "requestGuid": "b48839a2-108b-0000-1bcb-4e6ff2c65e14",
+              "objectId": 6,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:12.58Z",
+              "status": 200,
+              "requestGuid": "b48839a2-e0ce-0000-1bcb-45e8d7a8ab7b",
+              "objectId": 6,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:13.664Z",
+              "status": 200,
+              "requestGuid": "b58839a2-5012-0000-1bcb-439d5bec0013",
+              "objectId": 6,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "328261e1-00e7-4bc3-8d0f-6a3810106cbb"
+            },
+            "ParentList": {
+              "Id": "93a02f2c-e174-4e7c-a8e9-af193e91bc65"
+            },
+            "Id": 6,
+            "ContentTypeId": "0x010108001A113E206E6CEF4DB820CDA8CBED85B6",
+            "FileLeafRef": "UsesList.aspx",
+            "ID": 6,
+            "FileRef": "/sites/biatmicrosoft-ccd35-fc772393-3/userfeedback/SitePages/UsesList.aspx",
+            "UniqueId": "328261e1-00e7-4bc3-8d0f-6a3810106cbb"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 22,
+      "operationId": "ccd143-native-page-4eeded5058b0c283",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/catalog/SitePages/How To Use This Library.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+      "preferredPath": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "b58839a2-7026-0000-1bcb-40c86a8a7848"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "b58839a2-004b-0000-1bcb-4c36691f8a6d",
+        "timestampUtc": "2026-09-09T13:32:14.61Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "14f58a96-15e5-4469-945c-568850cee6ae",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/catalog-ccd35-fc772393-3/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "NOT_ATTEMPTED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "293cc1ea-d4fb-47a6-8245-a9e77d504799",
+        "fileRef": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+        "itemStatus": 200,
+        "itemId": 2,
+        "itemUniqueId": "293cc1ea-d4fb-47a6-8245-a9e77d504799",
+        "itemFileRef": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+        "itemFileUniqueId": "293cc1ea-d4fb-47a6-8245-a9e77d504799",
+        "parentListId": "14f58a96-15e5-4469-945c-568850cee6ae",
+        "contentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C4118009806FE6C4F5DAD4A920D55E708B21634",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:21.982Z",
+          "finishedAtUtc": "2026-09-09T13:32:24.401Z",
+          "elapsedMs": 2419,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:22.273Z",
+              "status": 200,
+              "requestGuid": "b78839a2-602e-0000-1bcb-4ad52453a26c",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:23.345Z",
+              "status": 200,
+              "requestGuid": "b78839a2-1070-0000-1bcb-4af461d72af8",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:24.401Z",
+              "status": 200,
+              "requestGuid": "b78839a2-70b3-0000-1bcb-4c289a88c4ab",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "How To Use This Library.aspx",
+            "ServerRelativeUrl": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+            "TimeCreated": "2026-09-09T13:32:14Z",
+            "TimeLastModified": "2026-09-09T13:32:14Z",
+            "UniqueId": "293cc1ea-d4fb-47a6-8245-a9e77d504799"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:24.401Z",
+          "finishedAtUtc": "2026-09-09T13:32:26.928Z",
+          "elapsedMs": 2527,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:24.784Z",
+              "status": 200,
+              "requestGuid": "b78839a2-80c5-0000-1bcb-4167b8187f77",
+              "objectId": 2,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:25.859Z",
+              "status": 200,
+              "requestGuid": "b88839a2-000d-0000-1bcb-4fc4cc53387c",
+              "objectId": 2,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:26.928Z",
+              "status": 200,
+              "requestGuid": "b88839a2-b04f-0000-1bcb-42c829587c28",
+              "objectId": 2,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "293cc1ea-d4fb-47a6-8245-a9e77d504799"
+            },
+            "ParentList": {
+              "Id": "14f58a96-15e5-4469-945c-568850cee6ae"
+            },
+            "Id": 2,
+            "ContentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C4118009806FE6C4F5DAD4A920D55E708B21634",
+            "FileLeafRef": "How To Use This Library.aspx",
+            "ID": 2,
+            "FileRef": "/sites/catalog-ccd35-fc772393-3/SitePages/How To Use This Library.aspx",
+            "UniqueId": "293cc1ea-d4fb-47a6-8245-a9e77d504799"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 23,
+      "operationId": "ccd143-native-page-e4ea9cbf636ed7d8",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/BingNom/SitePages/How To Use This Library.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+      "mappingReason": "SYSTEM_DEFAULT_PAGE_CONFLICT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "b88839a2-9063-0000-1bcb-4dcbb6ae0ceb"
+      },
+      "nativeCreate": {
+        "mode": "AddTemplateFile.WikiPage",
+        "status": 200,
+        "requestGuid": "b88839a2-d088-0000-1bcb-43480eb48ade",
+        "timestampUtc": "2026-09-09T13:32:27.873Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "268ed52b-72c9-46c4-8521-5474589f05c7",
+        "entityType": "SP.Data.SitePagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "NOT_ATTEMPTED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "a5e6f731-9fd6-4d00-b2d5-0d16849fcb3c",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+        "itemStatus": 200,
+        "itemId": 3,
+        "itemUniqueId": "a5e6f731-9fd6-4d00-b2d5-0d16849fcb3c",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+        "itemFileUniqueId": "a5e6f731-9fd6-4d00-b2d5-0d16849fcb3c",
+        "parentListId": "268ed52b-72c9-46c4-8521-5474589f05c7",
+        "contentTypeId": "0x0101080045233840C9FDFD4F92E08574E70993A6",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:35.217Z",
+          "finishedAtUtc": "2026-09-09T13:32:37.603Z",
+          "elapsedMs": 2386,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:35.51Z",
+              "status": 200,
+              "requestGuid": "ba8839a2-7069-0000-1bcb-425c4e9a1957",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:36.559Z",
+              "status": 200,
+              "requestGuid": "ba8839a2-20ab-0000-1bcb-40caa8cde7bd",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:37.603Z",
+              "status": 200,
+              "requestGuid": "ba8839a2-70ec-0000-1bcb-4887d8792262",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "How To Use This Library-ccd35-fc772393.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+            "TimeCreated": "2026-09-09T13:32:28Z",
+            "TimeLastModified": "2026-09-09T13:32:28Z",
+            "UniqueId": "a5e6f731-9fd6-4d00-b2d5-0d16849fcb3c"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:37.603Z",
+          "finishedAtUtc": "2026-09-09T13:32:40.078Z",
+          "elapsedMs": 2475,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:37.918Z",
+              "status": 200,
+              "requestGuid": "ba8839a2-b0fe-0000-1bcb-48dd98192669",
+              "objectId": 3,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:38.987Z",
+              "status": 200,
+              "requestGuid": "bb8839a2-5041-0000-1bcb-478911c9509b",
+              "objectId": 3,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:40.078Z",
+              "status": 200,
+              "requestGuid": "bb8839a2-f084-0000-1bcb-4462e0a441ae",
+              "objectId": 3,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "a5e6f731-9fd6-4d00-b2d5-0d16849fcb3c"
+            },
+            "ParentList": {
+              "Id": "268ed52b-72c9-46c4-8521-5474589f05c7"
+            },
+            "Id": 3,
+            "ContentTypeId": "0x0101080045233840C9FDFD4F92E08574E70993A6",
+            "FileLeafRef": "How To Use This Library-ccd35-fc772393.aspx",
+            "ID": 3,
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/BingNom/SitePages/How To Use This Library-ccd35-fc772393.aspx",
+            "UniqueId": "a5e6f731-9fd6-4d00-b2d5-0d16849fcb3c"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 24,
+      "operationId": "ccd143-native-page-8f8e93081bfaed83",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/AboutPageLearnMore.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "bb8839a2-6099-0000-1bcb-48c120d64a28"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "bb8839a2-40be-0000-1bcb-4bba9bc1cabe",
+        "timestampUtc": "2026-09-09T13:32:41.081Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "62c815e0-e650-4afb-898e-2094845657b7",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+        "itemStatus": 200,
+        "itemId": 2,
+        "itemUniqueId": "62c815e0-e650-4afb-898e-2094845657b7",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+        "itemFileUniqueId": "62c815e0-e650-4afb-898e-2094845657b7",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:48.327Z",
+          "finishedAtUtc": "2026-09-09T13:32:50.713Z",
+          "elapsedMs": 2386,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:48.615Z",
+              "status": 200,
+              "requestGuid": "bd8839a2-c09c-0000-1bcb-4ab587e55b33",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:49.657Z",
+              "status": 200,
+              "requestGuid": "bd8839a2-f0dd-0000-1bcb-4311950e0032",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:50.713Z",
+              "status": 200,
+              "requestGuid": "be8839a2-d01f-0000-1bcb-4eba9c15e78c",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "AboutPageLearnMore.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+            "TimeCreated": "2026-09-09T13:32:41Z",
+            "TimeLastModified": "2026-09-09T13:32:41Z",
+            "UniqueId": "62c815e0-e650-4afb-898e-2094845657b7"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:32:50.713Z",
+          "finishedAtUtc": "2026-09-09T13:32:53.174Z",
+          "elapsedMs": 2461,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:32:51.029Z",
+              "status": 200,
+              "requestGuid": "be8839a2-e031-0000-1bcb-49347db5ed53",
+              "objectId": 2,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:32:52.098Z",
+              "status": 200,
+              "requestGuid": "be8839a2-b074-0000-1bcb-4076df242bce",
+              "objectId": 2,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:32:53.174Z",
+              "status": 200,
+              "requestGuid": "be8839a2-10b8-0000-1bcb-46a2978fe8d8",
+              "objectId": 2,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "62c815e0-e650-4afb-898e-2094845657b7"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 2,
+            "ID": 2,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/AboutPageLearnMore.aspx",
+            "FileLeafRef": "AboutPageLearnMore.aspx",
+            "UniqueId": "62c815e0-e650-4afb-898e-2094845657b7"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 25,
+      "operationId": "ccd143-native-page-642dec524a4addb4",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/an-Analytics.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "be8839a2-f0cb-0000-1bcb-4d3b712564c3"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "be8839a2-a0fd-0000-1bcb-4c8f743a3f1c",
+        "timestampUtc": "2026-09-09T13:32:54.236Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "d66e8b25-27cd-4f0e-87c4-28938d7702d1",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+        "itemStatus": 200,
+        "itemId": 3,
+        "itemUniqueId": "d66e8b25-27cd-4f0e-87c4-28938d7702d1",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+        "itemFileUniqueId": "d66e8b25-27cd-4f0e-87c4-28938d7702d1",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:01.559Z",
+          "finishedAtUtc": "2026-09-09T13:33:03.95Z",
+          "elapsedMs": 2391,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:01.849Z",
+              "status": 200,
+              "requestGuid": "c08839a2-c0d7-0000-1bcb-4a8f02980a2d",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:02.895Z",
+              "status": 200,
+              "requestGuid": "c18839a2-4019-0000-1bcb-441554bc0e44",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:03.95Z",
+              "status": 200,
+              "requestGuid": "c18839a2-e05a-0000-1bcb-4388378ee259",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "an-Analytics.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+            "TimeCreated": "2026-09-09T13:32:54Z",
+            "TimeLastModified": "2026-09-09T13:32:54Z",
+            "UniqueId": "d66e8b25-27cd-4f0e-87c4-28938d7702d1"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:03.95Z",
+          "finishedAtUtc": "2026-09-09T13:33:06.425Z",
+          "elapsedMs": 2475,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:04.264Z",
+              "status": 200,
+              "requestGuid": "c18839a2-406d-0000-1bcb-4bf5481c0630",
+              "objectId": 3,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:05.345Z",
+              "status": 200,
+              "requestGuid": "c18839a2-d0b0-0000-1bcb-46de95d42a59",
+              "objectId": 3,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:06.425Z",
+              "status": 200,
+              "requestGuid": "c18839a2-30f4-0000-1bcb-4072d3c0cab9",
+              "objectId": 3,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "d66e8b25-27cd-4f0e-87c4-28938d7702d1"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 3,
+            "ID": 3,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Analytics.aspx",
+            "FileLeafRef": "an-Analytics.aspx",
+            "UniqueId": "d66e8b25-27cd-4f0e-87c4-28938d7702d1"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 26,
+      "operationId": "ccd143-native-page-4fed10b2e38cec05",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/an-Application_Insights_FAQ.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "c28839a2-0008-0000-1bcb-4f5dbe8c94e5"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "c28839a2-602c-0000-1bcb-4bea36113db1",
+        "timestampUtc": "2026-09-09T13:33:07.406Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "e353ceb6-c6e5-4ac9-82ad-926ede4854db",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+        "itemStatus": 200,
+        "itemId": 4,
+        "itemUniqueId": "e353ceb6-c6e5-4ac9-82ad-926ede4854db",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+        "itemFileUniqueId": "e353ceb6-c6e5-4ac9-82ad-926ede4854db",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:14.638Z",
+          "finishedAtUtc": "2026-09-09T13:33:17.025Z",
+          "elapsedMs": 2387,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:14.927Z",
+              "status": 200,
+              "requestGuid": "c48839a2-4009-0000-1bcb-4a135b34f763",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:15.981Z",
+              "status": 200,
+              "requestGuid": "c48839a2-c04a-0000-1bcb-424d621b4fae",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:17.025Z",
+              "status": 200,
+              "requestGuid": "c48839a2-408c-0000-1bcb-4fb8868984a8",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "an-Application_Insights_FAQ.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+            "TimeCreated": "2026-09-09T13:33:07Z",
+            "TimeLastModified": "2026-09-09T13:33:07Z",
+            "UniqueId": "e353ceb6-c6e5-4ac9-82ad-926ede4854db"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:17.025Z",
+          "finishedAtUtc": "2026-09-09T13:33:19.483Z",
+          "elapsedMs": 2458,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:17.341Z",
+              "status": 200,
+              "requestGuid": "c48839a2-909e-0000-1bcb-4f74db5b19b7",
+              "objectId": 4,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:18.406Z",
+              "status": 200,
+              "requestGuid": "c48839a2-30e1-0000-1bcb-470c47825c90",
+              "objectId": 4,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:19.483Z",
+              "status": 200,
+              "requestGuid": "c58839a2-9024-0000-1bcb-4a8517df6349",
+              "objectId": 4,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "e353ceb6-c6e5-4ac9-82ad-926ede4854db"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 4,
+            "ID": 4,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-Application_Insights_FAQ.aspx",
+            "FileLeafRef": "an-Application_Insights_FAQ.aspx",
+            "UniqueId": "e353ceb6-c6e5-4ac9-82ad-926ede4854db"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 27,
+      "operationId": "ccd143-native-page-f2d557c7e3c16462",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/an-PreEmptiveFAQ.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "c58839a2-3038-0000-1bcb-43fb1409241f"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "c58839a2-a05c-0000-1bcb-4b5900c6a32e",
+        "timestampUtc": "2026-09-09T13:33:20.477Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "90c40265-fd01-4dad-ae35-200693aa7f4e",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+        "itemStatus": 200,
+        "itemId": 5,
+        "itemUniqueId": "90c40265-fd01-4dad-ae35-200693aa7f4e",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+        "itemFileUniqueId": "90c40265-fd01-4dad-ae35-200693aa7f4e",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:27.79Z",
+          "finishedAtUtc": "2026-09-09T13:33:30.182Z",
+          "elapsedMs": 2392,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:28.08Z",
+              "status": 200,
+              "requestGuid": "c78839a2-403f-0000-1bcb-410377814375",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:29.134Z",
+              "status": 200,
+              "requestGuid": "c78839a2-2081-0000-1bcb-4d9defd52a6e",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:30.182Z",
+              "status": 200,
+              "requestGuid": "c78839a2-80c2-0000-1bcb-4c7258ae9270",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "an-PreEmptiveFAQ.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+            "TimeCreated": "2026-09-09T13:33:20Z",
+            "TimeLastModified": "2026-09-09T13:33:20Z",
+            "UniqueId": "90c40265-fd01-4dad-ae35-200693aa7f4e"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:30.182Z",
+          "finishedAtUtc": "2026-09-09T13:33:32.647Z",
+          "elapsedMs": 2465,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:30.499Z",
+              "status": 200,
+              "requestGuid": "c78839a2-e0d4-0000-1bcb-42dc9cb664d3",
+              "objectId": 5,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:31.566Z",
+              "status": 200,
+              "requestGuid": "c88839a2-b017-0000-1bcb-43ca51ff4901",
+              "objectId": 5,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:32.647Z",
+              "status": 200,
+              "requestGuid": "c88839a2-005b-0000-1bcb-4d8334a76b39",
+              "objectId": 5,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "90c40265-fd01-4dad-ae35-200693aa7f4e"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 5,
+            "ID": 5,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/an-PreEmptiveFAQ.aspx",
+            "FileLeafRef": "an-PreEmptiveFAQ.aspx",
+            "UniqueId": "90c40265-fd01-4dad-ae35-200693aa7f4e"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 28,
+      "operationId": "ccd143-native-page-54aef83bb39c3113",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/and-get-started.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "c88839a2-d06e-0000-1bcb-4b199216dd69"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "c88839a2-c093-0000-1bcb-417f57af64bf",
+        "timestampUtc": "2026-09-09T13:33:33.649Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "3478b602-53b5-41bb-bc0f-8ecab3997b70",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+        "itemStatus": 200,
+        "itemId": 6,
+        "itemUniqueId": "3478b602-53b5-41bb-bc0f-8ecab3997b70",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+        "itemFileUniqueId": "3478b602-53b5-41bb-bc0f-8ecab3997b70",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:40.99Z",
+          "finishedAtUtc": "2026-09-09T13:33:43.462Z",
+          "elapsedMs": 2472,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:41.361Z",
+              "status": 200,
+              "requestGuid": "ca8839a2-4078-0000-1bcb-402b7e1de5e8",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:42.418Z",
+              "status": 200,
+              "requestGuid": "ca8839a2-30bf-0000-1bcb-464d27c29dd5",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:43.462Z",
+              "status": 200,
+              "requestGuid": "cb8839a2-a000-0000-1bcb-4d895ec99362",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "and-get-started.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+            "TimeCreated": "2026-09-09T13:33:33Z",
+            "TimeLastModified": "2026-09-09T13:33:33Z",
+            "UniqueId": "3478b602-53b5-41bb-bc0f-8ecab3997b70"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:43.462Z",
+          "finishedAtUtc": "2026-09-09T13:33:45.924Z",
+          "elapsedMs": 2462,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:43.778Z",
+              "status": 200,
+              "requestGuid": "cb8839a2-b012-0000-1bcb-49bbc1b783dc",
+              "objectId": 6,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:44.848Z",
+              "status": 200,
+              "requestGuid": "cb8839a2-b055-0000-1bcb-46c3394742d2",
+              "objectId": 6,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:45.924Z",
+              "status": 200,
+              "requestGuid": "cb8839a2-f098-0000-1bcb-4701599e8bd6",
+              "objectId": 6,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "3478b602-53b5-41bb-bc0f-8ecab3997b70"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 6,
+            "ID": 6,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-get-started.aspx",
+            "FileLeafRef": "and-get-started.aspx",
+            "UniqueId": "3478b602-53b5-41bb-bc0f-8ecab3997b70"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 29,
+      "operationId": "ccd143-native-page-d4f0acbdc9fdd667",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/and-submit-form-steps.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "cb8839a2-b0ac-0000-1bcb-4b1a6f1c57ca"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "cb8839a2-e0da-0000-1bcb-4e40702fef00",
+        "timestampUtc": "2026-09-09T13:33:46.927Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "771bc1cc-fc0a-4236-a79a-7199cfe1c4b3",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+        "itemStatus": 200,
+        "itemId": 7,
+        "itemUniqueId": "771bc1cc-fc0a-4236-a79a-7199cfe1c4b3",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+        "itemFileUniqueId": "771bc1cc-fc0a-4236-a79a-7199cfe1c4b3",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:54.206Z",
+          "finishedAtUtc": "2026-09-09T13:33:56.586Z",
+          "elapsedMs": 2380,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:54.494Z",
+              "status": 200,
+              "requestGuid": "cd8839a2-40b2-0000-1bcb-41b92d15fb05",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:55.539Z",
+              "status": 200,
+              "requestGuid": "cd8839a2-80f3-0000-1bcb-4e25a3ab9ff6",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:56.586Z",
+              "status": 200,
+              "requestGuid": "ce8839a2-f034-0000-1bcb-40ceb5f9b618",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "and-submit-form-steps.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+            "TimeCreated": "2026-09-09T13:33:47Z",
+            "TimeLastModified": "2026-09-09T13:33:47Z",
+            "UniqueId": "771bc1cc-fc0a-4236-a79a-7199cfe1c4b3"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:33:56.586Z",
+          "finishedAtUtc": "2026-09-09T13:33:59.053Z",
+          "elapsedMs": 2467,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:33:56.905Z",
+              "status": 200,
+              "requestGuid": "ce8839a2-0047-0000-1bcb-4e73a22c51b1",
+              "objectId": 7,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:33:57.97Z",
+              "status": 200,
+              "requestGuid": "ce8839a2-008a-0000-1bcb-452c813e0905",
+              "objectId": 7,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:33:59.053Z",
+              "status": 200,
+              "requestGuid": "ce8839a2-60cd-0000-1bcb-44f200be5f17",
+              "objectId": 7,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "771bc1cc-fc0a-4236-a79a-7199cfe1c4b3"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 7,
+            "ID": 7,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/and-submit-form-steps.aspx",
+            "FileLeafRef": "and-submit-form-steps.aspx",
+            "UniqueId": "771bc1cc-fc0a-4236-a79a-7199cfe1c4b3"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 30,
+      "operationId": "ccd143-native-page-f806556459606517",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/Android.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "ce8839a2-40e1-0000-1bcb-47e6173ad490"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "cf8839a2-a005-0000-1bcb-4a443044894a",
+        "timestampUtc": "2026-09-09T13:34:00.023Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "36b2e77b-1e98-45b3-acdb-54100a700ef9",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+        "itemStatus": 200,
+        "itemId": 8,
+        "itemUniqueId": "36b2e77b-1e98-45b3-acdb-54100a700ef9",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+        "itemFileUniqueId": "36b2e77b-1e98-45b3-acdb-54100a700ef9",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:07.36Z",
+          "finishedAtUtc": "2026-09-09T13:34:09.75Z",
+          "elapsedMs": 2390,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:07.648Z",
+              "status": 200,
+              "requestGuid": "d08839a2-60e8-0000-1bcb-47c461ed46ac",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:08.7Z",
+              "status": 200,
+              "requestGuid": "d18839a2-d029-0000-1bcb-402ea03d0381",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:09.75Z",
+              "status": 200,
+              "requestGuid": "d18839a2-906b-0000-1bcb-454e8beb6cea",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "Android.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+            "TimeCreated": "2026-09-09T13:34:00Z",
+            "TimeLastModified": "2026-09-09T13:34:00Z",
+            "UniqueId": "36b2e77b-1e98-45b3-acdb-54100a700ef9"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:09.75Z",
+          "finishedAtUtc": "2026-09-09T13:34:12.258Z",
+          "elapsedMs": 2508,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:10.067Z",
+              "status": 200,
+              "requestGuid": "d18839a2-d07d-0000-1bcb-413afe760119",
+              "objectId": 8,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:11.176Z",
+              "status": 200,
+              "requestGuid": "d18839a2-50c1-0000-1bcb-4f26c3f0c93a",
+              "objectId": 8,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:12.258Z",
+              "status": 200,
+              "requestGuid": "d28839a2-a006-0000-1bcb-48e6d70d2cd0",
+              "objectId": 8,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "36b2e77b-1e98-45b3-acdb-54100a700ef9"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 8,
+            "ID": 8,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Android.aspx",
+            "FileLeafRef": "Android.aspx",
+            "UniqueId": "36b2e77b-1e98-45b3-acdb-54100a700ef9"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 31,
+      "operationId": "ccd143-native-page-1c7a5ff7e2d47826",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/App_Version_Updates.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "d28839a2-b01a-0000-1bcb-4a7687eb5f83"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "d28839a2-303f-0000-1bcb-4ae2026e3885",
+        "timestampUtc": "2026-09-09T13:34:13.233Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "b959b9bb-17ea-4e2a-94bb-96879066a4ab",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+        "itemStatus": 200,
+        "itemId": 9,
+        "itemUniqueId": "b959b9bb-17ea-4e2a-94bb-96879066a4ab",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+        "itemFileUniqueId": "b959b9bb-17ea-4e2a-94bb-96879066a4ab",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:20.426Z",
+          "finishedAtUtc": "2026-09-09T13:34:22.797Z",
+          "elapsedMs": 2371,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:20.706Z",
+              "status": 200,
+              "requestGuid": "d48839a2-1019-0000-1bcb-409b9d615827",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:21.752Z",
+              "status": 200,
+              "requestGuid": "d48839a2-405a-0000-1bcb-476a48dd82db",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:22.797Z",
+              "status": 200,
+              "requestGuid": "d48839a2-b09b-0000-1bcb-4f0a48c0e7bf",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "App_Version_Updates.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+            "TimeCreated": "2026-09-09T13:34:13Z",
+            "TimeLastModified": "2026-09-09T13:34:13Z",
+            "UniqueId": "b959b9bb-17ea-4e2a-94bb-96879066a4ab"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:22.797Z",
+          "finishedAtUtc": "2026-09-09T13:34:25.233Z",
+          "elapsedMs": 2436,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:23.104Z",
+              "status": 200,
+              "requestGuid": "d48839a2-40ad-0000-1bcb-41562213af70",
+              "objectId": 9,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:24.166Z",
+              "status": 200,
+              "requestGuid": "d48839a2-a0ef-0000-1bcb-4c80c5e0b5a7",
+              "objectId": 9,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:25.233Z",
+              "status": 200,
+              "requestGuid": "d58839a2-1032-0000-1bcb-4a1a5baf9768",
+              "objectId": 9,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "b959b9bb-17ea-4e2a-94bb-96879066a4ab"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 9,
+            "ID": 9,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App_Version_Updates.aspx",
+            "FileLeafRef": "App_Version_Updates.aspx",
+            "UniqueId": "b959b9bb-17ea-4e2a-94bb-96879066a4ab"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 32,
+      "operationId": "ccd143-native-page-83a30bd3f1bb7f35",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/App-publishing-calendar.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "d58839a2-8045-0000-1bcb-465f0b51b4a0"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "d58839a2-a068-0000-1bcb-422941c38f04",
+        "timestampUtc": "2026-09-09T13:34:26.22Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "efcf1b16-fb26-4726-90f5-6bf422dc76f0",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+        "itemStatus": 200,
+        "itemId": 10,
+        "itemUniqueId": "efcf1b16-fb26-4726-90f5-6bf422dc76f0",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+        "itemFileUniqueId": "efcf1b16-fb26-4726-90f5-6bf422dc76f0",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:33.441Z",
+          "finishedAtUtc": "2026-09-09T13:34:35.814Z",
+          "elapsedMs": 2373,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:33.721Z",
+              "status": 200,
+              "requestGuid": "d78839a2-7046-0000-1bcb-4a034d3dc558",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:34.769Z",
+              "status": 200,
+              "requestGuid": "d78839a2-d087-0000-1bcb-4cdcf1b29b2e",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:35.814Z",
+              "status": 200,
+              "requestGuid": "d78839a2-40c9-0000-1bcb-4180c58de286",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "App-publishing-calendar.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+            "TimeCreated": "2026-09-09T13:34:26Z",
+            "TimeLastModified": "2026-09-09T13:34:26Z",
+            "UniqueId": "efcf1b16-fb26-4726-90f5-6bf422dc76f0"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:35.814Z",
+          "finishedAtUtc": "2026-09-09T13:34:38.246Z",
+          "elapsedMs": 2432,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:36.124Z",
+              "status": 200,
+              "requestGuid": "d78839a2-c0da-0000-1bcb-45d7aaadabcd",
+              "objectId": 10,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:37.185Z",
+              "status": 200,
+              "requestGuid": "d88839a2-301d-0000-1bcb-4f5444db257b",
+              "objectId": 10,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:38.246Z",
+              "status": 200,
+              "requestGuid": "d88839a2-805f-0000-1bcb-4ee47771d46f",
+              "objectId": 10,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "efcf1b16-fb26-4726-90f5-6bf422dc76f0"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 10,
+            "ID": 10,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/App-publishing-calendar.aspx",
+            "FileLeafRef": "App-publishing-calendar.aspx",
+            "UniqueId": "efcf1b16-fb26-4726-90f5-6bf422dc76f0"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 33,
+      "operationId": "ccd143-native-page-a631205023eecbd5",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "d88839a2-c072-0000-1bcb-42f4d92b6106"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "d88839a2-e095-0000-1bcb-4c1b0c440874",
+        "timestampUtc": "2026-09-09T13:34:39.228Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "a4db7935-f634-474f-bf16-8e60e12a725b",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+        "itemStatus": 200,
+        "itemId": 11,
+        "itemUniqueId": "a4db7935-f634-474f-bf16-8e60e12a725b",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+        "itemFileUniqueId": "a4db7935-f634-474f-bf16-8e60e12a725b",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:46.421Z",
+          "finishedAtUtc": "2026-09-09T13:34:48.781Z",
+          "elapsedMs": 2360,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:46.709Z",
+              "status": 200,
+              "requestGuid": "da8839a2-c071-0000-1bcb-4b879a43f146",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:47.75Z",
+              "status": 200,
+              "requestGuid": "da8839a2-40b3-0000-1bcb-412c26057669",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:48.781Z",
+              "status": 200,
+              "requestGuid": "da8839a2-a0f3-0000-1bcb-4c795d6e8321",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "OLD_mdk-siena.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+            "TimeCreated": "2026-09-09T13:34:39Z",
+            "TimeLastModified": "2026-09-09T13:34:39Z",
+            "UniqueId": "a4db7935-f634-474f-bf16-8e60e12a725b"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:48.781Z",
+          "finishedAtUtc": "2026-09-09T13:34:51.213Z",
+          "elapsedMs": 2432,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:49.087Z",
+              "status": 200,
+              "requestGuid": "db8839a2-4005-0000-1bcb-4157ba85e520",
+              "objectId": 11,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:34:50.148Z",
+              "status": 200,
+              "requestGuid": "db8839a2-a047-0000-1bcb-430648e374cc",
+              "objectId": 11,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:34:51.213Z",
+              "status": 200,
+              "requestGuid": "db8839a2-208a-0000-1bcb-488844279072",
+              "objectId": 11,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "a4db7935-f634-474f-bf16-8e60e12a725b"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 11,
+            "ID": 11,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD_mdk-siena.aspx",
+            "FileLeafRef": "OLD_mdk-siena.aspx",
+            "UniqueId": "a4db7935-f634-474f-bf16-8e60e12a725b"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 34,
+      "operationId": "ccd143-native-page-63b79c3543d18f5f",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "db8839a2-409d-0000-1bcb-4227aab3ed9a"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "db8839a2-40c0-0000-1bcb-4e9bac8c0419",
+        "timestampUtc": "2026-09-09T13:34:52.158Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "fe7065f8-711b-45e4-875f-c77f467e5271",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+        "itemStatus": 200,
+        "itemId": 12,
+        "itemUniqueId": "fe7065f8-711b-45e4-875f-c77f467e5271",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+        "itemFileUniqueId": "fe7065f8-711b-45e4-875f-c77f467e5271",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:34:59.316Z",
+          "finishedAtUtc": "2026-09-09T13:35:01.697Z",
+          "elapsedMs": 2382,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:34:59.598Z",
+              "status": 200,
+              "requestGuid": "dd8839a2-9097-0000-1bcb-40b70d876529",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:00.644Z",
+              "status": 200,
+              "requestGuid": "dd8839a2-10d9-0000-1bcb-469648c87f76",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:01.697Z",
+              "status": 200,
+              "requestGuid": "de8839a2-801a-0000-1bcb-4a4537410156",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "OLD-mdk-navigationservice.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+            "TimeCreated": "2026-09-09T13:34:52Z",
+            "TimeLastModified": "2026-09-09T13:34:52Z",
+            "UniqueId": "fe7065f8-711b-45e4-875f-c77f467e5271"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:35:01.698Z",
+          "finishedAtUtc": "2026-09-09T13:35:04.198Z",
+          "elapsedMs": 2500,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:35:02.009Z",
+              "status": 200,
+              "requestGuid": "de8839a2-802c-0000-1bcb-4ecd163201f5",
+              "objectId": 12,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:03.075Z",
+              "status": 200,
+              "requestGuid": "de8839a2-506f-0000-1bcb-44b61d987b86",
+              "objectId": 12,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:04.198Z",
+              "status": 200,
+              "requestGuid": "de8839a2-b0b1-0000-1bcb-4f8eaf2b82d2",
+              "objectId": 12,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "fe7065f8-711b-45e4-875f-c77f467e5271"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 12,
+            "ID": 12,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-navigationservice.aspx",
+            "FileLeafRef": "OLD-mdk-navigationservice.aspx",
+            "UniqueId": "fe7065f8-711b-45e4-875f-c77f467e5271"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 35,
+      "operationId": "ccd143-native-page-11dab05483ba00e6",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "de8839a2-d0c8-0000-1bcb-403999689c7e"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "de8839a2-00ed-0000-1bcb-47dbb9faf4a0",
+        "timestampUtc": "2026-09-09T13:35:05.172Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "22711fbf-be06-4add-8b14-0aded611c98a",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+        "itemStatus": 200,
+        "itemId": 13,
+        "itemUniqueId": "22711fbf-be06-4add-8b14-0aded611c98a",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+        "itemFileUniqueId": "22711fbf-be06-4add-8b14-0aded611c98a",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:35:12.471Z",
+          "finishedAtUtc": "2026-09-09T13:35:14.844Z",
+          "elapsedMs": 2373,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:35:12.761Z",
+              "status": 200,
+              "requestGuid": "e08839a2-30ce-0000-1bcb-4f2d6e8801cc",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:13.799Z",
+              "status": 200,
+              "requestGuid": "e18839a2-500f-0000-1bcb-471948cb35c3",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:14.844Z",
+              "status": 200,
+              "requestGuid": "e18839a2-a050-0000-1bcb-43d24f98893a",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "OLD-mdk-storage.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+            "TimeCreated": "2026-09-09T13:35:05Z",
+            "TimeLastModified": "2026-09-09T13:35:05Z",
+            "UniqueId": "22711fbf-be06-4add-8b14-0aded611c98a"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:35:14.844Z",
+          "finishedAtUtc": "2026-09-09T13:35:17.281Z",
+          "elapsedMs": 2437,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:35:15.147Z",
+              "status": 200,
+              "requestGuid": "e18839a2-3062-0000-1bcb-4764e472a7f3",
+              "objectId": 13,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:16.218Z",
+              "status": 200,
+              "requestGuid": "e18839a2-a0a4-0000-1bcb-43dd0b8e513c",
+              "objectId": 13,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:17.281Z",
+              "status": 200,
+              "requestGuid": "e18839a2-20e7-0000-1bcb-474e892b7239",
+              "objectId": 13,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "22711fbf-be06-4add-8b14-0aded611c98a"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 13,
+            "ID": 13,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-storage.aspx",
+            "FileLeafRef": "OLD-mdk-storage.aspx",
+            "UniqueId": "22711fbf-be06-4add-8b14-0aded611c98a"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 36,
+      "operationId": "ccd143-native-page-2fbd6d62d4af0ec1",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "e18839a2-a0fa-0000-1bcb-47bf6330fb4e"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "e28839a2-b01d-0000-1bcb-4cf109df0210",
+        "timestampUtc": "2026-09-09T13:35:18.233Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "535a229c-aeef-4811-be55-a61ab193069f",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+        "itemStatus": 200,
+        "itemId": 14,
+        "itemUniqueId": "535a229c-aeef-4811-be55-a61ab193069f",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+        "itemFileUniqueId": "535a229c-aeef-4811-be55-a61ab193069f",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:35:25.41Z",
+          "finishedAtUtc": "2026-09-09T13:35:27.782Z",
+          "elapsedMs": 2372,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:35:25.69Z",
+              "status": 200,
+              "requestGuid": "e38839a2-90f6-0000-1bcb-4bf2ecb62637",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:26.738Z",
+              "status": 200,
+              "requestGuid": "e48839a2-f037-0000-1bcb-46cfcfea9fa9",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:27.782Z",
+              "status": 200,
+              "requestGuid": "e48839a2-4079-0000-1bcb-462f80a26496",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "OLD-mdk-utility.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+            "TimeCreated": "2026-09-09T13:35:18Z",
+            "TimeLastModified": "2026-09-09T13:35:18Z",
+            "UniqueId": "535a229c-aeef-4811-be55-a61ab193069f"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:35:27.782Z",
+          "finishedAtUtc": "2026-09-09T13:35:30.216Z",
+          "elapsedMs": 2434,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:35:28.09Z",
+              "status": 200,
+              "requestGuid": "e48839a2-d08a-0000-1bcb-481262a6ad2a",
+              "objectId": 14,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:29.156Z",
+              "status": 200,
+              "requestGuid": "e48839a2-40cd-0000-1bcb-49bb429112d6",
+              "objectId": 14,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:30.216Z",
+              "status": 200,
+              "requestGuid": "e58839a2-c00f-0000-1bcb-4e5e57d26f6c",
+              "objectId": 14,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "535a229c-aeef-4811-be55-a61ab193069f"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 14,
+            "ID": 14,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-mdk-utility.aspx",
+            "FileLeafRef": "OLD-mdk-utility.aspx",
+            "UniqueId": "535a229c-aeef-4811-be55-a61ab193069f"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    },
+    {
+      "rowNumber": 37,
+      "operationId": "ccd143-native-page-aa375edd2e64cee7",
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/DevCenter/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+      "targetUrl": "https://a830edad9050849cupcollect.sharepoint.com/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+      "preferredPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+      "targetPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+      "mappingReason": "SOURCE_RELATIVE_EXACT",
+      "planDigest": "a67db2cc2a513df90197a27b42654ea151df18120108ea162c3f00be1ac3568d",
+      "lifecycleDigest": "5665ba566bc431c5ef1f5a0178c4a8403744a6633bd6cb9aae35ec95556c2707",
+      "preflight": {
+        "status": 404,
+        "requestGuid": "e58839a2-e022-0000-1bcb-4c907cd03950"
+      },
+      "nativeCreate": {
+        "mode": "Files.add.raw-aspx",
+        "status": 200,
+        "requestGuid": "e58839a2-e046-0000-1bcb-456223e3fc2e",
+        "timestampUtc": "2026-09-09T13:35:31.173Z",
+        "producerRef": {
+          "kind": "workspace-file",
+          "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+          "sha256": "ae5b8fc33d598352d6b998156d256a3fc5c9b7eca01bdc96632a104ed6000801"
+        }
+      },
+      "listIdentity": {
+        "status": 200,
+        "listId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "entityType": "SP.Data.PagesItem",
+        "rootPath": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages"
+      },
+      "fieldUpdate": {
+        "status": null,
+        "reasonCode": "INGREDIENT_OWNER_DEFERRED"
+      },
+      "identity": {
+        "fileStatus": 200,
+        "fileUniqueId": "67348aa4-1ed4-4578-93bf-3cabf5435762",
+        "fileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+        "itemStatus": 200,
+        "itemId": 15,
+        "itemUniqueId": "67348aa4-1ed4-4578-93bf-3cabf5435762",
+        "itemFileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+        "itemFileUniqueId": "67348aa4-1ed4-4578-93bf-3cabf5435762",
+        "parentListId": "1cb00e48-4f26-4874-874a-c82c108ea745",
+        "contentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+        "fileReadiness": {
+          "kind": "page-file-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:35:38.35Z",
+          "finishedAtUtc": "2026-09-09T13:35:40.706Z",
+          "elapsedMs": 2356,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:35:38.639Z",
+              "status": 200,
+              "requestGuid": "e78839a2-601f-0000-1bcb-4666720e27ee",
+              "objectId": null,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:39.674Z",
+              "status": 200,
+              "requestGuid": "e78839a2-8060-0000-1bcb-4d6d72c06799",
+              "objectId": null,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:40.706Z",
+              "status": 200,
+              "requestGuid": "e78839a2-f0a0-0000-1bcb-46dd0bf63d3a",
+              "objectId": null,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "Name": "OLD-w8-architecture-guid.aspx",
+            "ServerRelativeUrl": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+            "TimeCreated": "2026-09-09T13:35:31Z",
+            "TimeLastModified": "2026-09-09T13:35:31Z",
+            "UniqueId": "67348aa4-1ed4-4578-93bf-3cabf5435762"
+          }
+        },
+        "itemReadiness": {
+          "kind": "page-item-identity",
+          "state": "ready",
+          "startedAtUtc": "2026-09-09T13:35:40.706Z",
+          "finishedAtUtc": "2026-09-09T13:35:43.14Z",
+          "elapsedMs": 2434,
+          "attempts": 3,
+          "timeoutMs": 15000,
+          "samples": [
+            {
+              "attempt": 1,
+              "atUtc": "2026-09-09T13:35:41.013Z",
+              "status": 200,
+              "requestGuid": "e78839a2-90b2-0000-1bcb-46737737b7e3",
+              "objectId": 15,
+              "readyStreak": 1
+            },
+            {
+              "attempt": 2,
+              "atUtc": "2026-09-09T13:35:42.076Z",
+              "status": 200,
+              "requestGuid": "e78839a2-00f5-0000-1bcb-4afb021d0e8d",
+              "objectId": 15,
+              "readyStreak": 2
+            },
+            {
+              "attempt": 3,
+              "atUtc": "2026-09-09T13:35:43.14Z",
+              "status": 200,
+              "requestGuid": "e88839a2-9037-0000-1bcb-4e88b08820a1",
+              "objectId": 15,
+              "readyStreak": 3
+            }
+          ],
+          "lastBody": {
+            "File": {
+              "UniqueId": "67348aa4-1ed4-4578-93bf-3cabf5435762"
+            },
+            "ParentList": {
+              "Id": "1cb00e48-4f26-4874-874a-c82c108ea745"
+            },
+            "Id": 15,
+            "ID": 15,
+            "ContentTypeId": "0x010100D4520F154C380743A82FBEDCB1D5827A",
+            "FileRef": "/sites/DevCenter-ccd35-fc772393-3/Learn/Pages/Archive/OLD-w8-architecture-guid.aspx",
+            "FileLeafRef": "OLD-w8-architecture-guid.aspx",
+            "UniqueId": "67348aa4-1ed4-4578-93bf-3cabf5435762"
+          }
+        }
+      },
+      "verdict": "pass",
+      "reasonCode": "NATIVE_PAGE_CREATE_IDENTITY_BOUND"
+    }
+  ],
+  "ownership": {
+    "status": 200,
+    "valid": true,
+    "updateStatus": 200
+  },
+  "finishedAtUtc": "2026-09-09T13:35:43.942Z",
+  "verdict": "pass",
+  "reasonCode": "NATIVE_CREATE_30_OF_30_PASS"
+}

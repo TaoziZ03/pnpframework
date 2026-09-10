@@ -1,0 +1,44 @@
+{
+  "schema": "ccd255.hermetic-single-claim-build-receipt/v1",
+  "issue": "CCD-255",
+  "verdict": "pass",
+  "executionClass": "offline-hermetic",
+  "runId": "8d6a662a-c13a-42b7-baf7-368e39e3fdc9",
+  "consumerIssue": "CCD-147",
+  "claimId": "f411b3cf66979cbcb16479dd79ef2faefecc237df164c6d1e3642967d869c7c7",
+  "rowId": "row-00003",
+  "planDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
+  "targetMappingDigest": "f2085c11736671201f2bc0b479660f53b185e14555a191cb4cdd7a8bdb4a2c9b",
+  "lifecycleDigest": "5d04702ef6c7c2b445e950b3126d8c000474766e62ede816074c66821e26d832",
+  "producer": {
+    "path": "ccd-143/scripts/build-lifecycle-expressions.mjs",
+    "sha256": "441ce088a3e2d4f5860412d8ce4d99e4c83f0ddc9e3890e8a843cff56fde19ca"
+  },
+  "pnpImplementation": {
+    "commit": "5a9f634da422a92b2493967e32dc74edacac9777",
+    "branch": "ingredient/page-layout/ccd109-r00003-v12"
+  },
+  "targetProfile": "cupcollect-classic-page/v1",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "aggregate": {
+    "pages": 1,
+    "sites": 1,
+    "webs": 1,
+    "libraries": 1,
+    "expressions": 9
+  },
+  "artifacts": {
+    "manifestSha256": "787340e847f658a40f444980dbf13162b1654ff03509de957fe11ff0f09158d4",
+    "lifecycleInputSha256": "3d5cdbb832cc690e6f7d8974abe105fb8ad478b85f8c0546e0b228d0e0e62fae"
+  },
+  "tests": {
+    "existingLifecycle": { "passed": 10, "failed": 0 },
+    "singleClaim": { "passed": 7, "failed": 0 },
+    "syntaxChecks": { "passed": 3, "failed": 0 }
+  },
+  "sourceRequests": 0,
+  "sourceMutations": 0,
+  "targetRequests": 0,
+  "targetMutations": 0,
+  "remaining": "Live same-commit target lifecycle starts only after the immutable adapter commit is created."
+}

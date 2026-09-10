@@ -1,0 +1,36 @@
+{
+  "schema": "ccd143.single-claim-execution/v1",
+  "mode": "single-claim",
+  "consumerIssue": "CCD-147",
+  "claimId": "f411b3cf66979cbcb16479dd79ef2faefecc237df164c6d1e3642967d869c7c7",
+  "claimLocator": "ccd-147/claims/f411b3cf66979cbcb16479dd79ef2faefecc237df164c6d1e3642967d869c7c7/claim.json",
+  "implementationEvidenceLocator": "ccd-147/receipts/row-00003-page-layout-code-evidence.json",
+  "rowId": "row-00003",
+  "rowNumber": 3,
+  "admittedPlanDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
+  "pnpImplementation": {
+    "commit": "5a9f634da422a92b2493967e32dc74edacac9777",
+    "branch": "ingredient/page-layout/ccd109-r00003-v12"
+  },
+  "targetProfile": "cupcollect-classic-page/v1",
+  "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com",
+  "source": {
+    "pageUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive/SitePages/rss.aspx",
+    "fileServerRelativeUrl": "/sites/biatmicrosoft/blog_Archive/SitePages/rss.aspx",
+    "listId": "6779e40e-3e8f-41c3-bbd4-9a5020797f2f",
+    "itemId": 1,
+    "fileUniqueId": "df8c03a5-8f4b-4966-bbe6-fc82992c0234",
+    "etag": "\"{DF8C03A5-8F4B-4966-BBE6-FC82992C0234},12\""
+  },
+  "ingredient": {
+    "id": "ccd.ingredient.page.layout/v1:df8c03a5-8f4b-4966-bbe6-fc82992c0234:wiki-runtime-binding",
+    "kind": "Layout",
+    "subtype": "layout.wiki",
+    "baseTemplate": 119,
+    "contentTypeId": "0x01010800D0EA2218568D2644BD411A3CF6D8C4FA",
+    "contentTypeLineage": "0x010108",
+    "publishingPageLayout": null,
+    "runtime": "runtime.wiki",
+    "nativeCreateMode": "AddTemplateFile.WikiPage"
+  }
+}
