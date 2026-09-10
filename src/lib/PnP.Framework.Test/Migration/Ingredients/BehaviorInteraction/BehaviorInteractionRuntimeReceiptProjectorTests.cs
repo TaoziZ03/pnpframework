@@ -16,6 +16,11 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
     [TestClass]
     public class BehaviorInteractionRuntimeReceiptProjectorTests
     {
+        private const string ProducerCommitContainingProjector =
+            "1b88af61c03f4057f918f7b0b73967097ead783b";
+        private const string HermeticProducerBinaryDigest =
+            "b6776d876bed352f3e664f650b584e454146c25b48d2ab47a41d0cf53bd901fe";
+
         [TestMethod]
         public void ProjectsLosslessContentAddressedStateEvidenceAcceptedByExactV2Validator()
         {
@@ -66,6 +71,97 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 request.Producer.ImplementationCommit,
                 artifactDocument.RootElement.GetProperty("producer")
                     .GetProperty("implementationCommit").GetString());
+            Assert.AreEqual(ProducerCommitContainingProjector, request.Producer.ImplementationCommit);
+            Assert.IsFalse(fixture.RootElement.TryGetProperty("producer", out _),
+                "Hermetic state data must not claim runtime producer provenance.");
+        }
+
+        [DataTestMethod]
+        [DataRow("same-document-false")]
+        [DataRow("submitted-query-missing")]
+        [DataRow("submitted-query-mismatch")]
+        [DataRow("result-transition-absent")]
+        [DataRow("result-digests-identical")]
+        [DataRow("unsafe-cross-origin-navigation")]
+        [DataRow("unsafe-dialog")]
+        [DataRow("unsafe-download")]
+        [DataRow("action-attempt-two")]
+        [DataRow("request-count-zero")]
+        [DataRow("request-count-two")]
+        public void ContradictoryObservedStateCannotProducePassedReceipt(string mutation)
+        {
+            using var fixture = LoadFixture();
+            var request = BuildRequest(fixture.RootElement);
+
+            switch (mutation)
+            {
+                case "same-document-false":
+                    request.FinalState.RawStateJson =
+                        "{\"page\":{\"sameDocument\":false},\"query\":{\"submitted\":\"ccd-interaction-canary\"},\"resultRegion\":{\"changed\":true,\"explicitEmpty\":false,\"stateDigestBefore\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"stateDigestAfter\":\"2222222222222222222222222222222222222222222222222222222222222222\"}}";
+                    break;
+                case "submitted-query-missing":
+                    request.FinalState.RawStateJson =
+                        "{\"page\":{\"sameDocument\":true},\"query\":{},\"resultRegion\":{\"changed\":true,\"explicitEmpty\":false,\"stateDigestBefore\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"stateDigestAfter\":\"2222222222222222222222222222222222222222222222222222222222222222\"}}";
+                    break;
+                case "submitted-query-mismatch":
+                    request.FinalState.RawStateJson =
+                        "{\"page\":{\"sameDocument\":true},\"query\":{\"submitted\":\"other\"},\"resultRegion\":{\"changed\":true,\"explicitEmpty\":false,\"stateDigestBefore\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"stateDigestAfter\":\"2222222222222222222222222222222222222222222222222222222222222222\"}}";
+                    break;
+                case "result-transition-absent":
+                    request.FinalState.RawStateJson =
+                        "{\"page\":{\"sameDocument\":true},\"query\":{\"submitted\":\"ccd-interaction-canary\"},\"resultRegion\":{\"changed\":false,\"explicitEmpty\":false}}";
+                    break;
+                case "result-digests-identical":
+                    request.FinalState.RawStateJson =
+                        "{\"page\":{\"sameDocument\":true},\"query\":{\"submitted\":\"ccd-interaction-canary\"},\"resultRegion\":{\"changed\":true,\"explicitEmpty\":false,\"stateDigestBefore\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"stateDigestAfter\":\"1111111111111111111111111111111111111111111111111111111111111111\"}}";
+                    break;
+                case "unsafe-cross-origin-navigation":
+                    request.Action.RawStateJson = ActionState(true, false, false, 1, 1);
+                    break;
+                case "unsafe-dialog":
+                    request.Action.RawStateJson = ActionState(false, true, false, 1, 1);
+                    break;
+                case "unsafe-download":
+                    request.Action.RawStateJson = ActionState(false, false, true, 1, 1);
+                    break;
+                case "action-attempt-two":
+                    request.Action.RawStateJson = ActionState(false, false, false, 2, 1);
+                    break;
+                case "request-count-zero":
+                    request.Action.RawStateJson = ActionState(false, false, false, 1, 0);
+                    break;
+                case "request-count-two":
+                    request.Action.RawStateJson = ActionState(false, false, false, 1, 2);
+                    break;
+                default:
+                    Assert.Fail("Unknown mutation " + mutation);
+                    break;
+            }
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                BehaviorInteractionRuntimeReceiptProjector.Project(request));
+
+            StringAssert.Contains(exception.Message, "contradicts the bound runtime state evidence");
+        }
+
+        [TestMethod]
+        public void DerivedFailureCanProduceOnlyMatchingFailedReceipt()
+        {
+            using var fixture = LoadFixture();
+            var request = BuildRequest(fixture.RootElement);
+            request.FinalState.RawStateJson =
+                "{\"page\":{\"sameDocument\":false},\"query\":{\"submitted\":\"ccd-interaction-canary\"},\"resultRegion\":{\"changed\":false,\"explicitEmpty\":false}}";
+            request.Passed = false;
+            request.FailureReasonCode = "EXPECTED_IN_PLACE_TRANSITION_NOT_OBSERVED";
+            request.Message = "Bound evidence did not prove an in-place result transition.";
+
+            var projection = BehaviorInteractionRuntimeReceiptProjector.Project(request);
+
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, projection.Receipt.Status);
+            Assert.IsFalse(projection.Receipt.AssertionResults.Single().Passed);
+            Assert.AreEqual(
+                "EXPECTED_IN_PLACE_TRANSITION_NOT_OBSERVED",
+                projection.Receipt.AssertionResults.Single().FailureReasonCode);
         }
 
         [TestMethod]
@@ -239,7 +335,6 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 TargetIdentity = root.GetProperty("targetIdentity").GetString()
             }).ToList();
             var observations = root.GetProperty("observations");
-            var producer = root.GetProperty("producer");
             return new BehaviorInteractionRuntimeReceiptRequest
             {
                 Manifest = new RuntimeVerificationManifest
@@ -256,9 +351,9 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 OperationId = root.GetProperty("operationId").GetString(),
                 Producer = new BehaviorInteractionRuntimeProducerBinding
                 {
-                    ProducerId = producer.GetProperty("producerId").GetString(),
-                    ImplementationCommit = producer.GetProperty("implementationCommit").GetString(),
-                    BinaryDigestSha256 = producer.GetProperty("binaryDigestSha256").GetString()
+                    ProducerId = "pnp-framework-behavior-interaction-hermetic-test",
+                    ImplementationCommit = ProducerCommitContainingProjector,
+                    BinaryDigestSha256 = HermeticProducerBinaryDigest
                 },
                 ExecutionStartedAtUtc = root.GetProperty("executionStartedAtUtc").GetDateTimeOffset(),
                 CompletedAtUtc = root.GetProperty("completedAtUtc").GetDateTimeOffset(),
@@ -291,6 +386,21 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 ObservedAtUtc = value.GetProperty("observedAtUtc").GetDateTimeOffset(),
                 RawStateJson = value.GetProperty("rawStateJson").GetString()
             };
+        }
+
+        private static string ActionState(
+            bool crossOriginNavigation,
+            bool dialog,
+            bool download,
+            int attempt,
+            int requestCount)
+        {
+            return "{\"action\":{\"attempt\":" + attempt
+                + ",\"kind\":\"replace-text-and-submit-once\",\"submittedQuery\":\"ccd-interaction-canary\"},"
+                + "\"boundary\":{\"crossOriginNavigation\":" + crossOriginNavigation.ToString().ToLowerInvariant()
+                + ",\"dialog\":" + dialog.ToString().ToLowerInvariant()
+                + ",\"download\":" + download.ToString().ToLowerInvariant() + "},"
+                + "\"network\":{\"sameOriginSearchRequestCount\":" + requestCount + "}}";
         }
 
         private static bool IsDigest(string value)
