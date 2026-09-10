@@ -1,0 +1,5 @@
+{
+  "caseId": "wrong-operation",
+  "mutation": "runtimeOperationId",
+  "expectedOutcome": "InvalidDataException"
+}

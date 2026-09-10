@@ -1,0 +1,6 @@
+{
+  "caseId": "custom-report-only",
+  "externalClaimedStatus": "Passed",
+  "expectedRuntimeVerificationStatus": "Pending",
+  "expectedAcceptanceStatus": "Pending"
+}

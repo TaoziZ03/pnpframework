@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pnp-native-page-runtime-binding/v1",
+  "title": "PnP native page runtime binding v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "profileId",
+    "pageFamily",
+    "runtimeEvidenceAuthority",
+    "runtimeOperationId",
+    "sourceIdentityDigestSha256",
+    "sourceVersionDigestSha256",
+    "admittedPlanDigestSha256",
+    "importReceiptDigestSha256",
+    "target",
+    "runtimeVerificationStatus"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "pnp-native-page-runtime-binding/v1" },
+    "profileId": { "const": "profile.classic-wiki" },
+    "pageFamily": { "const": "classic-wiki" },
+    "runtimeEvidenceAuthority": { "enum": ["none", "external-report", "native-producer"] },
+    "runtimeOperationId": { "$ref": "#/$defs/guid" },
+    "sourceIdentityDigestSha256": { "$ref": "#/$defs/sha256" },
+    "sourceVersionDigestSha256": { "$ref": "#/$defs/sha256" },
+    "admittedPlanDigestSha256": { "$ref": "#/$defs/sha256" },
+    "importReceiptDigestSha256": { "$ref": "#/$defs/sha256" },
+    "target": { "$ref": "#/$defs/target" },
+    "requestedUrl": { "type": ["string", "null"], "format": "uri" },
+    "finalUrl": { "type": ["string", "null"], "format": "uri" },
+    "runtimeReceiptSchemaVersion": { "type": ["string", "null"] },
+    "runtimeEvidenceDigestSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "runtimeVerificationStatus": { "enum": ["NotRun", "NotRequired", "Pending", "Passed", "Failed"] },
+    "externalEvidenceDigestSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "producerBuildProvenanceReceiptDigestSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "guid": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["siteId", "webId", "webUrl", "pageServerRelativeUrl", "fileUniqueId", "listItemId", "listItemVersion", "listItemETag"],
+      "properties": {
+        "siteId": { "$ref": "#/$defs/guid" },
+        "webId": { "$ref": "#/$defs/guid" },
+        "webUrl": { "type": "string", "format": "uri" },
+        "pageServerRelativeUrl": { "type": "string", "pattern": "^/" },
+        "fileUniqueId": { "$ref": "#/$defs/guid" },
+        "listItemId": { "type": "integer", "minimum": 1 },
+        "listItemVersion": { "type": "string", "minLength": 1 },
+        "listItemETag": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

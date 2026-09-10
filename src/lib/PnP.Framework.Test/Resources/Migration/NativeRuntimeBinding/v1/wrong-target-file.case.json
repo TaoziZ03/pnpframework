@@ -1,0 +1,5 @@
+{
+  "caseId": "wrong-target-file",
+  "mutation": "target.fileUniqueId",
+  "expectedOutcome": "InvalidDataException"
+}
