@@ -3,6 +3,8 @@ using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Verification.NativePageRuntime;
 using System;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 
@@ -50,7 +52,13 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             var dom = ReadText(artifactStore, result.DomProbeArtifactSha256);
             if (!IsSuccessfulHtml(result)
                 || ContainsDenialOrErrorShell(html)
-                || !TryReadDom(dom, out var surface, out var readyState, out var errorShell, out var authoredDigest))
+                || !TryReadDom(
+                    dom,
+                    out var surface,
+                    out var readyState,
+                    out var errorShell,
+                    out var observedUrl,
+                    out var authoredContent))
             {
                 return false;
             }
@@ -64,7 +72,12 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 return !errorShell
                     && string.Equals(surface, "classic-wiki", StringComparison.Ordinal)
                     && string.Equals(readyState, "complete", StringComparison.Ordinal)
-                    && string.Equals(authoredDigest, binding.ExpectedAuthoredContentSha256, StringComparison.OrdinalIgnoreCase);
+                    && string.Equals(observedUrl, result.Http.FinalUrl, StringComparison.Ordinal)
+                    && string.Equals(
+                        MigrationDigest.ComputeSha256(authoredContent),
+                        binding.ExpectedAuthoredContentSha256,
+                        StringComparison.OrdinalIgnoreCase)
+                    && ContainsAuthoredSurface(html, authoredContent);
             }
             return false;
         }
@@ -78,17 +91,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 return false;
             }
-            using (var input = store.OpenRead(result.ScreenshotArtifactSha256))
-            using (var copy = new MemoryStream())
-            {
-                input.CopyTo(copy);
-                var bytes = copy.ToArray();
-                return bytes.LongLength == result.ScreenshotArtifactLength.Value
-                    && string.Equals(
-                        MigrationDigest.ComputeSha256(bytes),
-                        result.ScreenshotArtifactSha256,
-                        StringComparison.OrdinalIgnoreCase);
-            }
+            var bytes = ReadBytes(store, result.ScreenshotArtifactSha256);
+            return bytes != null
+                && bytes.LongLength == result.ScreenshotArtifactLength.Value
+                && string.Equals(
+                    MigrationDigest.ComputeSha256(bytes),
+                    result.ScreenshotArtifactSha256,
+                    StringComparison.OrdinalIgnoreCase)
+                && IsSupportedImage(bytes);
         }
 
         private static bool IsSuccessfulHtml(RuntimeVerificationResult result)
@@ -100,7 +110,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
 
         private static bool ContainsDenialOrErrorShell(string value)
         {
-            var text = value ?? string.Empty;
+            var text = DecodeHtml(value);
             return text.IndexOf("access denied", StringComparison.OrdinalIgnoreCase) >= 0
                 || text.IndexOf("sign in", StringComparison.OrdinalIgnoreCase) >= 0
                 || text.IndexOf("unauthorized", StringComparison.OrdinalIgnoreCase) >= 0
@@ -114,27 +124,89 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             out string surface,
             out string readyState,
             out bool errorShell,
-            out string authoredDigest)
+            out string observedUrl,
+            out string authoredContent)
         {
             surface = null;
             readyState = null;
             errorShell = true;
-            authoredDigest = null;
+            observedUrl = null;
+            authoredContent = null;
             try
             {
                 using (var document = JsonDocument.Parse(json))
                 {
                     var root = document.RootElement;
-                    surface = root.TryGetProperty("surface", out var surfaceValue) ? surfaceValue.GetString() : null;
-                    readyState = root.TryGetProperty("readyState", out var readyValue) ? readyValue.GetString() : null;
-                    errorShell = !root.TryGetProperty("errorShell", out var errorValue) || errorValue.GetBoolean();
-                    authoredDigest = root.TryGetProperty("authoredContentSha256", out var digestValue) ? digestValue.GetString() : null;
-                    return true;
+                    if (root.ValueKind != JsonValueKind.Object
+                        || !TryGetString(root, "schemaVersion", out var schemaVersion)
+                        || !string.Equals(schemaVersion, "pnp-classic-wiki-runtime-dom/v1", StringComparison.Ordinal)
+                        || !TryGetString(root, "surface", out surface)
+                        || !TryGetString(root, "readyState", out readyState)
+                        || !TryGetString(root, "observedUrl", out observedUrl)
+                        || !TryGetString(root, "authoredContent", out authoredContent)
+                        || !root.TryGetProperty("errorShell", out var errorValue)
+                        || errorValue.ValueKind != JsonValueKind.False && errorValue.ValueKind != JsonValueKind.True)
+                    {
+                        return false;
+                    }
+                    errorShell = errorValue.GetBoolean();
+                    return root.EnumerateObject().Count() == 6;
                 }
             }
-            catch (JsonException)
+            catch (Exception exception) when (exception is JsonException || exception is InvalidOperationException)
             {
                 return false;
+            }
+        }
+
+        private static bool TryGetString(JsonElement root, string name, out string value)
+        {
+            value = null;
+            return root.TryGetProperty(name, out var property)
+                && property.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(value = property.GetString());
+        }
+
+        private static string DecodeHtml(string value)
+        {
+            var current = value ?? string.Empty;
+            for (var index = 0; index < 3; index++)
+            {
+                var decoded = WebUtility.HtmlDecode(current);
+                if (string.Equals(decoded, current, StringComparison.Ordinal))
+                {
+                    break;
+                }
+                current = decoded;
+            }
+            return current;
+        }
+
+        private static bool ContainsAuthoredSurface(string html, string authoredContent)
+        {
+            return !string.IsNullOrWhiteSpace(authoredContent)
+                && DecodeHtml(html).IndexOf(DecodeHtml(authoredContent), StringComparison.Ordinal) >= 0;
+        }
+
+        private static bool IsSupportedImage(byte[] bytes)
+        {
+            return bytes.Length >= 8
+                && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4e && bytes[3] == 0x47
+                && bytes[4] == 0x0d && bytes[5] == 0x0a && bytes[6] == 0x1a && bytes[7] == 0x0a
+                || bytes.Length >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff;
+        }
+
+        private static byte[] ReadBytes(IMigrationArtifactStore store, string digest)
+        {
+            if (store == null || string.IsNullOrWhiteSpace(digest) || !store.Contains(digest))
+            {
+                return null;
+            }
+            using (var input = store.OpenRead(digest))
+            using (var copy = new MemoryStream())
+            {
+                input.CopyTo(copy);
+                return copy.ToArray();
             }
         }
 

@@ -18,7 +18,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
         public static NativePageRuntimeBinding CreatePreCapture(
             Guid runId,
             ClassicWikiMigrationPackage package,
-            Guid sourceListId,
+            NativePageRuntimeSourceIdentityEvidence sourceIdentityEvidence,
             AdmittedReproExecutionPlan admittedPlan,
             string admittedPlanDigestSha256,
             NativePageImportReceiptAggregate importAggregate,
@@ -38,6 +38,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 throw new ArgumentNullException(nameof(freshTargetIdentity));
             }
+            if (sourceIdentityEvidence?.Artifact == null)
+            {
+                throw new ArgumentException("Source identity must be supplied as provider-observed, reopenable evidence.", nameof(sourceIdentityEvidence));
+            }
+            if (freshTargetIdentity.Artifact == null)
+            {
+                throw new ArgumentException("Target identity must be supplied as provider-observed, reopenable evidence.", nameof(freshTargetIdentity));
+            }
 
             var requirements = NativePageRuntimeBindingValidator.CreateClassicWikiManifest();
             var packageEvidence = NativePageRuntimeBindingValidator.PutCanonicalArtifact(
@@ -52,13 +60,6 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 requirements,
                 artifactStore,
                 "application/vnd.pnp.runtime-policy+json");
-            if (freshTargetIdentity.Artifact == null)
-            {
-                freshTargetIdentity.Artifact = NativePageRuntimeBindingValidator.PutCanonicalArtifact(
-                    freshTargetIdentity.Identity,
-                    artifactStore,
-                    "application/vnd.pnp.target-identity+json");
-            }
             var provenanceDigest = ProducerBuildProvenanceContract.ValidateManifestAndComputeDigest(
                 contractProvenanceManifest);
             var importBinding = NativePageImportReceiptAggregateValidator.ValidateForCompare(
@@ -88,15 +89,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     PrimaryOwnerLane = "shared integration",
                     DependencyIds = new List<string>()
                 },
-                SourceIdentity = new NativePageRuntimeSourceIdentity
-                {
-                    SiteId = package.Snapshot.Source.SiteId,
-                    WebId = package.Snapshot.Source.WebId,
-                    ListId = sourceListId,
-                    ListItemId = package.Snapshot.Source.ListItemId,
-                    FileUniqueId = package.Snapshot.Source.FileUniqueId,
-                    PageServerRelativeUrl = package.Snapshot.Source.PageServerRelativeUrl
-                },
+                SourceIdentity = CopySource(sourceIdentityEvidence.Identity),
+                SourceIdentityEvidence = sourceIdentityEvidence,
                 SourceVersion = Copy(admittedPlan.SourceVersion),
                 SnapshotDigestSha256 = package.SnapshotDigest,
                 PlanDigest = package.PlanDigest,
@@ -142,6 +136,19 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 LastModifiedUtc = value.LastModifiedUtc,
                 VersionLabel = value.VersionLabel,
                 ObservedAtUtc = value.ObservedAtUtc
+            };
+        }
+
+        private static NativePageRuntimeSourceIdentity CopySource(NativePageRuntimeSourceIdentity value)
+        {
+            return value == null ? null : new NativePageRuntimeSourceIdentity
+            {
+                SiteId = value.SiteId,
+                WebId = value.WebId,
+                ListId = value.ListId,
+                ListItemId = value.ListItemId,
+                FileUniqueId = value.FileUniqueId,
+                PageServerRelativeUrl = value.PageServerRelativeUrl
             };
         }
 

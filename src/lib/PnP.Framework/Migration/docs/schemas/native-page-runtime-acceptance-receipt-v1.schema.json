@@ -19,7 +19,7 @@
     "importReceiptDigestSha256": { "$ref": "#/$defs/sha256" },
     "bindingDigestSha256": { "$ref": "#/$defs/sha256" },
     "externalEvidenceDigestSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
-    "producerBuildProvenanceReceiptDigestSha256": { "$ref": "#/$defs/sha256" },
+    "producerBuildProvenanceReceiptDigestSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
     "bindingValidationStatus": { "enum": ["Valid", "Incomplete", "Invalid"] },
     "storageVerificationStatus": { "enum": ["NotRun", "Passed", "Failed"] },
     "runtimeVerificationStatus": { "enum": ["NotRun", "NotRequired", "Pending", "Passed", "Failed"] },

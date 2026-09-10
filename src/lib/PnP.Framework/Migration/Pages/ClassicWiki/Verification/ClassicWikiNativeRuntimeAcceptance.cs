@@ -146,6 +146,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             AddEvidence(receipt, binding.PackageEvidence);
             AddEvidence(receipt, binding.NativeImportEvidence);
             AddEvidence(receipt, binding.PolicyArtifact);
+            AddEvidence(receipt, binding.SourceIdentityEvidence?.Artifact);
             AddEvidence(receipt, binding.TargetIdentityEvidence?.Artifact);
             AddEvidence(receipt, externalEvidence.PreCaptureTargetReadback?.Artifact);
             AddEvidence(receipt, externalEvidence.PostCaptureTargetReadback?.Artifact);

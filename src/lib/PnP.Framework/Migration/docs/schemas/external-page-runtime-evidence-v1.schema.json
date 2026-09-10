@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "pnp-external-page-runtime-evidence/v1",
+  "$id": "https://pnp.github.io/schemas/migration/external-page-runtime-evidence-v1.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "contentSha256", "runId", "claimId", "bindingDigestSha256", "captureProducer", "profileClass", "startedAtUtc", "completedAtUtc", "resultKind", "observedTargetIdentity", "preCaptureTargetReadback", "postCaptureTargetReadback", "attempts", "artifactManifest", "runtimeReceipt", "runtimeReceiptDigestSha256", "terminalObservation", "extensions"],
@@ -10,24 +10,39 @@
     "runId": { "$ref": "#/$defs/guid" },
     "claimId": { "const": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53" },
     "bindingDigestSha256": { "$ref": "#/$defs/sha256" },
-    "captureProducer": { "type": "object", "additionalProperties": false, "required": ["adapterId", "version", "implementationRef", "toolVersion", "protocolVersion"], "properties": { "adapterId": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "toolVersion": { "type": "string", "minLength": 1 }, "protocolVersion": { "type": "string", "minLength": 1 } } },
+    "captureProducer": { "$ref": "#/$defs/captureProducer" },
     "profileClass": { "const": "classic-wiki.synthetic.runtime-acceptance/v1" },
-    "startedAtUtc": { "type": "string", "format": "date-time" },
-    "completedAtUtc": { "type": "string", "format": "date-time" },
+    "startedAtUtc": { "$ref": "#/$defs/dateTime" },
+    "completedAtUtc": { "$ref": "#/$defs/dateTime" },
     "resultKind": { "enum": ["runtime-receipt", "terminal-observation"] },
-    "observedTargetIdentity": { "$ref": "native-page-runtime-binding-v1.schema.json#/$defs/target" },
-    "preCaptureTargetReadback": { "$ref": "native-page-runtime-binding-v1.schema.json#/$defs/identityEvidence" },
-    "postCaptureTargetReadback": { "$ref": "native-page-runtime-binding-v1.schema.json#/$defs/identityEvidence" },
-    "attempts": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "object" } },
-    "artifactManifest": { "type": "object" },
-    "runtimeReceipt": { "type": ["object", "null"] },
+    "observedTargetIdentity": { "$ref": "#/$defs/target" },
+    "preCaptureTargetReadback": { "$ref": "#/$defs/identityEvidence" },
+    "postCaptureTargetReadback": { "$ref": "#/$defs/identityEvidence" },
+    "attempts": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "$ref": "#/$defs/attempt" } },
+    "artifactManifest": { "$ref": "#/$defs/artifactManifest" },
+    "runtimeReceipt": { "anyOf": [{ "$ref": "#/$defs/runtimeReceipt" }, { "type": "null" }] },
     "runtimeReceiptDigestSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
-    "terminalObservation": { "type": ["object", "null"] },
+    "terminalObservation": { "anyOf": [{ "$ref": "#/$defs/terminalObservation" }, { "type": "null" }] },
     "extensions": { "type": "object", "propertyNames": { "pattern": "^[^.]+\\..+$" }, "additionalProperties": { "type": "string" } }
   },
   "oneOf": [
-    { "properties": { "resultKind": { "const": "runtime-receipt" }, "runtimeReceipt": { "type": "object" }, "runtimeReceiptDigestSha256": { "$ref": "#/$defs/sha256" }, "terminalObservation": { "type": "null" } } },
-    { "properties": { "resultKind": { "const": "terminal-observation" }, "runtimeReceipt": { "type": "null" }, "runtimeReceiptDigestSha256": { "type": "null" }, "terminalObservation": { "type": "object" } } }
+    { "properties": { "resultKind": { "const": "runtime-receipt" }, "runtimeReceipt": { "$ref": "#/$defs/runtimeReceipt" }, "runtimeReceiptDigestSha256": { "$ref": "#/$defs/sha256" }, "terminalObservation": { "type": "null" } } },
+    { "properties": { "resultKind": { "const": "terminal-observation" }, "runtimeReceipt": { "type": "null" }, "runtimeReceiptDigestSha256": { "type": "null" }, "terminalObservation": { "$ref": "#/$defs/terminalObservation" } } }
   ],
-  "$defs": { "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }, "gitRef": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" }, "guid": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } } }
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "gitRef": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "guid": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
+    "dateTime": { "type": "string", "format": "date-time" },
+    "safeLocator": { "type": "string", "minLength": 1, "pattern": "^(?![/\\\\])(?!(?:.*[/\\\\])?\\.\\.(?:[/\\\\]|$)).+" },
+    "captureProducer": { "type": "object", "additionalProperties": false, "required": ["adapterId", "version", "implementationRef", "toolVersion", "protocolVersion"], "properties": { "adapterId": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "toolVersion": { "type": "string", "minLength": 1 }, "protocolVersion": { "type": "string", "minLength": 1 } } },
+    "artifact": { "type": "object", "additionalProperties": false, "required": ["sha256", "length", "mediaType", "locator"], "properties": { "sha256": { "$ref": "#/$defs/sha256" }, "length": { "type": "integer", "minimum": 1 }, "mediaType": { "type": "string", "minLength": 1 }, "locator": { "$ref": "#/$defs/safeLocator" } } },
+    "manifestArtifact": { "type": "object", "required": ["sha256", "length", "mediaType"], "properties": { "sha256": { "$ref": "#/$defs/sha256" }, "length": { "type": "integer", "minimum": 1 }, "mediaType": { "type": "string", "minLength": 1 } } },
+    "target": { "type": "object", "additionalProperties": false, "required": ["siteId", "webId", "listId", "webUrl", "pageServerRelativeUrl", "fileUniqueId", "listItemId", "listItemVersion", "listItemETag", "canonicalUrl"], "properties": { "siteId": { "$ref": "#/$defs/guid" }, "webId": { "$ref": "#/$defs/guid" }, "listId": { "$ref": "#/$defs/guid" }, "webUrl": { "type": "string", "format": "uri" }, "pageServerRelativeUrl": { "type": "string", "pattern": "^/" }, "fileUniqueId": { "$ref": "#/$defs/guid" }, "listItemId": { "type": "integer", "minimum": 1 }, "listItemVersion": { "type": "string", "minLength": 1 }, "listItemETag": { "type": "string", "minLength": 1 }, "canonicalUrl": { "type": "string", "format": "uri" } } },
+    "identityEvidence": { "type": "object", "additionalProperties": false, "required": ["observationId", "observedAtUtc", "operationId", "providerId", "providerVersion", "sourceArtifactSha256", "identity", "artifact"], "properties": { "observationId": { "type": "string", "minLength": 1 }, "observedAtUtc": { "$ref": "#/$defs/dateTime" }, "operationId": { "$ref": "#/$defs/guid" }, "providerId": { "type": "string", "minLength": 1 }, "providerVersion": { "type": "string", "minLength": 1 }, "sourceArtifactSha256": { "$ref": "#/$defs/sha256" }, "identity": { "$ref": "#/$defs/target" }, "artifact": { "$ref": "#/$defs/artifact" } } },
+    "attempt": { "type": "object", "additionalProperties": false, "required": ["sequence", "maximumAttempts", "observedAtUtc", "runId", "runtimeOperationId", "requestedUrl", "finalUrl", "httpStatusCode", "transportUnavailable", "requestId", "requestIdAvailability", "requestIdUnavailableReason", "providerId", "providerVersion", "semanticDetectorId", "semanticDetectorVersion", "semanticDetectorDigestSha256", "semanticResult", "browserContextId", "rawEvidence"], "properties": { "sequence": { "type": "integer", "minimum": 1, "maximum": 3 }, "maximumAttempts": { "type": "integer", "minimum": 1, "maximum": 3 }, "observedAtUtc": { "$ref": "#/$defs/dateTime" }, "runId": { "$ref": "#/$defs/guid" }, "runtimeOperationId": { "$ref": "#/$defs/guid" }, "requestedUrl": { "type": "string", "format": "uri" }, "finalUrl": { "type": "string", "format": "uri" }, "httpStatusCode": { "anyOf": [{ "type": "integer", "minimum": 100, "maximum": 599 }, { "type": "null" }] }, "transportUnavailable": { "type": "boolean" }, "requestId": { "type": ["string", "null"] }, "requestIdAvailability": { "enum": ["available", "unavailable"] }, "requestIdUnavailableReason": { "type": ["string", "null"] }, "providerId": { "type": "string", "minLength": 1 }, "providerVersion": { "type": "string", "minLength": 1 }, "semanticDetectorId": { "type": "string", "minLength": 1 }, "semanticDetectorVersion": { "type": "string", "minLength": 1 }, "semanticDetectorDigestSha256": { "$ref": "#/$defs/sha256" }, "semanticResult": { "type": "string", "minLength": 1 }, "browserContextId": { "type": "string", "minLength": 1 }, "rawEvidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } } } },
+    "artifactManifest": { "type": "object", "required": ["schemaVersion", "artifacts", "contentSha256"], "properties": { "schemaVersion": { "const": "pnp-migration-artifacts/v1" }, "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/manifestArtifact" } }, "contentSha256": { "$ref": "#/$defs/sha256" } } },
+    "runtimeReceipt": { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "planDigest", "admittedPlanDigestSha256", "operationId", "importReceiptDigestSha256", "requirementsManifestDigestSha256", "implementationRef", "sourceVersion", "operations", "targetIdentity", "browserContext", "completedAtUtc", "results", "status"], "properties": { "schemaVersion": { "const": "pnp-migration-runtime-verification-receipt/v1" }, "planDigest": { "$ref": "#/$defs/sha256" }, "admittedPlanDigestSha256": { "$ref": "#/$defs/sha256" }, "operationId": { "$ref": "#/$defs/guid" }, "importReceiptDigestSha256": { "$ref": "#/$defs/sha256" }, "requirementsManifestDigestSha256": { "$ref": "#/$defs/sha256" }, "implementationRef": { "$ref": "#/$defs/gitRef" }, "sourceVersion": { "type": "object" }, "operations": { "type": "object" }, "targetIdentity": { "type": "string", "format": "uri" }, "browserContext": { "type": "object" }, "completedAtUtc": { "$ref": "#/$defs/dateTime" }, "results": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["requirementId", "passed", "evidenceArtifactSha256", "evidenceArtifactLength", "evidenceArtifactLocator", "implementationRef", "browserContextId", "http", "cache", "domProbeArtifactSha256", "domProbeArtifactLength", "domProbeArtifactLocator", "screenshotArtifactSha256", "screenshotArtifactLength", "screenshotArtifactLocator", "message"] } }, "status": { "enum": ["NotRun", "NotRequired", "Pending", "Passed", "Failed"] } } },
+    "terminalObservation": { "type": "object", "additionalProperties": false, "required": ["kind", "httpStatusCode", "semanticDetectorResult", "reasonCode", "message"], "properties": { "kind": { "type": "string", "minLength": 1 }, "httpStatusCode": { "anyOf": [{ "type": "integer", "minimum": 100, "maximum": 599 }, { "type": "null" }] }, "semanticDetectorResult": { "type": "string", "minLength": 1 }, "reasonCode": { "type": "string", "minLength": 1 }, "message": { "type": ["string", "null"] } } }
+  }
 }
