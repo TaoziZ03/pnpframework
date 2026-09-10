@@ -70,6 +70,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
         [DataRow("wrong-target-source-file")]
         [DataRow("wrong-target-implementation")]
         [DataRow("wrong-target-profile")]
+        [DataRow("wrong-target-path")]
         [DataRow("wrong-target-content-type-lineage")]
         [DataRow("stale-target-observation")]
         [DataRow("invalid-target-plan-digest")]
@@ -84,6 +85,19 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
 
             Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
             Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
+        [TestMethod]
+        public void NullSourceObservationFailsM1ClosedWithoutThrowing()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddCcd255TargetReadback();
+            fixture.ReplaceRequiredSourceObservationWithNull();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
         }
 
         [DataTestMethod]
@@ -216,6 +230,9 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     case "wrong-target-profile":
                         Evidence.WikiTargetReadback.TargetProfile = "wrong-profile/v1";
                         break;
+                    case "wrong-target-path":
+                        Evidence.WikiTargetReadback.TargetPath += ".wrong";
+                        break;
                     case "wrong-target-content-type-lineage":
                         Evidence.WikiTargetReadback.ContentTypeId = "0x0101";
                         break;
@@ -232,6 +249,13 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                         Assert.Fail("Unknown target mutation " + mutation);
                         break;
                 }
+            }
+
+            public void ReplaceRequiredSourceObservationWithNull()
+            {
+                var observations = Evidence.Live.Observations.ToList();
+                observations[0] = null;
+                Evidence.Live.Observations = observations;
             }
 
             public void Mutate(string mutation)
@@ -330,6 +354,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
 
             private static IngredientMaturityEvaluationContext CreateContext(FixtureContract fixture, string sourceIdentity)
             {
+                var target = LoadTargetContract();
                 return new IngredientMaturityEvaluationContext
                 {
                     Identity = new IngredientMaturityIdentity
@@ -351,8 +376,8 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     },
                     Target = new IngredientMaturityTargetBinding
                     {
-                        TargetProfile = "cupcollect-classic-page/v1",
-                        TargetIdentity = "cupcollect:SitePages/rss.aspx"
+                        TargetProfile = target.TargetProfile,
+                        TargetIdentity = target.TargetPath
                     },
                     Producer = new IngredientMaturityProducerBinding
                     {
