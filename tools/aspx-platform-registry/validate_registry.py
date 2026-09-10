@@ -120,6 +120,187 @@ ARTIFACT_BINDING_KEYS = {
 ARTIFACT_DESCRIPTOR_KEYS = {"path", "sha256", "length"}
 STORE_ARTIFACT_DESCRIPTOR_KEYS = ARTIFACT_DESCRIPTOR_KEYS | {"schemaManifestHash"}
 
+PHYSICAL_SOURCE_KINDS = {
+    "RawListLibraryFiles",
+    "WebRootFiles",
+    "ListFormBackingFiles",
+    "ListViewBackingFiles",
+    "TenantManifest",
+}
+DISCOVERY_SCOPE_KINDS = {"Tenant", "Geo", "SiteCollection", "Web", "Container", "Folder"}
+DISCOVERY_TERMINAL_OUTCOMES = {
+    "Pending",
+    "Complete",
+    "Empty",
+    "PolicyExcluded",
+    "Denied",
+    "Failed",
+    "Truncated",
+    "Cancelled",
+    "Unknown",
+}
+DISCOVERY_ATTEMPT_STATUSES = {"Running", "Interrupted", "Failed", "Superseded", "Complete"}
+DISCOVERY_EXECUTION_STATUSES = {"Running", "Finished", "Failed", "Cancelled"}
+DISCOVERY_VERDICTS = {
+    "CompleteTenantVerified",
+    "CompleteAuthorizedSurface",
+    "CompleteDeclaredSubset",
+    "Incomplete",
+    "Unknown",
+}
+REFERENCE_VERDICTS = {"CompleteAuthorizedSurface", "Incomplete", "Unknown"}
+REFERENCE_APPLICABILITY = {"Applicable", "SystemOrVirtualOnly", "NotApplicable", "Unknown"}
+REFERENCE_COUNTEREXAMPLE_STATES = {"NoneObserved", "Observed", "Unknown"}
+REFERENCE_EXPECTED_COUNT_STATES = {"Known", "Unknown"}
+
+PHYSICAL_OUTPUT_KEYS = {
+    "outputVersion",
+    "runId",
+    "executionStatus",
+    "coverageVerdict",
+    "inventory",
+    "observations",
+    "coverage",
+    "denominator",
+    "unresolvedGapCodes",
+    "unresolvedConflictCount",
+}
+PHYSICAL_INVENTORY_KEYS = {
+    "scopeKey",
+    "canonicalInventoryKey",
+    "physicalLocator",
+    "fileName",
+    "identityQuality",
+    "permissionContext",
+}
+PHYSICAL_OBSERVATION_KEYS = {
+    "scopeKey",
+    "sourceKind",
+    "observationKey",
+    "factHash",
+    "fileName",
+    "physicalLocator",
+    "permissionContext",
+}
+PHYSICAL_COVERAGE_KEYS = {
+    "scopeKey",
+    "parentScopeKey",
+    "kind",
+    "sourceKind",
+    "outcome",
+    "expectedCount",
+    "counts",
+}
+PHYSICAL_COUNTS_KEYS = {
+    "observedCount",
+    "emittedCount",
+    "inventoryCount",
+    "batchCount",
+    "attemptCount",
+    "gapCount",
+    "conflictCount",
+}
+PHYSICAL_DENOMINATOR_KEYS = {
+    "parentScopeKey",
+    "childKind",
+    "outcome",
+    "expectedCount",
+    "observedCount",
+    "enumerationFingerprint",
+    "permissionContext",
+}
+REFERENCE_OUTPUT_KEYS = {
+    "outputVersion",
+    "acquisitionRunId",
+    "manifestHash",
+    "coverageVerdict",
+    "references",
+    "denominator",
+    "paginationReceipts",
+    "gapCodes",
+}
+REFERENCE_OBSERVATION_KEYS = {
+    "referenceObservationId",
+    "recordKind",
+    "sourceKind",
+    "sourceObjectId",
+    "acquisitionMethod",
+    "referenceId",
+    "rawLocator",
+    "canonicalRequestPath",
+    "matchedAlias",
+    "platformBuildRef",
+    "registryRevision",
+    "registryHash",
+    "disposition",
+    "reasonCode",
+    "linkedPhysicalCanonicalInventoryKey",
+    "linkedFileUniqueId",
+    "contentOrigin",
+    "permissionContext",
+    "evidenceRefs",
+}
+REFERENCE_DENOMINATOR_KEYS = {
+    "surfaceContractVersion",
+    "acquisitionRunId",
+    "snapshotFence",
+    "scopeAuthorityHash",
+    "scopeKey",
+    "parentScopeKey",
+    "surfaceId",
+    "applicability",
+    "applicabilityRuleId",
+    "applicabilityRuleVersion",
+    "applicabilityRuleHash",
+    "applicabilityReviewRef",
+    "applicabilityApprovalRef",
+    "applicabilityPlatformBinding",
+    "runtimeCounterexampleState",
+    "authorityKind",
+    "authorityLocator",
+    "authorityRevision",
+    "authorityHash",
+    "actualMethod",
+    "actualEndpoint",
+    "actualSelect",
+    "actualFilter",
+    "visibilityBoundary",
+    "permissionContext",
+    "expectedCount",
+    "expectedCountState",
+    "observedCount",
+    "terminalOutcome",
+    "aggregateEffect",
+    "continuationRemaining",
+    "paginationChainHash",
+    "paginationOutstandingTokenCount",
+    "absenceProofKind",
+    "absenceProofRef",
+    "providerVersion",
+    "productRef",
+    "sdkRef",
+    "platformBuildRef",
+    "registryRevision",
+    "registryHash",
+    "artifactRunId",
+    "asOfUtc",
+    "evidenceRefs",
+    "requiredAdapter",
+    "classificationEffect",
+}
+REFERENCE_PAGINATION_KEYS = {
+    "collectionScopeKey",
+    "authorityRevision",
+    "actualEndpointHash",
+    "pageOrdinal",
+    "requestTokenHash",
+    "responseItemCount",
+    "nextTokenHash",
+    "responseDigest",
+    "terminalFlag",
+    "receivedAtUtc",
+}
+
 
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -146,6 +327,49 @@ def exact_key_errors(value: Any, expected: set[str], label: str) -> list[str]:
         errors.append(f"{label} missing fields: {missing}")
     if extra:
         errors.append(f"{label} has unsupported fields: {extra}")
+    return errors
+
+
+def _string_errors(value: Any, label: str, nullable: bool = False) -> list[str]:
+    if value is None and nullable:
+        return []
+    if not isinstance(value, str):
+        return [f"{label} must be a string" + (" or null" if nullable else "")]
+    return []
+
+
+def _integer_errors(value: Any, label: str, nullable: bool = False) -> list[str]:
+    if value is None and nullable:
+        return []
+    if not isinstance(value, int) or isinstance(value, bool):
+        return [f"{label} must be an integer" + (" or null" if nullable else "")]
+    return []
+
+
+def _string_list_errors(value: Any, label: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{label} must be an array"]
+    return [
+        f"{label}[{index}] must be a string"
+        for index, item in enumerate(value)
+        if not isinstance(item, str)
+    ]
+
+
+def _enum_errors(value: Any, allowed: set[str], label: str, nullable: bool = False) -> list[str]:
+    if value is None and nullable:
+        return []
+    if value not in allowed:
+        return [f"{label} has an unsupported value"]
+    return []
+
+
+def _rows_errors(value: Any, label: str, validator: Any) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{label} must be an array"]
+    errors: list[str] = []
+    for index, row in enumerate(value):
+        errors.extend(validator(row, f"{label}[{index}]"))
     return errors
 
 
@@ -616,6 +840,43 @@ def apply_evidence_mutation(
         mutated["physicalOutput"] += b"\n"
     elif kind == "appendReferenceOutputBytes":
         mutated["referenceOutput"] += b"\n"
+    elif kind in {
+        "addPhysicalReferenceRowsField",
+        "addPhysicalReferenceObservation",
+        "addReferenceUnknownSourceKind",
+        "driftReferenceOutputManifestHash",
+        "replacePhysicalOutputWithArray",
+    }:
+        evidence_key = "referenceOutput" if kind in {
+            "addReferenceUnknownSourceKind",
+            "driftReferenceOutputManifestHash",
+        } else "physicalOutput"
+        document = json.loads(mutated[evidence_key])
+        if kind == "addPhysicalReferenceRowsField":
+            document["referenceRows"] = []
+        elif kind == "addPhysicalReferenceObservation":
+            document["observations"].append(
+                {
+                    "recordKind": REFERENCE_RECORD_KIND,
+                    "sourceKind": "PlatformRegistryReference",
+                    "disposition": "ReferenceOnlyAvailable",
+                }
+            )
+        elif kind == "addReferenceUnknownSourceKind":
+            document["references"].append(
+                {
+                    "recordKind": REFERENCE_RECORD_KIND,
+                    "sourceKind": "FutureUnknownSourceKind",
+                    "disposition": "ReferenceOnlyAvailable",
+                }
+            )
+        elif kind == "driftReferenceOutputManifestHash":
+            document["manifestHash"] = "f" * 64
+        else:
+            document = []
+        mutated[evidence_key] = (
+            json.dumps(document, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        ).encode("utf-8")
     elif kind in {"addReferenceTableToPhysicalStore", "dropReferenceObservationTable"}:
         store_key = (
             "physicalStore"
@@ -631,6 +892,64 @@ def apply_evidence_mutation(
                 )
             else:
                 connection.execute("DROP TABLE ReferenceObservations")
+            connection.commit()
+            mutated[store_key] = connection.serialize()
+    elif kind in {
+        "changePhysicalPartialIndexPredicate",
+        "addPhysicalGeneratedReferenceColumn",
+        "addPhysicalReferenceSourceKindRow",
+        "addReferenceUnknownSourceKindRow",
+    }:
+        store_key = "referenceStore" if kind == "addReferenceUnknownSourceKindRow" else "physicalStore"
+        with closing(_sqlite_connection(mutated[store_key])) as connection:
+            run_table = "ReferenceRuns" if store_key == "referenceStore" else "DiscoveryRuns"
+            run_row = connection.execute(f"SELECT RunId FROM {run_table} ORDER BY RunId LIMIT 1").fetchone()
+            if run_row is None:
+                raise ValueError(f"{run_table} has no fixture run")
+            run_id = str(run_row[0])
+            if kind == "changePhysicalPartialIndexPredicate":
+                connection.execute("DROP INDEX UX_DiscoveryAttempts_Active")
+                connection.execute(
+                    "CREATE UNIQUE INDEX UX_DiscoveryAttempts_Active "
+                    "ON DiscoveryAttempts(RunId, ScopeKey, SourceKind) WHERE Status='Finished'"
+                )
+            elif kind == "addPhysicalGeneratedReferenceColumn":
+                connection.execute(
+                    "ALTER TABLE DiscoveryInventory ADD COLUMN ReferenceDerived TEXT "
+                    "GENERATED ALWAYS AS (FileName) VIRTUAL"
+                )
+            elif kind == "addPhysicalReferenceSourceKindRow":
+                connection.execute(
+                    "INSERT INTO DiscoveryObservations "
+                    "(ObservationId, RunId, ScopeKey, SourceKind, ObservationKey, FactHash, "
+                    "SourceObjectKey, MetadataJson) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        "injected-reference-row",
+                        run_id,
+                        "fixture-scope",
+                        "PlatformRegistryReference",
+                        "injected-key",
+                        "f" * 64,
+                        "injected-object",
+                        "{}",
+                    ),
+                )
+            else:
+                connection.execute(
+                    "INSERT INTO ReferenceObservations (RunId, ObservationId, Json) VALUES (?, ?, ?)",
+                    (
+                        run_id,
+                        "unknown-source-kind",
+                        json.dumps(
+                            {
+                                "recordKind": REFERENCE_RECORD_KIND,
+                                "sourceKind": "FutureUnknownSourceKind",
+                                "disposition": "ReferenceOnlyAvailable",
+                            },
+                            separators=(",", ":"),
+                        ),
+                    ),
+                )
             connection.commit()
             mutated[store_key] = connection.serialize()
     elif kind in {"rewritePhysicalManifestHash", "rewriteReferenceManifestHash"}:
@@ -662,28 +981,464 @@ def _read_store_manifest_hash(
     return str(row[0])
 
 
+def _validate_physical_inventory_row(row: Any, label: str) -> list[str]:
+    errors = exact_key_errors(row, PHYSICAL_INVENTORY_KEYS, label)
+    if errors:
+        return errors
+    assert isinstance(row, dict)
+    for key in ["scopeKey", "canonicalInventoryKey", "fileName", "identityQuality"]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}"))
+    for key in ["physicalLocator", "permissionContext"]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}", nullable=True))
+    return errors
+
+
+def _validate_physical_observation_row(row: Any, label: str) -> list[str]:
+    errors = exact_key_errors(row, PHYSICAL_OBSERVATION_KEYS, label)
+    if errors:
+        return errors
+    assert isinstance(row, dict)
+    for key in ["scopeKey", "observationKey", "factHash"]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}"))
+    for key in ["fileName", "physicalLocator", "permissionContext"]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}", nullable=True))
+    errors.extend(_enum_errors(row.get("sourceKind"), PHYSICAL_SOURCE_KINDS, f"{label}.sourceKind"))
+    return errors
+
+
+def _validate_physical_coverage_row(row: Any, label: str) -> list[str]:
+    errors = exact_key_errors(row, PHYSICAL_COVERAGE_KEYS, label)
+    if errors:
+        return errors
+    assert isinstance(row, dict)
+    for key in ["scopeKey"]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}"))
+    errors.extend(_string_errors(row.get("parentScopeKey"), f"{label}.parentScopeKey", nullable=True))
+    errors.extend(_enum_errors(row.get("kind"), DISCOVERY_SCOPE_KINDS, f"{label}.kind"))
+    errors.extend(
+        _enum_errors(
+            row.get("sourceKind"), PHYSICAL_SOURCE_KINDS, f"{label}.sourceKind", nullable=True
+        )
+    )
+    errors.extend(
+        _enum_errors(row.get("outcome"), DISCOVERY_TERMINAL_OUTCOMES, f"{label}.outcome")
+    )
+    errors.extend(_integer_errors(row.get("expectedCount"), f"{label}.expectedCount", nullable=True))
+    counts = row.get("counts")
+    errors.extend(exact_key_errors(counts, PHYSICAL_COUNTS_KEYS, f"{label}.counts"))
+    if isinstance(counts, dict):
+        for key in PHYSICAL_COUNTS_KEYS:
+            errors.extend(_integer_errors(counts.get(key), f"{label}.counts.{key}"))
+    return errors
+
+
+def _validate_physical_denominator_row(row: Any, label: str) -> list[str]:
+    errors = exact_key_errors(row, PHYSICAL_DENOMINATOR_KEYS, label)
+    if errors:
+        return errors
+    assert isinstance(row, dict)
+    errors.extend(_string_errors(row.get("parentScopeKey"), f"{label}.parentScopeKey"))
+    errors.extend(_enum_errors(row.get("childKind"), DISCOVERY_SCOPE_KINDS, f"{label}.childKind"))
+    errors.extend(
+        _enum_errors(row.get("outcome"), DISCOVERY_TERMINAL_OUTCOMES, f"{label}.outcome")
+    )
+    for key in ["expectedCount", "observedCount"]:
+        errors.extend(_integer_errors(row.get(key), f"{label}.{key}"))
+    errors.extend(
+        _string_errors(row.get("enumerationFingerprint"), f"{label}.enumerationFingerprint")
+    )
+    errors.extend(_string_errors(row.get("permissionContext"), f"{label}.permissionContext", nullable=True))
+    return errors
+
+
+def _validate_physical_output_document(document: Any) -> list[str]:
+    errors = exact_key_errors(document, PHYSICAL_OUTPUT_KEYS, "physical output")
+    if errors:
+        return errors
+    assert isinstance(document, dict)
+    errors.extend(
+        _enum_errors(
+            document.get("executionStatus"), DISCOVERY_EXECUTION_STATUSES, "physical output.executionStatus"
+        )
+    )
+    errors.extend(
+        _enum_errors(document.get("coverageVerdict"), DISCOVERY_VERDICTS, "physical output.coverageVerdict")
+    )
+    errors.extend(
+        _rows_errors(document.get("inventory"), "physical output.inventory", _validate_physical_inventory_row)
+    )
+    errors.extend(
+        _rows_errors(
+            document.get("observations"), "physical output.observations", _validate_physical_observation_row
+        )
+    )
+    errors.extend(
+        _rows_errors(document.get("coverage"), "physical output.coverage", _validate_physical_coverage_row)
+    )
+    errors.extend(
+        _rows_errors(
+            document.get("denominator"), "physical output.denominator", _validate_physical_denominator_row
+        )
+    )
+    errors.extend(_string_list_errors(document.get("unresolvedGapCodes"), "physical output.unresolvedGapCodes"))
+    errors.extend(
+        _integer_errors(document.get("unresolvedConflictCount"), "physical output.unresolvedConflictCount")
+    )
+    return errors
+
+
+def _validate_reference_observation_row(
+    row: Any,
+    label: str,
+    volume: dict[str, Any],
+    registry: dict[str, Any],
+) -> list[str]:
+    errors = exact_key_errors(row, REFERENCE_OBSERVATION_KEYS, label)
+    if errors:
+        return errors
+    assert isinstance(row, dict)
+    for key in [
+        "referenceObservationId",
+        "platformBuildRef",
+        "registryRevision",
+        "registryHash",
+    ]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}"))
+    for key in [
+        "sourceObjectId",
+        "acquisitionMethod",
+        "referenceId",
+        "rawLocator",
+        "canonicalRequestPath",
+        "matchedAlias",
+        "reasonCode",
+        "linkedPhysicalCanonicalInventoryKey",
+        "linkedFileUniqueId",
+        "contentOrigin",
+        "permissionContext",
+    ]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}", nullable=True))
+    errors.extend(_enum_errors(row.get("recordKind"), {REFERENCE_RECORD_KIND}, f"{label}.recordKind"))
+    errors.extend(_enum_errors(row.get("sourceKind"), KNOWN_SOURCE_KINDS, f"{label}.sourceKind"))
+    errors.extend(_enum_errors(row.get("disposition"), KNOWN_DISPOSITIONS, f"{label}.disposition"))
+    errors.extend(_string_list_errors(row.get("evidenceRefs"), f"{label}.evidenceRefs"))
+    bindings = {
+        "platformBuildRef": volume.get("platformBuild"),
+        "registryRevision": registry.get("registryRevision"),
+        "registryHash": registry.get("registryHash"),
+    }
+    for key, expected in bindings.items():
+        if row.get(key) != expected:
+            errors.append(f"{label}.{key} does not match the reference volume")
+    disposition = row.get("disposition")
+    linked_key = row.get("linkedPhysicalCanonicalInventoryKey")
+    linked_id = row.get("linkedFileUniqueId")
+    if disposition in NON_PHYSICAL_DISPOSITIONS | {"NonAspx"} and (linked_key or linked_id):
+        errors.append(f"{label} has physical identity for a non-physical disposition")
+    if disposition in LINKED_PHYSICAL_DISPOSITIONS and (not linked_key or not linked_id):
+        errors.append(f"{label} is missing linked physical identity")
+    if disposition == "LinkedPhysicalGhosted" and row.get("contentOrigin") != "verified-ghosted":
+        errors.append(f"{label}.contentOrigin does not prove ghosted identity")
+    return errors
+
+
+def _validate_reference_denominator_row(
+    row: Any,
+    label: str,
+    expected_run_id: str,
+    volume: dict[str, Any],
+    registry: dict[str, Any],
+) -> list[str]:
+    errors = exact_key_errors(row, REFERENCE_DENOMINATOR_KEYS, label)
+    if errors:
+        return errors
+    assert isinstance(row, dict)
+    errors.extend(_enum_errors(row.get("applicability"), REFERENCE_APPLICABILITY, f"{label}.applicability"))
+    errors.extend(
+        _enum_errors(
+            row.get("runtimeCounterexampleState"),
+            REFERENCE_COUNTEREXAMPLE_STATES,
+            f"{label}.runtimeCounterexampleState",
+        )
+    )
+    errors.extend(
+        _enum_errors(
+            row.get("expectedCountState"), REFERENCE_EXPECTED_COUNT_STATES, f"{label}.expectedCountState"
+        )
+    )
+    errors.extend(
+        _enum_errors(row.get("terminalOutcome"), DISCOVERY_TERMINAL_OUTCOMES, f"{label}.terminalOutcome")
+    )
+    errors.extend(_integer_errors(row.get("expectedCount"), f"{label}.expectedCount", nullable=True))
+    for key in ["observedCount", "paginationOutstandingTokenCount"]:
+        errors.extend(_integer_errors(row.get(key), f"{label}.{key}"))
+    if not isinstance(row.get("continuationRemaining"), bool):
+        errors.append(f"{label}.continuationRemaining must be a boolean")
+    errors.extend(_string_list_errors(row.get("evidenceRefs"), f"{label}.evidenceRefs"))
+    if row.get("expectedCountState") == "Unknown" and row.get("expectedCount") is not None:
+        errors.append(f"{label}.expectedCount must be null when expectedCountState is Unknown")
+    if row.get("expectedCountState") == "Known" and row.get("expectedCount") is None:
+        errors.append(f"{label}.expectedCount is required when expectedCountState is Known")
+    bindings = {
+        "surfaceContractVersion": "aspx-surface-applicability-denominator/v3",
+        "acquisitionRunId": expected_run_id,
+        "snapshotFence": volume.get("snapshotFence"),
+        "scopeAuthorityHash": volume.get("scopeAuthorityHash"),
+        "platformBuildRef": volume.get("platformBuild"),
+        "registryRevision": registry.get("registryRevision"),
+        "registryHash": registry.get("registryHash"),
+        "artifactRunId": expected_run_id,
+    }
+    for key, expected in bindings.items():
+        if row.get(key) != expected:
+            errors.append(f"{label}.{key} does not match the reference volume")
+    return errors
+
+
+def _validate_reference_pagination_row(row: Any, label: str) -> list[str]:
+    errors = exact_key_errors(row, REFERENCE_PAGINATION_KEYS, label)
+    if errors:
+        return errors
+    assert isinstance(row, dict)
+    for key in ["collectionScopeKey", "authorityRevision", "actualEndpointHash", "responseDigest", "receivedAtUtc"]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}"))
+    for key in ["requestTokenHash", "nextTokenHash"]:
+        errors.extend(_string_errors(row.get(key), f"{label}.{key}", nullable=True))
+    for key in ["pageOrdinal", "responseItemCount"]:
+        errors.extend(_integer_errors(row.get(key), f"{label}.{key}"))
+    if not isinstance(row.get("terminalFlag"), bool):
+        errors.append(f"{label}.terminalFlag must be a boolean")
+    return errors
+
+
+def _validate_reference_output_document(
+    document: Any,
+    expected_run_id: str,
+    volume: dict[str, Any],
+    registry: dict[str, Any],
+) -> list[str]:
+    errors = exact_key_errors(document, REFERENCE_OUTPUT_KEYS, "reference output")
+    if errors:
+        return errors
+    assert isinstance(document, dict)
+    if not SHA256_RE.fullmatch(str(document.get("manifestHash"))):
+        errors.append("reference output.manifestHash must be SHA-256")
+    errors.extend(
+        _enum_errors(document.get("coverageVerdict"), REFERENCE_VERDICTS, "reference output.coverageVerdict")
+    )
+    errors.extend(
+        _rows_errors(
+            document.get("references"),
+            "reference output.references",
+            lambda row, label: _validate_reference_observation_row(row, label, volume, registry),
+        )
+    )
+    errors.extend(
+        _rows_errors(
+            document.get("denominator"),
+            "reference output.denominator",
+            lambda row, label: _validate_reference_denominator_row(
+                row, label, expected_run_id, volume, registry
+            ),
+        )
+    )
+    errors.extend(
+        _rows_errors(
+            document.get("paginationReceipts"),
+            "reference output.paginationReceipts",
+            _validate_reference_pagination_row,
+        )
+    )
+    errors.extend(_string_list_errors(document.get("gapCodes"), "reference output.gapCodes"))
+    return errors
+
+
+def _validate_store_enum_column(
+    connection: sqlite3.Connection,
+    table: str,
+    column: str,
+    allowed: set[str],
+    run_id: str,
+    nullable: bool = False,
+) -> list[str]:
+    errors: list[str] = []
+    for row_id, value in connection.execute(
+        f'SELECT rowid, "{column}" FROM "{table}" WHERE RunId=?', (run_id,)
+    ):
+        if value is None and nullable:
+            continue
+        if value not in allowed:
+            errors.append(f"{table}[rowid={row_id}].{column} has an unsupported value")
+    return errors
+
+
+def _validate_physical_store_rows(
+    connection: sqlite3.Connection,
+    run_id: str,
+    output_document: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    run_row = connection.execute(
+        "SELECT ExecutionStatus, Verdict FROM DiscoveryRuns WHERE RunId=?", (run_id,)
+    ).fetchone()
+    if run_row is None:
+        return ["DiscoveryRuns has no matching run"]
+    if run_row[0] not in DISCOVERY_EXECUTION_STATUSES:
+        errors.append("DiscoveryRuns.ExecutionStatus has an unsupported value")
+    if run_row[1] not in DISCOVERY_VERDICTS:
+        errors.append("DiscoveryRuns.Verdict has an unsupported value")
+    if output_document.get("executionStatus") != run_row[0]:
+        errors.append("physical output executionStatus does not match DiscoveryRuns")
+    if output_document.get("coverageVerdict") != run_row[1]:
+        errors.append("physical output coverageVerdict does not match DiscoveryRuns")
+    specifications = [
+        ("DiscoveryScopes", "Kind", DISCOVERY_SCOPE_KINDS, False),
+        ("DiscoveryScopes", "SourceKind", PHYSICAL_SOURCE_KINDS, True),
+        ("DiscoveryScopes", "Outcome", DISCOVERY_TERMINAL_OUTCOMES, False),
+        ("DiscoveryChildEnumerations", "ChildKind", DISCOVERY_SCOPE_KINDS, False),
+        ("DiscoveryChildEnumerations", "Outcome", DISCOVERY_TERMINAL_OUTCOMES, False),
+        ("DiscoveryExpectedChildren", "ChildKind", DISCOVERY_SCOPE_KINDS, False),
+        ("DiscoveryExpectedChildren", "SourceKind", PHYSICAL_SOURCE_KINDS, True),
+        ("DiscoveryAttempts", "SourceKind", PHYSICAL_SOURCE_KINDS, False),
+        ("DiscoveryAttempts", "Status", DISCOVERY_ATTEMPT_STATUSES, False),
+        ("DiscoveryObservations", "SourceKind", PHYSICAL_SOURCE_KINDS, False),
+        ("DiscoveryGaps", "SourceKind", PHYSICAL_SOURCE_KINDS, False),
+    ]
+    for table, column, allowed, nullable in specifications:
+        errors.extend(
+            _validate_store_enum_column(connection, table, column, allowed, run_id, nullable)
+        )
+    return errors
+
+
+def _validate_reference_store_rows(
+    connection: sqlite3.Connection,
+    run_id: str,
+    output_document: dict[str, Any],
+    volume: dict[str, Any],
+    registry: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    output_reference_ids = {
+        row.get("referenceObservationId")
+        for row in output_document.get("references", [])
+        if isinstance(row, dict)
+    }
+    store_reference_ids: set[str] = set()
+    for observation_id, payload in connection.execute(
+        "SELECT ObservationId, Json FROM ReferenceObservations WHERE RunId=?", (run_id,)
+    ):
+        store_reference_ids.add(str(observation_id))
+        try:
+            row = json.loads(payload)
+        except (TypeError, json.JSONDecodeError) as error:
+            errors.append(f"ReferenceObservations[{observation_id}].Json is invalid: {error}")
+            continue
+        errors.extend(
+            _validate_reference_observation_row(
+                row, f"ReferenceObservations[{observation_id}]", volume, registry
+            )
+        )
+        if isinstance(row, dict) and row.get("referenceObservationId") != observation_id:
+            errors.append(f"ReferenceObservations[{observation_id}] identity does not match Json")
+    if output_reference_ids != store_reference_ids:
+        errors.append("reference output observations do not match ReferenceObservations snapshot")
+
+    output_surface_ids = {
+        row.get("surfaceId")
+        for row in output_document.get("denominator", [])
+        if isinstance(row, dict)
+    }
+    store_surface_ids: set[str] = set()
+    for surface_id, payload in connection.execute(
+        "SELECT SurfaceId, Json FROM ReferenceDenominator WHERE RunId=?", (run_id,)
+    ):
+        store_surface_ids.add(str(surface_id))
+        try:
+            row = json.loads(payload)
+        except (TypeError, json.JSONDecodeError) as error:
+            errors.append(f"ReferenceDenominator[{surface_id}].Json is invalid: {error}")
+            continue
+        errors.extend(
+            _validate_reference_denominator_row(
+                row, f"ReferenceDenominator[{surface_id}]", run_id, volume, registry
+            )
+        )
+        if isinstance(row, dict) and row.get("surfaceId") != surface_id:
+            errors.append(f"ReferenceDenominator[{surface_id}] identity does not match Json")
+    if output_surface_ids != store_surface_ids:
+        errors.append("reference output denominator does not match ReferenceDenominator snapshot")
+
+    output_pagination = {
+        (row.get("collectionScopeKey"), row.get("pageOrdinal"))
+        for row in output_document.get("paginationReceipts", [])
+        if isinstance(row, dict)
+    }
+    store_pagination: set[tuple[Any, Any]] = set()
+    for scope_key, ordinal, payload in connection.execute(
+        "SELECT ScopeKey, PageOrdinal, Json FROM ReferencePaginationReceipts WHERE RunId=?", (run_id,)
+    ):
+        store_pagination.add((scope_key, ordinal))
+        try:
+            row = json.loads(payload)
+        except (TypeError, json.JSONDecodeError) as error:
+            errors.append(f"ReferencePaginationReceipts[{scope_key},{ordinal}].Json is invalid: {error}")
+            continue
+        errors.extend(
+            _validate_reference_pagination_row(
+                row, f"ReferencePaginationReceipts[{scope_key},{ordinal}]"
+            )
+        )
+        if isinstance(row, dict) and (
+            row.get("collectionScopeKey") != scope_key or row.get("pageOrdinal") != ordinal
+        ):
+            errors.append(f"ReferencePaginationReceipts[{scope_key},{ordinal}] identity does not match Json")
+    if output_pagination != store_pagination:
+        errors.append("reference output pagination does not match ReferencePaginationReceipts snapshot")
+
+    output_gaps = set(output_document.get("gapCodes", []))
+    store_gaps = {
+        str(row[0])
+        for row in connection.execute("SELECT GapCode FROM ReferenceGaps WHERE RunId=?", (run_id,))
+    }
+    if output_gaps != store_gaps:
+        errors.append("reference output gapCodes do not match ReferenceGaps snapshot")
+    return errors
+
+
 def _validate_output_artifact(
     volume: dict[str, Any],
     artifact_bytes: bytes | None,
     expected_run_field: str,
     expected_run_id: str,
-) -> tuple[str | None, list[str]]:
+    registry: dict[str, Any],
+) -> tuple[str | None, list[str], dict[str, Any] | None]:
     if artifact_bytes is None:
-        return "ARTIFACT_EVIDENCE_MISSING", ["actual output artifact bytes are missing"]
+        return "ARTIFACT_EVIDENCE_MISSING", ["actual output artifact bytes are missing"], None
     actual_hash = hashlib.sha256(artifact_bytes).hexdigest()
     if volume.get("artifactHash") != actual_hash:
-        return "VOLUME_HASH_MISMATCH", ["declared artifactHash does not match actual bytes"]
+        return "VOLUME_HASH_MISMATCH", ["declared artifactHash does not match actual bytes"], None
     if volume.get("artifactLength") != len(artifact_bytes):
-        return "VOLUME_LENGTH_MISMATCH", ["declared artifactLength does not match actual bytes"]
+        return "VOLUME_LENGTH_MISMATCH", ["declared artifactLength does not match actual bytes"], None
     try:
         document = json.loads(artifact_bytes)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        return "VOLUME_CONTENT_MISMATCH", [f"output artifact is not valid JSON: {error}"]
+        return "VOLUME_CONTENT_MISMATCH", [f"output artifact is not valid JSON: {error}"], None
+    if not isinstance(document, dict):
+        return "VOLUME_CONTENT_MISMATCH", ["output artifact root must be an object"], None
     if document.get("outputVersion") != volume.get("outputVersion"):
-        return "VOLUME_CONTENT_MISMATCH", ["actual outputVersion does not match volume binding"]
+        return "VOLUME_CONTENT_MISMATCH", ["actual outputVersion does not match volume binding"], None
     if document.get(expected_run_field) != expected_run_id:
-        return "VOLUME_CONTENT_MISMATCH", ["actual acquisition run ID does not match envelope"]
-    return None, []
+        return "VOLUME_CONTENT_MISMATCH", ["actual acquisition run ID does not match envelope"], None
+    if volume.get("outputVersion") == VOLUME_COMPATIBILITY["physicalOutput"]:
+        errors = _validate_physical_output_document(document)
+    elif volume.get("outputVersion") == VOLUME_COMPATIBILITY["referenceOutput"]:
+        errors = _validate_reference_output_document(document, expected_run_id, volume, registry)
+    else:
+        errors = ["actual outputVersion has no version-bound content validator"]
+    if errors:
+        return "VOLUME_CONTENT_MISMATCH", errors, None
+    return None, [], document
 
 
 def _validate_store_artifact(
@@ -695,6 +1450,7 @@ def _validate_store_artifact(
     volume: dict[str, Any],
     registry: dict[str, Any],
     reference_store: bool,
+    output_document: dict[str, Any],
 ) -> tuple[str | None, list[str]]:
     if database_bytes is None:
         return "ARTIFACT_EVIDENCE_MISSING", ["actual SQLite store bytes are missing"]
@@ -715,17 +1471,23 @@ def _validate_store_artifact(
                 ]
             if reference_store:
                 row = connection.execute(
-                    "SELECT ManifestJson, ManifestHash, OutputVersion "
+                    "SELECT ManifestJson, ManifestHash, OutputVersion, CoverageVerdict "
                     "FROM ReferenceRuns WHERE RunId=?",
                     (run_id,),
                 ).fetchone()
+                row_errors = _validate_reference_store_rows(
+                    connection, run_id, output_document, volume, registry
+                )
             else:
                 row = connection.execute(
                     "SELECT ManifestJson, ManifestHash FROM DiscoveryRuns WHERE RunId=?",
                     (run_id,),
                 ).fetchone()
+                row_errors = _validate_physical_store_rows(connection, run_id, output_document)
     except sqlite3.DatabaseError as error:
         return "STORE_INTEGRITY_FAILURE", [f"SQLite store cannot be read: {error}"]
+    if row_errors:
+        return "STORE_ROW_CONTENT_MISMATCH", row_errors
     if row is None:
         return "STORE_MANIFEST_MISMATCH", ["SQLite store has no run manifest for acquisition run ID"]
     manifest_json, manifest_hash = row[0], row[1]
@@ -744,6 +1506,14 @@ def _validate_store_artifact(
     if reference_store:
         if row[2] != volume.get("outputVersion"):
             return "STORE_MANIFEST_MISMATCH", ["SQLite reference OutputVersion is incompatible"]
+        if row[3] != output_document.get("coverageVerdict"):
+            return "OUTPUT_STORE_MANIFEST_MISMATCH", [
+                "reference output coverageVerdict does not match ReferenceRuns"
+            ]
+        if output_document.get("manifestHash") != manifest_hash:
+            return "OUTPUT_STORE_MANIFEST_MISMATCH", [
+                "reference output manifestHash does not match ReferenceRuns"
+            ]
         required_bindings = {
             "scopeAuthorityHash": volume.get("scopeAuthorityHash"),
             "registryRevision": registry.get("registryRevision"),
@@ -845,23 +1615,28 @@ def validate_acquisition_envelope(
         return {"verdict": "Unknown", "reasonCode": "VOLUME_BUILD_MISMATCH"}
 
     evidence = artifact_evidence or {}
+    output_documents: dict[str, dict[str, Any]] = {}
     for volume, evidence_key, run_field in [
         (physical, "physicalOutput", "runId"),
         (reference, "referenceOutput", "acquisitionRunId"),
     ]:
-        reason, errors = _validate_output_artifact(
+        reason, errors, document = _validate_output_artifact(
             volume,
             evidence.get(evidence_key),
             run_field,
             str(envelope.get("runId")),
+            registry,
         )
         if reason:
             return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
+        assert document is not None
+        output_documents[evidence_key] = document
 
-    for volume, evidence_key, store_version, schema_hash, reference_store in [
+    for volume, evidence_key, output_key, store_version, schema_hash, reference_store in [
         (
             physical,
             "physicalStore",
+            "physicalOutput",
             VOLUME_COMPATIBILITY["physicalStore"],
             ARTIFACT_VERIFICATION["physicalStoreSchemaHash"],
             False,
@@ -869,6 +1644,7 @@ def validate_acquisition_envelope(
         (
             reference,
             "referenceStore",
+            "referenceOutput",
             VOLUME_COMPATIBILITY["referenceStore"],
             ARTIFACT_VERIFICATION["referenceStoreSchemaHash"],
             True,
@@ -883,6 +1659,7 @@ def validate_acquisition_envelope(
             volume,
             registry,
             reference_store,
+            output_documents[output_key],
         )
         if reason:
             return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
@@ -1109,6 +1886,14 @@ def evaluate_fixture_suite(
                 actual_hash = hashlib.sha256(case_evidence[evidence_key]).hexdigest()
                 acquisition[volume_key]["artifactHash"] = actual_hash
                 acquisition[f"{volume_name}ArtifactHash"] = actual_hash
+            for volume_name in case.get("rebindActualArtifact", []):
+                evidence_key = f"{volume_name}Output"
+                volume_key = f"{volume_name}Volume"
+                actual_bytes = case_evidence[evidence_key]
+                actual_hash = hashlib.sha256(actual_bytes).hexdigest()
+                acquisition[volume_key]["artifactHash"] = actual_hash
+                acquisition[volume_key]["artifactLength"] = len(actual_bytes)
+                acquisition[f"{volume_name}ArtifactHash"] = actual_hash
             for store_name in case.get("rebindStoreManifestHash", []):
                 evidence_key = f"{store_name}Store"
                 volume_key = f"{store_name}Volume"
@@ -1192,7 +1977,7 @@ def evaluate_fixture_suite(
             }
         )
     return {
-        "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v2",
+        "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v3",
         "registryRevision": registry["registryRevision"],
         "registryHash": registry["registryHash"],
         "profileRevision": profile["profileRevision"],

@@ -11,14 +11,14 @@ generated from Assessment results, CUPCollect paths, or a tenant scan.
 - SPO.Core tag: `release/16.0.27606.12000`
 - Supported platform family: `SharePointOnline-16`
 - Supported build: exactly `16.0.27606.12000`
-- Registry revision: `spo-online-16.0.27606.12000-r3`
+- Registry revision: `spo-online-16.0.27606.12000-r4`
 - Registry canonical hash:
-  `61180a9ff5aa3b61ce614bd8faecb2713e40780ccdf55d5ddde174d5a54dfd6d`
-- Profile revision: `spo-online-16.0.27606.12000-profile-r2`
+  `c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146`
+- Profile revision: `spo-online-16.0.27606.12000-profile-r3`
 - Profile canonical hash:
-  `1e39ac4999034c9a44b98bb6a8f08364dc1a7113255623740e74fa21ab76a8ae`
+  `b1502cf265032930b895b04ee55a8ce98c7e8e5d447f65790f9c9f6f850142a8`
 - Registry schema SHA-256:
-  `f599f5816d8fc4413409a37300a415a8c3add5a2415485afc6702f53a5e5b175`
+  `a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d`
 
 The shipping authority is the `otools/deploy/*.xml` `File` destinations below
 `Web Server Extensions\16\TEMPLATE\LAYOUTS` that end in `.aspx`. The bounded
@@ -113,20 +113,58 @@ The reader additionally requires actual artifact handles. It computes SHA-256
 and byte length from both output files, parses their exact output version and
 run ID, opens both SQLite stores read-only, requires `PRAGMA integrity_check`
 and `foreign_key_check`, computes a semantic
-`sqlite-schema-manifest/v1` hash, and verifies the stored run manifest JSON and
-manifest hash. A self-consistent envelope with invented hashes, stale lengths,
-an injected reference table in physical v2, a missing reference-v1 table, or a
-rewritten SQLite manifest therefore returns `Unknown`. The frozen store schema
-hashes are:
+`sqlite-schema-manifest/v2` hash, verifies exact-version typed rows, and verifies
+the stored run manifest JSON and manifest hash. The v2 schema projection uses
+`table_xinfo`, includes hidden/generated-column state, preserves a quote-aware
+normalized `sqlite_schema.sql` definition, and records the explicit partial
+index `WHERE` predicate. It is a finite fail-closed projection for the pinned
+Assessment producer DDL, not a claim of general SQL semantic equivalence.
+
+The JSON gate validates the complete `AspxDiscoveryOutputV2` and
+`AspxReferenceOutputV1` root/row/enum shapes. The store gate rejects physical
+rows with reference-only source kinds, validates serialized reference rows,
+denominator rows and pagination rows, and requires the reference output
+`manifestHash` and coverage verdict to match the same `ReferenceRuns` row.
+Invalid JSON root types return `Unknown`; they do not escape as parser or
+attribute exceptions.
+
+A self-consistent envelope with invented hashes, stale lengths, an injected
+reference table in physical v2, a changed partial-index predicate, a generated
+reference column, typed row pollution, a missing reference-v1 table, or a
+rewritten/drifted SQLite manifest therefore returns `Unknown`. The frozen store
+schema hashes are:
 
 - physical `aspx-discovery-sqlite/v2`:
-  `d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2`
+  `899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504`
 - reference `aspx-reference-sqlite/v1`:
-  `7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d`
+  `73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec`
 
 The committed fixture artifacts are intentionally small synthetic data, not a
 tenant capture. Their SHA-256/length pairs are bound in
-`fixtures/contract-cases.json` and repeated in the v2 receipt.
+`fixtures/contract-cases.json` and repeated in the v3 receipt. The 54-case
+suite includes the CCD-423/CCD-449 changed-predicate, generated-column,
+physical/reference row pollution, output/store manifest drift and JSON-array
+root counterexamples.
+
+## Assessment adapter conformance
+
+The exact Assessment consumer source is
+`3012555317d5a8ee981b9e103206f3f0680333d8`. Its public product shape
+`AspxAcquisitionVerdictV1` is not serialized directly as this tool's richer
+reader test envelope. `fixtures/contract-cases.json` therefore identifies two
+separate shapes and freezes the adapter mapping:
+
+- `AcquisitionRunId` -> reader `runId`;
+- volume `Sha256` -> aggregate plus per-volume `artifactHash`;
+- volume `Length` -> per-volume `artifactLength`;
+- `PlatformBuildRef` -> `platformBuild`;
+- `SealedAtUtc` -> `asOfUtc`.
+
+The adapter must also supply the companion store bindings from the same run.
+The validator then reads the actual output/store artifacts; metadata mapping by
+itself never proves compatibility. The fixture provenance names the exact C#
+types and `Initialize*` schema sources, while the 1,211 authority entries remain
+derived only from the frozen SPO.Core ref.
 
 Explicit paths use ordinal-ignore-case matching. Versionless
 `/_layouts/<path>` aliases normalize to `/_layouts/15/<path>`. The generator

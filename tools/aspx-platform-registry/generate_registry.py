@@ -27,8 +27,8 @@ from typing import Any, Iterable
 SCHEMA_VERSION = "aspx-platform-registry/v1"
 AUTHORITY_SCHEMA_VERSION = "aspx-platform-authority/v1"
 PROFILE_SCHEMA_VERSION = "aspx-platform-registry-profile/v1"
-REGISTRY_REVISION = "spo-online-16.0.27606.12000-r3"
-PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r2"
+REGISTRY_REVISION = "spo-online-16.0.27606.12000-r4"
+PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r3"
 PLATFORM_FAMILY = "SharePointOnline-16"
 PLATFORM_BUILD = "16.0.27606.12000"
 AUTHORITY_REF = "cee0ed61136e17c742c1cf98c9dea9446f10c564"
@@ -43,16 +43,16 @@ EXPECTED_AUTHORITY_ARTIFACT_HASH = (
     "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab"
 )
 EXPECTED_REGISTRY_HASH = (
-    "61180a9ff5aa3b61ce614bd8faecb2713e40780ccdf55d5ddde174d5a54dfd6d"
+    "c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146"
 )
 EXPECTED_REGISTRY_SCHEMA_HASH = (
-    "f599f5816d8fc4413409a37300a415a8c3add5a2415485afc6702f53a5e5b175"
+    "a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d"
 )
 EXPECTED_CONSUMER_COMPATIBILITY_HASH = (
-    "719607c59627968c4ff9d83896bfade6cb61bc0e13855bbf99e82394cb658636"
+    "7a38a2b1e643637d2e6a8e34d41e3784416238519bc99e526d74ac4b65435e7a"
 )
 EXPECTED_PROFILE_HASH = (
-    "1e39ac4999034c9a44b98bb6a8f08364dc1a7113255623740e74fa21ab76a8ae"
+    "b1502cf265032930b895b04ee55a8ce98c7e8e5d447f65790f9c9f6f850142a8"
 )
 
 REFERENCE_RECORD_KIND = "AspxReferenceObservation"
@@ -85,12 +85,15 @@ ARTIFACT_VERIFICATION = {
     "actualOutputBytes": "Required",
     "actualOutputLength": "Required",
     "jsonOutputVersion": "Exact",
+    "jsonTypedContent": "ExactVersionedConformance",
     "acquisitionRunId": "Exact",
     "sqliteIntegrityCheck": "Required",
-    "sqliteSchemaManifestAlgorithm": "sqlite-schema-manifest/v1",
-    "physicalStoreSchemaHash": "d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2",
-    "referenceStoreSchemaHash": "7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d",
+    "sqliteSchemaManifestAlgorithm": "sqlite-schema-manifest/v2",
+    "physicalStoreSchemaHash": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504",
+    "referenceStoreSchemaHash": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec",
+    "sqliteTypedRows": "ExactVersionedConformance",
     "sqliteRunManifestHash": "Required",
+    "outputStoreManifestBinding": "Required",
 }
 FAILURE_SEMANTICS = {
     "unknownBuild": "Unknown",
@@ -112,7 +115,9 @@ FAILURE_SEMANTICS = {
     "volumeContentMismatch": "Unknown",
     "storeIntegrityFailure": "Unknown",
     "storeSchemaMismatch": "Unknown",
+    "storeRowContentMismatch": "Unknown",
     "storeManifestMismatch": "Unknown",
+    "outputStoreManifestMismatch": "Unknown",
     "volumeRefMismatch": "Unknown",
     "volumeFenceMismatch": "Unknown",
     "volumeBuildMismatch": "Unknown",
@@ -159,7 +164,96 @@ def discovery_hash(*values: str | None) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def normalize_sql_definition(sql: str | None) -> str | None:
+    """Normalize supported producer DDL without rewriting quoted SQL content.
+
+    The v2 fingerprint is deliberately fail-closed rather than a general SQL
+    equivalence algorithm. It normalizes line endings and collapses whitespace
+    only outside string/identifier quotes. Keyword case, punctuation, quoted
+    identifiers and literal values remain exact.
+    """
+    if sql is None:
+        return None
+    source = sql.replace("\r\n", "\n").replace("\r", "\n").strip()
+    normalized: list[str] = []
+    quote: str | None = None
+    pending_space = False
+    index = 0
+    while index < len(source):
+        character = source[index]
+        if quote is not None:
+            normalized.append(character)
+            if quote == "[":
+                if character == "]":
+                    if index + 1 < len(source) and source[index + 1] == "]":
+                        normalized.append(source[index + 1])
+                        index += 1
+                    else:
+                        quote = None
+            elif character == quote:
+                if index + 1 < len(source) and source[index + 1] == quote:
+                    normalized.append(source[index + 1])
+                    index += 1
+                else:
+                    quote = None
+        elif character in {"'", '"', "`", "["}:
+            if pending_space and normalized:
+                normalized.append(" ")
+            pending_space = False
+            quote = character
+            normalized.append(character)
+        elif character.isspace():
+            pending_space = True
+        else:
+            if pending_space and normalized:
+                normalized.append(" ")
+            pending_space = False
+            normalized.append(character)
+        index += 1
+    return "".join(normalized)
+
+
+def sqlite_where_predicate(definition_sql: str | None) -> str | None:
+    normalized = normalize_sql_definition(definition_sql)
+    if normalized is None:
+        return None
+    quote: str | None = None
+    index = 0
+    while index < len(normalized):
+        character = normalized[index]
+        if quote is not None:
+            if quote == "[":
+                if character == "]":
+                    if index + 1 < len(normalized) and normalized[index + 1] == "]":
+                        index += 1
+                    else:
+                        quote = None
+            elif character == quote:
+                if index + 1 < len(normalized) and normalized[index + 1] == quote:
+                    index += 1
+                else:
+                    quote = None
+        elif character in {"'", '"', "`", "["}:
+            quote = character
+        elif normalized[index : index + 5].casefold() == "where":
+            previous = normalized[index - 1] if index else " "
+            following = normalized[index + 5] if index + 5 < len(normalized) else " "
+            if not (previous.isalnum() or previous == "_") and not (
+                following.isalnum() or following == "_"
+            ):
+                return normalized[index + 5 :].strip()
+        index += 1
+    return None
+
+
 def sqlite_schema_manifest(connection: sqlite3.Connection) -> dict[str, Any]:
+    definitions = {
+        (row[0], row[1]): normalize_sql_definition(row[2])
+        for row in connection.execute(
+            "SELECT type, name, sql FROM sqlite_schema "
+            "WHERE type IN ('table','index') AND name NOT LIKE 'sqlite_%'"
+        )
+    }
     table_names = [
         row[0]
         for row in connection.execute(
@@ -178,11 +272,14 @@ def sqlite_schema_manifest(connection: sqlite3.Connection) -> dict[str, Any]:
                 "notNull": bool(row[3]),
                 "defaultValue": row[4],
                 "primaryKeyOrdinal": row[5],
+                "hidden": row[6],
             }
-            for row in connection.execute(f"PRAGMA table_info({quoted_table})")
+            for row in connection.execute(f"PRAGMA table_xinfo({quoted_table})")
         ]
         foreign_keys = [
             {
+                "id": row[0],
+                "sequence": row[1],
                 "table": row[2],
                 "from": row[3],
                 "to": row[4],
@@ -195,6 +292,7 @@ def sqlite_schema_manifest(connection: sqlite3.Connection) -> dict[str, Any]:
         tables.append(
             {
                 "name": table_name,
+                "definitionSql": definitions.get(("table", table_name)),
                 "columns": columns,
                 "foreignKeys": foreign_keys,
             }
@@ -204,6 +302,7 @@ def sqlite_schema_manifest(connection: sqlite3.Connection) -> dict[str, Any]:
             quoted_index = '"' + index_name.replace('"', '""') + '"'
             index_columns = [
                 {
+                    "sequence": row[0],
                     "columnId": row[1],
                     "name": row[2],
                     "descending": bool(row[3]),
@@ -219,12 +318,16 @@ def sqlite_schema_manifest(connection: sqlite3.Connection) -> dict[str, Any]:
                     "unique": bool(index_row[2]),
                     "origin": index_row[3],
                     "partial": bool(index_row[4]),
+                    "definitionSql": definitions.get(("index", index_name)),
+                    "wherePredicateSql": sqlite_where_predicate(
+                        definitions.get(("index", index_name))
+                    ),
                     "columns": index_columns,
                 }
             )
     indexes.sort(key=lambda row: (row["table"], row["name"]))
     return {
-        "algorithm": "sqlite-schema-manifest/v1",
+        "algorithm": "sqlite-schema-manifest/v2",
         "tables": tables,
         "indexes": indexes,
     }

@@ -20,7 +20,9 @@ from generate_registry import (  # noqa: E402
     VOLUME_COMPATIBILITY,
     canonical_json_bytes,
     canonical_utc_from_epoch,
+    normalize_sql_definition,
     sqlite_schema_manifest,
+    sqlite_where_predicate,
 )
 from validate_registry import (  # noqa: E402
     apply_artifact_mutation,
@@ -170,6 +172,89 @@ class RegistryContractTests(unittest.TestCase):
                     connection.close()
                 self.assertEqual(expected_hash, actual_hash)
 
+    def test_sqlite_schema_manifest_v2_binds_predicates_and_generated_columns(self) -> None:
+        source_sql = (self.fixture_root / "sql" / "physical-store-v2.sql").read_text(
+            encoding="utf-8"
+        )
+        baseline = sqlite3.connect(":memory:")
+        changed_predicate = sqlite3.connect(":memory:")
+        generated_column = sqlite3.connect(":memory:")
+        try:
+            for connection in [baseline, changed_predicate, generated_column]:
+                connection.executescript(source_sql)
+            changed_predicate.execute("DROP INDEX UX_DiscoveryAttempts_Active")
+            changed_predicate.execute(
+                "CREATE UNIQUE INDEX UX_DiscoveryAttempts_Active "
+                "ON DiscoveryAttempts(RunId, ScopeKey, SourceKind) WHERE Status='Finished'"
+            )
+            generated_column.execute(
+                "ALTER TABLE DiscoveryInventory ADD COLUMN ReferenceDerived TEXT "
+                "GENERATED ALWAYS AS (FileName) VIRTUAL"
+            )
+
+            def accepts_two_running_attempts(connection: sqlite3.Connection) -> bool:
+                try:
+                    for suffix in ["one", "two"]:
+                        connection.execute(
+                            "INSERT INTO DiscoveryAttempts "
+                            "(AttemptId, RunId, ScopeKey, SourceKind, Status, StartedUtc) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            (
+                                "attempt-" + suffix,
+                                "11111111-2222-3333-4444-555555555555",
+                                "scope",
+                                "RawListLibraryFiles",
+                                "Running",
+                                "2026-09-10T00:00:00Z",
+                            ),
+                        )
+                except sqlite3.IntegrityError:
+                    return False
+                return True
+
+            baseline_accepts_duplicate = accepts_two_running_attempts(baseline)
+            changed_accepts_duplicate = accepts_two_running_attempts(changed_predicate)
+            manifests = [
+                sqlite_schema_manifest(connection)
+                for connection in [baseline, changed_predicate, generated_column]
+            ]
+        finally:
+            baseline.close()
+            changed_predicate.close()
+            generated_column.close()
+        hashes = [
+            hashlib.sha256(canonical_json_bytes(manifest)).hexdigest()
+            for manifest in manifests
+        ]
+        self.assertEqual("sqlite-schema-manifest/v2", manifests[0]["algorithm"])
+        self.assertFalse(baseline_accepts_duplicate)
+        self.assertTrue(changed_accepts_duplicate)
+        self.assertNotEqual(hashes[0], hashes[1])
+        self.assertNotEqual(hashes[0], hashes[2])
+        active_index = next(
+            index
+            for index in manifests[0]["indexes"]
+            if index["name"] == "UX_DiscoveryAttempts_Active"
+        )
+        self.assertEqual("Status='Running'", active_index["wherePredicateSql"])
+        generated_table = next(
+            table
+            for table in manifests[2]["tables"]
+            if table["name"] == "DiscoveryInventory"
+        )
+        generated = next(
+            column for column in generated_table["columns"] if column["name"] == "ReferenceDerived"
+        )
+        self.assertNotEqual(0, generated["hidden"])
+
+    def test_sql_normalization_preserves_quoted_content(self) -> None:
+        sql = "  CREATE  INDEX ix ON t(value)  WHERE value = 'A  B'  "
+        self.assertEqual(
+            "CREATE INDEX ix ON t(value) WHERE value = 'A  B'",
+            normalize_sql_definition(sql),
+        )
+        self.assertEqual("value = 'A  B'", sqlite_where_predicate(sql))
+
     def test_fixture_coverage_closes_all_wire_enums(self) -> None:
         positive_observations = [
             case["observation"]
@@ -183,6 +268,25 @@ class RegistryContractTests(unittest.TestCase):
         self.assertEqual(
             set(DISPOSITIONS),
             {row["disposition"] for row in positive_observations},
+        )
+
+    def test_assessment_adapter_conformance_is_version_bound(self) -> None:
+        provenance = self.fixtures["fixtureProvenance"]
+        self.assertEqual(
+            "3012555317d5a8ee981b9e103206f3f0680333d8",
+            provenance["assessmentConsumerSourceRef"],
+        )
+        self.assertEqual("aspx-acquisition-verdict/v1", provenance["consumerWireShape"])
+        self.assertEqual(
+            "aspx-platform-registry-reader-envelope/v1", provenance["readerShape"]
+        )
+        self.assertEqual(
+            "physicalArtifactHash+physicalVolume.artifactHash",
+            provenance["adapterMapping"]["physicalVolume.sha256"],
+        )
+        self.assertEqual(
+            "referenceArtifactHash+referenceVolume.artifactHash",
+            provenance["adapterMapping"]["referenceVolume.sha256"],
         )
 
     def test_git_commit_time_is_canonicalized_independent_of_client_spelling(self) -> None:

@@ -6,34 +6,46 @@
     },
     "physicalStore": {
       "length": 126976,
-      "schemaManifestHash": "d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2",
+      "schemaManifestHash": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504",
       "sha256": "5f923940f3ebfd2790be9495881388726b6798bc3da091968a9af5c65944d075"
     },
     "referenceOutput": {
       "length": 335,
-      "sha256": "b79159290788b24b1896dcb9bf8ee5a2a4b535e815af864b2419de1386179572"
+      "sha256": "c2617b89c4a8b1bd91f727f03e47285803b9b4c2e2d3e74dbc17bd1f2f16655f"
     },
     "referenceStore": {
       "length": 45056,
-      "schemaManifestHash": "7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d",
-      "sha256": "cd77fd211d80fc32c2e4cd58bc7818d34c1f41bb53e805fcf33c91e1561e731f"
+      "schemaManifestHash": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec",
+      "sha256": "c4afa6f510a690bcf83ecbc2c9db9776786d85b46bfd2413ecc191ff75fb6d4c"
     }
   },
-  "caseCount": 45,
+  "caseCount": 54,
   "fixtureProvenance": {
+    "adapterMapping": {
+      "acquisitionRunId": "runId",
+      "physicalVolume.length": "physicalVolume.artifactLength",
+      "physicalVolume.sha256": "physicalArtifactHash+physicalVolume.artifactHash",
+      "platformBuildRef": "platformBuild",
+      "referenceVolume.length": "referenceVolume.artifactLength",
+      "referenceVolume.sha256": "referenceArtifactHash+referenceVolume.artifactHash",
+      "sealedAtUtc": "asOfUtc"
+    },
+    "aggregateOutputContractSource": "src/PnP.Scanning/PnP.Scanning.Core/Discovery/AspxAcquisitionContracts.cs#AspxAcquisitionVerdictV1",
     "assessmentConsumerSourceRef": "3012555317d5a8ee981b9e103206f3f0680333d8",
+    "consumerWireShape": "aspx-acquisition-verdict/v1",
     "physicalOutputContractSource": "src/PnP.Scanning/PnP.Scanning.Core/Discovery/AspxDiscoveryRunner.cs",
     "physicalStoreSchemaSource": "src/PnP.Scanning/PnP.Scanning.Core/Discovery/DiscoveryStore.cs#InitializeSchema",
+    "readerShape": "aspx-platform-registry-reader-envelope/v1",
     "referenceOutputContractSource": "src/PnP.Scanning/PnP.Scanning.Core/Discovery/AspxAcquisitionContracts.cs#AspxReferenceOutputV1",
     "referenceStoreSchemaSource": "src/PnP.Scanning/PnP.Scanning.Core/Discovery/AspxReferenceStore.cs#Initialize"
   },
-  "passCount": 45,
-  "profileHash": "1e39ac4999034c9a44b98bb6a8f08364dc1a7113255623740e74fa21ab76a8ae",
-  "profileRevision": "spo-online-16.0.27606.12000-profile-r2",
-  "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v2",
-  "registryHash": "61180a9ff5aa3b61ce614bd8faecb2713e40780ccdf55d5ddde174d5a54dfd6d",
-  "registryRevision": "spo-online-16.0.27606.12000-r3",
-  "registrySchemaHash": "f599f5816d8fc4413409a37300a415a8c3add5a2415485afc6702f53a5e5b175",
+  "passCount": 54,
+  "profileHash": "b1502cf265032930b895b04ee55a8ce98c7e8e5d447f65790f9c9f6f850142a8",
+  "profileRevision": "spo-online-16.0.27606.12000-profile-r3",
+  "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v3",
+  "registryHash": "c3727376779b7dcd52743edd0ea0a3c773a56c7bf913d4772ae1a4f787144146",
+  "registryRevision": "spo-online-16.0.27606.12000-r4",
+  "registrySchemaHash": "a0f3d3e4659797e987263a8e678cd607dd44fee96812b21c66d4a42724824c1d",
   "results": [
     {
       "actualReasonCode": "REGISTRY_MATCH",
@@ -44,7 +56,7 @@
       "expectedReasonCode": "REGISTRY_MATCH",
       "expectedVerdict": "ReferenceOnlyAvailable",
       "id": "Q1",
-      "inputHash": "d68172a4cd601c8670ea51c7dfe7f18e2e9bf05eab91275f504d886868a7c930",
+      "inputHash": "3007a25745ecd26d84b27c30612e8a1d40fd67c2e9340ce2bf4dd432efb3aa2e",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -58,7 +70,7 @@
       "expectedReasonCode": "REGISTRY_MATCH",
       "expectedVerdict": "ReferenceOnlyAvailable",
       "id": "Q2",
-      "inputHash": "94aece1e5592bf1cab7fbe59be8d508328af2047027f868efa372a0882c03496",
+      "inputHash": "8ca41d1d59f4301029795e0a917745ff837d8f36ace88e7d773b84590e3ecd0d",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -72,7 +84,7 @@
       "expectedReasonCode": "REGISTRY_MATCH",
       "expectedVerdict": "ReferenceUnavailable",
       "id": "Q5",
-      "inputHash": "2b85fd744a434c07633687bdf6f7db954dc470851ba444d19ed6d5391805aef6",
+      "inputHash": "c408bd1e593df0daedf997d4af46822135de95b6aeac708b2010d89a76478e75",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -184,7 +196,7 @@
       "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
       "expectedVerdict": "Unknown",
       "id": "F1-WIDENED-RANGE",
-      "inputHash": "bfb3a303bd44fbf037616b17d735ae010c4f87e790e807f85a32d1ea77b98f4d",
+      "inputHash": "77d76ced238b6e820d6c6378aa70bfcaa14891c2a1892bbab12476ca32348eb5",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -198,7 +210,7 @@
       "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
       "expectedVerdict": "Unknown",
       "id": "F2-SOURCE-KINDS",
-      "inputHash": "c94db8e03f4857b1f72593ff8224c445c130575860c28bd38464e0d6331c50df",
+      "inputHash": "d815157303850ee515e1858efd20a85de49d1dac1fdb2b368a620e5bad7c4b89",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -212,7 +224,7 @@
       "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
       "expectedVerdict": "Unknown",
       "id": "F2-VOLUME-PROFILE",
-      "inputHash": "7edf63683e61df47aefe60056e92f8b99952b55d8ea955cac430a073d2e9e026",
+      "inputHash": "b735dd648adf69fdcc2252a612dfaa950dc2889ff47f2ded3ed7851e56b2074b",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -221,12 +233,12 @@
       "actualReasonCode": "REGISTRY_SCHEMA_INVALID",
       "actualVerdict": "Unknown",
       "artifactMutation": "emptyFailureSemanticsAndRehash",
-      "errorCount": 24,
+      "errorCount": 26,
       "evidenceMutation": null,
       "expectedReasonCode": "REGISTRY_SCHEMA_INVALID",
       "expectedVerdict": "Unknown",
       "id": "F2-FAILURE-SEMANTICS",
-      "inputHash": "4e755454a0b8bec6440c5d8af51cfe973502ff2a8628300d617f11a25fd989d6",
+      "inputHash": "2feb417997d37cae5868c035f66c04b91086313a56aba38c21043fa2f39ea61e",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -240,7 +252,7 @@
       "expectedReasonCode": "REGISTRY_PROFILE_INVALID",
       "expectedVerdict": "Unknown",
       "id": "F4-SCHEMA-HASH",
-      "inputHash": "91b4e4876233fc885271d56a0300a29217da022be87b10d57d1cc5a63ea47f13",
+      "inputHash": "5187780658a24126ae32d77a5456afb37d07934055cf11e201c72ee16af3608c",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -254,7 +266,7 @@
       "expectedReasonCode": "UNKNOWN_PLATFORM_BUILD",
       "expectedVerdict": "Unknown",
       "id": "R1",
-      "inputHash": "3ca08bf84ef06e2457683cd46cee3d7d454e1a07e7e27b7ad0546b27480f3b6a",
+      "inputHash": "90b7aa8b19637063ceb99bb16671b4b1c630338cc282b67398adfa78ff3363b6",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -268,7 +280,7 @@
       "expectedReasonCode": "SAME_REVISION_CHANGED_HASH",
       "expectedVerdict": "Unknown",
       "id": "R2",
-      "inputHash": "bd287473fd0f4245224df7e2b3e9fdb06414dc50a211fd48841f3b6b25a64676",
+      "inputHash": "080e2e913c2cae441e550d80d10785eeeaa906e9f344be4f149a86ceae1dbe41",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -282,7 +294,7 @@
       "expectedReasonCode": "ALIAS_COLLISION",
       "expectedVerdict": "Unknown",
       "id": "R3",
-      "inputHash": "9c4f53497cbac0993b5e84effcdeb41a2ddf63d4853d911bd106e2c0cc97b117",
+      "inputHash": "d17ade63b2258728a87e0a6506d86c77de6ed544ac2af45ad320861fdfe5cf41",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -296,7 +308,7 @@
       "expectedReasonCode": "RUNTIME_PATH_ABSENT",
       "expectedVerdict": "Unknown",
       "id": "R4",
-      "inputHash": "b9f2aa700d019b554a8049da3ddd714d3bb57a475253fbe40b8c7bfc8f3beb24",
+      "inputHash": "08fe6222ae5235de29504e1d2b670dfc5df2d4741aeb8c5d11d7d362b4becbba",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -310,7 +322,7 @@
       "expectedReasonCode": "REGISTRY_VOLUME_MISSING",
       "expectedVerdict": "Unknown",
       "id": "R5",
-      "inputHash": "88e6c2588c352278f919f442ec2cf67d7edf4899789565c315fbe8ece134570d",
+      "inputHash": "068457b1b48892cb2440f49b6a8b22cfed17475f981702ffdd1e609e58acea6d",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -394,7 +406,7 @@
       "expectedReasonCode": "REFERENCE_COMPLETENESS_UNSUPPORTED",
       "expectedVerdict": "Unknown",
       "id": "V1",
-      "inputHash": "c1431def255f45e91a16f9529308a6dff5dc32817f794105c60b0939998b1e3c",
+      "inputHash": "b5c470abb5dc45d70d55d17e6e0833488b9e9f4f9a50ea77b104a1391f43ed42",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -408,7 +420,7 @@
       "expectedReasonCode": "REFERENCE_VOLUME_MISSING",
       "expectedVerdict": "Unknown",
       "id": "V2",
-      "inputHash": "8208991561e1224c88fb3de339931eda646a133dfa81eb9d4e4c151e6329d2a2",
+      "inputHash": "7b732ff303d9f349d103957d8921bb3ce447cbf04fd51c0a1b8db72897de2b94",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -422,7 +434,7 @@
       "expectedReasonCode": "VOLUME_HASH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V3",
-      "inputHash": "008fec185f8d788b422eef95521675ce77ed1514db2b80823c47cc841a2ddd35",
+      "inputHash": "2d0323a9a651e2df194110b65c3cb44caa47bb9ce4cacb564ad6dd9dfb08a93a",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -436,7 +448,7 @@
       "expectedReasonCode": "VOLUME_HASH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V3-REFERENCE-HASH-REBIND-WITHOUT-BYTES",
-      "inputHash": "a2be772df40f7e600f33f94f84782696d9f52f89517c734faa22a984ac50b5b8",
+      "inputHash": "678c7273ad8bcfd77f6c2650366977a5c97b75bc13c60da9067817fb7ef96967",
       "kind": "readerRequest",
       "operationCount": 2,
       "passed": true
@@ -450,7 +462,7 @@
       "expectedReasonCode": "VOLUME_HASH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V3-PHYSICAL-ACTUAL-BYTES",
-      "inputHash": "8236e7fb1e5ed26a0c17afd0a809267e3ada606cd2d9980dc69aa4d17f16d591",
+      "inputHash": "85dece6c16e77838e56801653955d36626f2e811d1ca11370a28846fc5b0b2c2",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -464,7 +476,7 @@
       "expectedReasonCode": "VOLUME_HASH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V3-REFERENCE-ACTUAL-BYTES",
-      "inputHash": "47ac3680f421647b5142928f7c29479267279afaf735e05ddd54c5320ebba100",
+      "inputHash": "6cfb4af5dbe53b5d29bf5e7e94abcd0d276434909f77f28599ef1321986974d2",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -478,7 +490,7 @@
       "expectedReasonCode": "VOLUME_LENGTH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V3-PHYSICAL-ACTUAL-LENGTH",
-      "inputHash": "d7f22e127d1b87cdc732fdca9d30065c71b9815c647b5adf2db56b1f0d55e9ea",
+      "inputHash": "e2d2adc56b9790a7aaaf0a2836b59780a6b7d8fa71ad16b455585800f8aead86",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -492,7 +504,7 @@
       "expectedReasonCode": "VOLUME_LENGTH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V3-REFERENCE-ACTUAL-LENGTH",
-      "inputHash": "769f242ed69864ab1ee26b78d3b64512ce342b997ccb07be611f862a5c641c18",
+      "inputHash": "4bd3e56fdcea5126d91dfbd50819e38cf232f3c797d067abc7e9a004b825c49f",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -506,7 +518,7 @@
       "expectedReasonCode": "VOLUME_LENGTH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V3-REFERENCE-ACTUAL-HASH-REBOUND-LENGTH-STALE",
-      "inputHash": "34759debc8217466944ae1090cd016f0061d0146c557841fd88272d7b8e5e7af",
+      "inputHash": "c06d0c25e7a2b935b8293798b810ad811f7b3ce74e55e48005758b23974e207f",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -534,7 +546,7 @@
       "expectedReasonCode": "VOLUME_FENCE_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V5",
-      "inputHash": "d49ddf8213d56ccb8b6d1b68200abc756240344cc9a9c042bc488fdfc999179e",
+      "inputHash": "8ca81390ca74b4d1d7cdf95b308b3df158229387f74e4ab12da6c4d5caee1dc9",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -548,7 +560,7 @@
       "expectedReasonCode": "VOLUME_REF_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V6",
-      "inputHash": "4c0b64bfba135a829f6802905cbadbbdc4bed2e329954a377c35cadd0e6539cc",
+      "inputHash": "e36e96d6da705cea29079d1e00a4be2586e0892f31cc75c381b01ffd559e6fc0",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -562,7 +574,7 @@
       "expectedReasonCode": "PHYSICAL_VOLUME_SHAPE_INVALID",
       "expectedVerdict": "Unknown",
       "id": "V7-OUTPUT",
-      "inputHash": "9336800fc6c92f0ec619eeb5369bb83e834c5b73e655f3a0707ccf30c3864881",
+      "inputHash": "2c76743e3022f759c6772205b46673f89d1a959763905d2cc1981f6c20504f22",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -576,7 +588,7 @@
       "expectedReasonCode": "PHYSICAL_STORE_SHAPE_INVALID",
       "expectedVerdict": "Unknown",
       "id": "V7-SQLITE-SHAPE",
-      "inputHash": "dc8fbe55d355e43c2f5d5126372d0df271c607b694619ba802a6ca0f2eaf7012",
+      "inputHash": "55001cadbe640a4d1d9c28a801370a4420b94e6d795f19f4eac7c487ffbc1bac",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -590,7 +602,7 @@
       "expectedReasonCode": "UNSUPPORTED_STORE_VERSION",
       "expectedVerdict": "Unknown",
       "id": "V7-SQLITE-VERSION",
-      "inputHash": "ab25ca8826b58d822fb605cf5ee5c1d0f38ea3ae58b8bb58f76d59bd2cf3d8ed",
+      "inputHash": "057ba5bbd52c927add96ff55b80ff953bbb23b0859c338aada3e3d75b1a141a0",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -604,7 +616,7 @@
       "expectedReasonCode": "STORE_MANIFEST_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V7-PHYSICAL-STORE-MANIFEST",
-      "inputHash": "9b39e5c878824df8db7ba6c233c81d7cd32875bf948c2e24765a8ae3e4051e9e",
+      "inputHash": "2cefa1e87bd1d31692556a5718c70d790fa6613db00302182529c08ffa310254",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -618,7 +630,7 @@
       "expectedReasonCode": "STORE_MANIFEST_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V7-REFERENCE-STORE-MANIFEST",
-      "inputHash": "b4ffe536cc6956c15b37e4ea54488fc8b92f5904d4ee0f304cf0c590ada454c7",
+      "inputHash": "e72deca4f4cd474a9c54b519873f7d5dddb09ab7abf6bf46ea1a9497341e067d",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -632,7 +644,7 @@
       "expectedReasonCode": "STORE_SCHEMA_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V7-PHYSICAL-SQLITE-REFERENCE-TABLE",
-      "inputHash": "05fed0c6aead6aa1d5995a773963bd85d5841d8c096625d894c8ab8c66786c6d",
+      "inputHash": "f80552c133c6bfae2dd45ef0beaf04706ad4f73470134568f02b991385dc21ad",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -646,7 +658,7 @@
       "expectedReasonCode": "STORE_SCHEMA_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V7-REFERENCE-SQLITE-MISSING-TABLE",
-      "inputHash": "6bf8b63e7d93b39b549c5c1e750c0100db36a92da335d738e7beaf577a6f343b",
+      "inputHash": "0192b65af8cdfd7b88945a1de98d9247c5179fe47cbe2e747ff9b67185cbd665",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -660,7 +672,133 @@
       "expectedReasonCode": "STORE_MANIFEST_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V7-REFERENCE-STORE-MANIFEST-REBIND",
-      "inputHash": "73835ebecc19dedbf26fddc9920d148fd3f5d4f67ef3231acc066b01e4a46fde",
+      "inputHash": "0612ffb085243f8d788897b301c7cb3561aaa50bc205913727f20722b7b79041",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "STORE_SCHEMA_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "changePhysicalPartialIndexPredicate",
+      "expectedReasonCode": "STORE_SCHEMA_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-SCHEMA-PARTIAL-INDEX-PREDICATE",
+      "inputHash": "4a62317681426f3eacfcfe08c6de70d60061ac2cbf4b151413f891da62d8d1e7",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "STORE_SCHEMA_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "addPhysicalGeneratedReferenceColumn",
+      "expectedReasonCode": "STORE_SCHEMA_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-SCHEMA-GENERATED-COLUMN",
+      "inputHash": "213bd9d3775b4d069caade602c628e20db4ae36b87474a922d3ce66dc04f1157",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "addPhysicalReferenceRowsField",
+      "expectedReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-PHYSICAL-OUTPUT-REFERENCE-FIELD",
+      "inputHash": "d270a32f110b75a9d09d46727ff8451c3c998be35d4fd1a3968a260ae8479b66",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 2,
+      "evidenceMutation": "addPhysicalReferenceObservation",
+      "expectedReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-PHYSICAL-OUTPUT-REFERENCE-ROW",
+      "inputHash": "e6a4a756e3899f0444495fbd2f789465afdff0152c89cb0c971544e30f27a9fd",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "addReferenceUnknownSourceKind",
+      "expectedReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-REFERENCE-OUTPUT-UNKNOWN-SOURCE",
+      "inputHash": "93015fed612716a3b61c746ec20c1cb98d650ebfc82b2b7e903a7f8340901db1",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "OUTPUT_STORE_MANIFEST_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "driftReferenceOutputManifestHash",
+      "expectedReasonCode": "OUTPUT_STORE_MANIFEST_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-REFERENCE-OUTPUT-STORE-MANIFEST-DRIFT",
+      "inputHash": "95e604edec9d139b6d98fc6daac349bf77ecb233cb956f117d11cb24cbbd4e3a",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "STORE_ROW_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "addPhysicalReferenceSourceKindRow",
+      "expectedReasonCode": "STORE_ROW_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-PHYSICAL-STORE-REFERENCE-SOURCE",
+      "inputHash": "8a7de07c113b8c8a40ce736d67c5aa8fdb79766bb186e3c0cad03de46504d680",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "STORE_ROW_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 3,
+      "evidenceMutation": "addReferenceUnknownSourceKindRow",
+      "expectedReasonCode": "STORE_ROW_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-REFERENCE-STORE-UNKNOWN-SOURCE",
+      "inputHash": "9c3be1cbf46476f84f8e08aa0b7e1e1067f67b15a9ffd0785228e4682263ba4f",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "replacePhysicalOutputWithArray",
+      "expectedReasonCode": "VOLUME_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "F3-PHYSICAL-OUTPUT-ARRAY-ROOT",
+      "inputHash": "4dc3f2df46fa2663e666fc899ded5e67dae836c0375112da9be8f3e2241e0b89",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true

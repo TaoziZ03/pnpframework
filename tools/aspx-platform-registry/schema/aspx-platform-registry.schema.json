@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ccd:pnp:aspx-platform-registry:spo-online-16.0.27606.12000:r3",
+  "$id": "urn:ccd:pnp:aspx-platform-registry:spo-online-16.0.27606.12000:r4",
   "title": "SharePoint setup and virtual ASPX platform registry",
   "type": "object",
   "additionalProperties": false,
@@ -31,7 +31,7 @@
   "properties": {
     "$schema": { "const": "../schema/aspx-platform-registry.schema.json" },
     "registrySchemaVersion": { "const": "aspx-platform-registry/v1" },
-    "registryRevision": { "const": "spo-online-16.0.27606.12000-r3" },
+    "registryRevision": { "const": "spo-online-16.0.27606.12000-r4" },
     "registryHash": { "$ref": "#/$defs/sha256" },
     "authorityKind": { "const": "SPOCoreReleaseShippingManifest" },
     "authoritySourceRef": { "const": "cee0ed61136e17c742c1cf98c9dea9446f10c564" },
@@ -101,7 +101,9 @@
         "volumeContentMismatch",
         "storeIntegrityFailure",
         "storeSchemaMismatch",
+        "storeRowContentMismatch",
         "storeManifestMismatch",
+        "outputStoreManifestMismatch",
         "volumeRefMismatch",
         "volumeFenceMismatch",
         "volumeBuildMismatch",
@@ -127,7 +129,9 @@
         "volumeContentMismatch": { "const": "Unknown" },
         "storeIntegrityFailure": { "const": "Unknown" },
         "storeSchemaMismatch": { "const": "Unknown" },
+        "storeRowContentMismatch": { "const": "Unknown" },
         "storeManifestMismatch": { "const": "Unknown" },
+        "outputStoreManifestMismatch": { "const": "Unknown" },
         "volumeRefMismatch": { "const": "Unknown" },
         "volumeFenceMismatch": { "const": "Unknown" },
         "volumeBuildMismatch": { "const": "Unknown" },
@@ -187,23 +191,29 @@
         "actualOutputBytes",
         "actualOutputLength",
         "jsonOutputVersion",
+        "jsonTypedContent",
         "acquisitionRunId",
         "sqliteIntegrityCheck",
         "sqliteSchemaManifestAlgorithm",
         "physicalStoreSchemaHash",
         "referenceStoreSchemaHash",
-        "sqliteRunManifestHash"
+        "sqliteTypedRows",
+        "sqliteRunManifestHash",
+        "outputStoreManifestBinding"
       ],
       "properties": {
         "actualOutputBytes": { "const": "Required" },
         "actualOutputLength": { "const": "Required" },
         "jsonOutputVersion": { "const": "Exact" },
+        "jsonTypedContent": { "const": "ExactVersionedConformance" },
         "acquisitionRunId": { "const": "Exact" },
         "sqliteIntegrityCheck": { "const": "Required" },
-        "sqliteSchemaManifestAlgorithm": { "const": "sqlite-schema-manifest/v1" },
-        "physicalStoreSchemaHash": { "const": "d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2" },
-        "referenceStoreSchemaHash": { "const": "7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d" },
-        "sqliteRunManifestHash": { "const": "Required" }
+        "sqliteSchemaManifestAlgorithm": { "const": "sqlite-schema-manifest/v2" },
+        "physicalStoreSchemaHash": { "const": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504" },
+        "referenceStoreSchemaHash": { "const": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec" },
+        "sqliteTypedRows": { "const": "ExactVersionedConformance" },
+        "sqliteRunManifestHash": { "const": "Required" },
+        "outputStoreManifestBinding": { "const": "Required" }
       }
     },
     "consumerCompatibility": {
