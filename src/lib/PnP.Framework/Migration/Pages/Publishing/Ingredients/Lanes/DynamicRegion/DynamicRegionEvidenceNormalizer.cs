@@ -162,6 +162,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
             var newestSource = sources.Length == 0 ? default : sources.Max(value => value.ObservedAtUtc);
             var oldestTarget = targets.Length == 0 ? default : targets.Min(value => value.ObservedAtUtc);
             var targetBound = IsTargetBound(context, source, target);
+            var targetEvidenceReferences = evidence.TargetEvidenceReferences?.Where(value =>
+                !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToList()
+                ?? new List<string>();
+            var targetReferencesBound = target?.EvidenceReferences?.Where(value =>
+                !string.IsNullOrWhiteSpace(value)).All(value => targetEvidenceReferences.Contains(value, StringComparer.Ordinal)) == true;
             var substituted = evidence.HistoricalOrSyntheticSubstitution
                 || observations.Any(value => value.Origin == IngredientObservationOrigin.Historical
                     || value.Origin == IngredientObservationOrigin.Synthetic);
@@ -172,6 +177,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                 TargetFreshReadback = evidence.TargetFreshReadback
                     && targetMatches
                     && targetBound
+                    && targetReferencesBound
                     && !substituted
                     && oldestTarget != default
                     && oldestTarget >= newestSource
@@ -179,7 +185,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                 HistoricalOrSyntheticSubstitution = substituted,
                 Observations = observations,
                 SourceEvidenceReferences = evidence.SourceEvidenceReferences?.ToList() ?? new List<string>(),
-                TargetEvidenceReferences = evidence.TargetEvidenceReferences?.ToList() ?? new List<string>()
+                TargetEvidenceReferences = targetEvidenceReferences
             };
         }
 
@@ -310,6 +316,38 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
             });
         }
 
+        public static string ComputeTargetEvidenceBindingDigest(
+            DynamicRegionSourceEvidence source,
+            DynamicRegionTargetEvidence target)
+        {
+            if (source == null || target == null)
+            {
+                return null;
+            }
+
+            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(new
+            {
+                sourcePageIdentity = CreateSourceIdentity(source),
+                sourceArtifactDigest = source.SourceArtifactSha256,
+                sourceSemanticDigest = source.SemanticDigest,
+                targetProfile = target.TargetProfile,
+                targetIdentity = target.TargetIdentity,
+                targetPageIdentity = CreateTargetPageIdentity(target),
+                sourceProviderIngredientId = target.SourceProviderIngredientId,
+                sourceProviderInstanceId = target.SourceProviderInstanceId,
+                targetProviderInstanceId = target.TargetProviderInstanceId,
+                providerMappingDigest = target.ProviderMappingDigest,
+                reviewedProviderPlanDigest = target.ReviewedProviderPlanDigest,
+                reviewedProviderActionId = target.ReviewedProviderActionId,
+                observedAtUtc = target.ObservedAtUtc,
+                evidenceReferences = (target.EvidenceReferences ?? Array.Empty<string>())
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(value => value, StringComparer.Ordinal)
+                    .ToArray()
+            }));
+        }
+
         private static bool IsTargetBound(
             IngredientMaturityEvaluationContext context,
             DynamicRegionSourceEvidence source,
@@ -332,6 +370,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
                 && source != null
                 && target.ObservedAtUtc >= source.ObservedAtUtc
                 && string.Equals(target.ProviderMappingDigest, ComputeTargetMappingDigest(source, target), StringComparison.OrdinalIgnoreCase)
+                && IsSha256(target.TargetEvidenceBindingDigest)
+                && string.Equals(target.TargetEvidenceBindingDigest, ComputeTargetEvidenceBindingDigest(source, target), StringComparison.OrdinalIgnoreCase)
                 && target.EvidenceReferences?.Any(value => !string.IsNullOrWhiteSpace(value)) == true;
         }
 

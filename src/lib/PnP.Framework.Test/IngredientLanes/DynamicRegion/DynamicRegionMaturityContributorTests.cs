@@ -118,6 +118,63 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
             Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
         }
 
+        [DataTestMethod]
+        [DataRow("target-unique-id")]
+        [DataRow("target-version")]
+        [DataRow("target-provider-instance")]
+        [DataRow("reviewed-provider-plan")]
+        [DataRow("reviewed-provider-action")]
+        [DataRow("target-observed-at")]
+        public void TargetReadbackAndProviderHandoffMutationsFailClosedAtM1(string mutation)
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            var legacyMappingDigest = DynamicRegionEvidenceNormalizer.ComputeTargetMappingDigest(
+                fixture.Evidence.Source,
+                fixture.Evidence.Target);
+            var frozenBindingDigest = fixture.Evidence.Target.TargetEvidenceBindingDigest;
+
+            fixture.Mutate(mutation);
+
+            Assert.AreEqual(legacyMappingDigest, DynamicRegionEvidenceNormalizer.ComputeTargetMappingDigest(
+                fixture.Evidence.Source,
+                fixture.Evidence.Target));
+            Assert.AreNotEqual(frozenBindingDigest, DynamicRegionEvidenceNormalizer.ComputeTargetEvidenceBindingDigest(
+                fixture.Evidence.Source,
+                fixture.Evidence.Target));
+            var assessment = fixture.Evaluate();
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
+        [TestMethod]
+        public void FixtureBindsCompleteTargetReadbackAndReviewedProviderHandoff()
+        {
+            var fixture = Fixture.Create();
+
+            Assert.AreEqual(
+                fixture.Evidence.Target.TargetEvidenceBindingDigest,
+                DynamicRegionEvidenceNormalizer.ComputeTargetEvidenceBindingDigest(
+                    fixture.Evidence.Source,
+                    fixture.Evidence.Target));
+        }
+
+        [TestMethod]
+        public void MatchingValuesWithoutProviderHandoffReferencesFailClosedAtM1()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMatchingTargetObservations();
+            fixture.Evidence.Live.TargetEvidenceReferences.Clear();
+            fixture.Evidence.Live.TargetEvidenceReferences.Add("cupcollect-runtime.json");
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+        }
+
         [TestMethod]
         public void BorrowedForeignPlanCannotCloseM3()
         {
@@ -447,6 +504,10 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                 }
                 Evidence.Live.TargetFreshReadback = true;
                 Evidence.Live.TargetEvidenceReferences.Add("cupcollect-runtime.json");
+                foreach (var reference in Evidence.Target.EvidenceReferences)
+                {
+                    Evidence.Live.TargetEvidenceReferences.Add(reference);
+                }
             }
 
             public void Mutate(string mutation)
@@ -489,6 +550,29 @@ namespace PnP.Framework.Test.IngredientLanes.DynamicRegion
                             value.Origin == IngredientObservationOrigin.CupCollectFreshReadback))
                         {
                             target.Origin = IngredientObservationOrigin.Historical;
+                        }
+                        break;
+                    case "target-unique-id":
+                        Evidence.Target.UniqueId = "11111111-1111-1111-1111-111111111111";
+                        break;
+                    case "target-version":
+                        Evidence.Target.TargetVersion = "\"{11111111-1111-1111-1111-111111111111},2\"";
+                        break;
+                    case "target-provider-instance":
+                        Evidence.Target.TargetProviderInstanceId = "22222222-2222-2222-2222-222222222222";
+                        break;
+                    case "reviewed-provider-plan":
+                        Evidence.Target.ReviewedProviderPlanDigest = new string('b', 64);
+                        break;
+                    case "reviewed-provider-action":
+                        Evidence.Target.ReviewedProviderActionId += ":foreign";
+                        break;
+                    case "target-observed-at":
+                        Evidence.Target.ObservedAtUtc = Evidence.Target.ObservedAtUtc.AddMinutes(1);
+                        foreach (var target in Evidence.Live.Observations.Where(value =>
+                            value.Origin == IngredientObservationOrigin.CupCollectFreshReadback))
+                        {
+                            target.ObservedAtUtc = Evidence.Target.ObservedAtUtc;
                         }
                         break;
                     case "corrupt-raw-artifact":

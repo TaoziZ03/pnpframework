@@ -97,6 +97,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
 
         public string ProviderMappingDigest { get; set; }
 
+        public string TargetEvidenceBindingDigest { get; set; }
+
         public string ReviewedProviderPlanDigest { get; set; }
 
         public string ReviewedProviderActionId { get; set; }
