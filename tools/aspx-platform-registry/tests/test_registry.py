@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import sqlite3
 import sys
 import unittest
 from pathlib import Path
@@ -10,18 +12,24 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from generate_registry import (  # noqa: E402
+    ARTIFACT_VERIFICATION,
     DISPOSITIONS,
     FAILURE_SEMANTICS,
     PLATFORM_BUILD,
     SOURCE_KINDS,
     VOLUME_COMPATIBILITY,
+    canonical_json_bytes,
     canonical_utc_from_epoch,
+    sqlite_schema_manifest,
 )
 from validate_registry import (  # noqa: E402
     apply_artifact_mutation,
+    artifact_evidence_summary,
     artifact_sha256,
+    evaluate_registry_request,
     evaluate_fixture_suite,
     load_json,
+    load_fixture_artifact_evidence,
     schema_validation_errors,
     validate_authority,
     validate_profile,
@@ -48,6 +56,7 @@ class RegistryContractTests(unittest.TestCase):
         )
         cls.schema_hash = artifact_sha256(cls.schema_path)
         cls.fixtures = load_json(ROOT / "fixtures" / "contract-cases.json")
+        cls.fixture_root = ROOT / "fixtures"
 
     def test_registry_authority_profile_and_schemas_are_valid(self) -> None:
         self.assertEqual([], schema_validation_errors(self.registry, self.schema))
@@ -106,10 +115,60 @@ class RegistryContractTests(unittest.TestCase):
             self.profile,
             self.schema,
             self.schema_hash,
+            self.fixture_root,
         )
         failures = [row for row in receipts["results"] if not row["passed"]]
         self.assertEqual([], failures)
         self.assertEqual(receipts["caseCount"], receipts["passCount"])
+
+    def test_actual_output_and_sqlite_fixture_evidence_is_bound(self) -> None:
+        evidence, errors = load_fixture_artifact_evidence(
+            self.fixtures["artifactBindings"], self.fixture_root
+        )
+        self.assertEqual([], errors)
+        summary = artifact_evidence_summary(evidence)
+        for key, descriptor in self.fixtures["artifactBindings"].items():
+            self.assertEqual(descriptor["sha256"], summary[key]["sha256"])
+            self.assertEqual(descriptor["length"], summary[key]["length"])
+        self.assertEqual(
+            ARTIFACT_VERIFICATION["physicalStoreSchemaHash"],
+            summary["physicalStore"]["schemaManifestHash"],
+        )
+        self.assertEqual(
+            ARTIFACT_VERIFICATION["referenceStoreSchemaHash"],
+            summary["referenceStore"]["schemaManifestHash"],
+        )
+
+    def test_reader_fails_closed_without_actual_artifact_evidence(self) -> None:
+        actual = evaluate_registry_request(
+            self.registry,
+            self.profile,
+            self.fixtures["readerTemplate"],
+            self.authority,
+            self.schema,
+            self.schema_hash,
+        )
+        self.assertEqual("Unknown", actual["verdict"])
+        self.assertEqual("ARTIFACT_EVIDENCE_MISSING", actual["reasonCode"])
+
+    def test_sql_sources_recreate_the_frozen_store_schema_manifests(self) -> None:
+        cases = {
+            "physical-store-v2.sql": ARTIFACT_VERIFICATION["physicalStoreSchemaHash"],
+            "reference-store-v1.sql": ARTIFACT_VERIFICATION["referenceStoreSchemaHash"],
+        }
+        for sql_name, expected_hash in cases.items():
+            with self.subTest(sql=sql_name):
+                connection = sqlite3.connect(":memory:")
+                try:
+                    connection.executescript(
+                        (self.fixture_root / "sql" / sql_name).read_text(encoding="utf-8")
+                    )
+                    actual_hash = hashlib.sha256(
+                        canonical_json_bytes(sqlite_schema_manifest(connection))
+                    ).hexdigest()
+                finally:
+                    connection.close()
+                self.assertEqual(expected_hash, actual_hash)
 
     def test_fixture_coverage_closes_all_wire_enums(self) -> None:
         positive_observations = [

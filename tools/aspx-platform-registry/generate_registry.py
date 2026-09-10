@@ -15,8 +15,10 @@ import copy
 import hashlib
 import json
 import re
+import sqlite3
 import subprocess
 from collections import defaultdict
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -25,8 +27,8 @@ from typing import Any, Iterable
 SCHEMA_VERSION = "aspx-platform-registry/v1"
 AUTHORITY_SCHEMA_VERSION = "aspx-platform-authority/v1"
 PROFILE_SCHEMA_VERSION = "aspx-platform-registry-profile/v1"
-REGISTRY_REVISION = "spo-online-16.0.27606.12000-r2"
-PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r1"
+REGISTRY_REVISION = "spo-online-16.0.27606.12000-r3"
+PROFILE_REVISION = "spo-online-16.0.27606.12000-profile-r2"
 PLATFORM_FAMILY = "SharePointOnline-16"
 PLATFORM_BUILD = "16.0.27606.12000"
 AUTHORITY_REF = "cee0ed61136e17c742c1cf98c9dea9446f10c564"
@@ -41,16 +43,16 @@ EXPECTED_AUTHORITY_ARTIFACT_HASH = (
     "abc94b76db09297c83e3d77cc7e20f0897425451b10e8bbeefa53ad1525882ab"
 )
 EXPECTED_REGISTRY_HASH = (
-    "1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680"
+    "61180a9ff5aa3b61ce614bd8faecb2713e40780ccdf55d5ddde174d5a54dfd6d"
 )
 EXPECTED_REGISTRY_SCHEMA_HASH = (
-    "85a2f0664c90d7fe5dfe013bcb938438d6f5e688888fada57bfef28ec2f9cfd2"
+    "f599f5816d8fc4413409a37300a415a8c3add5a2415485afc6702f53a5e5b175"
 )
 EXPECTED_CONSUMER_COMPATIBILITY_HASH = (
-    "ab5dd734ec7a7b40edaa0b5b8ff20be0bb60f863b76f8def3a30ec93581df2d1"
+    "719607c59627968c4ff9d83896bfade6cb61bc0e13855bbf99e82394cb658636"
 )
 EXPECTED_PROFILE_HASH = (
-    "62283f038be997244cda11552e51a4974a62815653dcb9e025356c642de4e79f"
+    "1e39ac4999034c9a44b98bb6a8f08364dc1a7113255623740e74fa21ab76a8ae"
 )
 
 REFERENCE_RECORD_KIND = "AspxReferenceObservation"
@@ -79,6 +81,17 @@ VOLUME_COMPATIBILITY = {
     "referenceStore": "aspx-reference-sqlite/v1",
     "aggregateOutput": "aspx-acquisition-verdict/v1",
 }
+ARTIFACT_VERIFICATION = {
+    "actualOutputBytes": "Required",
+    "actualOutputLength": "Required",
+    "jsonOutputVersion": "Exact",
+    "acquisitionRunId": "Exact",
+    "sqliteIntegrityCheck": "Required",
+    "sqliteSchemaManifestAlgorithm": "sqlite-schema-manifest/v1",
+    "physicalStoreSchemaHash": "d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2",
+    "referenceStoreSchemaHash": "7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d",
+    "sqliteRunManifestHash": "Required",
+}
 FAILURE_SEMANTICS = {
     "unknownBuild": "Unknown",
     "missingRegistryVolume": "Unknown",
@@ -93,7 +106,13 @@ FAILURE_SEMANTICS = {
     "unsupportedOutputVersion": "Unknown",
     "unsupportedContractVersion": "Unknown",
     "unsupportedStoreVersion": "Unknown",
+    "missingArtifactEvidence": "Unknown",
     "volumeHashMismatch": "Unknown",
+    "volumeLengthMismatch": "Unknown",
+    "volumeContentMismatch": "Unknown",
+    "storeIntegrityFailure": "Unknown",
+    "storeSchemaMismatch": "Unknown",
+    "storeManifestMismatch": "Unknown",
     "volumeRefMismatch": "Unknown",
     "volumeFenceMismatch": "Unknown",
     "volumeBuildMismatch": "Unknown",
@@ -131,6 +150,92 @@ def object_hash(value: dict[str, Any], hash_field: str) -> str:
 
 def artifact_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def discovery_hash(*values: str | None) -> str:
+    canonical = "|".join(
+        f"{len(value or '')}:{value or ''}" for value in values
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def sqlite_schema_manifest(connection: sqlite3.Connection) -> dict[str, Any]:
+    table_names = [
+        row[0]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        )
+    ]
+    tables: list[dict[str, Any]] = []
+    indexes: list[dict[str, Any]] = []
+    for table_name in table_names:
+        quoted_table = '"' + table_name.replace('"', '""') + '"'
+        columns = [
+            {
+                "name": row[1],
+                "type": (row[2] or "").upper(),
+                "notNull": bool(row[3]),
+                "defaultValue": row[4],
+                "primaryKeyOrdinal": row[5],
+            }
+            for row in connection.execute(f"PRAGMA table_info({quoted_table})")
+        ]
+        foreign_keys = [
+            {
+                "table": row[2],
+                "from": row[3],
+                "to": row[4],
+                "onUpdate": row[5],
+                "onDelete": row[6],
+                "match": row[7],
+            }
+            for row in connection.execute(f"PRAGMA foreign_key_list({quoted_table})")
+        ]
+        tables.append(
+            {
+                "name": table_name,
+                "columns": columns,
+                "foreignKeys": foreign_keys,
+            }
+        )
+        for index_row in connection.execute(f"PRAGMA index_list({quoted_table})"):
+            index_name = index_row[1]
+            quoted_index = '"' + index_name.replace('"', '""') + '"'
+            index_columns = [
+                {
+                    "columnId": row[1],
+                    "name": row[2],
+                    "descending": bool(row[3]),
+                    "collation": row[4],
+                    "key": bool(row[5]),
+                }
+                for row in connection.execute(f"PRAGMA index_xinfo({quoted_index})")
+            ]
+            indexes.append(
+                {
+                    "table": table_name,
+                    "name": index_name,
+                    "unique": bool(index_row[2]),
+                    "origin": index_row[3],
+                    "partial": bool(index_row[4]),
+                    "columns": index_columns,
+                }
+            )
+    indexes.sort(key=lambda row: (row["table"], row["name"]))
+    return {
+        "algorithm": "sqlite-schema-manifest/v1",
+        "tables": tables,
+        "indexes": indexes,
+    }
+
+
+def sqlite_schema_hash(path: Path) -> str:
+    uri = path.resolve().as_uri() + "?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as connection:
+        return hashlib.sha256(
+            canonical_json_bytes(sqlite_schema_manifest(connection))
+        ).hexdigest()
 
 
 def canonical_utc_from_epoch(epoch_text: str) -> str:
@@ -352,6 +457,7 @@ def create_consumer_compatibility() -> dict[str, Any]:
             },
         },
         "volumeCompatibility": VOLUME_COMPATIBILITY,
+        "artifactVerification": ARTIFACT_VERIFICATION,
     }
 
 
@@ -386,6 +492,7 @@ def build_profile(
         "sourceKinds": SOURCE_KINDS,
         "dispositions": DISPOSITIONS,
         "volumeCompatibility": VOLUME_COMPATIBILITY,
+        "artifactVerification": ARTIFACT_VERIFICATION,
         "failureSemantics": FAILURE_SEMANTICS,
     }
     profile["profileHash"] = object_hash(profile, "profileHash")
@@ -724,8 +831,33 @@ def bind_fixture_document(
     fixtures: dict[str, Any],
     registry: dict[str, Any],
     profile: dict[str, Any],
+    fixture_root: Path,
 ) -> dict[str, Any]:
     bound = copy.deepcopy(fixtures)
+    artifact_bindings = bound["artifactBindings"]
+    artifact_paths: dict[str, Path] = {}
+    for key, descriptor in artifact_bindings.items():
+        artifact_path = (fixture_root / descriptor["path"]).resolve()
+        if fixture_root.resolve() not in artifact_path.parents:
+            raise ValueError(f"fixture artifact escapes fixture root: {descriptor['path']}")
+        if not artifact_path.is_file():
+            raise ValueError(f"fixture artifact is missing: {artifact_path}")
+        artifact_paths[key] = artifact_path
+        descriptor["sha256"] = artifact_sha256(artifact_path)
+        descriptor["length"] = artifact_path.stat().st_size
+        if key.endswith("Store"):
+            schema_hash = sqlite_schema_hash(artifact_path)
+            expected_schema_hash = ARTIFACT_VERIFICATION[
+                "physicalStoreSchemaHash"
+                if key == "physicalStore"
+                else "referenceStoreSchemaHash"
+            ]
+            if schema_hash != expected_schema_hash:
+                raise ValueError(
+                    f"{key} schema drift: expected {expected_schema_hash}, got {schema_hash}"
+                )
+            descriptor["schemaManifestHash"] = schema_hash
+
     reader = bound["readerTemplate"]
     registry_envelope = reader["registryEnvelope"]
     registry_envelope.update(
@@ -754,9 +886,19 @@ def bind_fixture_document(
     )
     physical = acquisition["physicalVolume"]
     reference = acquisition["referenceVolume"]
+    physical_binding = artifact_bindings["physicalOutput"]
+    reference_binding = artifact_bindings["referenceOutput"]
+    physical.update(
+        {
+            "artifactHash": physical_binding["sha256"],
+            "artifactLength": physical_binding["length"],
+        }
+    )
     physical["platformBuild"] = profile["platformBuild"]
     reference.update(
         {
+            "artifactHash": reference_binding["sha256"],
+            "artifactLength": reference_binding["length"],
             "platformBuild": profile["platformBuild"],
             "registryRevision": registry["registryRevision"],
             "registryHash": registry["registryHash"],
@@ -765,6 +907,37 @@ def bind_fixture_document(
             "dispositions": profile["dispositions"],
         }
     )
+    acquisition["physicalArtifactHash"] = physical["artifactHash"]
+    acquisition["referenceArtifactHash"] = reference["artifactHash"]
+
+    run_id = acquisition["runId"]
+    for evidence_key, expected_version, run_field in [
+        ("physicalOutput", VOLUME_COMPATIBILITY["physicalOutput"], "runId"),
+        ("referenceOutput", VOLUME_COMPATIBILITY["referenceOutput"], "acquisitionRunId"),
+    ]:
+        document = load_json(artifact_paths[evidence_key])
+        if document.get("outputVersion") != expected_version:
+            raise ValueError(f"{evidence_key} outputVersion is not {expected_version}")
+        if document.get(run_field) != run_id:
+            raise ValueError(f"{evidence_key} run ID does not match reader fixture")
+    with closing(sqlite3.connect(
+        artifact_paths["physicalStore"].resolve().as_uri() + "?mode=ro", uri=True
+    )) as connection:
+        row = connection.execute(
+            "SELECT ManifestHash FROM DiscoveryRuns WHERE RunId=?", (run_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("physical SQLite fixture does not contain the acquisition run")
+        physical["store"]["manifestHash"] = row[0]
+    with closing(sqlite3.connect(
+        artifact_paths["referenceStore"].resolve().as_uri() + "?mode=ro", uri=True
+    )) as connection:
+        row = connection.execute(
+            "SELECT ManifestHash FROM ReferenceRuns WHERE RunId=?", (run_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("reference SQLite fixture does not contain the acquisition run")
+        reference["store"]["manifestHash"] = row[0]
     return bound
 
 
@@ -828,7 +1001,9 @@ def main() -> int:
     fixture_path = args.output_root / "fixtures" / "contract-cases.json"
     if not fixture_path.is_file():
         raise ValueError(f"contract fixtures are missing: {fixture_path}")
-    fixtures = bind_fixture_document(load_json(fixture_path), registry, profile)
+    fixtures = bind_fixture_document(
+        load_json(fixture_path), registry, profile, fixture_path.parent
+    )
 
     write_json(
         args.output_root / "authority" / "spo-online-16.0.27606.12000.authority.json",

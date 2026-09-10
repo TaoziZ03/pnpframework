@@ -8,10 +8,13 @@ import copy
 import hashlib
 import json
 import re
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
 from generate_registry import (
+    ARTIFACT_VERIFICATION,
     AUTHORITY_REF,
     AUTHORITY_SCHEMA_VERSION,
     AUTHORITY_TAG,
@@ -34,9 +37,11 @@ from generate_registry import (
     SOURCE_KINDS,
     VOLUME_COMPATIBILITY,
     canonical_json_bytes,
+    discovery_hash,
     normalize_registry_key,
     object_hash,
     rule_hash,
+    sqlite_schema_manifest,
 )
 
 
@@ -106,6 +111,14 @@ REFERENCE_VOLUME_KEYS = BASE_VOLUME_KEYS | {
     "dispositions",
 }
 STORE_KEYS = {"schemaVersion", "manifestHash"}
+ARTIFACT_BINDING_KEYS = {
+    "physicalOutput",
+    "referenceOutput",
+    "physicalStore",
+    "referenceStore",
+}
+ARTIFACT_DESCRIPTOR_KEYS = {"path", "sha256", "length"}
+STORE_ARTIFACT_DESCRIPTOR_KEYS = ARTIFACT_DESCRIPTOR_KEYS | {"schemaManifestHash"}
 
 
 def load_json(path: Path) -> Any:
@@ -322,7 +335,14 @@ def validate_registry(
     compatibility = registry.get("consumerCompatibility")
     errors.extend(exact_key_errors(
         compatibility,
-        {"compatibilityDecisionRef", "recordKind", "sourceKinds", "dispositions", "volumeCompatibility"},
+        {
+            "compatibilityDecisionRef",
+            "recordKind",
+            "sourceKinds",
+            "dispositions",
+            "volumeCompatibility",
+            "artifactVerification",
+        },
         "consumerCompatibility",
     ))
     if isinstance(compatibility, dict):
@@ -334,6 +354,8 @@ def validate_registry(
             errors.append("consumer sourceKinds are not the fixed five wire strings")
         if compatibility.get("volumeCompatibility") != VOLUME_COMPATIBILITY:
             errors.append("consumer volumeCompatibility is not the fixed seven-version profile")
+        if compatibility.get("artifactVerification") != ARTIFACT_VERIFICATION:
+            errors.append("consumer artifactVerification is not the frozen actual-artifact policy")
         disposition_map = compatibility.get("dispositions")
         errors.extend(exact_key_errors(disposition_map, KNOWN_DISPOSITIONS, "consumer dispositions"))
         if isinstance(disposition_map, dict):
@@ -390,6 +412,7 @@ def validate_profile(
         "sourceKinds",
         "dispositions",
         "volumeCompatibility",
+        "artifactVerification",
         "failureSemantics",
     }
     errors = exact_key_errors(profile, expected_keys, "profile")
@@ -431,6 +454,8 @@ def validate_profile(
         errors.append("profile dispositions are not the fixed seven wire strings")
     if profile.get("volumeCompatibility") != VOLUME_COMPATIBILITY:
         errors.append("profile volumeCompatibility is not frozen")
+    if profile.get("artifactVerification") != ARTIFACT_VERIFICATION:
+        errors.append("profile artifactVerification is not frozen")
     if profile.get("failureSemantics") != FAILURE_SEMANTICS:
         errors.append("profile failureSemantics is not frozen")
     expected_compatibility_hash = hashlib.sha256(
@@ -495,10 +520,256 @@ def _validate_store(
     return None, []
 
 
+def _sqlite_connection(database_bytes: bytes) -> sqlite3.Connection:
+    connection = sqlite3.connect(":memory:")
+    try:
+        connection.deserialize(database_bytes)
+    except Exception:
+        connection.close()
+        raise
+    return connection
+
+
+def _sqlite_schema_hash_from_bytes(database_bytes: bytes) -> str:
+    with closing(_sqlite_connection(database_bytes)) as connection:
+        manifest = sqlite_schema_manifest(connection)
+    return hashlib.sha256(canonical_json_bytes(manifest)).hexdigest()
+
+
+def artifact_evidence_summary(evidence: dict[str, bytes]) -> dict[str, Any]:
+    summary: dict[str, Any] = {}
+    for key, artifact_bytes in sorted(evidence.items()):
+        descriptor: dict[str, Any] = {
+            "sha256": hashlib.sha256(artifact_bytes).hexdigest(),
+            "length": len(artifact_bytes),
+        }
+        if key.endswith("Store"):
+            try:
+                descriptor["schemaManifestHash"] = _sqlite_schema_hash_from_bytes(
+                    artifact_bytes
+                )
+            except sqlite3.DatabaseError:
+                descriptor["schemaManifestHash"] = None
+        summary[key] = descriptor
+    return summary
+
+
+def load_fixture_artifact_evidence(
+    bindings: Any,
+    fixture_root: Path,
+) -> tuple[dict[str, bytes], list[str]]:
+    errors = exact_key_errors(bindings, ARTIFACT_BINDING_KEYS, "artifactBindings")
+    if errors:
+        return {}, errors
+    assert isinstance(bindings, dict)
+    resolved_root = fixture_root.resolve()
+    evidence: dict[str, bytes] = {}
+    for key in sorted(ARTIFACT_BINDING_KEYS):
+        descriptor = bindings.get(key)
+        expected_keys = (
+            STORE_ARTIFACT_DESCRIPTOR_KEYS
+            if key.endswith("Store")
+            else ARTIFACT_DESCRIPTOR_KEYS
+        )
+        descriptor_errors = exact_key_errors(
+            descriptor, expected_keys, f"artifactBindings.{key}"
+        )
+        if descriptor_errors:
+            errors.extend(descriptor_errors)
+            continue
+        assert isinstance(descriptor, dict)
+        relative_path = descriptor.get("path")
+        if not isinstance(relative_path, str) or not relative_path:
+            errors.append(f"artifactBindings.{key}.path is invalid")
+            continue
+        artifact_path = (resolved_root / relative_path).resolve()
+        if resolved_root not in artifact_path.parents or not artifact_path.is_file():
+            errors.append(f"artifactBindings.{key}.path is outside the fixture root or missing")
+            continue
+        artifact_bytes = artifact_path.read_bytes()
+        evidence[key] = artifact_bytes
+        if descriptor.get("sha256") != hashlib.sha256(artifact_bytes).hexdigest():
+            errors.append(f"artifactBindings.{key}.sha256 does not match actual bytes")
+        if descriptor.get("length") != len(artifact_bytes):
+            errors.append(f"artifactBindings.{key}.length does not match actual bytes")
+        if key.endswith("Store"):
+            try:
+                schema_hash = _sqlite_schema_hash_from_bytes(artifact_bytes)
+            except sqlite3.DatabaseError as error:
+                errors.append(f"artifactBindings.{key} is not readable SQLite: {error}")
+            else:
+                if descriptor.get("schemaManifestHash") != schema_hash:
+                    errors.append(
+                        f"artifactBindings.{key}.schemaManifestHash does not match actual SQLite schema"
+                    )
+    return evidence, errors
+
+
+def apply_evidence_mutation(
+    evidence: dict[str, bytes], mutation: dict[str, Any] | None
+) -> dict[str, bytes]:
+    mutated = dict(evidence)
+    if not mutation:
+        return mutated
+    kind = mutation["kind"]
+    if kind == "appendPhysicalOutputBytes":
+        mutated["physicalOutput"] += b"\n"
+    elif kind == "appendReferenceOutputBytes":
+        mutated["referenceOutput"] += b"\n"
+    elif kind in {"addReferenceTableToPhysicalStore", "dropReferenceObservationTable"}:
+        store_key = (
+            "physicalStore"
+            if kind == "addReferenceTableToPhysicalStore"
+            else "referenceStore"
+        )
+        with closing(_sqlite_connection(mutated[store_key])) as connection:
+            if kind == "addReferenceTableToPhysicalStore":
+                connection.execute(
+                    "CREATE TABLE ReferenceObservations "
+                    "(RunId TEXT NOT NULL, ObservationId TEXT NOT NULL, Json TEXT NOT NULL, "
+                    "PRIMARY KEY (RunId, ObservationId))"
+                )
+            else:
+                connection.execute("DROP TABLE ReferenceObservations")
+            connection.commit()
+            mutated[store_key] = connection.serialize()
+    elif kind in {"rewritePhysicalManifestHash", "rewriteReferenceManifestHash"}:
+        store_key = (
+            "physicalStore"
+            if kind == "rewritePhysicalManifestHash"
+            else "referenceStore"
+        )
+        table = "DiscoveryRuns" if store_key == "physicalStore" else "ReferenceRuns"
+        with closing(_sqlite_connection(mutated[store_key])) as connection:
+            connection.execute(f"UPDATE {table} SET ManifestHash=?", ("f" * 64,))
+            connection.commit()
+            mutated[store_key] = connection.serialize()
+    else:
+        raise ValueError(f"unknown evidence mutation: {kind}")
+    return mutated
+
+
+def _read_store_manifest_hash(
+    database_bytes: bytes, reference_store: bool, run_id: str
+) -> str:
+    table = "ReferenceRuns" if reference_store else "DiscoveryRuns"
+    with closing(_sqlite_connection(database_bytes)) as connection:
+        row = connection.execute(
+            f"SELECT ManifestHash FROM {table} WHERE RunId=?", (run_id,)
+        ).fetchone()
+    if row is None:
+        raise ValueError(f"{table} does not contain run {run_id}")
+    return str(row[0])
+
+
+def _validate_output_artifact(
+    volume: dict[str, Any],
+    artifact_bytes: bytes | None,
+    expected_run_field: str,
+    expected_run_id: str,
+) -> tuple[str | None, list[str]]:
+    if artifact_bytes is None:
+        return "ARTIFACT_EVIDENCE_MISSING", ["actual output artifact bytes are missing"]
+    actual_hash = hashlib.sha256(artifact_bytes).hexdigest()
+    if volume.get("artifactHash") != actual_hash:
+        return "VOLUME_HASH_MISMATCH", ["declared artifactHash does not match actual bytes"]
+    if volume.get("artifactLength") != len(artifact_bytes):
+        return "VOLUME_LENGTH_MISMATCH", ["declared artifactLength does not match actual bytes"]
+    try:
+        document = json.loads(artifact_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        return "VOLUME_CONTENT_MISMATCH", [f"output artifact is not valid JSON: {error}"]
+    if document.get("outputVersion") != volume.get("outputVersion"):
+        return "VOLUME_CONTENT_MISMATCH", ["actual outputVersion does not match volume binding"]
+    if document.get(expected_run_field) != expected_run_id:
+        return "VOLUME_CONTENT_MISMATCH", ["actual acquisition run ID does not match envelope"]
+    return None, []
+
+
+def _validate_store_artifact(
+    store: dict[str, Any],
+    database_bytes: bytes | None,
+    expected_version: str,
+    expected_schema_hash: str,
+    run_id: str,
+    volume: dict[str, Any],
+    registry: dict[str, Any],
+    reference_store: bool,
+) -> tuple[str | None, list[str]]:
+    if database_bytes is None:
+        return "ARTIFACT_EVIDENCE_MISSING", ["actual SQLite store bytes are missing"]
+    try:
+        with closing(_sqlite_connection(database_bytes)) as connection:
+            integrity = connection.execute("PRAGMA integrity_check").fetchone()
+            if integrity is None or integrity[0] != "ok":
+                return "STORE_INTEGRITY_FAILURE", ["SQLite integrity_check did not return ok"]
+            foreign_keys = connection.execute("PRAGMA foreign_key_check").fetchall()
+            if foreign_keys:
+                return "STORE_INTEGRITY_FAILURE", ["SQLite foreign_key_check returned rows"]
+            actual_schema_hash = hashlib.sha256(
+                canonical_json_bytes(sqlite_schema_manifest(connection))
+            ).hexdigest()
+            if actual_schema_hash != expected_schema_hash:
+                return "STORE_SCHEMA_MISMATCH", [
+                    f"actual SQLite schema hash {actual_schema_hash} is not the frozen {expected_version} schema"
+                ]
+            if reference_store:
+                row = connection.execute(
+                    "SELECT ManifestJson, ManifestHash, OutputVersion "
+                    "FROM ReferenceRuns WHERE RunId=?",
+                    (run_id,),
+                ).fetchone()
+            else:
+                row = connection.execute(
+                    "SELECT ManifestJson, ManifestHash FROM DiscoveryRuns WHERE RunId=?",
+                    (run_id,),
+                ).fetchone()
+    except sqlite3.DatabaseError as error:
+        return "STORE_INTEGRITY_FAILURE", [f"SQLite store cannot be read: {error}"]
+    if row is None:
+        return "STORE_MANIFEST_MISMATCH", ["SQLite store has no run manifest for acquisition run ID"]
+    manifest_json, manifest_hash = row[0], row[1]
+    if store.get("manifestHash") != manifest_hash:
+        return "STORE_MANIFEST_MISMATCH", ["declared store manifest hash does not match SQLite row"]
+    if discovery_hash(manifest_json) != manifest_hash:
+        return "STORE_MANIFEST_MISMATCH", ["SQLite ManifestJson does not hash to ManifestHash"]
+    try:
+        manifest = json.loads(manifest_json)
+    except json.JSONDecodeError as error:
+        return "STORE_MANIFEST_MISMATCH", [f"SQLite ManifestJson is invalid: {error}"]
+    if manifest.get("contractVersion") != volume.get("contractVersion"):
+        return "STORE_MANIFEST_MISMATCH", ["SQLite manifest contractVersion is incompatible"]
+    if manifest.get("schemaVersion") != expected_version:
+        return "STORE_MANIFEST_MISMATCH", ["SQLite manifest schemaVersion is incompatible"]
+    if reference_store:
+        if row[2] != volume.get("outputVersion"):
+            return "STORE_MANIFEST_MISMATCH", ["SQLite reference OutputVersion is incompatible"]
+        required_bindings = {
+            "scopeAuthorityHash": volume.get("scopeAuthorityHash"),
+            "registryRevision": registry.get("registryRevision"),
+            "registryHash": registry.get("registryHash"),
+            "platformBuildRef": volume.get("platformBuild"),
+            "snapshotFence": volume.get("snapshotFence"),
+            "artifactRunId": run_id,
+        }
+    else:
+        required_bindings = {
+            "scopePolicyHash": volume.get("scopeAuthorityHash"),
+        }
+    for key, expected in required_bindings.items():
+        if manifest.get(key) != expected:
+            return "STORE_MANIFEST_MISMATCH", [f"SQLite manifest {key} does not match volume binding"]
+    product_ref = manifest.get("productRef")
+    if not isinstance(product_ref, str) or not product_ref.endswith("@" + str(volume.get("producerRef"))):
+        return "STORE_MANIFEST_MISMATCH", ["SQLite manifest productRef does not match producerRef"]
+    return None, []
+
+
 def validate_acquisition_envelope(
     envelope: Any,
     registry: dict[str, Any],
     profile: dict[str, Any],
+    artifact_evidence: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
     if envelope is None:
         return {"verdict": "Unknown", "reasonCode": "ACQUISITION_ENVELOPE_MISSING"}
@@ -561,6 +832,7 @@ def validate_acquisition_envelope(
         return {"verdict": "Unknown", "reasonCode": "REGISTRY_BINDING_MISMATCH"}
 
     for field, reason_code in [
+        ("producerRef", "VOLUME_REF_MISMATCH"),
         ("runId", "VOLUME_REF_MISMATCH"),
         ("scopeAuthorityHash", "VOLUME_REF_MISMATCH"),
         ("snapshotFence", "VOLUME_FENCE_MISMATCH"),
@@ -571,6 +843,49 @@ def validate_acquisition_envelope(
             return {"verdict": "Unknown", "reasonCode": reason_code}
     if envelope.get("platformBuild") != profile.get("platformBuild"):
         return {"verdict": "Unknown", "reasonCode": "VOLUME_BUILD_MISMATCH"}
+
+    evidence = artifact_evidence or {}
+    for volume, evidence_key, run_field in [
+        (physical, "physicalOutput", "runId"),
+        (reference, "referenceOutput", "acquisitionRunId"),
+    ]:
+        reason, errors = _validate_output_artifact(
+            volume,
+            evidence.get(evidence_key),
+            run_field,
+            str(envelope.get("runId")),
+        )
+        if reason:
+            return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
+
+    for volume, evidence_key, store_version, schema_hash, reference_store in [
+        (
+            physical,
+            "physicalStore",
+            VOLUME_COMPATIBILITY["physicalStore"],
+            ARTIFACT_VERIFICATION["physicalStoreSchemaHash"],
+            False,
+        ),
+        (
+            reference,
+            "referenceStore",
+            VOLUME_COMPATIBILITY["referenceStore"],
+            ARTIFACT_VERIFICATION["referenceStoreSchemaHash"],
+            True,
+        ),
+    ]:
+        reason, errors = _validate_store_artifact(
+            volume["store"],
+            evidence.get(evidence_key),
+            store_version,
+            schema_hash,
+            str(envelope.get("runId")),
+            volume,
+            registry,
+            reference_store,
+        )
+        if reason:
+            return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
     return {"verdict": "Compatible", "reasonCode": "ACQUISITION_BINDING_VALID"}
 
 
@@ -581,6 +896,7 @@ def evaluate_registry_request(
     authority: dict[str, Any] | None = None,
     registry_schema: dict[str, Any] | None = None,
     registry_schema_hash: str | None = None,
+    artifact_evidence: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
     if registry is None:
         return {"verdict": "Unknown", "reasonCode": "REGISTRY_VOLUME_MISSING"}
@@ -633,7 +949,7 @@ def evaluate_registry_request(
         return {"verdict": "Unknown", "reasonCode": "REFERENCE_COMPLETENESS_UNSUPPORTED"}
 
     acquisition = validate_acquisition_envelope(
-        request.get("acquisitionEnvelope"), registry, profile
+        request.get("acquisitionEnvelope"), registry, profile, artifact_evidence
     )
     if acquisition["verdict"] != "Compatible":
         return acquisition
@@ -765,8 +1081,14 @@ def evaluate_fixture_suite(
     profile: dict[str, Any],
     registry_schema: dict[str, Any],
     registry_schema_hash: str,
+    fixture_root: Path,
 ) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
+    baseline_evidence, evidence_errors = load_fixture_artifact_evidence(
+        fixtures.get("artifactBindings"), fixture_root
+    )
+    if evidence_errors:
+        raise ValueError("fixture artifact evidence is invalid: " + "; ".join(evidence_errors))
     cases = [*fixtures["positive"], *fixtures["negative"]]
     for case in cases:
         kind = case["kind"]
@@ -777,6 +1099,24 @@ def evaluate_fixture_suite(
             reader_input = apply_json_operations(
                 fixtures["readerTemplate"], case.get("operations", [])
             )
+            case_evidence = apply_evidence_mutation(
+                baseline_evidence, case.get("evidenceMutation")
+            )
+            acquisition = reader_input.get("acquisitionEnvelope", {})
+            for volume_name in case.get("rebindActualArtifactHash", []):
+                evidence_key = f"{volume_name}Output"
+                volume_key = f"{volume_name}Volume"
+                actual_hash = hashlib.sha256(case_evidence[evidence_key]).hexdigest()
+                acquisition[volume_key]["artifactHash"] = actual_hash
+                acquisition[f"{volume_name}ArtifactHash"] = actual_hash
+            for store_name in case.get("rebindStoreManifestHash", []):
+                evidence_key = f"{store_name}Store"
+                volume_key = f"{store_name}Volume"
+                acquisition[volume_key]["store"]["manifestHash"] = _read_store_manifest_hash(
+                    case_evidence[evidence_key],
+                    reference_store=store_name == "reference",
+                    run_id=str(acquisition["runId"]),
+                )
             actual = evaluate_registry_request(
                 case_registry,
                 case_profile,
@@ -784,10 +1124,13 @@ def evaluate_fixture_suite(
                 case_authority,
                 registry_schema,
                 registry_schema_hash,
+                case_evidence,
             )
             receipt_input = {
                 "readerInput": reader_input,
                 "artifactMutation": case.get("artifactMutation"),
+                "evidenceMutation": case.get("evidenceMutation"),
+                "artifactEvidence": artifact_evidence_summary(case_evidence),
                 "mutatedAuthorityHash": case_authority.get("authorityArtifactHash"),
                 "mutatedRegistryHash": case_registry.get("registryHash"),
                 "mutatedProfileHash": case_profile.get("profileHash"),
@@ -838,18 +1181,25 @@ def evaluate_fixture_suite(
                     if case.get("artifactMutation")
                     else None
                 ),
+                "evidenceMutation": (
+                    case.get("evidenceMutation", {}).get("kind")
+                    if case.get("evidenceMutation")
+                    else None
+                ),
                 "operationCount": len(case.get("operations", [])),
                 "errorCount": len(actual.get("errors", [])),
                 "passed": passed,
             }
         )
     return {
-        "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v1",
+        "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v2",
         "registryRevision": registry["registryRevision"],
         "registryHash": registry["registryHash"],
         "profileRevision": profile["profileRevision"],
         "profileHash": profile["profileHash"],
         "registrySchemaHash": registry_schema_hash,
+        "artifactEvidence": artifact_evidence_summary(baseline_evidence),
+        "fixtureProvenance": fixtures.get("fixtureProvenance"),
         "caseCount": len(results),
         "passCount": sum(1 for row in results if row["passed"]),
         "results": results,
@@ -902,6 +1252,7 @@ def main() -> int:
             profile,
             registry_schema,
             registry_schema_hash,
+            args.fixtures.parent,
         )
         summary["fixtureCases"] = receipts["caseCount"]
         summary["fixturePasses"] = receipts["passCount"]

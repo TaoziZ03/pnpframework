@@ -11,14 +11,14 @@ generated from Assessment results, CUPCollect paths, or a tenant scan.
 - SPO.Core tag: `release/16.0.27606.12000`
 - Supported platform family: `SharePointOnline-16`
 - Supported build: exactly `16.0.27606.12000`
-- Registry revision: `spo-online-16.0.27606.12000-r2`
+- Registry revision: `spo-online-16.0.27606.12000-r3`
 - Registry canonical hash:
-  `1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680`
-- Profile revision: `spo-online-16.0.27606.12000-profile-r1`
+  `61180a9ff5aa3b61ce614bd8faecb2713e40780ccdf55d5ddde174d5a54dfd6d`
+- Profile revision: `spo-online-16.0.27606.12000-profile-r2`
 - Profile canonical hash:
-  `62283f038be997244cda11552e51a4974a62815653dcb9e025356c642de4e79f`
+  `1e39ac4999034c9a44b98bb6a8f08364dc1a7113255623740e74fa21ab76a8ae`
 - Registry schema SHA-256:
-  `85a2f0664c90d7fe5dfe013bcb938438d6f5e688888fada57bfef28ec2f9cfd2`
+  `f599f5816d8fc4413409a37300a415a8c3add5a2415485afc6702f53a5e5b175`
 
 The shipping authority is the `otools/deploy/*.xml` `File` destinations below
 `Web Server Extensions\16\TEMPLATE\LAYOUTS` that end in `.aspx`. The bounded
@@ -51,8 +51,17 @@ build range or changed contract remains invalid.
   schemas for the registry and profile.
 - `fixtures/contract-cases.json` carries a real reader-shaped registry envelope
   plus `aspx-acquisition-verdict/v1`, physical, reference and SQLite/store
-  bindings. `fixtures/f1-f4-negative-receipts.json` records deterministic
-  results for the 34 positive/negative contract cases.
+  bindings. `fixtures/volumes/` contains the actual physical/reference JSON
+  bytes and two readable SQLite databases; `fixtures/sql/` records the SQL used
+  to construct those stores. `fixtures/f1-f4-negative-receipts.json` records
+  deterministic results for all 45 positive/negative contract cases.
+
+The compatibility fixtures are bound to Assessment consumer source ref
+`3012555317d5a8ee981b9e103206f3f0680333d8`: `AspxDiscoveryOutputV2`,
+`AspxReferenceOutputV1`, `DiscoveryStore.InitializeSchema` and
+`AspxReferenceStore.Initialize`. This consumer-side provenance never feeds the
+SPO.Core authority extraction or registry entry set, so the registry remains
+independent from Assessment output and scanner-observed paths.
 
 No registry entry creates a `FileUniqueId`. Setup-layout application pages are
 request references backed by setup artifacts, not content-database `SPFile`
@@ -99,6 +108,25 @@ envelope bind run ID, producer refs, scope authority hash, snapshot fence,
 platform build, artifact hashes, registry revision/hash and exact store
 versions. Missing volumes/envelope or any hash/ref/fence/build/version drift
 fails closed to `Unknown`.
+
+The reader additionally requires actual artifact handles. It computes SHA-256
+and byte length from both output files, parses their exact output version and
+run ID, opens both SQLite stores read-only, requires `PRAGMA integrity_check`
+and `foreign_key_check`, computes a semantic
+`sqlite-schema-manifest/v1` hash, and verifies the stored run manifest JSON and
+manifest hash. A self-consistent envelope with invented hashes, stale lengths,
+an injected reference table in physical v2, a missing reference-v1 table, or a
+rewritten SQLite manifest therefore returns `Unknown`. The frozen store schema
+hashes are:
+
+- physical `aspx-discovery-sqlite/v2`:
+  `d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2`
+- reference `aspx-reference-sqlite/v1`:
+  `7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d`
+
+The committed fixture artifacts are intentionally small synthetic data, not a
+tenant capture. Their SHA-256/length pairs are bound in
+`fixtures/contract-cases.json` and repeated in the v2 receipt.
 
 Explicit paths use ordinal-ignore-case matching. Versionless
 `/_layouts/<path>` aliases normalize to `/_layouts/15/<path>`. The generator

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ccd:pnp:aspx-platform-registry:spo-online-16.0.27606.12000:r2",
+  "$id": "urn:ccd:pnp:aspx-platform-registry:spo-online-16.0.27606.12000:r3",
   "title": "SharePoint setup and virtual ASPX platform registry",
   "type": "object",
   "additionalProperties": false,
@@ -31,7 +31,7 @@
   "properties": {
     "$schema": { "const": "../schema/aspx-platform-registry.schema.json" },
     "registrySchemaVersion": { "const": "aspx-platform-registry/v1" },
-    "registryRevision": { "const": "spo-online-16.0.27606.12000-r2" },
+    "registryRevision": { "const": "spo-online-16.0.27606.12000-r3" },
     "registryHash": { "$ref": "#/$defs/sha256" },
     "authorityKind": { "const": "SPOCoreReleaseShippingManifest" },
     "authoritySourceRef": { "const": "cee0ed61136e17c742c1cf98c9dea9446f10c564" },
@@ -95,7 +95,13 @@
         "unsupportedOutputVersion",
         "unsupportedContractVersion",
         "unsupportedStoreVersion",
+        "missingArtifactEvidence",
         "volumeHashMismatch",
+        "volumeLengthMismatch",
+        "volumeContentMismatch",
+        "storeIntegrityFailure",
+        "storeSchemaMismatch",
+        "storeManifestMismatch",
         "volumeRefMismatch",
         "volumeFenceMismatch",
         "volumeBuildMismatch",
@@ -115,7 +121,13 @@
         "unsupportedOutputVersion": { "const": "Unknown" },
         "unsupportedContractVersion": { "const": "Unknown" },
         "unsupportedStoreVersion": { "const": "Unknown" },
+        "missingArtifactEvidence": { "const": "Unknown" },
         "volumeHashMismatch": { "const": "Unknown" },
+        "volumeLengthMismatch": { "const": "Unknown" },
+        "volumeContentMismatch": { "const": "Unknown" },
+        "storeIntegrityFailure": { "const": "Unknown" },
+        "storeSchemaMismatch": { "const": "Unknown" },
+        "storeManifestMismatch": { "const": "Unknown" },
         "volumeRefMismatch": { "const": "Unknown" },
         "volumeFenceMismatch": { "const": "Unknown" },
         "volumeBuildMismatch": { "const": "Unknown" },
@@ -168,6 +180,32 @@
         "compare": { "type": "string", "minLength": 1 }
       }
     },
+    "artifactVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actualOutputBytes",
+        "actualOutputLength",
+        "jsonOutputVersion",
+        "acquisitionRunId",
+        "sqliteIntegrityCheck",
+        "sqliteSchemaManifestAlgorithm",
+        "physicalStoreSchemaHash",
+        "referenceStoreSchemaHash",
+        "sqliteRunManifestHash"
+      ],
+      "properties": {
+        "actualOutputBytes": { "const": "Required" },
+        "actualOutputLength": { "const": "Required" },
+        "jsonOutputVersion": { "const": "Exact" },
+        "acquisitionRunId": { "const": "Exact" },
+        "sqliteIntegrityCheck": { "const": "Required" },
+        "sqliteSchemaManifestAlgorithm": { "const": "sqlite-schema-manifest/v1" },
+        "physicalStoreSchemaHash": { "const": "d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2" },
+        "referenceStoreSchemaHash": { "const": "7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d" },
+        "sqliteRunManifestHash": { "const": "Required" }
+      }
+    },
     "consumerCompatibility": {
       "type": "object",
       "additionalProperties": false,
@@ -176,7 +214,8 @@
         "recordKind",
         "sourceKinds",
         "dispositions",
-        "volumeCompatibility"
+        "volumeCompatibility",
+        "artifactVerification"
       ],
       "properties": {
         "compatibilityDecisionRef": { "const": "CCD-411:approve_with_changes" },
@@ -204,7 +243,8 @@
             "Unknown": { "$ref": "#/$defs/consumerMapping" }
           }
         },
-        "volumeCompatibility": { "$ref": "#/$defs/volumeCompatibility" }
+        "volumeCompatibility": { "$ref": "#/$defs/volumeCompatibility" },
+        "artifactVerification": { "$ref": "#/$defs/artifactVerification" }
       }
     },
     "applicabilityRule": {

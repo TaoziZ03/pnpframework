@@ -42,6 +42,17 @@
   "authoritySourceTag": "release/16.0.27606.12000",
   "compatibilityDecisionRef": "CCD-411:approve_with_changes",
   "consumerCompatibility": {
+    "artifactVerification": {
+      "acquisitionRunId": "Exact",
+      "actualOutputBytes": "Required",
+      "actualOutputLength": "Required",
+      "jsonOutputVersion": "Exact",
+      "physicalStoreSchemaHash": "d346ebbf2a8cbd25c0babae543e2fc6a4dd234a171df83973c6624b1eb65fda2",
+      "referenceStoreSchemaHash": "7470d1e964f202978c9628a0425b3fe1860fd1384d6a2cead35cbd3a0b17e57d",
+      "sqliteIntegrityCheck": "Required",
+      "sqliteRunManifestHash": "Required",
+      "sqliteSchemaManifestAlgorithm": "sqlite-schema-manifest/v1"
+    },
     "compatibilityDecisionRef": "CCD-411:approve_with_changes",
     "dispositions": {
       "LinkedPhysicalCustomized": {
@@ -49423,20 +49434,26 @@
     "aliasCollision": "Unknown",
     "bindingMismatch": "Unknown",
     "missingAcquisitionEnvelope": "Unknown",
+    "missingArtifactEvidence": "Unknown",
     "missingPhysicalVolume": "Unknown",
     "missingReferenceVolume": "Unknown",
     "missingRegistryVolume": "Unknown",
     "registryProfileMismatch": "Unknown",
     "runtimePathAbsent": "Unknown",
     "sameRevisionChangedHash": "Unknown",
+    "storeIntegrityFailure": "Unknown",
+    "storeManifestMismatch": "Unknown",
+    "storeSchemaMismatch": "Unknown",
     "unknownBuild": "Unknown",
     "unknownSourceKindOrDisposition": "Unknown",
     "unsupportedContractVersion": "Unknown",
     "unsupportedOutputVersion": "Unknown",
     "unsupportedStoreVersion": "Unknown",
     "volumeBuildMismatch": "Unknown",
+    "volumeContentMismatch": "Unknown",
     "volumeFenceMismatch": "Unknown",
     "volumeHashMismatch": "Unknown",
+    "volumeLengthMismatch": "Unknown",
     "volumeRefMismatch": "Unknown"
   },
   "generatedAtUtc": "2026-08-06T02:13:58Z",
@@ -49454,8 +49471,8 @@
   "platformBuildMax": "16.0.27606.12000",
   "platformBuildMin": "16.0.27606.12000",
   "platformFamily": "SharePointOnline-16",
-  "registryHash": "1f38b4ade77695f546afaf69dbb3f8148c4a3714849c6f7dbeae46de4001b680",
-  "registryRevision": "spo-online-16.0.27606.12000-r2",
+  "registryHash": "61180a9ff5aa3b61ce614bd8faecb2713e40780ccdf55d5ddde174d5a54dfd6d",
+  "registryRevision": "spo-online-16.0.27606.12000-r3",
   "registrySchemaVersion": "aspx-platform-registry/v1",
   "reviewRef": "CCD-423"
 }
