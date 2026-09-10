@@ -257,6 +257,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             }
 
             var unused = snapshots.ToList();
+            var hasDegradedDisposition = false;
             foreach (var plan in plans)
             {
                 var expectedId = !string.IsNullOrWhiteSpace(plan.Consumer) && !string.IsNullOrWhiteSpace(plan.TargetAbsoluteUrl)
@@ -273,6 +274,20 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 {
                     result.Differences.Add($"Dependency exact-semantics mismatch for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
                     return;
+                }
+                if (!string.Equals(plan.Disposition, "Rewrite", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.Equals(plan.Disposition, "Delegate", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Differences.Add(
+                            $"Dependency '{plan.Consumer}'/'{plan.TargetOriginalValue}' has unsupported disposition '{plan.Disposition}'.");
+                        return;
+                    }
+                    hasDegradedDisposition = true;
+                    result.Differences.Add(
+                        $"Dependency '{plan.Consumer}'/'{plan.TargetOriginalValue}' has source disposition '{plan.Disposition}'; exact dependency fidelity is not claimed.");
+                    unused.Remove(match);
+                    continue;
                 }
                 if (!Enum.IsDefined(typeof(PageCaptureStatus), match.CaptureStatus))
                 {
@@ -295,6 +310,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 unused.Remove(match);
             }
 
+            if (hasDegradedDisposition)
+            {
+                return;
+            }
             result.DependenciesMatched = true;
             result.CanariesPassed.Add("DependencyExactSemantics");
         }

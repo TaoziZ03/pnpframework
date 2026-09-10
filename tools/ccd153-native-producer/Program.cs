@@ -57,32 +57,15 @@ static void RunClassicWikiRestSourceAdaptation(
     var package = Read<ClassicWikiMigrationPackage>(Resolve(requestPath, request.PackagePath), options);
     var admittedPlan = Read<AdmittedReproExecutionPlan>(Resolve(requestPath, request.AdmittedPlanPath), options);
     ValidateTargetWeb(package.Plan?.TargetLocation?.TargetWebUrl);
-    var result = ClassicWikiRestSourceAdapter.Adapt(package, admittedPlan);
-
     var outputDirectory = Resolve(requestPath, request.OutputDirectory);
-    Directory.CreateDirectory(outputDirectory);
-    var packagePath = Path.Combine(outputDirectory, "classic-wiki-migration-package-v1.json");
-    var admittedPlanPath = Path.Combine(outputDirectory, "admitted-plan-v1.json");
-    Write(packagePath, result.Package, indented);
-    Write(admittedPlanPath, result.AdmittedPlan, indented);
-    var manifest = new
-    {
-        schema = "ccd153.classic-wiki-rest-source-adaptation-result/v1",
+    var manifest = ClassicWikiRestSourceAdaptationEntry.Run(
         request.CaseId,
-        producer = new { id = ProducerContract.Id, version = ProducerContract.Version, implementationRef = request.ImplementationRef },
-        binarySha256 = CurrentBinarySha256(),
-        result.PriorPlanDigestSha256,
-        result.AdaptedPlanDigestSha256,
-        result.PriorAdmittedPlanDigestSha256,
-        result.AdaptedAdmittedPlanDigestSha256,
-        result.DependencyCount,
-        result.ReconstructedDependencyCount,
-        result.UsedDeclaredInventory,
-        operations = result.AdmittedPlan.Operations,
-        packagePath = Path.GetFileName(packagePath),
-        admittedPlanPath = Path.GetFileName(admittedPlanPath)
-    };
-    Write(Path.Combine(outputDirectory, "source-adaptation-manifest-v1.json"), manifest, indented);
+        request.ImplementationRef,
+        CurrentBinarySha256(),
+        outputDirectory,
+        package,
+        admittedPlan,
+        indented);
     Console.WriteLine(JsonSerializer.Serialize(manifest, indented));
 }
 

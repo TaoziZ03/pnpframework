@@ -149,10 +149,18 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Packaging
                 value == null
                 || string.IsNullOrWhiteSpace(value.Consumer)
                 || string.IsNullOrWhiteSpace(value.TargetOriginalValue)
-                || string.IsNullOrWhiteSpace(value.TargetAbsoluteUrl)))
+                || string.IsNullOrWhiteSpace(value.TargetAbsoluteUrl)
+                || !IsDependencyDisposition(value.Disposition)))
             {
-                throw new InvalidDataException("Every planned dependency requires exact consumer, original-value, and absolute-URL evidence.");
+                throw new InvalidDataException(
+                    "Every planned dependency requires exact consumer, original-value, absolute-URL evidence, and a reviewed Rewrite/Delegate disposition.");
             }
+        }
+
+        private static bool IsDependencyDisposition(string value)
+        {
+            return string.Equals(value, "Rewrite", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "Delegate", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string CombineServerRelative(string folder, string fileName)

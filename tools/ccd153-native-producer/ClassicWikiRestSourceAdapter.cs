@@ -1,6 +1,9 @@
+using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Pages;
 using PnP.Framework.Migration.Pages.ClassicWiki.Capture;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
+using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Verification;
@@ -25,7 +28,10 @@ internal static class ClassicWikiRestSourceAdapter
             .CaptureReferenceOnly(package.Snapshot, warnings)
             .ToList();
         var declared = package.Snapshot.Dependencies?.ToList() ?? new List<PageReferenceSnapshot>();
-        if (declared.Count > 0 && !SameInventory(declared, reconstructed))
+        var inventoryResolution = declared.Count > 0
+            ? ResolveInventory(declared, reconstructed)
+            : ClassicWikiInventoryResolution.Empty;
+        if (inventoryResolution.HasConflict)
         {
             throw new InvalidDataException(
                 "classic_wiki_source_dependency_inventory_conflicts_with_wiki_field");
@@ -40,6 +46,13 @@ internal static class ClassicWikiRestSourceAdapter
         foreach (var warning in warnings)
         {
             AddOnce(package.Snapshot.Warnings, "Reference-only source adaptation: " + warning);
+        }
+        foreach (var unavailable in inventoryResolution.Unavailable)
+        {
+            unavailable.Diagnostics ??= new List<string>();
+            AddOnce(
+                unavailable.Diagnostics,
+                "Native source adaptation retained this dependency as unavailable and delegated its unsafe target rewrite branch.");
         }
 
         var export = new ClassicWikiExportPackage
@@ -64,8 +77,14 @@ internal static class ClassicWikiRestSourceAdapter
             });
 
         RequireSameTarget(package, adaptedPackage);
+        var dependencyDispositions = ApplyDependencyDispositions(
+            adaptedPackage,
+            package.Snapshot.Source,
+            sourceDependencies,
+            inventoryResolution.Unavailable);
         adaptedPackage.Report.Dispositions.Add(
             $"Dependencies: {sourceDependencies.Count} authored reference(s) reconstructed from digest-bound REST WikiField");
+        adaptedPackage.PlanDigest = ClassicWikiDigest.ComputePlanDigest(adaptedPackage.Plan);
         ClassicWikiPackageValidator.ValidateMigration(adaptedPackage);
 
         admittedPlan.PlanDigest = adaptedPackage.PlanDigest;
@@ -91,7 +110,8 @@ internal static class ClassicWikiRestSourceAdapter
             AdaptedAdmittedPlanDigestSha256 = adaptedAdmittedPlanDigest,
             DependencyCount = sourceDependencies.Count,
             ReconstructedDependencyCount = reconstructed.Count,
-            UsedDeclaredInventory = declared.Count > 0
+            UsedDeclaredInventory = declared.Count > 0,
+            DependencyDispositions = dependencyDispositions
         };
     }
 
@@ -99,32 +119,165 @@ internal static class ClassicWikiRestSourceAdapter
         IList<PageReferenceSnapshot> declared,
         IList<PageReferenceSnapshot> reconstructed)
     {
-        if (declared.Count != reconstructed.Count)
+        var resolution = ResolveInventory(declared, reconstructed);
+        return !resolution.HasConflict && resolution.Unavailable.Count == 0;
+    }
+
+    private static ClassicWikiInventoryResolution ResolveInventory(
+        IList<PageReferenceSnapshot> declared,
+        IList<PageReferenceSnapshot> reconstructed)
+    {
+        if (declared == null || reconstructed == null || declared.Count != reconstructed.Count)
         {
-            return false;
+            return ClassicWikiInventoryResolution.Conflict;
         }
 
         var unused = reconstructed.ToList();
+        var unavailable = new List<PageReferenceSnapshot>();
         foreach (var expected in declared)
         {
             var match = unused.FirstOrDefault(actual =>
                 expected != null
                 && actual != null
                 && RequiredEquals(expected.Id, actual.Id)
-                && expected.CaptureStatus == actual.CaptureStatus
-                && Enum.IsDefined(typeof(PnP.Framework.Migration.Pages.Capture.PageCaptureStatus), expected.CaptureStatus)
                 && expected.Kind == actual.Kind
                 && RequiredEquals(expected.Consumer, actual.Consumer)
                 && RequiredEquals(expected.OriginalValue, actual.OriginalValue)
                 && RequiredUrlEquals(expected.SourceAbsoluteUrl, actual.SourceAbsoluteUrl)
                 && OptionalPathEquals(expected.SourceServerRelativeUrl, actual.SourceServerRelativeUrl));
-            if (match == null)
+            if (match == null
+                || !Enum.IsDefined(typeof(PageCaptureStatus), expected.CaptureStatus)
+                || !Enum.IsDefined(typeof(PageCaptureStatus), match.CaptureStatus))
             {
-                return false;
+                return ClassicWikiInventoryResolution.Conflict;
             }
-            unused.Remove(match);
+            if (expected.CaptureStatus == PageCaptureStatus.Captured
+                && match.CaptureStatus == PageCaptureStatus.Captured)
+            {
+                unused.Remove(match);
+                continue;
+            }
+            if (IsKnownUnavailable(expected.CaptureStatus)
+                && match.CaptureStatus == PageCaptureStatus.Captured)
+            {
+                unavailable.Add(expected);
+                unused.Remove(match);
+                continue;
+            }
+            return ClassicWikiInventoryResolution.Conflict;
         }
-        return unused.Count == 0;
+        return unused.Count == 0
+            ? new ClassicWikiInventoryResolution(unavailable, hasConflict: false)
+            : ClassicWikiInventoryResolution.Conflict;
+    }
+
+    private static IList<ClassicWikiRestSourceDependencyDisposition> ApplyDependencyDispositions(
+        ClassicWikiMigrationPackage adaptedPackage,
+        PageIdentity source,
+        IList<PageReferenceSnapshot> sourceDependencies,
+        IList<PageReferenceSnapshot> unavailableDependencies)
+    {
+        var unavailableById = unavailableDependencies.ToDictionary(value => value.Id, StringComparer.Ordinal);
+        var safeWikiField = adaptedPackage.Plan.WikiFieldPlan.ExactValue;
+        var result = new List<ClassicWikiRestSourceDependencyDisposition>();
+        foreach (var sourceDependency in sourceDependencies)
+        {
+            var plan = adaptedPackage.Plan.Dependencies.SingleOrDefault(value =>
+                string.Equals(value.SourceId, sourceDependency.Id, StringComparison.Ordinal));
+            if (plan == null)
+            {
+                throw new InvalidDataException(
+                    "classic_wiki_source_dependency_inventory_conflicts_with_planned_dependencies");
+            }
+
+            if (!unavailableById.ContainsKey(sourceDependency.Id))
+            {
+                result.Add(new ClassicWikiRestSourceDependencyDisposition
+                {
+                    SourceId = sourceDependency.Id,
+                    CaptureStatus = sourceDependency.CaptureStatus,
+                    Disposition = "Rewrite",
+                    ReasonCode = "CAPTURED"
+                });
+                continue;
+            }
+
+            var rewrittenValue = plan.TargetOriginalValue;
+            if (!string.Equals(rewrittenValue, sourceDependency.OriginalValue, StringComparison.Ordinal))
+            {
+                if (safeWikiField?.IndexOf(rewrittenValue, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    safeWikiField = ReplaceCaseInsensitive(
+                        safeWikiField,
+                        rewrittenValue,
+                        sourceDependency.OriginalValue);
+                }
+                else if (safeWikiField?.IndexOf(sourceDependency.OriginalValue, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    throw new InvalidDataException(
+                        "classic_wiki_unavailable_dependency_cannot_be_preserved_in_wiki_field");
+                }
+            }
+
+            plan.TargetOriginalValue = sourceDependency.OriginalValue;
+            plan.TargetAbsoluteUrl = sourceDependency.SourceAbsoluteUrl;
+            plan.TargetServerRelativeUrl = sourceDependency.SourceServerRelativeUrl;
+            plan.Disposition = "Delegate";
+            var reasonCode = ReasonCode(sourceDependency, source);
+            result.Add(new ClassicWikiRestSourceDependencyDisposition
+            {
+                SourceId = sourceDependency.Id,
+                CaptureStatus = sourceDependency.CaptureStatus,
+                Disposition = plan.Disposition,
+                ReasonCode = reasonCode
+            });
+            var message = $"Dependency '{sourceDependency.Id}' is {sourceDependency.CaptureStatus}; "
+                + $"disposition=Delegate; reason={reasonCode}; source locator is preserved and exact fidelity is not claimed.";
+            AddOnce(adaptedPackage.Plan.Warnings, message);
+            AddOnce(adaptedPackage.Report.Warnings, message);
+            adaptedPackage.Report.Dispositions.Add(message);
+        }
+
+        if (unavailableDependencies.Count > 0)
+        {
+            adaptedPackage.Plan.WikiFieldPlan = WikiFieldWritePolicy.Build(safeWikiField);
+            adaptedPackage.Report.Status = "Conditional";
+        }
+        return result;
+    }
+
+    private static bool IsKnownUnavailable(PageCaptureStatus status) =>
+        status == PageCaptureStatus.Failed || status == PageCaptureStatus.NotReturned;
+
+    private static string ReasonCode(PageReferenceSnapshot dependency, PageIdentity source)
+    {
+        var evidence = dependency.AuthorizationEvidence;
+        if (evidence != null)
+        {
+            LiteralHttpAuthorizationEvidence.Validate(evidence);
+            var expectedCsomRequest = source?.WebUrl?.TrimEnd('/') + "/_vti_bin/client.svc/ProcessQuery";
+            if (!string.Equals(evidence.Operation, "capture-page-reference-payload", StringComparison.Ordinal)
+                || !RequiredUrlEquals(evidence.RequestUri, dependency.SourceAbsoluteUrl)
+                    && !RequiredUrlEquals(evidence.RequestUri, expectedCsomRequest))
+            {
+                throw new InvalidDataException(
+                    "classic_wiki_unavailable_dependency_authorization_evidence_invalid");
+            }
+            return "ACCESS_DENIED_SKIPPED";
+        }
+        return dependency.CaptureStatus == PageCaptureStatus.NotReturned
+            ? "SOURCE_REFERENCE_NOT_RETURNED"
+            : "SOURCE_REFERENCE_CAPTURE_FAILED";
+    }
+
+    private static string ReplaceCaseInsensitive(string input, string pattern, string replacement)
+    {
+        if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(pattern)) return input;
+        return System.Text.RegularExpressions.Regex.Replace(
+            input,
+            System.Text.RegularExpressions.Regex.Escape(pattern),
+            (replacement ?? string.Empty).Replace("$", "$$"),
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
     private static void RequireSameTarget(
@@ -185,4 +338,33 @@ internal sealed class ClassicWikiRestSourceAdaptationResult
     public int DependencyCount { get; init; }
     public int ReconstructedDependencyCount { get; init; }
     public bool UsedDeclaredInventory { get; init; }
+    public IList<ClassicWikiRestSourceDependencyDisposition> DependencyDispositions { get; init; }
+}
+
+internal sealed class ClassicWikiRestSourceDependencyDisposition
+{
+    public string SourceId { get; init; }
+    public PageCaptureStatus CaptureStatus { get; init; }
+    public string Disposition { get; init; }
+    public string ReasonCode { get; init; }
+}
+
+internal sealed class ClassicWikiInventoryResolution
+{
+    public static ClassicWikiInventoryResolution Empty { get; } =
+        new ClassicWikiInventoryResolution(Array.Empty<PageReferenceSnapshot>(), hasConflict: false);
+
+    public static ClassicWikiInventoryResolution Conflict { get; } =
+        new ClassicWikiInventoryResolution(Array.Empty<PageReferenceSnapshot>(), hasConflict: true);
+
+    public ClassicWikiInventoryResolution(
+        IList<PageReferenceSnapshot> unavailable,
+        bool hasConflict)
+    {
+        Unavailable = unavailable;
+        HasConflict = hasConflict;
+    }
+
+    public IList<PageReferenceSnapshot> Unavailable { get; }
+    public bool HasConflict { get; }
 }

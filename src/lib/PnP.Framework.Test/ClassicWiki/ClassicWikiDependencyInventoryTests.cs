@@ -168,6 +168,22 @@ namespace PnP.Framework.Test.ClassicWiki
             Assert.IsTrue(result.Differences.Any(value => value.Contains("unsupported capture status '999'")));
         }
 
+        [TestMethod]
+        public void FreshVerificationChecksDelegateButDoesNotClaimExactDependencyFidelity()
+        {
+            var package = CreatePlannedCanaryPackage();
+            package.Plan.Dependencies[0].Disposition = "Delegate";
+            package.PlanDigest = ClassicWikiDigest.ComputePlanDigest(package.Plan);
+            var evidence = CreateDependencyEvidence(package);
+
+            var result = ClassicWikiFreshVerification.Evaluate(package, evidence);
+
+            Assert.IsFalse(result.Passed);
+            Assert.IsFalse(result.DependenciesMatched);
+            Assert.IsTrue(result.Differences.Any(value => value.Contains("source disposition 'Delegate'")));
+            Assert.IsFalse(result.Differences.Any(value => value.Contains("exact-semantics mismatch")));
+        }
+
         private static ClassicWikiMigrationPackage CreatePlannedCanaryPackage()
         {
             var source = CreateCanaryExport();
