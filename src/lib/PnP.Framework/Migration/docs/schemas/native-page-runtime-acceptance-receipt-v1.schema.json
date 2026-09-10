@@ -63,7 +63,15 @@
     },
     {
       "if": { "properties": { "acceptanceStatus": { "enum": ["Accepted", "PartiallyAccepted"] } } },
-      "then": { "properties": { "bindingValidationStatus": { "const": "Valid" }, "runtimeVerificationStatus": { "const": "Passed" }, "provenanceStatus": { "const": "VERIFIED" }, "producerBuildProvenanceReceiptDigestSha256": { "$ref": "#/$defs/sha256" } } }
+      "then": { "properties": { "runId": { "$ref": "#/$defs/guid" }, "bindingValidationStatus": { "const": "Valid" }, "storageVerificationStatus": { "const": "Passed" }, "runtimeVerificationStatus": { "const": "Passed" }, "provenanceStatus": { "const": "VERIFIED" }, "producerBuildProvenanceReceiptDigestSha256": { "$ref": "#/$defs/sha256" } } }
+    },
+    {
+      "if": { "properties": { "acceptanceStatus": { "const": "Accepted" } } },
+      "then": { "properties": { "explicitExclusions": { "const": false } } }
+    },
+    {
+      "if": { "properties": { "acceptanceStatus": { "const": "PartiallyAccepted" } } },
+      "then": { "properties": { "explicitExclusions": { "const": true } } }
     },
     {
       "if": { "properties": { "acceptanceStatus": { "const": "Rejected" } } },
