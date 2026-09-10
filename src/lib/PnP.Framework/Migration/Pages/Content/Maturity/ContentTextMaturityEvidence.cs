@@ -13,6 +13,17 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
         Partial = 5
     }
 
+    internal sealed class ContentTextDependencyEvidence
+    {
+        public string Kind { get; set; }
+
+        public string ProviderIdentity { get; set; }
+
+        public string EvidenceDigest { get; set; }
+
+        public string EvidenceReference { get; set; }
+    }
+
     internal sealed class ContentTextSourceEvidence
     {
         public string PageUrl { get; set; }
@@ -62,6 +73,9 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
         public string SemanticValueSha256 { get; set; }
 
         public IList<string> DependencyIngredientIds { get; set; } = new List<string>();
+
+        public IList<ContentTextDependencyEvidence> Dependencies { get; set; } =
+            new List<ContentTextDependencyEvidence>();
 
         public IList<string> EvidenceReferences { get; set; } = new List<string>();
     }

@@ -1,9 +1,13 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages;
 using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Content.Maturity;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Migration.Pages.Publishing.Packaging;
+using PnP.Framework.Migration.Pages.Publishing.Planning;
+using PnP.Framework.Migration.Verification;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -129,6 +133,116 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
             AssertGate(assessment, IngredientMaturityGateCatalog.PrimaryOwner, IngredientMaturityGateStatus.Failed);
         }
 
+        [DataTestMethod]
+        [DataRow("foreign")]
+        [DataRow("empty")]
+        public void DependencyProvidersMustMatchTheBoundSource(string mutation)
+        {
+            var fixture = Fixture.CreatePublishing();
+            foreach (var dependency in fixture.Evidence.Source.Dependencies)
+            {
+                dependency.ProviderIdentity = mutation == "empty" ? string.Empty : "foreign-provider";
+            }
+            fixture.RefreshNormalization();
+            fixture.AddSourceObservations();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.IsNull(assessment.AttainedMaturity, mutation);
+            AssertGate(assessment, IngredientMaturityGateCatalog.PrimaryOwner, IngredientMaturityGateStatus.Failed);
+        }
+
+        [TestMethod]
+        public void ForeignCanonicalIngredientIdDoesNotAliasTheCapturedFile()
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.Context.Identity.IngredientId =
+                "ccd.ingredient.content.text/v1:99999999-9999-9999-9999-999999999999:PublishingPageContent";
+            fixture.AddSourceObservations();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.IsNull(assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.CanonicalIdentity, IngredientMaturityGateStatus.Failed);
+        }
+
+        [TestMethod]
+        public void WrongWikiFieldIdentityFailsPrimaryOwnerGate()
+        {
+            var fixture = Fixture.CreateWiki("<p>wrong wiki identity</p>");
+            fixture.Evidence.Source.FieldId = "11111111-1111-1111-1111-111111111111";
+            fixture.RefreshNormalization();
+            fixture.AddSourceObservations();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.IsNull(assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.PrimaryOwner, IngredientMaturityGateStatus.Failed);
+        }
+
+        [TestMethod]
+        public void ContradictoryTargetFieldIdentityFailsFreshReadback()
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            var reference = "evidence/content-text/target-binding.fieldId-conflict.json";
+            fixture.Evidence.Live.TargetEvidenceReferences.Add(reference);
+            fixture.Evidence.Live.Observations.Add(new IngredientValueObservation
+            {
+                ClaimId = fixture.Context.Identity.ClaimId,
+                IngredientId = fixture.Context.Identity.IngredientId,
+                Source = fixture.Context.Source,
+                Target = fixture.Context.Target,
+                ValuePath = "binding.fieldId",
+                ValueDigest = MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(
+                    "11111111-1111-1111-1111-111111111111")),
+                ObservedAtUtc = fixture.SourceObservedAt.AddSeconds(1),
+                Origin = IngredientObservationOrigin.CupCollectFreshReadback,
+                EvidenceReference = reference
+            });
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.PerValueObservation, IngredientMaturityGateStatus.Failed);
+        }
+
+        [TestMethod]
+        public void SameClaimPlanAndOperationalReceiptsReachM4()
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            fixture.BindPlanAndOperationalEvidence();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M4, assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.SnapshotPlanBinding, IngredientMaturityGateStatus.Passed);
+            AssertGate(assessment, IngredientMaturityGateCatalog.OperationActionBinding, IngredientMaturityGateStatus.Passed);
+            AssertGate(assessment, IngredientMaturityGateCatalog.FreshStorage, IngredientMaturityGateStatus.Passed);
+        }
+
+        [TestMethod]
+        public void ForeignHigherLevelBundleStopsAtM2()
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            var donor = Fixture.CreateWiki("<p>foreign donor</p>");
+            donor.BindPlanAndOperationalEvidence();
+            fixture.Evidence.Plan = donor.Evidence.Plan;
+            fixture.Evidence.Operational = donor.Evidence.Operational;
+            fixture.Evidence.Productization = new IngredientProductizationEvidence();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M2, assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.SnapshotPlanBinding, IngredientMaturityGateStatus.Missing);
+            AssertGate(assessment, IngredientMaturityGateCatalog.OperationActionBinding, IngredientMaturityGateStatus.Missing);
+        }
+
         [TestMethod]
         public void WikiFieldUsesOrdinalBodySemanticsAndKeepsEscapedMarkup()
         {
@@ -209,16 +323,9 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
                     RawArtifactBase64 = Convert.ToBase64String(rawBytes),
                     RawValueSha256 = data.SemanticSlice.RawSha256,
                     SemanticValueSha256 = data.SemanticSlice.SemanticSha256,
-                    DependencyIngredientIds = new List<string>
-                    {
-                        "content-type:page",
-                        "field:PublishingPageContent",
-                        "list:pages",
-                        "list-schema:pages",
-                        "list-item:240"
-                    },
                     EvidenceReferences = References("source-artifact.bin", "source-recheck.json")
                 };
+                BindDependencies(source);
                 return Create(data, source, data.IngredientId,
                     ContentTextEvidenceNormalizer.PublishingSubtype,
                     ContentTextEvidenceNormalizer.PublishingSourcePredicateId);
@@ -256,16 +363,9 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
                     RawArtifactBase64 = Convert.ToBase64String(bytes),
                     RawValueSha256 = digest,
                     SemanticValueSha256 = digest,
-                    DependencyIngredientIds = new List<string>
-                    {
-                        "content-type:wiki-page",
-                        "field:WikiField",
-                        "list:site-pages",
-                        "list-schema:site-pages",
-                        "list-item:17"
-                    },
                     EvidenceReferences = References("wiki-source-artifact.bin", "wiki-source-recheck.json")
                 };
+                BindDependencies(source);
                 return Create(data, source,
                     "ccd.ingredient.content.text/v1:33333333-3333-3333-3333-333333333333:WikiField",
                     ContentTextEvidenceNormalizer.WikiSubtype,
@@ -277,13 +377,14 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
                 Context.Source.PageOrListItemIdentity = ContentTextEvidenceNormalizer.CreateSourceIdentity(Evidence.Source);
                 Context.Source.SourceVersion = Evidence.Source.SourceVersion;
                 Context.Source.SourceArtifactDigest = Evidence.Source.RawValueSha256;
+                Context.ObservationWindowStartUtc = FixedSourceObservedAt.AddMinutes(-1);
+                Context.ObservationWindowEndUtc = FixedSourceObservedAt.AddMinutes(1);
                 Normalized = ContentTextEvidenceNormalizer.Normalize(Context, Evidence.Source);
                 Evidence.Live = new IngredientLiveEvidence
                 {
                     SourceAuthenticated = true,
                     TargetFreshReadback = false,
-                    SourceEvidenceReferences = References("source-live.json"),
-                    TargetEvidenceReferences = References("target-live.json")
+                    ReadbackStartedAtUtc = FixedSourceObservedAt.AddMilliseconds(500)
                 };
             }
 
@@ -319,6 +420,133 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
                     {
                         (IIngredientMaturityContributor)new ContentTextMaturityContributor(Evidence)
                     }));
+            }
+
+            public void BindPlanAndOperationalEvidence()
+            {
+                var node = new PageIngredientNode
+                {
+                    Id = Normalized.Node.Id,
+                    Kind = Normalized.Node.Kind,
+                    KindId = Normalized.Node.KindId,
+                    Subtype = Normalized.Node.Subtype,
+                    SemanticRole = Normalized.Node.SemanticRole,
+                    SourcePredicateId = Normalized.Node.SourcePredicateId,
+                    SourcePageOrListItemIdentity = Normalized.Node.SourcePageOrListItemIdentity,
+                    SourceVersionIdentity = Normalized.Node.SourceVersionIdentity,
+                    PrimaryOwnerLane = Normalized.Node.PrimaryOwnerLane,
+                    Label = Normalized.Node.Label,
+                    HasContent = Normalized.Node.HasContent,
+                    Ownership = Normalized.Node.Ownership,
+                    SourceAuthority = Normalized.Node.SourceAuthority,
+                    EvidenceDigest = Normalized.Node.EvidenceDigest,
+                    RuntimeRequirement = Normalized.Node.RuntimeRequirement,
+                    EvidenceReferences = Normalized.Node.EvidenceReferences.ToList()
+                };
+                var action = new PageIngredientAction
+                {
+                    ActionId = "action:content-text:preserve",
+                    IngredientId = node.Id,
+                    Capability = IngredientCapability.Available,
+                    Disposition = IngredientDisposition.Preserve,
+                    Realization = "native-sharepoint-field-value",
+                    TargetIdentity = Context.Target.TargetIdentity,
+                    PolicyId = "content.text.preserve/v1",
+                    PolicyVersion = "v1"
+                };
+                var plan = new PublishingPageMigrationPlan
+                {
+                    SourceSnapshotDigest = Context.Source.SourceSnapshotDigest,
+                    RuntimeVerification = new RuntimeVerificationManifest(),
+                    IngredientGraph = new CanonicalPageIngredientGraph
+                    {
+                        Nodes = new List<PageIngredientNode> { node }
+                    },
+                    IngredientActions = new List<PageIngredientAction> { action }
+                };
+                var planDigest = PublishingPageDigest.ComputePlanDigest(plan);
+                Evidence.Plan = new IngredientPlanEvidence
+                {
+                    Plan = plan,
+                    ExpectedSourceSnapshotDigest = Context.Source.SourceSnapshotDigest,
+                    ExpectedPlanDigest = planDigest,
+                    IngredientId = Context.Identity.IngredientId,
+                    SnapshotPlanEvidenceReferences = References("m3-plan.json"),
+                    ActionEvidenceReferences = References("m3-action.json"),
+                    DependencyPolicyEvidenceReferences = References("m3-dependencies.json")
+                };
+
+                var completedAt = FixedSourceObservedAt.AddSeconds(10);
+                var startedAt = FixedSourceObservedAt.AddSeconds(5);
+                var operationId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+                var signature = MigrationActionSignature.Create(
+                    action.ActionId,
+                    "preserve-content-text",
+                    Context.Source.SourceArtifactDigest,
+                    MigrationActionSignature.EmptySelectionReceiptDigest,
+                    Context.Target.TargetIdentity,
+                    Normalized.SemanticProjectionSha256);
+                Evidence.Operational = new IngredientOperationalEvidence
+                {
+                    Plan = plan,
+                    AdmittedPlanDigest = planDigest,
+                    AdmissionPassed = true,
+                    IngredientId = Context.Identity.IngredientId,
+                    ActionSignature = signature,
+                    ImportReceipt = new PublishingPageImportReceipt
+                    {
+                        OperationId = operationId,
+                        StartedAtUtc = startedAt,
+                        CompletedAtUtc = completedAt,
+                        ApprovedPlanDigest = planDigest,
+                        ExecutionStatus = MigrationExecutionStatus.Succeeded,
+                        Steps = new List<MigrationMutationReceipt>
+                        {
+                            new MigrationMutationReceipt
+                            {
+                                OperationId = operationId,
+                                PlanDigest = planDigest,
+                                ActionId = action.ActionId,
+                                ActionSignature = signature.Signature,
+                                Outcome = MutationOutcome.Applied,
+                                CompletedAtUtc = completedAt
+                            }
+                        },
+                        OwnershipMatched = true,
+                        FreshReadbackPassed = true,
+                        StorageVerificationStatus = StorageVerificationStatus.Passed,
+                        RuntimeVerificationStatus = RuntimeVerificationStatus.NotRequired,
+                        VerifiedIngredientIds = new List<string> { Context.Identity.IngredientId }
+                    },
+                    JournalState = new MigrationExecutionStateReceipt
+                    {
+                        OperationId = operationId,
+                        PlanDigest = planDigest,
+                        Status = MigrationExecutionStatus.Succeeded,
+                        RecordedAtUtc = completedAt
+                    },
+                    VerificationReceipt = new MigrationMutationVerificationReceipt
+                    {
+                        OperationId = operationId,
+                        PlanDigest = planDigest,
+                        ActionId = action.ActionId,
+                        ActionSignature = signature.Signature,
+                        FreshReadbackPassed = true,
+                        Ownership = MigrationTargetOwnership.MigrationOwned,
+                        ProvenanceMatched = true,
+                        VerifiedAtUtc = completedAt
+                    },
+                    ExecutionStartedAtUtc = startedAt,
+                    CleanupRequired = true,
+                    CleanupPassed = true,
+                    RetryEvidenceRequired = true,
+                    RetryPassed = true,
+                    PlanAdmissionEvidenceReferences = References("m4-admission.json"),
+                    ActionEvidenceReferences = References("m4-action.json"),
+                    ReceiptEvidenceReferences = References("m4-import.json", "m4-journal.json"),
+                    FreshReadbackEvidenceReferences = References("m4-readback.json"),
+                    RuntimeCleanupRetryEvidenceReferences = References("m4-cleanup-retry.json")
+                };
             }
 
             private static Fixture Create(
@@ -384,15 +612,48 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
             {
                 foreach (var pair in digests.OrderBy(value => value.Key, StringComparer.Ordinal))
                 {
+                    var evidenceReference = $"evidence/content-text/{prefix}-{pair.Key}.json";
                     Evidence.Live.Observations.Add(new IngredientValueObservation
                     {
+                        ClaimId = Context.Identity.ClaimId,
+                        IngredientId = Context.Identity.IngredientId,
+                        Source = Context.Source,
+                        Target = Context.Target,
                         ValuePath = pair.Key,
                         ValueDigest = pair.Value,
                         ObservedAtUtc = observedAt,
                         Origin = origin,
-                        EvidenceReference = $"evidence/content-text/{prefix}-{pair.Key}.json"
+                        EvidenceReference = evidenceReference
                     });
+                    var references = origin == IngredientObservationOrigin.AuthenticatedSource
+                        ? Evidence.Live.SourceEvidenceReferences
+                        : Evidence.Live.TargetEvidenceReferences;
+                    references.Add(evidenceReference);
                 }
+            }
+
+            private static void BindDependencies(ContentTextSourceEvidence source)
+            {
+                var bindings = new[]
+                {
+                    (Kind: "list", Identity: source.ListId),
+                    (Kind: "list-schema", Identity: source.ListId),
+                    (Kind: "content-type", Identity: source.ContentTypeId),
+                    (Kind: "field", Identity: source.FieldId)
+                };
+                source.DependencyIngredientIds = bindings
+                    .Select(value => value.Kind + ":" + value.Identity)
+                    .ToList();
+                source.Dependencies = bindings.Select(value => new ContentTextDependencyEvidence
+                {
+                    Kind = value.Kind,
+                    ProviderIdentity = value.Identity,
+                    EvidenceDigest = ContentTextEvidenceNormalizer.CreateDependencyEvidenceDigest(
+                        source,
+                        value.Kind,
+                        value.Identity),
+                    EvidenceReference = "evidence/content-text/dependency-" + value.Kind + ".json"
+                }).ToList();
             }
 
             private static FixtureData LoadFixture([CallerFilePath] string callerFile = null)

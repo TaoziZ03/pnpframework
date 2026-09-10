@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Ingredients;
+using PnP.Framework.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,6 +40,7 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
         public const string WikiFieldInternalName = "WikiField";
         public const string PublishingFieldId = "f55c4d88-1f2e-4ad9-aaa8-819af4ee7ee8";
         public const string SemanticSchema = "pnp-content-text-semantic/v1";
+        private const string CanonicalIngredientPrefix = "ccd.ingredient.content.text/v1:";
 
         public static ContentTextNormalization Normalize(
             IngredientMaturityEvaluationContext context,
@@ -92,7 +94,9 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             };
             var semanticCanonical = MigrationContractSerializer.SerializeCanonical(semantic);
             var semanticProjectionDigest = MigrationDigest.ComputeSha256(semanticCanonical);
+            var canonicalIngredientId = CreateCanonicalIngredientId(evidence);
             var valid = field.IsSupported
+                && string.Equals(context?.Identity?.IngredientId, canonicalIngredientId, StringComparison.Ordinal)
                 && IsCompleteBinding(evidence)
                 && evidence.Availability == ContentTextAvailability.Captured
                 && rawBytes != null
@@ -104,14 +108,14 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 && string.Equals(evidence.RawArtifact.Sha256, rawDigest, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(evidence.RawValueSha256, rawDigest, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(evidence.SemanticValueSha256, semanticValueDigest, StringComparison.OrdinalIgnoreCase)
-                && HasRequiredDependencyClosure(evidence.DependencyIngredientIds)
+                && HasRequiredDependencyClosure(evidence)
                 && FieldContractMatches(evidence, field.IsPublishing);
 
             return new ContentTextNormalization
             {
                 Node = new PageIngredientNode
                 {
-                    Id = context?.Identity?.IngredientId,
+                    Id = canonicalIngredientId,
                     Kind = PageIngredientKind.Content,
                     KindId = "Content",
                     Subtype = field.Subtype,
@@ -155,6 +159,20 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             });
         }
 
+        public static string CreateCanonicalIngredientId(ContentTextSourceEvidence evidence)
+        {
+            if (evidence == null || !Guid.TryParse(evidence.FileUniqueId, out var fileUniqueId)
+                || string.IsNullOrWhiteSpace(evidence.FieldInternalName))
+            {
+                return null;
+            }
+
+            return CanonicalIngredientPrefix
+                + fileUniqueId.ToString("D")
+                + ":"
+                + evidence.FieldInternalName;
+        }
+
         public static IngredientLiveEvidence ProjectLiveEvidence(
             IngredientLiveEvidence evidence,
             ContentTextNormalization normalized)
@@ -186,6 +204,7 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                     && oldestTarget != default
                     && oldestTarget >= newestSource,
                 HistoricalOrSyntheticSubstitution = substituted,
+                ReadbackStartedAtUtc = evidence.ReadbackStartedAtUtc,
                 Observations = observations,
                 SourceEvidenceReferences = (evidence.SourceEvidenceReferences ?? Array.Empty<string>()).ToList(),
                 TargetEvidenceReferences = (evidence.TargetEvidenceReferences ?? Array.Empty<string>()).ToList()
@@ -202,9 +221,7 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             {
                 ["binding.fieldId"] = ScalarDigest(NormalizeGuid(evidence.FieldId)),
                 ["binding.fieldInternalName"] = ScalarDigest(evidence.FieldInternalName),
-                ["binding.sourceIdentity"] = ScalarDigest(context?.Source?.PageOrListItemIdentity),
-                ["binding.sourceVersion"] = ScalarDigest(evidence.SourceVersion),
-                ["content.raw"] = rawDigest,
+                ["binding.fieldSchema"] = CreateFieldSchemaDigest(evidence),
                 ["content.semantic"] = semanticDigest
             };
         }
@@ -216,9 +233,9 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
         {
             return new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                ["binding.fieldId"] = ScalarDigest(NormalizeGuid(evidence.FieldId)),
                 ["binding.fieldInternalName"] = ScalarDigest(evidence.FieldInternalName),
-                ["binding.targetIdentity"] = ScalarDigest(context?.Target?.TargetIdentity),
-                ["binding.targetProfile"] = ScalarDigest(context?.Target?.TargetProfile),
+                ["binding.fieldSchema"] = CreateFieldSchemaDigest(evidence),
                 ["content.semantic"] = semanticDigest
             };
         }
@@ -233,7 +250,9 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             }
 
             var values = observations.ToArray();
-            return expected.All(pair =>
+            return values.Length == expected.Count
+                && values.All(value => expected.ContainsKey(value.ValuePath))
+                && expected.All(pair =>
             {
                 var matches = values.Where(value => string.Equals(value.ValuePath, pair.Key, StringComparison.Ordinal)).ToArray();
                 return matches.Length == 1
@@ -273,8 +292,10 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 return false;
             }
 
-            return !publishing
-                || string.Equals(NormalizeGuid(evidence.FieldId), PublishingFieldId, StringComparison.OrdinalIgnoreCase);
+            var expectedFieldId = publishing
+                ? PublishingFieldId
+                : BuiltInFieldId.WikiField.ToString("D");
+            return string.Equals(NormalizeGuid(evidence.FieldId), expectedFieldId, StringComparison.OrdinalIgnoreCase);
         }
 
         private static byte[] DecodeBase64(string value)
@@ -309,18 +330,72 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             }
         }
 
-        private static bool HasRequiredDependencyClosure(IEnumerable<string> dependencyIngredientIds)
+        private static bool HasRequiredDependencyClosure(ContentTextSourceEvidence evidence)
         {
-            var values = (dependencyIngredientIds ?? Array.Empty<string>()).ToArray();
-            return HasPrefix(values, "list:")
-                && HasPrefix(values, "list-schema:")
-                && HasPrefix(values, "content-type:")
-                && HasPrefix(values, "field:");
+            var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["list"] = NormalizeGuid(evidence.ListId),
+                ["list-schema"] = NormalizeGuid(evidence.ListId),
+                ["content-type"] = evidence.ContentTypeId,
+                ["field"] = NormalizeGuid(evidence.FieldId)
+            };
+            var dependencies = (evidence.Dependencies ?? Array.Empty<ContentTextDependencyEvidence>())
+                .Where(value => value != null)
+                .ToArray();
+            var legacyIds = (evidence.DependencyIngredientIds ?? Array.Empty<string>()).ToArray();
+
+            return dependencies.Length == expected.Count
+                && expected.All(pair =>
+                {
+                    var matches = dependencies.Where(value => string.Equals(value.Kind, pair.Key, StringComparison.Ordinal)).ToArray();
+                    var canonicalId = pair.Key + ":" + pair.Value;
+                    return matches.Length == 1
+                        && string.Equals(matches[0].ProviderIdentity, pair.Value, StringComparison.OrdinalIgnoreCase)
+                        && IngredientMaturityEvaluator.IsSha256(matches[0].EvidenceDigest)
+                        && string.Equals(
+                            matches[0].EvidenceDigest,
+                            CreateDependencyEvidenceDigest(evidence, pair.Key, pair.Value),
+                            StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(matches[0].EvidenceReference)
+                        && legacyIds.Count(value => string.Equals(value, canonicalId, StringComparison.OrdinalIgnoreCase)) == 1;
+                });
         }
 
-        private static bool HasPrefix(IEnumerable<string> values, string prefix)
+        public static string CreateDependencyEvidenceDigest(
+            ContentTextSourceEvidence evidence,
+            string kind,
+            string providerIdentity)
         {
-            return values.Any(value => value?.StartsWith(prefix, StringComparison.Ordinal) == true);
+            if (evidence == null)
+            {
+                return null;
+            }
+
+            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(
+                new ContentTextDependencyBindingProjection
+                {
+                    ContentTypeId = evidence.ContentTypeId,
+                    FieldId = NormalizeGuid(evidence.FieldId),
+                    Kind = kind,
+                    ListId = NormalizeGuid(evidence.ListId),
+                    ProviderIdentity = providerIdentity,
+                    SourceVersion = evidence.SourceVersion
+                }));
+        }
+
+        private static string CreateFieldSchemaDigest(ContentTextSourceEvidence evidence)
+        {
+            return MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(
+                new ContentTextFieldSchemaProjection
+                {
+                    FieldHidden = evidence.FieldHidden,
+                    FieldId = NormalizeGuid(evidence.FieldId),
+                    FieldInternalName = evidence.FieldInternalName,
+                    FieldReadOnly = evidence.FieldReadOnly,
+                    FieldRequired = evidence.FieldRequired,
+                    FieldSealed = evidence.FieldSealed,
+                    FieldType = evidence.FieldType
+                }));
         }
 
         private static string ScalarDigest(object value)
@@ -400,6 +475,38 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
             public string RawSha256 { get; set; }
 
             public string SemanticSha256 { get; set; }
+        }
+
+        private sealed class ContentTextFieldSchemaProjection
+        {
+            public bool FieldHidden { get; set; }
+
+            public string FieldId { get; set; }
+
+            public string FieldInternalName { get; set; }
+
+            public bool FieldReadOnly { get; set; }
+
+            public bool FieldRequired { get; set; }
+
+            public bool FieldSealed { get; set; }
+
+            public string FieldType { get; set; }
+        }
+
+        private sealed class ContentTextDependencyBindingProjection
+        {
+            public string ContentTypeId { get; set; }
+
+            public string FieldId { get; set; }
+
+            public string Kind { get; set; }
+
+            public string ListId { get; set; }
+
+            public string ProviderIdentity { get; set; }
+
+            public string SourceVersion { get; set; }
         }
 
         private sealed class ContentTextSourceIdentityProjection
