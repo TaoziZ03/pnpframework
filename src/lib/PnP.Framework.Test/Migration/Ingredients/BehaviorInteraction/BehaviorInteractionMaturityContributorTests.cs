@@ -179,6 +179,55 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
             Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
         }
 
+        [TestMethod]
+        public void RuntimeAssertionWithoutPlanActionVerificationBindingFailsM0()
+        {
+            var fixture = Fixture.Create();
+            var actionId = fixture.Evidence.Source.Assertion.Intent.Action.ActionId;
+            fixture.Evidence.Source.IngredientActions.Single(value =>
+                string.Equals(value.ActionId, actionId, StringComparison.Ordinal))
+                .VerificationAssertions.Clear();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(
+                IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CanonicalIdentity).Status);
+        }
+
+        [TestMethod]
+        public void ObservationBoundToAnotherClaimCannotCloseM1()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMappedTargetTopologyReadback();
+            fixture.Evidence.Live.Observations.First(value =>
+                value.Origin == IngredientObservationOrigin.CupCollectFreshReadback)
+                .ClaimId = new string('0', 64);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(
+                IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
+        [TestMethod]
+        public void ReadbackStartOutsideConsumerUtcWindowCannotCloseM1()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddMappedTargetTopologyReadback();
+            fixture.Evidence.Live.ReadbackStartedAtUtc =
+                fixture.Context.ObservationWindowEndUtc.Value.AddTicks(1);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(
+                IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
         [DataTestMethod]
         [DataRow("wrong-trigger-owner")]
         [DataRow("canonical-locator")]
@@ -282,7 +331,10 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     HasContent = true,
                     PrimaryOwnerLane = reference.IngredientId.Contains("dynamic.region", StringComparison.Ordinal)
                         ? "dynamic.region"
-                        : "webpart.instance"
+                        : "webpart.instance",
+                    SourcePageOrListItemIdentity = assertion.SourcePageOrListItemIdentity,
+                    SourceVersionIdentity = assertion.SourceVersionIdentity,
+                    EvidenceDigest = assertion.SourceEvidenceDigestSha256
                 }).ToList();
                 var actions = references.Select(reference => new PageIngredientAction
                 {
@@ -291,7 +343,13 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                     Capability = IngredientCapability.Available,
                     Disposition = IngredientDisposition.Preserve,
                     TargetIdentity = root.GetProperty("resultScriptConsumerTopology")
-                        .GetProperty("targetMapping").GetProperty("targetIdentity").GetString()
+                        .GetProperty("targetMapping").GetProperty("targetIdentity").GetString(),
+                    VerificationAssertions = string.Equals(
+                        reference.ActionId,
+                        assertion.Intent.Action.ActionId,
+                        StringComparison.Ordinal)
+                            ? new List<string> { assertion.AssertionId }
+                            : new List<string>()
                 }).ToList();
                 var trigger = assertionValue.GetProperty("trigger");
                 var target = assertionValue.GetProperty("target");
@@ -387,7 +445,9 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         PnPMigrationOutcome = PageMigrationOutcome.MitigationPending,
                         Status = IngredientTechnicalStatus.Unverified,
                         ReasonCode = "fresh-cupcollect-runtime-receipt-required"
-                    }
+                    },
+                    ObservationWindowStartUtc = sourceEvidence.ResultScriptTopology.SourceProvider.ObservedAtUtc,
+                    ObservationWindowEndUtc = sourceEvidence.ResultScriptTopology.RuntimeFinalEvidenceAtUtc
                 };
                 var normalized = BehaviorInteractionSearchSubmitEvidenceNormalizer.Normalize(context, sourceEvidence);
                 var recomputedSemanticDigest = MigrationDigest.ComputeSha256(normalized.SemanticCanonicalJson);
@@ -399,6 +459,10 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 }
                 var observations = normalized.SourceValueDigests.Select(value => new IngredientValueObservation
                 {
+                    ClaimId = context.Identity.ClaimId,
+                    IngredientId = context.Identity.IngredientId,
+                    Source = context.Source,
+                    Target = context.Target,
                     ValuePath = value.Key,
                     ValueDigest = value.Value,
                     ObservedAtUtc = DateTimeOffset.Parse("2026-09-09T19:28:07.652Z"),
@@ -415,8 +479,11 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                             SourceAuthenticated = true,
                             TargetFreshReadback = false,
                             HistoricalOrSyntheticSubstitution = false,
+                            ReadbackStartedAtUtc = sourceEvidence.ResultScriptTopology.TargetReadbackNotBeforeUtc,
                             Observations = observations,
-                            SourceEvidenceReferences = new List<string> { "source-observation.json" }
+                            SourceEvidenceReferences = observations
+                                .Select(value => value.EvidenceReference)
+                                .ToList()
                         }
                     });
             }
@@ -441,6 +508,10 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                 {
                     Evidence.Live.Observations.Add(new IngredientValueObservation
                     {
+                        ClaimId = Context.Identity.ClaimId,
+                        IngredientId = Context.Identity.IngredientId,
+                        Source = Context.Source,
+                        Target = Context.Target,
                         ValuePath = target.Key,
                         ValueDigest = target.Value,
                         ObservedAtUtc = Evidence.Source.ResultScriptTopology.TargetProvider?.ObservedAtUtc
@@ -448,9 +519,10 @@ namespace PnP.Framework.Test.Migration.Ingredients.BehaviorInteraction
                         Origin = IngredientObservationOrigin.CupCollectFreshReadback,
                         EvidenceReference = "cupcollect-runtime-readback.json#" + target.Key
                     });
+                    Evidence.Live.TargetEvidenceReferences.Add(
+                        "cupcollect-runtime-readback.json#" + target.Key);
                 }
                 Evidence.Live.TargetFreshReadback = true;
-                Evidence.Live.TargetEvidenceReferences.Add("cupcollect-runtime-readback.json");
             }
 
             public void ReplaceMappedTargetTopologyReadback()

@@ -25,7 +25,9 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                 null,
                 null,
                 null,
-                evidence.Source?.EvidenceReferences).ToList();
+                evidence.Source?.EvidenceReferences,
+                BehaviorInteractionSearchSubmitEvidenceNormalizer.ProjectRuntimeAssertionEvidence(
+                    evidence.Source)).ToList();
             FailClosed(receipts, IngredientMaturityGateCatalog.CanonicalIdentity,
                 normalized.RuntimeContractValid && normalized.SourcePredicateMatched && normalized.IdentityBindingMatched,
                 normalized.FailureReason ?? "The runtime assertion identity or safe search-submit source predicate does not match.");
@@ -36,7 +38,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             var live = BehaviorInteractionSearchSubmitEvidenceNormalizer.ProjectLiveEvidence(evidence.Live, normalized);
             if (live != null)
             {
-                var liveReceipts = IngredientMaturityEvidenceValidator.ValidateM1(live).ToList();
+                var liveReceipts = IngredientMaturityEvidenceValidator.ValidateM1(context, live).ToList();
                 FailClosed(
                     liveReceipts,
                     IngredientMaturityGateCatalog.CupCollectFreshReadback,

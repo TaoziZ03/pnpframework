@@ -135,6 +135,16 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             "topology.providerInventoryEvidenceReference"
         };
 
+        private static readonly string[] ComparableValuePaths =
+        {
+            "trigger.canonicalOwnerInstanceId",
+            "action.kind",
+            "action.timeoutMilliseconds",
+            "action.maximumAttempts",
+            "configuration.allowEmptySearch",
+            "configuration.tryInplaceQuery"
+        };
+
         private static readonly string[] RequiredForbiddenBoundaries =
         {
             "source mutation",
@@ -212,6 +222,9 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
             var observations = (evidence.Observations ?? Array.Empty<IngredientValueObservation>())
                 .Where(value => value != null)
                 .ToList();
+            var comparableObservations = observations
+                .Where(value => ComparableValuePaths.Contains(value.ValuePath, StringComparer.Ordinal))
+                .ToList();
             return new IngredientLiveEvidence
             {
                 SourceAuthenticated = evidence.SourceAuthenticated
@@ -228,9 +241,35 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.BehaviorInteraction
                         RequiredTargetValuePaths,
                         normalized.TargetValueDigests),
                 HistoricalOrSyntheticSubstitution = evidence.HistoricalOrSyntheticSubstitution,
-                Observations = observations,
+                ReadbackStartedAtUtc = evidence.ReadbackStartedAtUtc,
+                Observations = comparableObservations,
                 SourceEvidenceReferences = (evidence.SourceEvidenceReferences ?? Array.Empty<string>()).ToList(),
                 TargetEvidenceReferences = (evidence.TargetEvidenceReferences ?? Array.Empty<string>()).ToList()
+            };
+        }
+
+        public static IngredientRuntimeAssertionEvidence ProjectRuntimeAssertionEvidence(
+            BehaviorInteractionSearchSubmitSourceEvidence evidence)
+        {
+            var assertion = evidence?.Assertion;
+            var actionId = assertion?.Intent?.Action?.ActionId;
+            var actions = (evidence?.IngredientActions ?? Array.Empty<PageIngredientAction>())
+                .Where(value => value != null
+                    && string.Equals(value.ActionId, actionId, StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            var action = actions.Length == 1 ? actions[0] : null;
+            var ingredients = (evidence?.IngredientGraph?.Nodes ?? Array.Empty<PageIngredientNode>())
+                .Where(value => value != null && action != null
+                    && string.Equals(value.Id, action.IngredientId, StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+
+            return new IngredientRuntimeAssertionEvidence
+            {
+                SourcePredicateId = assertion?.SourcePredicateId,
+                CanonicalIngredient = ingredients.Length == 1 ? ingredients[0] : null,
+                Action = action
             };
         }
 
