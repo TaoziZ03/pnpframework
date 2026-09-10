@@ -14,7 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -23,6 +23,12 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
     [TestClass]
     public class EmbedIframeMaturityContributorTests
     {
+        private static readonly Lazy<string> FrameworkAssemblySha256 = new Lazy<string>(
+            () => ComputeFileSha256(typeof(EmbedIframeMaturityContributor).Assembly.Location));
+
+        private static readonly Lazy<string> TestAssemblySha256 = new Lazy<string>(
+            () => ComputeFileSha256(typeof(EmbedIframeMaturityContributorTests).Assembly.Location));
+
         [TestMethod]
         public void FrozenSourcePassesM0AndM2WhileFreshTargetReadbackRemainsClosed()
         {
@@ -42,22 +48,73 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
             var fixture = Fixture.Create();
             fixture.AddFrozenTargetObservations();
             Assert.AreNotEqual(fixture.Contract.SourceValueDigests["binding.hostWebPartId"], fixture.Contract.TargetValueDigests["binding.hostWebPartId"]);
-            Assert.AreEqual(IngredientMaturityLevel.M5, fixture.Evaluate().AttainedMaturity);
+            Assert.AreEqual(IngredientMaturityLevel.M2, fixture.Evaluate().AttainedMaturity);
         }
 
         [TestMethod]
-        public void PositiveM3M4M5PathsContributeAllGatesWithoutAssigningAttainedMaturity()
+        public void UnreconstructedObservedPlanKeepsM3ThroughM5ClosedWithoutAssigningAttainedMaturity()
         {
             var fixture = Fixture.Create();
             fixture.AddFrozenTargetObservations();
             var contribution = fixture.Contribute();
             var assessment = fixture.Evaluate();
             Assert.IsFalse(contribution.GetType().GetProperties().Any(value => string.Equals(value.Name, "AttainedMaturity", StringComparison.Ordinal)));
-            Assert.AreEqual(IngredientMaturityLevel.M5, assessment.AttainedMaturity);
+            Assert.AreEqual(IngredientMaturityLevel.M2, assessment.AttainedMaturity);
             foreach (var level in new[] { IngredientMaturityLevel.M3, IngredientMaturityLevel.M4, IngredientMaturityLevel.M5 })
             {
-                Assert.IsTrue(assessment.Levels.Single(value => value.Level == level).Gates.All(value => value.Status == IngredientMaturityGateStatus.Passed), level.ToString());
+                Assert.IsTrue(assessment.Levels.Single(value => value.Level == level).Gates.Any(value => value.Status == IngredientMaturityGateStatus.Failed), level.ToString());
             }
+        }
+
+        [TestMethod]
+        public void ObservedPlanDigestMismatchWithRecomputedSyntheticPlanFailsClosed()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddFrozenTargetObservations();
+            var recomputed = PublishingPageDigest.ComputePlanDigest(fixture.Evidence.Plan.Plan);
+            Assert.AreEqual(fixture.Contract.SyntheticPlanDigest, recomputed);
+            Assert.AreNotEqual(fixture.Contract.ObservedPlanDigest, recomputed);
+            var assessment = fixture.Evaluate();
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.SnapshotPlanBinding).Status);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.AdmittedExactPlan).Status);
+            Assert.AreEqual(IngredientMaturityLevel.M2, assessment.AttainedMaturity);
+        }
+
+        [TestMethod]
+        public void HistoricalEndToEndCommitDoesNotProveTheExactRevision()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddFrozenTargetObservations();
+            Assert.AreEqual(fixture.Contract.RevisionParent, "e7ed9ca5695a208e174b3d2475cb6bd0bce04f4f");
+            Assert.AreEqual(fixture.Contract.HistoricalEndToEndCommit, fixture.Evidence.Productization.EndToEndCommit);
+            Assert.IsNull(fixture.Evidence.Binding.ImplementationCommit);
+            Assert.AreEqual(fixture.Contract.RevisionParent, fixture.Context.Producer.ImplementationCommit);
+            Assert.IsNull(fixture.Evidence.Productization.ImplementationCommit);
+            Assert.IsNull(fixture.Evidence.Productization.BuildCommit);
+            Assert.IsNull(fixture.Evidence.Productization.PrReadyCommit);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(fixture.Evaluate(), IngredientMaturityGateCatalog.SameCommitE2E).Status);
+        }
+
+        [TestMethod]
+        public void BinaryReceiptUsesIndependentlyHashedFrameworkAndTestArtifacts()
+        {
+            var fixture = Fixture.Create();
+            var receipt = fixture.Evidence.BinaryReceipt;
+            Assert.AreEqual(fixture.Contract.BinaryReceipt.FrameworkSha256, receipt.IndependentlyObservedFrameworkSha256);
+            Assert.AreEqual(fixture.Contract.BinaryReceipt.TestSha256, receipt.IndependentlyObservedTestSha256);
+            Assert.AreNotEqual(receipt.FrameworkSha256, receipt.TestSha256);
+            Assert.AreEqual(fixture.Contract.BinaryReceipt.BuildCommand, receipt.BuildCommand);
+        }
+
+        [TestMethod]
+        public void BinaryReceiptMismatchFailsClosed()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddFrozenTargetObservations();
+            fixture.Mutate("binary-receipt-mismatch");
+            var receipt = Gate(fixture.Evaluate(), IngredientMaturityGateCatalog.ExactCodeBuild);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status);
+            StringAssert.Contains(receipt.FailureReason, "binary receipt");
         }
 
         [TestMethod]
@@ -267,6 +324,7 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                     case "missing-cleanup-receipt": Evidence.Operational.RuntimeCleanupRetryEvidenceReferences.Remove(Evidence.Binding.CleanupEvidenceReference); break;
                     case "corrupt-cleanup-receipt": Evidence.Operational.CleanupPassed = false; break;
                     case "same-commit-mismatch": Evidence.Productization.EndToEndCommit = new string('f', 40); break;
+                    case "binary-receipt-mismatch": Evidence.BinaryReceipt.IndependentlyObservedTestSha256 = new string('0', 64); break;
                     case "wrong-compare-binding": Evidence.Productization.CompareReport.Ingredients[0].Lineage.TargetIdentity = "cupcollect:foreign"; RefreshCompareDigest(); break;
                     case "corrupt-compare-digest": Evidence.Productization.CompareReportDigest = new string('0', 64); break;
                     case "access-denied-compared-equal": Evidence.Productization.CompareReport.Ingredients[0].TargetEvidenceState = IngredientTargetEvidenceStates.Denied; Evidence.Productization.CompareReport.Ingredients[0].ResultClass = PublishingPageCompareContract.ResultClasses.AuthorizationBlocked; RefreshCompareDigest(); break;
@@ -304,7 +362,7 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                         }
                     }
                 };
-                var planDigest = PublishingPageDigest.ComputePlanDigest(plan);
+                var planDigest = Contract.ObservedPlanDigest;
                 var operationId = Guid.Parse(Contract.OperationId);
                 Evidence.Binding = new EmbedIframeEvidenceBinding
                 {
@@ -317,7 +375,7 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                     PlanDigest = planDigest,
                     ActionId = actionId,
                     OperationId = operationId,
-                    ImplementationCommit = Contract.ImplementationCommit,
+                    ImplementationCommit = null,
                     RuntimeEvidenceReference = "ccd171-runtime-receipt.json",
                     CompareEvidenceReference = "ccd171-compare-receipt.json",
                     CleanupEvidenceReference = "ccd171-webpart-cleanup-receipt.json"
@@ -428,11 +486,11 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                     HermeticUnitTest = true,
                     RedTestEvidenceReference = "ccd374-peer-changes-required.md",
                     GreenTestEvidenceReference = "EmbedIframeMaturityContributorTests.trx",
-                    ImplementationCommit = Contract.ImplementationCommit,
-                    BuildCommit = Contract.ImplementationCommit,
-                    BinaryDigest = Contract.BinaryDigest,
-                    BuildEvidenceReference = "ccd383-build-receipt.json",
-                    EndToEndCommit = Contract.ImplementationCommit,
+                    ImplementationCommit = null,
+                    BuildCommit = null,
+                    BinaryDigest = Contract.BinaryReceipt.FrameworkSha256,
+                    BuildEvidenceReference = "ccd400-reproducible-binary-receipt.json",
+                    EndToEndCommit = Contract.HistoricalEndToEndCommit,
                     EndToEndPlanDigest = planDigest,
                     EndToEndEvidenceReference = "ccd171-runtime-receipt.json",
                     CompareReport = report,
@@ -444,8 +502,8 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                     CtoReviewEvidenceReference = "hermetic-contract-fixture:cto-gate",
                     IndependentVerificationVerdict = "PASS",
                     IndependentVerificationEvidenceReference = "hermetic-contract-fixture:verification-gate",
-                    PrReadyCommit = Contract.ImplementationCommit,
-                    PrReadyEvidenceReference = "ccd383-pr-ready-receipt.json"
+                    PrReadyCommit = null,
+                    PrReadyEvidenceReference = null
                 };
             }
 
@@ -515,6 +573,20 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                         SemanticDigest = fixture.SemanticSha256,
                         EvidenceReferences = Refs("ccd110-r00871-v83.fixture.json", "source-collect-receipt.json")
                     },
+                    BinaryReceipt = new EmbedIframeBinaryReceiptEvidence
+                    {
+                        SdkVersion = fixture.BinaryReceipt.SdkVersion,
+                        MsBuildVersion = fixture.BinaryReceipt.MsBuildVersion,
+                        VstestVersion = fixture.BinaryReceipt.VstestVersion,
+                        Configuration = fixture.BinaryReceipt.Configuration,
+                        BuildCommand = fixture.BinaryReceipt.BuildCommand,
+                        FrameworkArtifact = fixture.BinaryReceipt.FrameworkArtifact,
+                        FrameworkSha256 = fixture.BinaryReceipt.FrameworkSha256,
+                        IndependentlyObservedFrameworkSha256 = FrameworkAssemblySha256.Value,
+                        TestArtifact = fixture.BinaryReceipt.TestArtifact,
+                        TestSha256 = fixture.BinaryReceipt.TestSha256,
+                        IndependentlyObservedTestSha256 = TestAssemblySha256.Value
+                    },
                     ExpectedSourceValueDigests = new Dictionary<string, string>(fixture.SourceValueDigests, StringComparer.Ordinal),
                     ExpectedTargetValueDigests = new Dictionary<string, string>(fixture.TargetValueDigests, StringComparer.Ordinal),
                     Live = new IngredientLiveEvidence
@@ -549,7 +621,7 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                     Producer = new IngredientMaturityProducerBinding
                     {
                         ProducerId = "pnp-framework", ProducerVersion = "embed.iframe-revision-v2",
-                        ImplementationCommit = fixture.ImplementationCommit, BinaryDigest = fixture.BinaryDigest
+                        ImplementationCommit = fixture.RevisionParent, BinaryDigest = fixture.BinaryReceipt.FrameworkSha256
                     },
                     TargetMaturity = IngredientMaturityLevel.M5,
                     TechnicalOutcome = new IngredientTechnicalOutcome
@@ -571,15 +643,17 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                 webUrl = source.WebUrl
             });
 
-            private static FixtureContract LoadContract([CallerFilePath] string callerPath = null)
+            private static FixtureContract LoadContract()
             {
-                var path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(callerPath),
-                    "../../Resources/IngredientLanes/embed.iframe/v1/ccd110-r00871-v83.fixture.json"));
+                var projectDirectory = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Parent?.Parent;
+                var path = Path.Combine(projectDirectory.FullName,
+                    "Resources/IngredientLanes/embed.iframe/v1/ccd110-r00871-v83.fixture.json");
                 return JsonSerializer.Deserialize<FixtureContract>(File.ReadAllText(path),
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
 
             private static List<string> Refs(params string[] values) => values.OrderBy(value => value, StringComparer.Ordinal).ToList();
+
         }
 
         internal sealed class FixtureContract
@@ -598,9 +672,13 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
             public string TargetIdentity { get; set; }
             public string TargetHostWebPartId { get; set; }
             public string ObservedPlanDigest { get; set; }
+            public string SyntheticPlanDigest { get; set; }
             public string OperationId { get; set; }
+            public string RevisionParent { get; set; }
+            public string HistoricalEndToEndCommit { get; set; }
             public string ImplementationCommit { get; set; }
             public string BinaryDigest { get; set; }
+            public BinaryReceiptContract BinaryReceipt { get; set; }
             public Dictionary<string, string> SourceValueDigests { get; set; }
             public Dictionary<string, string> TargetValueDigests { get; set; }
         }
@@ -643,6 +721,28 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
             public string MediaType { get; set; }
             public string OriginalName { get; set; }
             public string Base64 { get; set; }
+        }
+
+        internal sealed class BinaryReceiptContract
+        {
+            public string SdkVersion { get; set; }
+            public string MsBuildVersion { get; set; }
+            public string VstestVersion { get; set; }
+            public string Configuration { get; set; }
+            public string BuildCommand { get; set; }
+            public string FrameworkArtifact { get; set; }
+            public string FrameworkSha256 { get; set; }
+            public string TestArtifact { get; set; }
+            public string TestSha256 { get; set; }
+        }
+
+        private static string ComputeFileSha256(string path)
+        {
+            using (var stream = File.OpenRead(path))
+            using (var algorithm = SHA256.Create())
+            {
+                return string.Concat(algorithm.ComputeHash(stream).Select(value => value.ToString("x2")));
+            }
         }
     }
 }

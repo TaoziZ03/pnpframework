@@ -67,9 +67,36 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 
         public EmbedIframeEvidenceBinding Binding { get; set; }
 
+        public EmbedIframeBinaryReceiptEvidence BinaryReceipt { get; set; }
+
         public IReadOnlyDictionary<string, string> ExpectedSourceValueDigests { get; set; }
 
         public IReadOnlyDictionary<string, string> ExpectedTargetValueDigests { get; set; }
+    }
+
+    internal sealed class EmbedIframeBinaryReceiptEvidence
+    {
+        public string SdkVersion { get; set; }
+
+        public string MsBuildVersion { get; set; }
+
+        public string VstestVersion { get; set; }
+
+        public string Configuration { get; set; }
+
+        public string BuildCommand { get; set; }
+
+        public string FrameworkArtifact { get; set; }
+
+        public string FrameworkSha256 { get; set; }
+
+        public string IndependentlyObservedFrameworkSha256 { get; set; }
+
+        public string TestArtifact { get; set; }
+
+        public string TestSha256 { get; set; }
+
+        public string IndependentlyObservedTestSha256 { get; set; }
     }
 
     internal sealed class EmbedIframeEvidenceBinding

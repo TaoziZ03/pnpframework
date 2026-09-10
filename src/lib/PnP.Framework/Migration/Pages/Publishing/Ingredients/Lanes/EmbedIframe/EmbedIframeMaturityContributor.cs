@@ -166,6 +166,11 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
             {
                 return bindingFailure;
             }
+            var binaryFailure = ValidateBinaryReceipt(context);
+            if (binaryFailure != null)
+            {
+                return binaryFailure;
+            }
             var product = evidence.Productization;
             var compare = product?.CompareReport;
             var results = compare?.Ingredients?
@@ -192,6 +197,29 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
                 || !string.Equals(result.Expected.CanonicalDigestSha256, result.Actual?.CanonicalDigestSha256, StringComparison.OrdinalIgnoreCase))
             {
                 return "The iframe productization, same-commit E2E, Compare ingredient, action, target, or availability binding does not match the evaluation context.";
+            }
+            return null;
+        }
+
+        private string ValidateBinaryReceipt(IngredientMaturityEvaluationContext context)
+        {
+            var receipt = evidence.BinaryReceipt;
+            if (receipt == null
+                || string.IsNullOrWhiteSpace(receipt.SdkVersion)
+                || string.IsNullOrWhiteSpace(receipt.MsBuildVersion)
+                || string.IsNullOrWhiteSpace(receipt.VstestVersion)
+                || string.IsNullOrWhiteSpace(receipt.Configuration)
+                || string.IsNullOrWhiteSpace(receipt.BuildCommand)
+                || string.IsNullOrWhiteSpace(receipt.FrameworkArtifact)
+                || string.IsNullOrWhiteSpace(receipt.TestArtifact)
+                || !IngredientMaturityEvaluator.IsSha256(receipt.FrameworkSha256)
+                || !IngredientMaturityEvaluator.IsSha256(receipt.TestSha256)
+                || !string.Equals(receipt.FrameworkSha256, receipt.IndependentlyObservedFrameworkSha256, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(receipt.TestSha256, receipt.IndependentlyObservedTestSha256, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(evidence.Productization?.BinaryDigest, receipt.FrameworkSha256, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(context?.Producer?.BinaryDigest, receipt.IndependentlyObservedFrameworkSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                return "The iframe binary receipt does not match independently hashed Framework and Test build artifacts.";
             }
             return null;
         }
