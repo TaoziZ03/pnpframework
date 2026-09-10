@@ -57,7 +57,7 @@
     "frameworkArtifact": "src/lib/PnP.Framework/bin/Debug/net10.0/PnP.Framework.dll",
     "frameworkSha256": "c7bfd9f70db820dd579dc294691f17ba1d698f6e1ad75995102afecd3677899d",
     "testArtifact": "src/lib/PnP.Framework.Test/bin/Debug/net10.0/PnP.Framework.Test.dll",
-    "testSha256": "1d8057c8d83247479e88d824399be122cdac48065fc24e0b9f086f7b9868ddd7"
+    "testSha256": "136791c1b8caee1e8f7dbe19ee319b72ef72baae3ad187d34f8ca672cda46700"
   },
   "sourceValueDigests": {
     "binding.consumer": "2aad8914cf9fd5768d7e815ed2027023cfebf07b93ad015e8dec23eba10d39cb",

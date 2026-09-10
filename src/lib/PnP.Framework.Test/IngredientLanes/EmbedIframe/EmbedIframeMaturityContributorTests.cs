@@ -67,6 +67,24 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [TestMethod]
+        public void HermeticFullyBoundContractProjectsEveryGateThroughM5WithoutContributorAssignedMaturity()
+        {
+            var fixture = Fixture.Create();
+            fixture.BindHermeticM5Contract();
+
+            var contribution = fixture.Contribute();
+            var assessment = fixture.Evaluate();
+
+            Assert.IsFalse(contribution.GetType().GetProperties().Any(value =>
+                string.Equals(value.Name, "AttainedMaturity", StringComparison.Ordinal)));
+            Assert.AreEqual(IngredientMaturityLevel.M5, assessment.AttainedMaturity);
+            Assert.IsTrue(assessment.Levels
+                .Where(value => value.Level <= IngredientMaturityLevel.M5)
+                .SelectMany(value => value.Gates)
+                .All(value => value.Status == IngredientMaturityGateStatus.Passed));
+        }
+
+        [TestMethod]
         public void ObservedPlanDigestMismatchWithRecomputedSyntheticPlanFailsClosed()
         {
             var fixture = Fixture.Create();
@@ -273,6 +291,28 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                 }
                 Evidence.Live.TargetFreshReadback = true;
                 Evidence.Live.TargetEvidenceReferences.Add("ccd171-runtime-receipt.json");
+            }
+
+            public void BindHermeticM5Contract()
+            {
+                const string hermeticCommit = "1111111111111111111111111111111111111111";
+                AddFrozenTargetObservations();
+                RefreshPlanBindings();
+
+                Evidence.Binding.ImplementationCommit = hermeticCommit;
+                Evidence.Productization.ImplementationCommit = hermeticCommit;
+                Evidence.Productization.BuildCommit = hermeticCommit;
+                Evidence.Productization.EndToEndCommit = hermeticCommit;
+                Evidence.Productization.PrReadyCommit = hermeticCommit;
+                Evidence.Productization.PrReadyEvidenceReference = "hermetic-contract-fixture:pr-ready";
+
+                Evidence.BinaryReceipt.FrameworkSha256 = FrameworkAssemblySha256.Value;
+                Evidence.BinaryReceipt.IndependentlyObservedFrameworkSha256 = FrameworkAssemblySha256.Value;
+                Evidence.BinaryReceipt.TestSha256 = TestAssemblySha256.Value;
+                Evidence.BinaryReceipt.IndependentlyObservedTestSha256 = TestAssemblySha256.Value;
+                Evidence.Productization.BinaryDigest = FrameworkAssemblySha256.Value;
+                Context.Producer.ImplementationCommit = hermeticCommit;
+                Context.Producer.BinaryDigest = FrameworkAssemblySha256.Value;
             }
 
             public void CorruptTargetValue(string valuePath)
