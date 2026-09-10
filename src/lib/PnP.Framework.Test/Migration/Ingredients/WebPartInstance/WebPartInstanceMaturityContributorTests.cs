@@ -147,6 +147,30 @@ namespace PnP.Framework.Test.Migration.Ingredients.WebPartInstance
         }
 
         [TestMethod]
+        public void UnexpectedTargetObservationFailsFreshReadback()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            var targetObservedAt = fixture.Evidence.Live.Observations.First(value =>
+                value.Origin == IngredientObservationOrigin.CupCollectFreshReadback).ObservedAtUtc;
+            fixture.Evidence.Live.Observations.Add(new IngredientValueObservation
+            {
+                ValuePath = "unexpected.persisted-state",
+                ValueDigest = MigrationDigest.ComputeSha256(
+                    MigrationContractSerializer.SerializeCanonical("unexpected")),
+                ObservedAtUtc = targetObservedAt,
+                Origin = IngredientObservationOrigin.CupCollectFreshReadback,
+                EvidenceReference = "evidence/webpart-instance/target-unexpected.persisted-state.json"
+            });
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback, IngredientMaturityGateStatus.Failed);
+        }
+
+        [TestMethod]
         public void StaleSourceVersionBindingFailsM0()
         {
             var fixture = Fixture.Create();

@@ -432,7 +432,9 @@ namespace PnP.Framework.Migration.Ingredients.WebPartInstance
             }
 
             var values = observations.ToArray();
-            return expected.All(pair =>
+            return values.Length == expected.Count
+                && values.All(value => expected.ContainsKey(value.ValuePath))
+                && expected.All(pair =>
             {
                 var matches = values.Where(value => string.Equals(value.ValuePath, pair.Key, StringComparison.Ordinal)).ToArray();
                 return matches.Length == 1
