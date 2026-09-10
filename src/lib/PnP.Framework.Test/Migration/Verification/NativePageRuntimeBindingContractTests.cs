@@ -24,6 +24,28 @@ namespace PnP.Framework.Test.Migration.Verification
     [TestClass]
     public class NativePageRuntimeBindingContractTests
     {
+        private const string FixtureOriginEvidencePackageDigest = "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283";
+        private const string FixtureSourceVersionDigest = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5";
+        private const string FixtureInputDigest = "9975e98736813227a3eb3d5fc383543f0f8e4b0579dfc3079f9a168ed7f8d058";
+        private const long FixtureInputLength = 315;
+        private static readonly HashSet<string> SupportedPermanentFixtureRecipes = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "case:access-denied-terminal",
+            "case:capture-before-import",
+            "case:consistent-unobserved-target",
+            "case:custom-report-only",
+            "case:exact-match",
+            "case:http-200-denial",
+            "case:missing-provenance",
+            "case:pending-preservation",
+            "case:policy-cannot-upgrade-pending",
+            "case:self-authored-verified",
+            "case:stale-source-version",
+            "case:weakened-manifest",
+            "case:wrong-operation",
+            "case:wrong-target-file"
+        };
+
         [TestMethod]
         public void PreCaptureBindingSealsPackageManifestImportTargetAndTimeline()
         {
@@ -269,6 +291,70 @@ namespace PnP.Framework.Test.Migration.Verification
                 new byte[] { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a });
             fixture.ValidateExternal(out status);
             Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><p hidden>approved content</p><main>Unrelated page</main></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><p style='display:none'>approved content</p><main>Unrelated page</main></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><h1>Access<br>Denied</h1><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><h1>Access</h1><h1>Denied</h1><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                MutatePngHeader(NativeRuntimeTestFixture.PngBytes(), bitDepth: 8, colorType: 7));
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                MutatePngHeader(NativeRuntimeTestFixture.PngBytes(), bitDepth: 0, colorType: 4));
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                CorruptPngImageData(NativeRuntimeTestFixture.PngBytes()));
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                JpegWithoutEntropyScan());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
         }
 
         [TestMethod]
@@ -473,17 +559,21 @@ namespace PnP.Framework.Test.Migration.Verification
                     Assert.IsTrue(document.RootElement.TryGetProperty("caseId", out var caseId));
                     Assert.IsFalse(string.IsNullOrWhiteSpace(caseId.GetString()));
                     Assert.IsTrue(document.RootElement.GetProperty("synthetic").GetBoolean());
-                    Assert.AreEqual(64, document.RootElement.GetProperty("originEvidencePackageDigest").GetString().Length);
+                    Assert.AreEqual(FixtureOriginEvidencePackageDigest, document.RootElement.GetProperty("originEvidencePackageDigest").GetString());
+                    Assert.AreEqual(FixtureSourceVersionDigest, document.RootElement.GetProperty("sourceVersionDigest").GetString());
                     Assert.AreEqual(NativePageRuntimeContract.ClaimId, document.RootElement.GetProperty("claimId").GetString());
                     var recipe = document.RootElement.GetProperty("transformRecipe").GetString();
                     Assert.AreEqual(
                         MigrationDigest.ComputeSha256(recipe),
                         document.RootElement.GetProperty("transformRecipeDigest").GetString());
                     var inputs = document.RootElement.GetProperty("inputArtifacts");
-                    Assert.IsTrue(inputs.GetArrayLength() > 0);
+                    Assert.AreEqual(1, inputs.GetArrayLength());
                     string fixtureInput = null;
                     foreach (var input in inputs.EnumerateArray())
                     {
+                        Assert.AreEqual("fixture-input.txt", input.GetProperty("path").GetString());
+                        Assert.AreEqual(FixtureInputDigest, input.GetProperty("sha256").GetString());
+                        Assert.AreEqual(FixtureInputLength, input.GetProperty("length").GetInt64());
                         var path = Path.GetFullPath(Path.Combine(root, input.GetProperty("path").GetString()));
                         Assert.IsTrue(path.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal));
                         var bytes = File.ReadAllBytes(path);
@@ -495,8 +585,8 @@ namespace PnP.Framework.Test.Migration.Verification
                     {
                         Assert.AreEqual("ccd263-runtime-fixture-input/v1", inputDocument.RootElement.GetProperty("schemaVersion").GetString());
                         Assert.AreEqual(NativePageRuntimeContract.ClaimId, inputDocument.RootElement.GetProperty("claimId").GetString());
-                        Assert.AreEqual(document.RootElement.GetProperty("originEvidencePackageDigest").GetString(), inputDocument.RootElement.GetProperty("originEvidencePackageDigest").GetString());
-                        Assert.AreEqual(document.RootElement.GetProperty("sourceVersionDigest").GetString(), inputDocument.RootElement.GetProperty("sourceVersionDigest").GetString());
+                        Assert.AreEqual(FixtureOriginEvidencePackageDigest, inputDocument.RootElement.GetProperty("originEvidencePackageDigest").GetString());
+                        Assert.AreEqual(FixtureSourceVersionDigest, inputDocument.RootElement.GetProperty("sourceVersionDigest").GetString());
                         Assert.AreEqual(4, inputDocument.RootElement.EnumerateObject().Count());
                     }
                     AssertPermanentOutcome(recipe, caseId.GetString(), document.RootElement.GetProperty("expected"));
@@ -527,11 +617,16 @@ namespace PnP.Framework.Test.Migration.Verification
                     "ccd385-unimplemented-transform:exact-match",
                     "exact-match",
                     document.RootElement));
+                Assert.ThrowsException<AssertFailedException>(() => AssertPermanentOutcome(
+                    "case:unimplemented-case-ccd421",
+                    "unimplemented-case-ccd421",
+                    document.RootElement));
             }
         }
 
         private static void AssertPermanentOutcome(string recipe, string caseId, JsonElement expected)
         {
+            Assert.IsTrue(SupportedPermanentFixtureRecipes.Contains(recipe), recipe + " is not a supported permanent fixture recipe.");
             Assert.AreEqual("case:" + caseId, recipe, caseId + " uses an unsupported transform recipe.");
             var fixture = NativeRuntimeTestFixture.Create(
                 runtimePassed: !string.Equals(caseId, "access-denied-terminal", StringComparison.Ordinal),
@@ -576,7 +671,14 @@ namespace PnP.Framework.Test.Migration.Verification
                         NativePageRuntimeBindingValidator.SealBinding(fixture.Binding);
                         fixture.ValidateBinding();
                         break;
-                    default:
+                    case "case:access-denied-terminal":
+                    case "case:custom-report-only":
+                    case "case:exact-match":
+                    case "case:http-200-denial":
+                    case "case:missing-provenance":
+                    case "case:pending-preservation":
+                    case "case:policy-cannot-upgrade-pending":
+                    case "case:self-authored-verified":
                         var external = caseId == "custom-report-only"
                             || caseId == "policy-cannot-upgrade-pending"
                             || caseId == "pending-preservation"
@@ -597,6 +699,9 @@ namespace PnP.Framework.Test.Migration.Verification
                         acceptanceStatus = receipt.AcceptanceStatus;
                         provenanceStatus = receipt.ProvenanceStatus;
                         diagnostic = string.Join(";", receipt.ReasonCodes);
+                        break;
+                    default:
+                        Assert.Fail(recipe + " was admitted without an explicit fixture construction branch.");
                         break;
                 }
             }
@@ -620,6 +725,75 @@ namespace PnP.Framework.Test.Migration.Verification
                     default: Assert.Fail(caseId + " contains an unsupported expected field: " + property.Name); break;
                 }
             }
+        }
+
+        private static byte[] MutatePngHeader(byte[] source, byte bitDepth, byte colorType)
+        {
+            var bytes = source.ToArray();
+            bytes[24] = bitDepth;
+            bytes[25] = colorType;
+            var crc = ComputeTestPngCrc(bytes, 12, 17);
+            bytes[29] = (byte)(crc >> 24);
+            bytes[30] = (byte)(crc >> 16);
+            bytes[31] = (byte)(crc >> 8);
+            bytes[32] = (byte)crc;
+            return bytes;
+        }
+
+        private static uint ComputeTestPngCrc(byte[] bytes, int offset, int count)
+        {
+            var crc = 0xffffffffu;
+            for (var index = 0; index < count; index++)
+            {
+                crc ^= bytes[offset + index];
+                for (var bit = 0; bit < 8; bit++)
+                {
+                    crc = (crc & 1) != 0 ? 0xedb88320u ^ (crc >> 1) : crc >> 1;
+                }
+            }
+            return crc ^ 0xffffffffu;
+        }
+
+        private static byte[] CorruptPngImageData(byte[] source)
+        {
+            var bytes = source.ToArray();
+            var offset = 8;
+            while (offset + 12 <= bytes.Length)
+            {
+                var length = bytes[offset] << 24 | bytes[offset + 1] << 16 | bytes[offset + 2] << 8 | bytes[offset + 3];
+                if (Encoding.ASCII.GetString(bytes, offset + 4, 4) == "IDAT")
+                {
+                    for (var index = 0; index < length; index++)
+                    {
+                        bytes[offset + 8 + index] = 0;
+                    }
+                    var crc = ComputeTestPngCrc(bytes, offset + 4, length + 4);
+                    bytes[offset + 8 + length] = (byte)(crc >> 24);
+                    bytes[offset + 9 + length] = (byte)(crc >> 16);
+                    bytes[offset + 10 + length] = (byte)(crc >> 8);
+                    bytes[offset + 11 + length] = (byte)crc;
+                    return bytes;
+                }
+                offset += length + 12;
+            }
+            Assert.Fail("The PNG control does not contain IDAT data.");
+            return null;
+        }
+
+        private static byte[] JpegWithoutEntropyScan()
+        {
+            var bytes = new List<byte> { 0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00 };
+            bytes.AddRange(Enumerable.Repeat((byte)1, 64));
+            bytes.AddRange(new byte[]
+            {
+                0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00,
+                0xff, 0xc4, 0x00, 0x14, 0x00,
+                0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00,
+                0xff, 0xd9
+            });
+            return bytes.ToArray();
         }
 
         private static NativePageRuntimeAcceptanceReceipt EvaluateFixture(

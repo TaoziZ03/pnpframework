@@ -862,7 +862,7 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
         {
             Require(extensions != null && extensions.All(value =>
                     !string.IsNullOrWhiteSpace(value.Key)
-                    && value.Key.IndexOf('.', StringComparison.Ordinal) > 0
+                    && value.Key.IndexOf(".", StringComparison.Ordinal) > 0
                     && value.Value != null),
                 "Runtime extensions must be lossless namespaced values.");
         }

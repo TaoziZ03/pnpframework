@@ -4,7 +4,9 @@ using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Verification.NativePageRuntime;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -14,6 +16,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
 {
     public sealed class ClassicWikiRuntimeEvidencePolicy : INativePageRuntimeEvidencePolicy
     {
+        private const int MaximumScreenshotBytes = 32 * 1024 * 1024;
+        private const int MaximumImageDimension = 16384;
+        private const int MaximumDecodedRasterBytes = 64 * 1024 * 1024;
+
         public string ProfileId => NativePageRuntimeContract.ClassicWikiProfile;
 
         public string PolicyVersion => NativePageRuntimeContract.ClassicWikiPolicyVersion;
@@ -194,7 +200,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
 
         private static bool IsSupportedImage(byte[] bytes)
         {
-            return IsValidPng(bytes) || IsValidJpeg(bytes);
+            return CanDecodeBoundedPngRaster(bytes) || HasBoundedJpegRaster(bytes);
         }
 
         private static string ExtractRenderedText(string html)
@@ -202,15 +208,163 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             try
             {
                 var document = new HtmlParser().ParseDocument(DecodeHtml(html));
-                foreach (var element in document.QuerySelectorAll("script,style,noscript,template"))
-                {
-                    element.Remove();
-                }
-                return NormalizeRenderedText(document.Body?.TextContent ?? document.DocumentElement?.TextContent);
+                var rendered = new StringBuilder();
+                AppendVisibleRenderedText(document.Body ?? document.DocumentElement, rendered);
+                return NormalizeRenderedText(rendered.ToString());
             }
             catch
             {
                 return string.Empty;
+            }
+        }
+
+        private static void AppendVisibleRenderedText(INode node, StringBuilder result)
+        {
+            if (node == null)
+            {
+                return;
+            }
+            if (node is IText text)
+            {
+                result.Append(text.Data);
+                return;
+            }
+            if (node is IElement element)
+            {
+                if (!IsPotentiallyVisible(element))
+                {
+                    return;
+                }
+                var boundary = IsRenderedTextBoundary(element.LocalName);
+                if (boundary)
+                {
+                    AppendTextBoundary(result);
+                }
+                if (string.Equals(element.LocalName, "br", StringComparison.OrdinalIgnoreCase))
+                {
+                    AppendTextBoundary(result);
+                    return;
+                }
+                foreach (var child in element.ChildNodes)
+                {
+                    AppendVisibleRenderedText(child, result);
+                }
+                if (boundary)
+                {
+                    AppendTextBoundary(result);
+                }
+                return;
+            }
+            foreach (var child in node.ChildNodes)
+            {
+                AppendVisibleRenderedText(child, result);
+            }
+        }
+
+        private static bool IsPotentiallyVisible(IElement element)
+        {
+            var name = element.LocalName;
+            if (string.Equals(name, "script", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "style", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "noscript", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "template", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "head", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "meta", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "link", StringComparison.OrdinalIgnoreCase)
+                || element.HasAttribute("hidden")
+                || element.HasAttribute("inert")
+                || string.Equals(element.GetAttribute("aria-hidden"), "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(element.GetAttribute("type"), "hidden", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(name, "input", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var style = element.GetAttribute("style");
+            if (string.IsNullOrWhiteSpace(style))
+            {
+                return true;
+            }
+            foreach (var declaration in style.Split(';'))
+            {
+                var separator = declaration.IndexOf(':');
+                if (separator <= 0)
+                {
+                    continue;
+                }
+                var property = declaration.Substring(0, separator).Trim();
+                var value = declaration.Substring(separator + 1).Trim();
+                var important = value.IndexOf("!important", StringComparison.OrdinalIgnoreCase);
+                if (important >= 0)
+                {
+                    value = value.Substring(0, important).Trim();
+                }
+                if (string.Equals(property, "display", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(value, "none", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(property, "visibility", StringComparison.OrdinalIgnoreCase)
+                    && (string.Equals(value, "hidden", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(value, "collapse", StringComparison.OrdinalIgnoreCase))
+                    || string.Equals(property, "content-visibility", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(value, "hidden", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool IsRenderedTextBoundary(string localName)
+        {
+            switch ((localName ?? string.Empty).ToLowerInvariant())
+            {
+                case "address":
+                case "article":
+                case "aside":
+                case "blockquote":
+                case "caption":
+                case "dd":
+                case "div":
+                case "dl":
+                case "dt":
+                case "fieldset":
+                case "figcaption":
+                case "figure":
+                case "footer":
+                case "form":
+                case "h1":
+                case "h2":
+                case "h3":
+                case "h4":
+                case "h5":
+                case "h6":
+                case "header":
+                case "hr":
+                case "li":
+                case "main":
+                case "nav":
+                case "ol":
+                case "p":
+                case "pre":
+                case "section":
+                case "table":
+                case "tbody":
+                case "td":
+                case "tfoot":
+                case "th":
+                case "thead":
+                case "tr":
+                case "ul":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static void AppendTextBoundary(StringBuilder result)
+        {
+            if (result.Length > 0 && !char.IsWhiteSpace(result[result.Length - 1]))
+            {
+                result.Append(' ');
             }
         }
 
@@ -237,9 +391,9 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             return result.ToString().Trim();
         }
 
-        private static bool IsValidPng(byte[] bytes)
+        private static bool CanDecodeBoundedPngRaster(byte[] bytes)
         {
-            if (bytes == null || bytes.Length < 45
+            if (bytes == null || bytes.Length < 45 || bytes.Length > MaximumScreenshotBytes
                 || bytes[0] != 0x89 || bytes[1] != 0x50 || bytes[2] != 0x4e || bytes[3] != 0x47
                 || bytes[4] != 0x0d || bytes[5] != 0x0a || bytes[6] != 0x1a || bytes[7] != 0x0a)
             {
@@ -248,6 +402,13 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             var offset = 8;
             var sawHeader = false;
             var sawImageData = false;
+            var finishedImageData = false;
+            var sawPalette = false;
+            var width = 0;
+            var height = 0;
+            byte bitDepth = 0;
+            byte colorType = 0;
+            using (var imageData = new MemoryStream())
             while (offset + 12 <= bytes.Length)
             {
                 var length = ReadBigEndianInt32(bytes, offset);
@@ -262,45 +423,209 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 {
                     return false;
                 }
+                for (var typeIndex = 0; typeIndex < 4; typeIndex++)
+                {
+                    var typeByte = bytes[typeOffset + typeIndex];
+                    if (!((typeByte >= 'A' && typeByte <= 'Z') || (typeByte >= 'a' && typeByte <= 'z')))
+                    {
+                        return false;
+                    }
+                }
+                if (bytes[typeOffset + 2] >= 'a' && bytes[typeOffset + 2] <= 'z')
+                {
+                    return false;
+                }
                 var type = Encoding.ASCII.GetString(bytes, typeOffset, 4);
                 if (!sawHeader)
                 {
                     if (!string.Equals(type, "IHDR", StringComparison.Ordinal) || length != 13
-                        || ReadBigEndianInt32(bytes, dataOffset) <= 0
-                        || ReadBigEndianInt32(bytes, dataOffset + 4) <= 0
+                        || (width = ReadBigEndianInt32(bytes, dataOffset)) <= 0
+                        || (height = ReadBigEndianInt32(bytes, dataOffset + 4)) <= 0
+                        || width > MaximumImageDimension || height > MaximumImageDimension
+                        || !IsSupportedPngColorMode(
+                            bitDepth = bytes[dataOffset + 8],
+                            colorType = bytes[dataOffset + 9])
                         || bytes[dataOffset + 10] != 0
                         || bytes[dataOffset + 11] != 0
-                        || bytes[dataOffset + 12] > 1)
+                        || bytes[dataOffset + 12] != 0)
                     {
                         return false;
                     }
                     sawHeader = true;
                 }
+                else if (string.Equals(type, "IHDR", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+                else if (string.Equals(type, "PLTE", StringComparison.Ordinal))
+                {
+                    if (sawImageData || sawPalette || colorType == 0 || colorType == 4
+                        || length == 0 || length > 768 || length % 3 != 0)
+                    {
+                        return false;
+                    }
+                    sawPalette = true;
+                }
                 else if (string.Equals(type, "IDAT", StringComparison.Ordinal))
                 {
-                    sawImageData |= length > 0;
+                    if (finishedImageData || length == 0)
+                    {
+                        return false;
+                    }
+                    sawImageData = true;
+                    imageData.Write(bytes, dataOffset, length);
                 }
                 else if (string.Equals(type, "IEND", StringComparison.Ordinal))
                 {
-                    return length == 0 && sawImageData && offset + 12 == bytes.Length;
+                    if (length != 0 || !sawImageData || offset + 12 != bytes.Length
+                        || colorType == 3 && !sawPalette)
+                    {
+                        return false;
+                    }
+                    return TryDecodePngRaster(
+                        imageData.ToArray(),
+                        width,
+                        height,
+                        GetPngBitsPerPixel(bitDepth, colorType));
+                }
+                else
+                {
+                    if (sawImageData)
+                    {
+                        finishedImageData = true;
+                    }
+                    if (char.IsUpper(type[0]))
+                    {
+                        return false;
+                    }
                 }
                 offset += 12 + length;
             }
             return false;
         }
 
-        private static bool IsValidJpeg(byte[] bytes)
+        private static bool IsSupportedPngColorMode(byte bitDepth, byte colorType)
         {
-            if (bytes == null || bytes.Length < 12 || bytes[0] != 0xff || bytes[1] != 0xd8
+            switch (colorType)
+            {
+                case 0: return bitDepth == 1 || bitDepth == 2 || bitDepth == 4 || bitDepth == 8 || bitDepth == 16;
+                case 2: return bitDepth == 8 || bitDepth == 16;
+                case 3: return bitDepth == 1 || bitDepth == 2 || bitDepth == 4 || bitDepth == 8;
+                case 4: return bitDepth == 8 || bitDepth == 16;
+                case 6: return bitDepth == 8 || bitDepth == 16;
+                default: return false;
+            }
+        }
+
+        private static int GetPngBitsPerPixel(byte bitDepth, byte colorType)
+        {
+            switch (colorType)
+            {
+                case 0:
+                case 3:
+                    return bitDepth;
+                case 2:
+                    return bitDepth * 3;
+                case 4:
+                    return bitDepth * 2;
+                case 6:
+                    return bitDepth * 4;
+                default:
+                    return 0;
+            }
+        }
+
+        private static bool TryDecodePngRaster(byte[] compressed, int width, int height, int bitsPerPixel)
+        {
+            if (compressed == null || compressed.Length < 6 || bitsPerPixel <= 0)
+            {
+                return false;
+            }
+            var cmf = compressed[0];
+            var flags = compressed[1];
+            if ((cmf & 0x0f) != 8 || (cmf >> 4) > 7
+                || ((cmf << 8) + flags) % 31 != 0 || (flags & 0x20) != 0)
+            {
+                return false;
+            }
+            var rowBytes = ((long)width * bitsPerPixel + 7) / 8;
+            var expectedLength = (rowBytes + 1) * height;
+            if (rowBytes <= 0 || expectedLength <= 0 || expectedLength > MaximumDecodedRasterBytes)
+            {
+                return false;
+            }
+            try
+            {
+                byte[] decoded;
+                using (var input = new MemoryStream(compressed, 2, compressed.Length - 6, false))
+                using (var inflater = new DeflateStream(input, CompressionMode.Decompress))
+                using (var output = new MemoryStream((int)expectedLength))
+                {
+                    var buffer = new byte[8192];
+                    int read;
+                    while ((read = inflater.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        if (output.Length + read > expectedLength)
+                        {
+                            return false;
+                        }
+                        output.Write(buffer, 0, read);
+                    }
+                    if (output.Length != expectedLength)
+                    {
+                        return false;
+                    }
+                    decoded = output.ToArray();
+                }
+                for (long row = 0; row < height; row++)
+                {
+                    if (decoded[row * (rowBytes + 1)] > 4)
+                    {
+                        return false;
+                    }
+                }
+                return ReadBigEndianUInt32(compressed, compressed.Length - 4) == ComputeAdler32(decoded);
+            }
+            catch (InvalidDataException)
+            {
+                return false;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+        }
+
+        private static uint ComputeAdler32(byte[] bytes)
+        {
+            const uint modulus = 65521;
+            uint a = 1;
+            uint b = 0;
+            foreach (var value in bytes)
+            {
+                a = (a + value) % modulus;
+                b = (b + a) % modulus;
+            }
+            return b << 16 | a;
+        }
+
+        private static bool HasBoundedJpegRaster(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length < 12 || bytes.Length > MaximumScreenshotBytes
+                || bytes[0] != 0xff || bytes[1] != 0xd8
                 || bytes[bytes.Length - 2] != 0xff || bytes[bytes.Length - 1] != 0xd9)
             {
                 return false;
             }
             var offset = 2;
             var sawFrame = false;
-            while (offset + 1 < bytes.Length - 2)
+            var sawQuantizationTable = false;
+            var sawHuffmanTable = false;
+            var sawScan = false;
+            var frameComponents = new HashSet<byte>();
+            while (offset < bytes.Length)
             {
-                if (bytes[offset++] != 0xff)
+                if (offset + 1 >= bytes.Length || bytes[offset++] != 0xff)
                 {
                     return false;
                 }
@@ -315,15 +640,11 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 var marker = bytes[offset++];
                 if (marker == 0xd9)
                 {
-                    return sawFrame && offset == bytes.Length;
+                    return sawFrame && sawQuantizationTable && sawHuffmanTable && sawScan && offset == bytes.Length;
                 }
-                if (marker == 0xda)
+                if (marker == 0x00 || marker == 0x01 || marker >= 0xd0 && marker <= 0xd8)
                 {
-                    return sawFrame && bytes[bytes.Length - 2] == 0xff && bytes[bytes.Length - 1] == 0xd9;
-                }
-                if (marker == 0x01 || marker >= 0xd0 && marker <= 0xd7)
-                {
-                    continue;
+                    return false;
                 }
                 if (offset + 2 > bytes.Length)
                 {
@@ -334,24 +655,191 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 {
                     return false;
                 }
-                if (IsJpegStartOfFrame(marker))
+                var segmentStart = offset + 2;
+                var segmentEnd = offset + length;
+                if (marker == 0xdb)
                 {
-                    if (length < 8 || bytes[offset + 3] == 0 && bytes[offset + 4] == 0
-                        || bytes[offset + 5] == 0 && bytes[offset + 6] == 0)
+                    if (!ValidateJpegQuantizationTables(bytes, segmentStart, segmentEnd))
+                    {
+                        return false;
+                    }
+                    sawQuantizationTable = true;
+                }
+                else if (marker == 0xc4)
+                {
+                    if (!ValidateJpegHuffmanTables(bytes, segmentStart, segmentEnd))
+                    {
+                        return false;
+                    }
+                    sawHuffmanTable = true;
+                }
+                else if (IsJpegStartOfFrame(marker))
+                {
+                    if (sawFrame || !ValidateJpegFrame(bytes, segmentStart, segmentEnd, frameComponents))
                     {
                         return false;
                     }
                     sawFrame = true;
                 }
-                offset += length;
+                else if (marker == 0xda)
+                {
+                    if (!sawFrame || !sawQuantizationTable || !sawHuffmanTable
+                        || !ValidateJpegScanHeader(bytes, segmentStart, segmentEnd, frameComponents))
+                    {
+                        return false;
+                    }
+                    var scanOffset = segmentEnd;
+                    var entropyBytes = 0;
+                    while (scanOffset < bytes.Length)
+                    {
+                        if (bytes[scanOffset] != 0xff)
+                        {
+                            entropyBytes++;
+                            scanOffset++;
+                            continue;
+                        }
+                        if (scanOffset + 1 >= bytes.Length)
+                        {
+                            return false;
+                        }
+                        var next = bytes[scanOffset + 1];
+                        if (next == 0x00)
+                        {
+                            entropyBytes++;
+                            scanOffset += 2;
+                            continue;
+                        }
+                        if (next == 0xff)
+                        {
+                            scanOffset++;
+                            continue;
+                        }
+                        if (next >= 0xd0 && next <= 0xd7)
+                        {
+                            scanOffset += 2;
+                            continue;
+                        }
+                        break;
+                    }
+                    if (entropyBytes == 0)
+                    {
+                        return false;
+                    }
+                    sawScan = true;
+                    offset = scanOffset;
+                    continue;
+                }
+                offset = segmentEnd;
             }
             return false;
         }
 
         private static bool IsJpegStartOfFrame(byte marker)
         {
-            return marker >= 0xc0 && marker <= 0xcf
-                && marker != 0xc4 && marker != 0xc8 && marker != 0xcc;
+            return marker == 0xc0 || marker == 0xc1 || marker == 0xc2;
+        }
+
+        private static bool ValidateJpegQuantizationTables(byte[] bytes, int offset, int end)
+        {
+            while (offset < end)
+            {
+                var descriptor = bytes[offset++];
+                var precision = descriptor >> 4;
+                if (precision > 1 || (descriptor & 0x0f) > 3)
+                {
+                    return false;
+                }
+                var tableBytes = precision == 0 ? 64 : 128;
+                if (offset + tableBytes > end)
+                {
+                    return false;
+                }
+                offset += tableBytes;
+            }
+            return offset == end;
+        }
+
+        private static bool ValidateJpegHuffmanTables(byte[] bytes, int offset, int end)
+        {
+            while (offset < end)
+            {
+                var descriptor = bytes[offset++];
+                if ((descriptor >> 4) > 1 || (descriptor & 0x0f) > 3 || offset + 16 > end)
+                {
+                    return false;
+                }
+                var symbols = 0;
+                for (var index = 0; index < 16; index++)
+                {
+                    symbols += bytes[offset + index];
+                }
+                offset += 16;
+                if (symbols == 0 || symbols > 256 || offset + symbols > end)
+                {
+                    return false;
+                }
+                offset += symbols;
+            }
+            return offset == end;
+        }
+
+        private static bool ValidateJpegFrame(byte[] bytes, int offset, int end, ISet<byte> components)
+        {
+            if (end - offset < 6 || bytes[offset] != 8)
+            {
+                return false;
+            }
+            var height = bytes[offset + 1] << 8 | bytes[offset + 2];
+            var width = bytes[offset + 3] << 8 | bytes[offset + 4];
+            var count = bytes[offset + 5];
+            if (height <= 0 || width <= 0 || height > MaximumImageDimension || width > MaximumImageDimension
+                || count < 1 || count > 4 || end - offset != 6 + count * 3)
+            {
+                return false;
+            }
+            components.Clear();
+            offset += 6;
+            for (var index = 0; index < count; index++)
+            {
+                var id = bytes[offset];
+                var sampling = bytes[offset + 1];
+                if (!components.Add(id) || (sampling >> 4) == 0 || (sampling >> 4) > 4
+                    || (sampling & 0x0f) == 0 || (sampling & 0x0f) > 4 || bytes[offset + 2] > 3)
+                {
+                    return false;
+                }
+                offset += 3;
+            }
+            return true;
+        }
+
+        private static bool ValidateJpegScanHeader(byte[] bytes, int offset, int end, ISet<byte> frameComponents)
+        {
+            if (offset >= end)
+            {
+                return false;
+            }
+            var count = bytes[offset++];
+            if (count < 1 || count > frameComponents.Count || end - offset != count * 2 + 3)
+            {
+                return false;
+            }
+            var scanComponents = new HashSet<byte>();
+            for (var index = 0; index < count; index++)
+            {
+                var id = bytes[offset++];
+                var tables = bytes[offset++];
+                if (!frameComponents.Contains(id) || !scanComponents.Add(id)
+                    || (tables >> 4) > 3 || (tables & 0x0f) > 3)
+                {
+                    return false;
+                }
+            }
+            var spectralStart = bytes[offset++];
+            var spectralEnd = bytes[offset++];
+            var approximation = bytes[offset];
+            return spectralStart <= spectralEnd && spectralEnd <= 63
+                && (approximation >> 4) <= 13 && (approximation & 0x0f) <= 13;
         }
 
         private static int ReadBigEndianInt32(byte[] bytes, int offset)
