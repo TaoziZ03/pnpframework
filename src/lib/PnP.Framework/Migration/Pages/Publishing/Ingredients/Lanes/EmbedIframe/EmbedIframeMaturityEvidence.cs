@@ -1,6 +1,7 @@
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.References;
+using System;
 using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
@@ -63,5 +64,40 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
         public IngredientOperationalEvidence Operational { get; set; }
 
         public IngredientProductizationEvidence Productization { get; set; }
+
+        public EmbedIframeEvidenceBinding Binding { get; set; }
+
+        public IReadOnlyDictionary<string, string> ExpectedSourceValueDigests { get; set; }
+
+        public IReadOnlyDictionary<string, string> ExpectedTargetValueDigests { get; set; }
+    }
+
+    internal sealed class EmbedIframeEvidenceBinding
+    {
+        public string IngredientId { get; set; }
+
+        public string SourceVersion { get; set; }
+
+        public string TargetProfile { get; set; }
+
+        public string TargetIdentity { get; set; }
+
+        public string SourceHostWebPartId { get; set; }
+
+        public string TargetHostWebPartId { get; set; }
+
+        public string PlanDigest { get; set; }
+
+        public string ActionId { get; set; }
+
+        public Guid OperationId { get; set; }
+
+        public string ImplementationCommit { get; set; }
+
+        public string RuntimeEvidenceReference { get; set; }
+
+        public string CompareEvidenceReference { get; set; }
+
+        public string CleanupEvidenceReference { get; set; }
     }
 }

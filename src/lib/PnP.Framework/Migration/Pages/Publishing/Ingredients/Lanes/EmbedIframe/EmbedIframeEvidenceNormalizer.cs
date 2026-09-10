@@ -51,6 +51,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
             "binding.zoneIndex",
             "capture.status",
             "geometry.height",
+            "geometry.marginheight",
+            "geometry.marginwidth",
             "geometry.width",
             "locator.classification",
             "locator.normalized",
@@ -114,10 +116,16 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
                     Kind = reference?.Kind.ToString(),
                     Marginheight = frame?.GetAttribute("marginheight"),
                     Marginwidth = frame?.GetAttribute("marginwidth"),
+                    Allow = frame?.GetAttribute("allow"),
+                    Loading = frame?.GetAttribute("loading"),
+                    Name = frame?.GetAttribute("name"),
                     OriginalValue = rawLocator,
+                    Referrerpolicy = frame?.GetAttribute("referrerpolicy"),
+                    Sandbox = frame?.GetAttribute("sandbox"),
                     Scrolling = frame?.GetAttribute("scrolling"),
                     SourceAbsoluteUrl = resolvedLocator,
                     Style = frame?.GetAttribute("style"),
+                    Title = frame?.GetAttribute("title"),
                     Width = frame?.GetAttribute("width")
                 },
                 Schema = "ccd.embed-iframe-source-observation/v1",
@@ -206,33 +214,37 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
                 Classification = classification,
                 ValueDigests = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
-                    ["binding.consumer"] = ScalarDigest(reference?.Consumer),
-                    ["binding.hostWebPartId"] = ScalarDigest(host?.WebPartId),
-                    ["binding.propertyName"] = ScalarDigest(host?.PropertyName),
-                    ["binding.zoneIndex"] = ScalarDigest(host?.ZoneIndex),
-                    ["capture.status"] = ScalarDigest(reference?.CaptureStatus.ToString()),
-                    ["geometry.height"] = ScalarDigest(frame?.GetAttribute("height")),
-                    ["geometry.width"] = ScalarDigest(frame?.GetAttribute("width")),
-                    ["locator.classification"] = ScalarDigest(classification),
-                    ["locator.normalized"] = ScalarDigest(normalizedLocator),
-                    ["locator.raw"] = ScalarDigest(rawLocator),
-                    ["locator.resolved"] = ScalarDigest(resolvedLocator),
-                    ["policy.allow"] = ScalarDigest(frame?.GetAttribute("allow")),
-                    ["policy.frameborder"] = ScalarDigest(frame?.GetAttribute("frameborder")),
-                    ["policy.loading"] = ScalarDigest(frame?.GetAttribute("loading")),
-                    ["policy.name"] = ScalarDigest(frame?.GetAttribute("name")),
-                    ["policy.referrerpolicy"] = ScalarDigest(frame?.GetAttribute("referrerpolicy")),
-                    ["policy.sandbox"] = ScalarDigest(frame?.GetAttribute("sandbox")),
-                    ["policy.scrolling"] = ScalarDigest(frame?.GetAttribute("scrolling")),
-                    ["policy.style"] = ScalarDigest(frame?.GetAttribute("style")),
-                    ["policy.title"] = ScalarDigest(frame?.GetAttribute("title"))
+                    ["binding.consumer"] = ComputeScalarDigest(reference?.Consumer),
+                    ["binding.hostWebPartId"] = ComputeScalarDigest(host?.WebPartId),
+                    ["binding.propertyName"] = ComputeScalarDigest(host?.PropertyName),
+                    ["binding.zoneIndex"] = ComputeScalarDigest(host?.ZoneIndex),
+                    ["capture.status"] = ComputeScalarDigest(reference?.CaptureStatus.ToString()),
+                    ["geometry.height"] = ComputeScalarDigest(frame?.GetAttribute("height")),
+                    ["geometry.marginheight"] = ComputeScalarDigest(frame?.GetAttribute("marginheight")),
+                    ["geometry.marginwidth"] = ComputeScalarDigest(frame?.GetAttribute("marginwidth")),
+                    ["geometry.width"] = ComputeScalarDigest(frame?.GetAttribute("width")),
+                    ["locator.classification"] = ComputeScalarDigest(classification),
+                    ["locator.normalized"] = ComputeScalarDigest(normalizedLocator),
+                    ["locator.raw"] = ComputeScalarDigest(rawLocator),
+                    ["locator.resolved"] = ComputeScalarDigest(resolvedLocator),
+                    ["policy.allow"] = ComputeScalarDigest(frame?.GetAttribute("allow")),
+                    ["policy.frameborder"] = ComputeScalarDigest(frame?.GetAttribute("frameborder")),
+                    ["policy.loading"] = ComputeScalarDigest(frame?.GetAttribute("loading")),
+                    ["policy.name"] = ComputeScalarDigest(frame?.GetAttribute("name")),
+                    ["policy.referrerpolicy"] = ComputeScalarDigest(frame?.GetAttribute("referrerpolicy")),
+                    ["policy.sandbox"] = ComputeScalarDigest(frame?.GetAttribute("sandbox")),
+                    ["policy.scrolling"] = ComputeScalarDigest(frame?.GetAttribute("scrolling")),
+                    ["policy.style"] = ComputeScalarDigest(frame?.GetAttribute("style")),
+                    ["policy.title"] = ComputeScalarDigest(frame?.GetAttribute("title"))
                 }
             };
         }
 
         public static IngredientLiveEvidence ProjectLiveEvidence(
             IngredientLiveEvidence evidence,
-            EmbedIframeNormalization normalized)
+            EmbedIframeNormalization normalized,
+            IReadOnlyDictionary<string, string> expectedSource,
+            IReadOnlyDictionary<string, string> expectedTarget)
         {
             if (evidence == null)
             {
@@ -244,14 +256,26 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
             return new IngredientLiveEvidence
             {
                 SourceAuthenticated = evidence.SourceAuthenticated
-                    && ValuesMatch(observations, IngredientObservationOrigin.AuthenticatedSource, normalized?.ValueDigests),
+                    && DictionariesMatch(normalized?.ValueDigests, expectedSource)
+                    && ValuesMatch(observations, IngredientObservationOrigin.AuthenticatedSource, expectedSource),
                 TargetFreshReadback = evidence.TargetFreshReadback
-                    && ValuesMatch(observations, IngredientObservationOrigin.CupCollectFreshReadback, normalized?.ValueDigests),
+                    && ValuesMatch(observations, IngredientObservationOrigin.CupCollectFreshReadback, expectedTarget),
                 HistoricalOrSyntheticSubstitution = evidence.HistoricalOrSyntheticSubstitution,
                 Observations = observations,
                 SourceEvidenceReferences = (evidence.SourceEvidenceReferences ?? Array.Empty<string>()).ToList(),
                 TargetEvidenceReferences = (evidence.TargetEvidenceReferences ?? Array.Empty<string>()).ToList()
             };
+        }
+
+        private static bool DictionariesMatch(
+            IReadOnlyDictionary<string, string> actual,
+            IReadOnlyDictionary<string, string> expected)
+        {
+            return actual != null
+                && expected != null
+                && RequiredValuePaths.All(path => actual.TryGetValue(path, out var actualDigest)
+                    && expected.TryGetValue(path, out var expectedDigest)
+                    && string.Equals(actualDigest, expectedDigest, StringComparison.OrdinalIgnoreCase));
         }
 
         private static bool ValuesMatch(
@@ -347,7 +371,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
             return "external";
         }
 
-        private static string ScalarDigest(object value)
+        internal static string ComputeScalarDigest(object value)
         {
             var canonical = value == null ? "null" : MigrationContractSerializer.SerializeCanonical(value);
             return MigrationDigest.ComputeSha256(canonical);
@@ -377,6 +401,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 
         private sealed class ReferenceProjection
         {
+            public string Allow { get; set; }
+
             public string CaptureStatus { get; set; }
 
             public string Classification { get; set; }
@@ -393,17 +419,27 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 
             public string Kind { get; set; }
 
+            public string Loading { get; set; }
+
             public string Marginheight { get; set; }
 
             public string Marginwidth { get; set; }
 
+            public string Name { get; set; }
+
             public string OriginalValue { get; set; }
+
+            public string Referrerpolicy { get; set; }
+
+            public string Sandbox { get; set; }
 
             public string Scrolling { get; set; }
 
             public string SourceAbsoluteUrl { get; set; }
 
             public string Style { get; set; }
+
+            public string Title { get; set; }
 
             public string Width { get; set; }
         }
