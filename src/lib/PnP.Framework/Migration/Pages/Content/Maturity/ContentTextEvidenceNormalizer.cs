@@ -348,12 +348,16 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 {
                     var matches = dependencies.Where(value => string.Equals(value.Kind, pair.Key, StringComparison.Ordinal)).ToArray();
                     var canonicalId = pair.Key + ":" + pair.Value;
-                    var dependency = matches.SingleOrDefault();
+                    if (matches.Length != 1)
+                    {
+                        return false;
+                    }
+
+                    var dependency = matches[0];
                     var expectedProviderSchema = CreateDependencySchemaCanonicalJson(evidence, pair.Key, pair.Value);
                     var providerBytes = DecodeBase64(dependency?.ProviderArtifactBase64);
                     var providerDigest = providerBytes == null ? null : MigrationDigest.ComputeSha256(providerBytes);
-                    return matches.Length == 1
-                        && string.Equals(dependency.ProviderIdentity, pair.Value, StringComparison.OrdinalIgnoreCase)
+                    return string.Equals(dependency.ProviderIdentity, pair.Value, StringComparison.OrdinalIgnoreCase)
                         && dependency.ProviderArtifact != null
                         && dependency.ProviderArtifact.Availability == EvidenceAvailability.Captured
                         && providerBytes != null

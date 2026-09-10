@@ -172,7 +172,12 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 .Where(value => value != null
                     && string.Equals(value.IngredientId, context?.Identity?.IngredientId, StringComparison.Ordinal))
                 .ToArray();
-            var row = rows.SingleOrDefault();
+            if (rows.Length != 1)
+            {
+                return false;
+            }
+
+            var row = rows[0];
             var importReceiptDigest = operational?.ImportReceipt == null
                 ? null
                 : MigrationDigest.ComputeSha256(MigrationContractSerializer.SerializeCanonical(operational.ImportReceipt));
@@ -195,7 +200,6 @@ namespace PnP.Framework.Migration.Pages.Content.Maturity
                 && string.Equals(report.Producer?.Id, context.Producer.ProducerId, StringComparison.Ordinal)
                 && string.Equals(report.Producer?.Version, context.Producer.ProducerVersion, StringComparison.Ordinal)
                 && string.Equals(report.Producer?.ImplementationRef, context.Producer.ImplementationCommit, StringComparison.Ordinal)
-                && rows.Length == 1
                 && string.Equals(row.Kind, "Content", StringComparison.Ordinal)
                 && row.Material
                 && string.Equals(row.Lineage?.SourceIngredientId, context.Identity.IngredientId, StringComparison.Ordinal)

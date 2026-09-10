@@ -134,6 +134,23 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
             AssertGate(assessment, IngredientMaturityGateCatalog.PrimaryOwner, IngredientMaturityGateStatus.Failed);
         }
 
+        [TestMethod]
+        public void DuplicateDependencyKindFailsClosedInsteadOfThrowing()
+        {
+            var fixture = Fixture.CreatePublishing();
+            var duplicate = fixture.Evidence.Source.Dependencies.Single(value => value.Kind == "list");
+            var field = fixture.Evidence.Source.Dependencies.Single(value => value.Kind == "field");
+            var fieldIndex = fixture.Evidence.Source.Dependencies.IndexOf(field);
+            fixture.Evidence.Source.Dependencies[fieldIndex] = duplicate;
+            fixture.RefreshNormalization();
+            fixture.AddSourceObservations();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.IsNull(assessment.AttainedMaturity);
+            AssertGate(assessment, IngredientMaturityGateCatalog.PrimaryOwner, IngredientMaturityGateStatus.Failed);
+        }
+
         [DataTestMethod]
         [DataRow("foreign")]
         [DataRow("empty")]
@@ -255,6 +272,23 @@ namespace PnP.Framework.Test.Migration.Pages.Content.Maturity
 
             Assert.AreEqual(IngredientMaturityLevel.M5, assessment.AttainedMaturity);
             Assert.AreEqual(IngredientTechnicalStatus.Conditional, fixture.Context.TechnicalOutcome.Status);
+        }
+
+        [TestMethod]
+        public void DuplicateCurrentCompareRowFailsClosedAtM4InsteadOfThrowing()
+        {
+            var fixture = Fixture.CreatePublishing();
+            fixture.AddSourceObservations();
+            fixture.AddTargetObservations();
+            fixture.BindPlanAndOperationalEvidence();
+            fixture.BindProductizationEvidence();
+            var row = fixture.Evidence.Productization.CompareReport.Ingredients.Single();
+            fixture.Evidence.Productization.CompareReport.Ingredients.Add(row);
+            fixture.ResealCompareReport();
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M4, assessment.AttainedMaturity);
         }
 
         [DataTestMethod]
