@@ -1,0 +1,110 @@
+{
+  "schema": "pnp.dynamic-region-fixture/v1",
+  "claimId": "06ae06890b1d8db32e12613d7b8dbd5a2aae054d1ebeb10d49b830e6567a6b44",
+  "ingredientId": "ccd.ingredient.dynamic.region/v1:ff758937-6594-4e7d-be6a-e9f22d541889:00001:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+  "source": {
+    "pageUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+    "webUrl": "https://microsoft.sharepoint.com/sites/biatmicrosoft/blog_Archive",
+    "fileServerRelativeUrl": "/sites/biatmicrosoft/blog_Archive/Pages/Search.aspx",
+    "listId": "109e7c16-5932-420f-848d-73f148bd31f2",
+    "itemId": 7,
+    "uniqueId": "ff758937-6594-4e7d-be6a-e9f22d541889",
+    "sourceVersion": "\"{FF758937-6594-4E7D-BE6A-E9F22D541889},41\"",
+    "sourceArtifactSha256": "097e71692b6e5bfff8faca402b00bfb816150ab82091241a7dd843244ea62a88",
+    "providerIngredientId": "ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+    "providerInstanceId": "f869d623-017d-42ff-90e8-b5bf14fff9b3",
+    "controlType": "Microsoft.Office.Server.Search.WebControls.ResultScriptWebPart",
+    "configSha256": "f8da186e53bc0b30880a4dfb19b059b92f4a3e2cdf69eef1572c5039538a6e88",
+    "boundary": "#WebPartWPQ4",
+    "zone": "rich-text-inline:ctl00_PlaceHolderMain_ctl01__ControlWrapper_RichHtmlField",
+    "order": 0,
+    "observedAtUtc": "2026-09-09T09:18:49.595Z",
+    "rawArtifactSha256": "18004b9fe69ab8ef4179d594d2af9d4fab5274b11edaef7be208cd97c155891f",
+    "rawArtifactLength": 2803,
+    "semanticDigest": "18004b9fe69ab8ef4179d594d2af9d4fab5274b11edaef7be208cd97c155891f",
+    "legacyLineTerminatedSemanticDigest": "1302815f0b22f2f5d8ebd80025c5a228286e7a2ffd343d9dc725e826438b7e2e",
+    "dependencies": [
+      "ccd.ingredient.webpart.instance/v1:ff758937-6594-4e7d-be6a-e9f22d541889:f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "ccd.dependency.runtime-capability/v1:classic-search-webparts-and-display-templates",
+      "ccd.dependency.external-service/v1:SharePoint-Search"
+    ],
+    "evidenceReferences": [
+      "ccd-158/run/pages/row-00001.json#sha256=097e71692b6e5bfff8faca402b00bfb816150ab82091241a7dd843244ea62a88",
+      "provider-payload#sha256=d321257094d042033d532a9836c1fd362f88fc8855ad56678bbf60ceda9fce45",
+      "pnp-canonical-region#sha256=18004b9fe69ab8ef4179d594d2af9d4fab5274b11edaef7be208cd97c155891f"
+    ]
+  },
+  "region": {
+    "admission": {
+      "definitionComplete": true,
+      "determinism": "conditional",
+      "failClosedReasons": [
+        "runtime.observable-not-yet-reconciled",
+        "target.native-receipt-not-yet-bound"
+      ],
+      "identityComplete": true,
+      "placementComplete": true,
+      "support": "conditional-or-unsupported"
+    },
+    "definition": {
+      "configDigest": "f8da186e53bc0b30880a4dfb19b059b92f4a3e2cdf69eef1572c5039538a6e88",
+      "pagination": {
+        "mode": "bounded",
+        "window": 10
+      },
+      "providerBinding": {
+        "contextualItemId": 7,
+        "contextualListId": "109e7c16-5932-420f-848d-73f148bd31f2",
+        "queryGroupName": "Default",
+        "queryTemplate": "",
+        "sourceId": "34fe79cd-e93a-4f97-a9cc-63eb050ee322",
+        "sourceLevel": "SPSite"
+      },
+      "providerComplete": true,
+      "resourceClosure": {
+        "displayTemplates": [
+          { "key": "GroupTemplateId", "value": "" },
+          { "key": "ItemBodyTemplateId", "value": "~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_CommonItem_Body.js" },
+          { "key": "ItemTemplateId", "value": null },
+          { "key": "PreloadedItemTemplateIdsJson", "value": "[\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Group_Default.js\",\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_Default.js\",\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_Site.js\",\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_Word.js\",\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_PowerPoint.js\",\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_Person_CompactHorizontal.js\",\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_BestBet.js\",\"~sitecollection/_catalogs/masterpage/Display Templates/Search/Item_WebPage.js\"]" },
+          { "key": "RenderTemplateId", "value": "~sitecollection/_catalogs/masterpage/Display Templates/Search/Control_SearchResults.js" }
+        ],
+        "jsLink": null,
+        "xslLink": null
+      }
+    },
+    "dependencies": {
+      "featureOrRuntimeCapability": "classic-search-webparts-and-display-templates",
+      "listId": null,
+      "permissionSensitive": true,
+      "searchService": "SharePoint Search",
+      "webId": null
+    },
+    "observation": {
+      "freshness": "fresh-no-store",
+      "observableDigest": "1f5650241c822533ac23ce4baafb4141c8771588c5f94998aa7221fdc4f98112",
+      "phase": "client-hydration-or-async",
+      "snapshotAtUtc": "2026-09-09T09:18:49.595Z",
+      "state": "server-render-marker-observed",
+      "temporalSemantics": {
+        "comparableOnlyWithinDeclaredWindow": true,
+        "volatility": "query-user-permission-index-time"
+      }
+    },
+    "owner": {
+      "family": "search-results",
+      "inferredControlType": "Microsoft.Office.Server.Search.WebControls.ResultScriptWebPart",
+      "instanceId": "f869d623-017d-42ff-90e8-b5bf14fff9b3",
+      "reportedType": null,
+      "title": "Search Results",
+      "typeInference": "property-fingerprint"
+    },
+    "placement": {
+      "domLocator": "#WebPartWPQ4",
+      "locatorEvidence": "server-html-instance-bound-id",
+      "order": 0,
+      "zone": "rich-text-inline:ctl00_PlaceHolderMain_ctl01__ControlWrapper_RichHtmlField"
+    },
+    "regionId": "00001:f869d623-017d-42ff-90e8-b5bf14fff9b3"
+  }
+}
