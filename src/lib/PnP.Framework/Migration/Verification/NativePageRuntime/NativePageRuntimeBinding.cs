@@ -145,6 +145,10 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
 
         public NativePageRuntimeTargetIdentityEvidence TargetIdentityEvidence { get; set; }
 
+        public string IdentityEvidenceVerifierId { get; set; }
+
+        public string IdentityEvidenceVerifierImplementationRef { get; set; }
+
         public NativePageRuntimeArtifactReference NativeImportEvidence { get; set; }
 
         public NativePageRuntimeArtifactReference PackageEvidence { get; set; }

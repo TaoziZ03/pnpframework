@@ -22,6 +22,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             INativePageRuntimeEvidencePolicy policy,
             ProducerBuildProvenanceManifest provenanceManifest,
             IProducerBuildProvenanceVerifier provenanceVerifier,
+            INativePageRuntimeIdentityEvidenceVerifier identityEvidenceVerifier,
             string evaluatorId,
             string evaluatorImplementationRef,
             DateTimeOffset evaluatedAtUtc)
@@ -54,7 +55,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     admittedPlanDigestSha256,
                     importAggregate,
                     provenanceManifest,
-                    artifactStore);
+                    artifactStore,
+                    identityEvidenceVerifier);
                 if (!string.Equals(bindingDigest, receipt.BindingDigestSha256, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidDataException("The evaluated runtime binding digest is stale or foreign.");
@@ -66,6 +68,16 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 }
                 policy.ValidateBinding(binding, artifactStore);
                 receipt.BindingValidationStatus = NativePageRuntimeContract.BindingValid;
+            }
+            catch (NativePageRuntimeIdentityEvidenceUnverifiedException exception)
+            {
+                receipt.BindingValidationStatus = NativePageRuntimeContract.BindingIncomplete;
+                receipt.RuntimeVerificationStatus = RuntimeVerificationStatus.Pending;
+                receipt.AcceptanceStatus = MigrationAcceptanceStatus.Pending;
+                receipt.ProvenanceStatus = ProducerBuildProvenanceContract.Unverified;
+                receipt.ReasonCodes.Add("IDENTITY_EVIDENCE_NOT_INDEPENDENTLY_VERIFIED:" + exception.Message);
+                NativePageRuntimeBindingValidator.SealAcceptanceReceipt(receipt);
+                return receipt;
             }
             catch (InvalidDataException exception)
             {

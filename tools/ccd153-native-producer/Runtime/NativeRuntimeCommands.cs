@@ -55,6 +55,9 @@ internal static class NativeRuntimeCommands
             new ClassicWikiRuntimeEvidencePolicy(),
             provenanceManifest,
             new UnverifiedProducerBuildProvenanceVerifier(),
+            new UnverifiedNativePageRuntimeIdentityEvidenceVerifier(
+                binding.IdentityEvidenceVerifierId,
+                binding.IdentityEvidenceVerifierImplementationRef),
             "ccd153-native-producer.runtime-evaluator",
             request.ImplementationRef,
             request.EvaluatedAtUtc == default ? DateTimeOffset.UtcNow : request.EvaluatedAtUtc);

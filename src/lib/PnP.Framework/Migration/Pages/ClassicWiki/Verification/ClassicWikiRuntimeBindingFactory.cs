@@ -27,6 +27,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             string contractProducerRef,
             ProducerBuildProvenanceManifest contractProvenanceManifest,
             IMigrationArtifactStore artifactStore,
+            INativePageRuntimeIdentityEvidenceVerifier identityEvidenceVerifier,
             DateTimeOffset issuedAtUtc,
             DateTimeOffset captureExpiresAtUtc)
         {
@@ -45,6 +46,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             if (freshTargetIdentity.Artifact == null)
             {
                 throw new ArgumentException("Target identity must be supplied as provider-observed, reopenable evidence.", nameof(freshTargetIdentity));
+            }
+            if (identityEvidenceVerifier == null)
+            {
+                throw new ArgumentNullException(nameof(identityEvidenceVerifier));
             }
 
             var requirements = NativePageRuntimeBindingValidator.CreateClassicWikiManifest();
@@ -99,6 +104,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 Operations = Copy(admittedPlan.Operations),
                 TargetStorageIdentity = NativePageRuntimeBindingValidator.CopyTarget(freshTargetIdentity.Identity),
                 TargetIdentityEvidence = freshTargetIdentity,
+                IdentityEvidenceVerifierId = identityEvidenceVerifier.VerifierId,
+                IdentityEvidenceVerifierImplementationRef = identityEvidenceVerifier.ImplementationRef,
                 NativeImportEvidence = importEvidence,
                 PackageEvidence = packageEvidence,
                 PolicyArtifact = policyEvidence,
@@ -122,7 +129,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 admittedPlanDigestSha256,
                 importAggregate,
                 contractProvenanceManifest,
-                artifactStore);
+                artifactStore,
+                identityEvidenceVerifier);
             return result;
         }
 

@@ -69,6 +69,7 @@ namespace PnP.Framework.Test.ClassicWiki
                 new AlwaysTrueRuntimePolicy(),
                 fixture.ProvenanceManifest,
                 new VerifiedTestProducerBuildProvenanceVerifier(),
+                fixture.IdentityEvidenceVerifier,
                 "ccd.native-runtime-evaluator",
                 NativeRuntimeTestFixture.ContractRef,
                 new DateTimeOffset(2026, 9, 10, 0, 20, 0, TimeSpan.Zero));
@@ -131,6 +132,47 @@ namespace PnP.Framework.Test.ClassicWiki
             Assert.AreEqual(MigrationAcceptanceStatus.Pending, receipt.AcceptanceStatus);
         }
 
+        [TestMethod]
+        public void UnverifiedIdentityAuthorityPreservesPendingAndFailedReceiptCannotBeUpgraded()
+        {
+            var fixture = NativeRuntimeTestFixture.Create();
+            var receipt = ClassicWikiNativeRuntimeAcceptance.Evaluate(
+                fixture.Package,
+                fixture.AdmittedPlan,
+                fixture.AdmittedDigest,
+                fixture.ImportAggregate,
+                fixture.Binding,
+                fixture.External,
+                fixture.ArtifactStore,
+                new ClassicWikiRuntimeEvidencePolicy(),
+                fixture.ProvenanceManifest,
+                new VerifiedTestProducerBuildProvenanceVerifier(),
+                new UnverifiedNativePageRuntimeIdentityEvidenceVerifier(
+                    fixture.Binding.IdentityEvidenceVerifierId,
+                    fixture.Binding.IdentityEvidenceVerifierImplementationRef),
+                "ccd.native-runtime-evaluator",
+                NativeRuntimeTestFixture.ContractRef,
+                new DateTimeOffset(2026, 9, 10, 0, 20, 0, TimeSpan.Zero));
+
+            Assert.AreEqual(NativePageRuntimeContract.BindingIncomplete, receipt.BindingValidationStatus);
+            Assert.AreEqual(RuntimeVerificationStatus.Pending, receipt.RuntimeVerificationStatus);
+            Assert.AreEqual(MigrationAcceptanceStatus.Pending, receipt.AcceptanceStatus);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            foreach (var result in fixture.External.RuntimeReceipt.Results)
+            {
+                result.Passed = false;
+            }
+            fixture.External.RuntimeReceipt.Status = RuntimeVerificationStatus.Failed;
+            fixture.External.Attempts[0].SemanticResult = "forbidden";
+            fixture.ResealExternal();
+
+            receipt = Evaluate(fixture, new VerifiedTestProducerBuildProvenanceVerifier());
+
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, receipt.RuntimeVerificationStatus);
+            Assert.AreEqual(MigrationAcceptanceStatus.Rejected, receipt.AcceptanceStatus);
+        }
+
         private static NativePageRuntimeAcceptanceReceipt Evaluate(
             NativeRuntimeTestFixture fixture,
             IProducerBuildProvenanceVerifier verifier)
@@ -146,6 +188,7 @@ namespace PnP.Framework.Test.ClassicWiki
                 new ClassicWikiRuntimeEvidencePolicy(),
                 fixture.ProvenanceManifest,
                 verifier,
+                fixture.IdentityEvidenceVerifier,
                 "ccd.native-runtime-evaluator",
                 NativeRuntimeTestFixture.ContractRef,
                 new DateTimeOffset(2026, 9, 10, 0, 20, 0, TimeSpan.Zero));

@@ -1,3 +1,5 @@
+using AngleSharp.Dom;
+using AngleSharp.Html.Parser;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Verification.NativePageRuntime;
@@ -110,7 +112,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
 
         private static bool ContainsDenialOrErrorShell(string value)
         {
-            var text = DecodeHtml(value);
+            var text = ExtractRenderedText(value);
             return text.IndexOf("access denied", StringComparison.OrdinalIgnoreCase) >= 0
                 || text.IndexOf("sign in", StringComparison.OrdinalIgnoreCase) >= 0
                 || text.IndexOf("unauthorized", StringComparison.OrdinalIgnoreCase) >= 0
@@ -184,16 +186,197 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
 
         private static bool ContainsAuthoredSurface(string html, string authoredContent)
         {
-            return !string.IsNullOrWhiteSpace(authoredContent)
-                && DecodeHtml(html).IndexOf(DecodeHtml(authoredContent), StringComparison.Ordinal) >= 0;
+            var expected = ExtractRenderedText(authoredContent);
+            var observed = ExtractRenderedText(html);
+            return !string.IsNullOrWhiteSpace(expected)
+                && observed.IndexOf(expected, StringComparison.Ordinal) >= 0;
         }
 
         private static bool IsSupportedImage(byte[] bytes)
         {
-            return bytes.Length >= 8
-                && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4e && bytes[3] == 0x47
-                && bytes[4] == 0x0d && bytes[5] == 0x0a && bytes[6] == 0x1a && bytes[7] == 0x0a
-                || bytes.Length >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff;
+            return IsValidPng(bytes) || IsValidJpeg(bytes);
+        }
+
+        private static string ExtractRenderedText(string html)
+        {
+            try
+            {
+                var document = new HtmlParser().ParseDocument(DecodeHtml(html));
+                foreach (var element in document.QuerySelectorAll("script,style,noscript,template"))
+                {
+                    element.Remove();
+                }
+                return NormalizeRenderedText(document.Body?.TextContent ?? document.DocumentElement?.TextContent);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string NormalizeRenderedText(string value)
+        {
+            var result = new StringBuilder();
+            var pendingSpace = false;
+            foreach (var character in value ?? string.Empty)
+            {
+                if (char.IsWhiteSpace(character) || character == '\u00a0')
+                {
+                    pendingSpace = result.Length > 0;
+                }
+                else
+                {
+                    if (pendingSpace)
+                    {
+                        result.Append(' ');
+                        pendingSpace = false;
+                    }
+                    result.Append(character);
+                }
+            }
+            return result.ToString().Trim();
+        }
+
+        private static bool IsValidPng(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length < 45
+                || bytes[0] != 0x89 || bytes[1] != 0x50 || bytes[2] != 0x4e || bytes[3] != 0x47
+                || bytes[4] != 0x0d || bytes[5] != 0x0a || bytes[6] != 0x1a || bytes[7] != 0x0a)
+            {
+                return false;
+            }
+            var offset = 8;
+            var sawHeader = false;
+            var sawImageData = false;
+            while (offset + 12 <= bytes.Length)
+            {
+                var length = ReadBigEndianInt32(bytes, offset);
+                if (length < 0 || offset + 12L + length > bytes.Length)
+                {
+                    return false;
+                }
+                var typeOffset = offset + 4;
+                var dataOffset = offset + 8;
+                var expectedCrc = ReadBigEndianUInt32(bytes, dataOffset + length);
+                if (ComputePngCrc(bytes, typeOffset, length + 4) != expectedCrc)
+                {
+                    return false;
+                }
+                var type = Encoding.ASCII.GetString(bytes, typeOffset, 4);
+                if (!sawHeader)
+                {
+                    if (!string.Equals(type, "IHDR", StringComparison.Ordinal) || length != 13
+                        || ReadBigEndianInt32(bytes, dataOffset) <= 0
+                        || ReadBigEndianInt32(bytes, dataOffset + 4) <= 0
+                        || bytes[dataOffset + 10] != 0
+                        || bytes[dataOffset + 11] != 0
+                        || bytes[dataOffset + 12] > 1)
+                    {
+                        return false;
+                    }
+                    sawHeader = true;
+                }
+                else if (string.Equals(type, "IDAT", StringComparison.Ordinal))
+                {
+                    sawImageData |= length > 0;
+                }
+                else if (string.Equals(type, "IEND", StringComparison.Ordinal))
+                {
+                    return length == 0 && sawImageData && offset + 12 == bytes.Length;
+                }
+                offset += 12 + length;
+            }
+            return false;
+        }
+
+        private static bool IsValidJpeg(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length < 12 || bytes[0] != 0xff || bytes[1] != 0xd8
+                || bytes[bytes.Length - 2] != 0xff || bytes[bytes.Length - 1] != 0xd9)
+            {
+                return false;
+            }
+            var offset = 2;
+            var sawFrame = false;
+            while (offset + 1 < bytes.Length - 2)
+            {
+                if (bytes[offset++] != 0xff)
+                {
+                    return false;
+                }
+                while (offset < bytes.Length && bytes[offset] == 0xff)
+                {
+                    offset++;
+                }
+                if (offset >= bytes.Length)
+                {
+                    return false;
+                }
+                var marker = bytes[offset++];
+                if (marker == 0xd9)
+                {
+                    return sawFrame && offset == bytes.Length;
+                }
+                if (marker == 0xda)
+                {
+                    return sawFrame && bytes[bytes.Length - 2] == 0xff && bytes[bytes.Length - 1] == 0xd9;
+                }
+                if (marker == 0x01 || marker >= 0xd0 && marker <= 0xd7)
+                {
+                    continue;
+                }
+                if (offset + 2 > bytes.Length)
+                {
+                    return false;
+                }
+                var length = bytes[offset] << 8 | bytes[offset + 1];
+                if (length < 2 || offset + length > bytes.Length)
+                {
+                    return false;
+                }
+                if (IsJpegStartOfFrame(marker))
+                {
+                    if (length < 8 || bytes[offset + 3] == 0 && bytes[offset + 4] == 0
+                        || bytes[offset + 5] == 0 && bytes[offset + 6] == 0)
+                    {
+                        return false;
+                    }
+                    sawFrame = true;
+                }
+                offset += length;
+            }
+            return false;
+        }
+
+        private static bool IsJpegStartOfFrame(byte marker)
+        {
+            return marker >= 0xc0 && marker <= 0xcf
+                && marker != 0xc4 && marker != 0xc8 && marker != 0xcc;
+        }
+
+        private static int ReadBigEndianInt32(byte[] bytes, int offset)
+        {
+            return (bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3];
+        }
+
+        private static uint ReadBigEndianUInt32(byte[] bytes, int offset)
+        {
+            return ((uint)bytes[offset] << 24) | ((uint)bytes[offset + 1] << 16)
+                | ((uint)bytes[offset + 2] << 8) | bytes[offset + 3];
+        }
+
+        private static uint ComputePngCrc(byte[] bytes, int offset, int count)
+        {
+            var crc = 0xffffffffu;
+            for (var index = 0; index < count; index++)
+            {
+                crc ^= bytes[offset + index];
+                for (var bit = 0; bit < 8; bit++)
+                {
+                    crc = (crc & 1) != 0 ? 0xedb88320u ^ (crc >> 1) : crc >> 1;
+                }
+            }
+            return crc ^ 0xffffffffu;
         }
 
         private static byte[] ReadBytes(IMigrationArtifactStore store, string digest)
