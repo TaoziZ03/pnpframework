@@ -34,7 +34,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 context,
                 evidence.WikiSource,
                 evidence.Live,
-                evidence.WikiTargetReadback);
+                evidence.WikiTargetReadback,
+                evidence.AdmittedPlanDigest);
             var live = PageLayoutWikiEvidenceNormalizer.ProjectLiveEvidence(liveInput, normalized);
             if (live != null)
             {

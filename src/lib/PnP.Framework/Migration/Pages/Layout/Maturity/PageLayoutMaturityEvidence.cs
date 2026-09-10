@@ -69,6 +69,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
 
         public PageLayoutWikiTargetReadbackEvidence WikiTargetReadback { get; set; }
 
+        public string AdmittedPlanDigest { get; set; }
+
         public IngredientLiveEvidence Live { get; set; }
 
         public IngredientPlanEvidence Plan { get; set; }

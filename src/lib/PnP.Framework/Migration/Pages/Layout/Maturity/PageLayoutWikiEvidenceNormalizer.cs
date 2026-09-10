@@ -118,7 +118,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
             IngredientMaturityEvaluationContext context,
             PageLayoutWikiSourceEvidence source,
             IngredientLiveEvidence live,
-            PageLayoutWikiTargetReadbackEvidence target)
+            PageLayoutWikiTargetReadbackEvidence target,
+            string admittedPlanDigest)
         {
             if (target == null)
             {
@@ -151,6 +152,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 && string.Equals(target.ImplementationCommit, context.Producer.ImplementationCommit, StringComparison.Ordinal)
                 && string.Equals(target.TargetProfile, context.Target.TargetProfile, StringComparison.Ordinal)
                 && IngredientMaturityEvaluator.IsSha256(target.PlanDigest)
+                && IngredientMaturityEvaluator.IsSha256(admittedPlanDigest)
+                && string.Equals(target.PlanDigest, admittedPlanDigest, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(context.Target.TargetIdentity)
                 && string.Equals(target.TargetPath, context.Target.TargetIdentity, StringComparison.OrdinalIgnoreCase)
                 && target.ObservedAtUtc != default

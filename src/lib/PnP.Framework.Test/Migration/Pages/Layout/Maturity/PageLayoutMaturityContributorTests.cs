@@ -18,6 +18,8 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
     [TestClass]
     public class PageLayoutMaturityContributorTests
     {
+        private const string AdmittedPlanDigest = "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f";
+
         [TestMethod]
         public void WikiFixturePassesM0AndM2WhileFreshTargetReadbackRemainsClosed()
         {
@@ -75,6 +77,9 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
         [DataRow("wrong-target-content-type-lineage")]
         [DataRow("stale-target-observation")]
         [DataRow("invalid-target-plan-digest")]
+        [DataRow("wrong-valid-target-plan-digest")]
+        [DataRow("missing-admitted-plan-digest")]
+        [DataRow("blank-admitted-plan-digest")]
         [DataRow("missing-target-reference")]
         public void WrongTargetBindingAndLineageCasesFailM1Closed(string mutation)
         {
@@ -273,6 +278,15 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     case "invalid-target-plan-digest":
                         Evidence.WikiTargetReadback.PlanDigest = "not-a-digest";
                         break;
+                    case "wrong-valid-target-plan-digest":
+                        Evidence.WikiTargetReadback.PlanDigest = new string('f', 64);
+                        break;
+                    case "missing-admitted-plan-digest":
+                        Evidence.AdmittedPlanDigest = null;
+                        break;
+                    case "blank-admitted-plan-digest":
+                        Evidence.AdmittedPlanDigest = " ";
+                        break;
                     case "missing-target-reference":
                         Evidence.WikiTargetReadback.EvidenceReferences.Clear();
                         break;
@@ -383,6 +397,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                 return new PageLayoutMaturityEvidence
                 {
                     WikiSource = source,
+                    AdmittedPlanDigest = AdmittedPlanDigest,
                     Live = new IngredientLiveEvidence
                     {
                         SourceAuthenticated = true,
