@@ -106,7 +106,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
             if (!string.Equals(evidence.Plan.IngredientId, context.Identity.IngredientId, StringComparison.Ordinal)
                 || !string.Equals(evidence.Plan.ExpectedSourceSnapshotDigest, context.Source.SourceSnapshotDigest, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(evidence.Plan.ExpectedPlanDigest, evidence.Binding.PlanDigest, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(evidence.Binding.SourcePageOrListItemIdentity, context.Source.PageOrListItemIdentity, StringComparison.Ordinal)
+                || !string.Equals(plan?.SourceWebUrl, evidence.Source?.Source?.WebUrl, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(plan?.SourcePageServerRelativeUrl, evidence.Source?.Source?.FileServerRelativeUrl, StringComparison.Ordinal)
+                || !string.Equals(plan?.TargetWebUrl, evidence.Binding.TargetOrigin, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(plan?.TargetPageServerRelativeUrl, evidence.Binding.TargetPageServerRelativeUrl, StringComparison.Ordinal)
                 || nodes.Length != 1
+                || !string.Equals(nodes[0].SourcePageOrListItemIdentity, context.Source.PageOrListItemIdentity, StringComparison.Ordinal)
                 || !string.Equals(nodes[0].SourceVersionIdentity, context.Source.SourceVersion, StringComparison.Ordinal)
                 || !string.Equals(nodes[0].EvidenceDigest, context.Source.SourceArtifactDigest, StringComparison.OrdinalIgnoreCase)
                 || actions.Length != 1
@@ -212,6 +218,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
                 || string.IsNullOrWhiteSpace(receipt.BuildCommand)
                 || string.IsNullOrWhiteSpace(receipt.FrameworkArtifact)
                 || string.IsNullOrWhiteSpace(receipt.TestArtifact)
+                || !string.Equals(receipt.FrameworkArtifactKind, "framework-binary", StringComparison.Ordinal)
+                || !string.Equals(receipt.TestArtifactKind, "lane-test-source", StringComparison.Ordinal)
                 || !IngredientMaturityEvaluator.IsSha256(receipt.FrameworkSha256)
                 || !IngredientMaturityEvaluator.IsSha256(receipt.TestSha256)
                 || !string.Equals(receipt.FrameworkSha256, receipt.IndependentlyObservedFrameworkSha256, StringComparison.OrdinalIgnoreCase)
@@ -227,11 +235,20 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
         private string ValidateCommonBinding(IngredientMaturityEvaluationContext context)
         {
             var binding = evidence.Binding;
+            var expectedTargetIdentitySuffix = binding == null
+                ? null
+                : binding.TargetOrigin?.TrimEnd('/')
+                    + binding.TargetPageServerRelativeUrl
+                    + "#webpart:" + binding.TargetHostWebPartId;
             if (context?.Identity == null || context.Source == null || context.Target == null || binding == null
                 || !string.Equals(binding.IngredientId, context.Identity.IngredientId, StringComparison.Ordinal)
                 || !string.Equals(binding.SourceVersion, context.Source.SourceVersion, StringComparison.Ordinal)
+                || !string.Equals(binding.SourcePageOrListItemIdentity, context.Source.PageOrListItemIdentity, StringComparison.Ordinal)
                 || !string.Equals(binding.TargetProfile, context.Target.TargetProfile, StringComparison.Ordinal)
                 || !string.Equals(binding.TargetIdentity, context.Target.TargetIdentity, StringComparison.Ordinal)
+                || string.IsNullOrWhiteSpace(binding.TargetOrigin)
+                || string.IsNullOrWhiteSpace(binding.TargetPageServerRelativeUrl)
+                || context.Target.TargetIdentity?.EndsWith(expectedTargetIdentitySuffix, StringComparison.OrdinalIgnoreCase) != true
                 || !string.Equals(binding.SourceHostWebPartId, evidence.Source?.Host?.WebPartId, StringComparison.Ordinal)
                 || string.IsNullOrWhiteSpace(binding.TargetHostWebPartId)
                 || string.Equals(binding.SourceHostWebPartId, binding.TargetHostWebPartId, StringComparison.OrdinalIgnoreCase)

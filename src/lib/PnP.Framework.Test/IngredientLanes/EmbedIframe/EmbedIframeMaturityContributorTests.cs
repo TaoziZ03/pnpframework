@@ -26,8 +26,9 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         private static readonly Lazy<string> FrameworkAssemblySha256 = new Lazy<string>(
             () => ComputeFileSha256(typeof(EmbedIframeMaturityContributor).Assembly.Location));
 
-        private static readonly Lazy<string> TestAssemblySha256 = new Lazy<string>(
-            () => ComputeFileSha256(typeof(EmbedIframeMaturityContributorTests).Assembly.Location));
+        private static readonly Lazy<string> TestRevisionSha256 = new Lazy<string>(
+            () => ComputeFileSha256(Path.Combine(GetProjectDirectory().FullName,
+                "IngredientLanes/EmbedIframe/EmbedIframeMaturityContributorTests.cs")));
 
         [TestMethod]
         public void FrozenSourcePassesM0AndM2WhileFreshTargetReadbackRemainsClosed()
@@ -85,7 +86,7 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         {
             var fixture = Fixture.Create();
             fixture.AddFrozenTargetObservations();
-            Assert.AreEqual(fixture.Contract.RevisionParent, "e7ed9ca5695a208e174b3d2475cb6bd0bce04f4f");
+            Assert.AreEqual(fixture.Contract.RevisionParent, "09d802a12da959c97661a4603d1937b9c243b13f");
             Assert.AreEqual(fixture.Contract.HistoricalEndToEndCommit, fixture.Evidence.Productization.EndToEndCommit);
             Assert.IsNull(fixture.Evidence.Binding.ImplementationCommit);
             Assert.AreEqual(fixture.Contract.RevisionParent, fixture.Context.Producer.ImplementationCommit);
@@ -96,10 +97,12 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [TestMethod]
-        public void BinaryReceiptUsesIndependentlyHashedFrameworkAndTestArtifacts()
+        public void BinaryReceiptUsesIndependentFrameworkBinaryAndLaneTestRevisionArtifacts()
         {
             var fixture = Fixture.Create();
             var receipt = fixture.Evidence.BinaryReceipt;
+            Assert.AreEqual("framework-binary", receipt.FrameworkArtifactKind);
+            Assert.AreEqual("lane-test-source", receipt.TestArtifactKind);
             Assert.AreEqual(fixture.Contract.BinaryReceipt.FrameworkSha256, receipt.IndependentlyObservedFrameworkSha256);
             Assert.AreEqual(fixture.Contract.BinaryReceipt.TestSha256, receipt.IndependentlyObservedTestSha256);
             Assert.AreNotEqual(receipt.FrameworkSha256, receipt.TestSha256);
@@ -107,14 +110,18 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [TestMethod]
-        public void BinaryReceiptMismatchFailsClosed()
+        public void BinaryReceiptExpectedAndObservedMutationsEachFailExactCodeBuild()
         {
-            var fixture = Fixture.Create();
-            fixture.AddFrozenTargetObservations();
-            fixture.Mutate("binary-receipt-mismatch");
-            var receipt = Gate(fixture.Evaluate(), IngredientMaturityGateCatalog.ExactCodeBuild);
-            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status);
-            StringAssert.Contains(receipt.FailureReason, "binary receipt");
+            foreach (var mutation in new[] { "binary-expected-mismatch", "binary-observed-mismatch" })
+            {
+                var fixture = Fixture.Create();
+                fixture.UseHermeticValidatorTestData();
+                AssertGatePassed(fixture, IngredientMaturityGateCatalog.ExactCodeBuild);
+                fixture.Mutate(mutation);
+                var receipt = Gate(fixture.Evaluate(), IngredientMaturityGateCatalog.ExactCodeBuild);
+                Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+                StringAssert.Contains(receipt.FailureReason, "binary receipt");
+            }
         }
 
         [TestMethod]
@@ -156,42 +163,67 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [DataTestMethod]
-        [DataRow("foreign-ingredient")]
-        [DataRow("wrong-plan-target")]
-        [DataRow("wrong-action")]
-        [DataRow("wrong-target")]
-        [DataRow("stale-binding-source-version")]
-        [DataRow("wrong-operation")]
-        [DataRow("corrupt-plan-digest")]
-        public void M3M4ContextBindingNegativesFailClosed(string mutation)
+        [DataRow("plan-identity-matrix", IngredientMaturityGateCatalog.SnapshotPlanBinding, "iframe")]
+        [DataRow("wrong-plan-target", IngredientMaturityGateCatalog.SnapshotPlanBinding, "iframe plan")]
+        [DataRow("wrong-action", IngredientMaturityGateCatalog.SnapshotPlanBinding, "iframe plan")]
+        [DataRow("wrong-target", IngredientMaturityGateCatalog.SnapshotPlanBinding, "iframe evidence envelope")]
+        [DataRow("stale-binding-source-version", IngredientMaturityGateCatalog.SnapshotPlanBinding, "iframe evidence envelope")]
+        [DataRow("wrong-operation", IngredientMaturityGateCatalog.OperationActionBinding, "iframe operation")]
+        [DataRow("corrupt-plan-digest", IngredientMaturityGateCatalog.SnapshotPlanBinding, "iframe plan")]
+        public void M3M4ContextBindingNegativesFailClosed(string mutation, string gateId, string reason)
+        {
+            if (string.Equals(mutation, "plan-identity-matrix", StringComparison.Ordinal))
+            {
+                foreach (var identityMutation in new[]
+                {
+                    "foreign-ingredient",
+                    "foreign-node-source-identity",
+                    "wrong-source-web",
+                    "wrong-source-page",
+                    "wrong-target-web",
+                    "wrong-target-page",
+                    "wrong-target-profile"
+                })
+                {
+                    AssertSingleGateMutation(identityMutation, gateId, reason);
+                }
+                return;
+            }
+            AssertSingleGateMutation(mutation, gateId, reason);
+        }
+
+        private static void AssertSingleGateMutation(string mutation, string gateId, string reason)
         {
             var fixture = Fixture.Create();
-            fixture.AddFrozenTargetObservations();
+            fixture.UseHermeticValidatorTestData();
+            AssertGatePassed(fixture, gateId);
             fixture.Mutate(mutation);
-            var assessment = fixture.Evaluate();
-            Assert.IsTrue(new[] { IngredientMaturityGateCatalog.SnapshotPlanBinding, IngredientMaturityGateCatalog.OperationActionBinding, IngredientMaturityGateCatalog.AdmittedExactPlan }
-                .Any(gate => Gate(assessment, gate).Status == IngredientMaturityGateStatus.Failed), mutation);
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+            StringAssert.Contains(receipt.FailureReason, reason);
         }
 
         [DataTestMethod]
-        [DataRow("missing-intent-receipt")]
-        [DataRow("corrupt-intent-receipt")]
-        [DataRow("missing-apply-receipt")]
-        [DataRow("corrupt-apply-receipt")]
-        [DataRow("missing-readback-receipt")]
-        [DataRow("corrupt-readback-receipt")]
-        [DataRow("missing-runtime-receipt")]
-        [DataRow("corrupt-runtime-receipt")]
-        [DataRow("wrong-runtime-binding")]
-        [DataRow("missing-cleanup-receipt")]
-        [DataRow("corrupt-cleanup-receipt")]
-        public void OperationalReceiptNegativesFailClosed(string mutation)
+        [DataRow("missing-intent-receipt", IngredientMaturityGateCatalog.AdmittedExactPlan, "evidence references")]
+        [DataRow("corrupt-intent-receipt", IngredientMaturityGateCatalog.AdmittedExactPlan, "exact plan")]
+        [DataRow("missing-apply-receipt", IngredientMaturityGateCatalog.MutationJournalVerification, "iframe operation")]
+        [DataRow("corrupt-apply-receipt", IngredientMaturityGateCatalog.MutationJournalVerification, "receipt bindings")]
+        [DataRow("missing-readback-receipt", IngredientMaturityGateCatalog.MutationJournalVerification, "iframe operation")]
+        [DataRow("corrupt-readback-receipt", IngredientMaturityGateCatalog.MutationJournalVerification, "iframe operation")]
+        [DataRow("missing-runtime-receipt", IngredientMaturityGateCatalog.RuntimeCleanupRetry, "iframe operation")]
+        [DataRow("corrupt-runtime-receipt", IngredientMaturityGateCatalog.RuntimeCleanupRetry, "runtime verification")]
+        [DataRow("wrong-runtime-binding", IngredientMaturityGateCatalog.RuntimeCleanupRetry, "iframe operation")]
+        [DataRow("missing-cleanup-receipt", IngredientMaturityGateCatalog.RuntimeCleanupRetry, "iframe operation")]
+        [DataRow("corrupt-cleanup-receipt", IngredientMaturityGateCatalog.RuntimeCleanupRetry, "cleanup or retry")]
+        public void OperationalReceiptSingleMutationsFlipTheExactPassingGate(string mutation, string gateId, string reason)
         {
             var fixture = Fixture.Create();
-            fixture.AddFrozenTargetObservations();
+            fixture.UseHermeticValidatorTestData();
+            AssertGatePassed(fixture, gateId);
             fixture.Mutate(mutation);
-            Assert.IsTrue(fixture.Evaluate().Levels.Single(value => value.Level == IngredientMaturityLevel.M4).Gates
-                .Any(value => value.Status == IngredientMaturityGateStatus.Failed), mutation);
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+            StringAssert.Contains(receipt.FailureReason, reason);
         }
 
         [DataTestMethod]
@@ -215,23 +247,32 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [DataTestMethod]
-        [DataRow("same-commit-mismatch")]
-        [DataRow("wrong-compare-binding")]
-        [DataRow("corrupt-compare-digest")]
-        [DataRow("access-denied-compared-equal")]
-        [DataRow("unavailable-compared-equal")]
-        public void ProductizationCompareAndAvailabilityNegativesFailClosed(string mutation)
+        [DataRow("same-commit-mismatch", IngredientMaturityGateCatalog.SameCommitE2E, "productization")]
+        [DataRow("wrong-compare-binding", IngredientMaturityGateCatalog.DeterministicCompare, "productization")]
+        [DataRow("corrupt-compare-digest", IngredientMaturityGateCatalog.DeterministicCompare, "deterministic Compare")]
+        [DataRow("access-denied-compared-equal", IngredientMaturityGateCatalog.DeterministicCompare, "productization")]
+        [DataRow("unavailable-compared-equal", IngredientMaturityGateCatalog.DeterministicCompare, "productization")]
+        public void ProductizationSingleMutationsFlipTheExactPassingGate(string mutation, string gateId, string reason)
         {
             var fixture = Fixture.Create();
-            fixture.AddFrozenTargetObservations();
+            fixture.UseHermeticValidatorTestData();
+            AssertGatePassed(fixture, gateId);
             fixture.Mutate(mutation);
-            Assert.IsTrue(fixture.Evaluate().Levels.Single(value => value.Level == IngredientMaturityLevel.M5).Gates
-                .Any(value => value.Status == IngredientMaturityGateStatus.Failed), mutation);
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+            StringAssert.Contains(receipt.FailureReason, reason);
         }
 
         private static IngredientMaturityGateResult Gate(IngredientMaturityAssessment assessment, string gateId)
         {
             return assessment.Levels.SelectMany(value => value.Gates).Single(value => value.GateId == gateId);
+        }
+
+        private static void AssertGatePassed(Fixture fixture, string gateId)
+        {
+            Assert.AreEqual("hermetic-validator-test-data", fixture.Evidence.HigherMaturityEvidenceKind);
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Passed, receipt.Status, gateId);
         }
 
         private sealed class Fixture
@@ -281,6 +322,20 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                     && string.Equals(value.ValuePath, valuePath, StringComparison.Ordinal)).ValueDigest = new string('0', 64);
             }
 
+            public void UseHermeticValidatorTestData()
+            {
+                AddFrozenTargetObservations();
+                Evidence.HigherMaturityEvidenceKind = "hermetic-validator-test-data";
+                RefreshPlanBindings();
+                var commit = Contract.RevisionParent;
+                Evidence.Binding.ImplementationCommit = commit;
+                Evidence.Productization.ImplementationCommit = commit;
+                Evidence.Productization.BuildCommit = commit;
+                Evidence.Productization.EndToEndCommit = commit;
+                Evidence.Productization.PrReadyCommit = commit;
+                Evidence.Productization.PrReadyEvidenceReference = "hermetic-validator-test-data:pr-ready";
+            }
+
             public void Mutate(string mutation)
             {
                 switch (mutation)
@@ -306,6 +361,12 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                         Evidence.Productization.CompareReport.Ingredients[0].Lineage.SourceIngredientId = foreignIngredient;
                         RefreshPlanBindings();
                         break;
+                    case "foreign-node-source-identity": Evidence.Plan.Plan.IngredientGraph.Nodes[0].SourcePageOrListItemIdentity = "source:foreign"; RefreshPlanBindings(); break;
+                    case "wrong-source-web": Evidence.Plan.Plan.SourceWebUrl = "https://microsoft.sharepoint.com/sites/foreign"; RefreshPlanBindings(); break;
+                    case "wrong-source-page": Evidence.Plan.Plan.SourcePageServerRelativeUrl = "/sites/foreign/Pages/foreign.aspx"; RefreshPlanBindings(); break;
+                    case "wrong-target-web": Evidence.Binding.TargetOrigin = "https://foreign.example/"; Evidence.Plan.Plan.TargetWebUrl = Evidence.Binding.TargetOrigin; RefreshPlanBindings(); break;
+                    case "wrong-target-page": Evidence.Binding.TargetPageServerRelativeUrl = "/sites/foreign/Pages/foreign.aspx"; Evidence.Plan.Plan.TargetPageServerRelativeUrl = Evidence.Binding.TargetPageServerRelativeUrl; RefreshPlanBindings(); break;
+                    case "wrong-target-profile": Evidence.Binding.TargetProfile = "foreign-target-profile/v1"; RefreshPlanBindings(); break;
                     case "wrong-plan-target": Evidence.Plan.Plan.IngredientActions[0].TargetIdentity = "cupcollect:foreign"; RefreshPlanBindings(); break;
                     case "wrong-action": Evidence.Binding.ActionId = "action:foreign"; break;
                     case "wrong-target": Evidence.Binding.TargetIdentity = "cupcollect:foreign"; break;
@@ -324,7 +385,8 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                     case "missing-cleanup-receipt": Evidence.Operational.RuntimeCleanupRetryEvidenceReferences.Remove(Evidence.Binding.CleanupEvidenceReference); break;
                     case "corrupt-cleanup-receipt": Evidence.Operational.CleanupPassed = false; break;
                     case "same-commit-mismatch": Evidence.Productization.EndToEndCommit = new string('f', 40); break;
-                    case "binary-receipt-mismatch": Evidence.BinaryReceipt.IndependentlyObservedTestSha256 = new string('0', 64); break;
+                    case "binary-expected-mismatch": Evidence.BinaryReceipt.TestSha256 = new string('0', 64); break;
+                    case "binary-observed-mismatch": Evidence.BinaryReceipt.IndependentlyObservedTestSha256 = new string('0', 64); break;
                     case "wrong-compare-binding": Evidence.Productization.CompareReport.Ingredients[0].Lineage.TargetIdentity = "cupcollect:foreign"; RefreshCompareDigest(); break;
                     case "corrupt-compare-digest": Evidence.Productization.CompareReportDigest = new string('0', 64); break;
                     case "access-denied-compared-equal": Evidence.Productization.CompareReport.Ingredients[0].TargetEvidenceState = IngredientTargetEvidenceStates.Denied; Evidence.Productization.CompareReport.Ingredients[0].ResultClass = PublishingPageCompareContract.ResultClasses.AuthorizationBlocked; RefreshCompareDigest(); break;
@@ -337,6 +399,7 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
 
             private void AddHigherMaturityEvidence()
             {
+                Evidence.HigherMaturityEvidenceKind = "historical-claim-evidence";
                 var node = Normalize().Node;
                 var actionId = "action:" + Contract.IngredientId;
                 var plan = new PublishingPageMigrationPlan
@@ -368,7 +431,10 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                 {
                     IngredientId = Contract.IngredientId,
                     SourceVersion = Contract.Source.Version,
+                    SourcePageOrListItemIdentity = expectedSourceIdentity,
                     TargetProfile = Contract.TargetProfile,
+                    TargetOrigin = Contract.TargetOrigin,
+                    TargetPageServerRelativeUrl = Contract.TargetPageServerRelativeUrl,
                     TargetIdentity = Contract.TargetIdentity,
                     SourceHostWebPartId = Contract.Host.WebPartId,
                     TargetHostWebPartId = Contract.TargetHostWebPartId,
@@ -581,11 +647,13 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
                         Configuration = fixture.BinaryReceipt.Configuration,
                         BuildCommand = fixture.BinaryReceipt.BuildCommand,
                         FrameworkArtifact = fixture.BinaryReceipt.FrameworkArtifact,
+                        FrameworkArtifactKind = fixture.BinaryReceipt.FrameworkArtifactKind,
                         FrameworkSha256 = fixture.BinaryReceipt.FrameworkSha256,
                         IndependentlyObservedFrameworkSha256 = FrameworkAssemblySha256.Value,
                         TestArtifact = fixture.BinaryReceipt.TestArtifact,
+                        TestArtifactKind = fixture.BinaryReceipt.TestArtifactKind,
                         TestSha256 = fixture.BinaryReceipt.TestSha256,
-                        IndependentlyObservedTestSha256 = TestAssemblySha256.Value
+                        IndependentlyObservedTestSha256 = TestRevisionSha256.Value
                     },
                     ExpectedSourceValueDigests = new Dictionary<string, string>(fixture.SourceValueDigests, StringComparer.Ordinal),
                     ExpectedTargetValueDigests = new Dictionary<string, string>(fixture.TargetValueDigests, StringComparer.Ordinal),
@@ -645,7 +713,7 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
 
             private static FixtureContract LoadContract()
             {
-                var projectDirectory = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Parent?.Parent;
+                var projectDirectory = GetProjectDirectory();
                 var path = Path.Combine(projectDirectory.FullName,
                     "Resources/IngredientLanes/embed.iframe/v1/ccd110-r00871-v83.fixture.json");
                 return JsonSerializer.Deserialize<FixtureContract>(File.ReadAllText(path),
@@ -731,9 +799,17 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
             public string Configuration { get; set; }
             public string BuildCommand { get; set; }
             public string FrameworkArtifact { get; set; }
+            public string FrameworkArtifactKind { get; set; }
             public string FrameworkSha256 { get; set; }
             public string TestArtifact { get; set; }
+            public string TestArtifactKind { get; set; }
             public string TestSha256 { get; set; }
+        }
+
+        private static DirectoryInfo GetProjectDirectory()
+        {
+            return new DirectoryInfo(AppContext.BaseDirectory).Parent?.Parent?.Parent
+                ?? throw new InvalidOperationException("The test project directory could not be resolved.");
         }
 
         private static string ComputeFileSha256(string path)

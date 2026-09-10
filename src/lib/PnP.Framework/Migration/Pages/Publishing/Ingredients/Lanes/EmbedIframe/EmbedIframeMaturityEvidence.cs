@@ -55,6 +55,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 
     internal sealed class EmbedIframeMaturityEvidence
     {
+        public string HigherMaturityEvidenceKind { get; set; }
+
         public EmbedIframeSourceEvidence Source { get; set; }
 
         public IngredientLiveEvidence Live { get; set; }
@@ -88,11 +90,15 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 
         public string FrameworkArtifact { get; set; }
 
+        public string FrameworkArtifactKind { get; set; }
+
         public string FrameworkSha256 { get; set; }
 
         public string IndependentlyObservedFrameworkSha256 { get; set; }
 
         public string TestArtifact { get; set; }
+
+        public string TestArtifactKind { get; set; }
 
         public string TestSha256 { get; set; }
 
@@ -105,7 +111,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 
         public string SourceVersion { get; set; }
 
+        public string SourcePageOrListItemIdentity { get; set; }
+
         public string TargetProfile { get; set; }
+
+        public string TargetOrigin { get; set; }
+
+        public string TargetPageServerRelativeUrl { get; set; }
 
         public string TargetIdentity { get; set; }
 

@@ -44,7 +44,7 @@
   "observedPlanDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
   "syntheticPlanDigest": "83d4bb0632272e177b815bc25e108a7a248e8a2fd90acaf31f446662b42c29f4",
   "operationId": "17117117-0171-4171-8171-171171171171",
-  "revisionParent": "e7ed9ca5695a208e174b3d2475cb6bd0bce04f4f",
+  "revisionParent": "09d802a12da959c97661a4603d1937b9c243b13f",
   "historicalEndToEndCommit": "d7ab97f5270ea047ce6f3a8bbd7945b844a41ad9",
   "implementationCommit": null,
   "binaryDigest": null,
@@ -53,11 +53,13 @@
     "msBuildVersion": "18.9.6",
     "vstestVersion": "18.7.0",
     "configuration": "Debug/net10.0",
-    "buildCommand": "cmd.exe /d /c pushd \\\\wsl.localhost\\GasTown\\home\\titao\\paperclip-trial\\instance\\instances\\default\\projects\\4186ca6f-7286-4da3-ae04-41d1e85ad92c\\8ebcc27b-13fb-469e-b186-5136ea11cbbe\\_default\\worktrees\\ccd161-embed-iframe-r00871-v83 && C:\\Users\\titao\\AppData\\Local\\mise\\dotnet-root\\dotnet.exe build src\\lib\\PnP.Framework.Test\\PnP.Framework.Test.csproj --no-restore -f net10.0 -p:IncludeSourceRevisionInInformationalVersion=false -p:DebugType=None -p:DebugSymbols=false --nologo --verbosity minimal && popd",
+    "buildCommand": "C:/Users/titao/AppData/Local/mise/dotnet-root/dotnet.exe build src/lib/PnP.Framework.Test/PnP.Framework.Test.csproj --no-restore -f net10.0 -p:IncludeSourceRevisionInInformationalVersion=false -p:DebugType=None -p:DebugSymbols=false --nologo --verbosity minimal",
     "frameworkArtifact": "src/lib/PnP.Framework/bin/Debug/net10.0/PnP.Framework.dll",
-    "frameworkSha256": "c7bfd9f70db820dd579dc294691f17ba1d698f6e1ad75995102afecd3677899d",
-    "testArtifact": "src/lib/PnP.Framework.Test/bin/Debug/net10.0/PnP.Framework.Test.dll",
-    "testSha256": "1d8057c8d83247479e88d824399be122cdac48065fc24e0b9f086f7b9868ddd7"
+    "frameworkArtifactKind": "framework-binary",
+    "frameworkSha256": "038f66d9f433792f603ae3a237469003270b7866a6b1dc8170fb81566a9daa9f",
+    "testArtifact": "src/lib/PnP.Framework.Test/IngredientLanes/EmbedIframe/EmbedIframeMaturityContributorTests.cs",
+    "testArtifactKind": "lane-test-source",
+    "testSha256": "8d7797b31647f9602a4ca2d85b4b38ede0512a203a7998c0594cf53fd991f7e7"
   },
   "sourceValueDigests": {
     "binding.consumer": "2aad8914cf9fd5768d7e815ed2027023cfebf07b93ad015e8dec23eba10d39cb",
