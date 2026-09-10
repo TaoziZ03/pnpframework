@@ -28,7 +28,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.CanonicalIdentity).Status);
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.PrimaryOwner).Status);
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.SourceBinding).Status);
-            Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
             Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.RawArtifactIntegrity).Status);
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.SemanticIntegrity).Status);
@@ -48,6 +48,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
             Assert.AreEqual(IngredientMaturityLevel.M2, assessment.AttainedMaturity);
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
             Assert.AreEqual(IngredientMaturityGateStatus.Passed, Gate(assessment, IngredientMaturityGateCatalog.PerValueObservation).Status);
+            Assert.AreEqual("v2", Gate(assessment, IngredientMaturityGateCatalog.PerValueObservation).ValidatorVersion);
         }
 
         [TestMethod]
@@ -100,6 +101,34 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
             Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
         }
 
+        [TestMethod]
+        public void MissingConsumerObservationWindowFailsM1Closed()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddCcd255TargetReadback();
+            fixture.Context.ObservationWindowEndUtc = null;
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.CupCollectFreshReadback).Status);
+        }
+
+        [TestMethod]
+        public void WrongObservationClaimBindingFailsM1Closed()
+        {
+            var fixture = Fixture.Create();
+            fixture.AddCcd255TargetReadback();
+            fixture.Evidence.Live.Observations[0].ClaimId = new string('a', 64);
+
+            var assessment = fixture.Evaluate();
+
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.AuthenticatedSourceCollect).Status);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, Gate(assessment, IngredientMaturityGateCatalog.PerValueObservation).Status);
+        }
+
         [DataTestMethod]
         [DataRow("wrong-list")]
         [DataRow("wrong-item")]
@@ -127,6 +156,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     IngredientMaturityGateCatalog.SourceBinding,
                     IngredientMaturityGateCatalog.PrimaryOwner,
                     IngredientMaturityGateCatalog.AuthenticatedSourceCollect,
+                    IngredientMaturityGateCatalog.PerValueObservation,
                     IngredientMaturityGateCatalog.SemanticIntegrity,
                     IngredientMaturityGateCatalog.RawArtifactIntegrity,
                     IngredientMaturityGateCatalog.CupCollectFreshReadback
@@ -151,10 +181,10 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
             private Fixture(FixtureContract contract)
             {
                 this.contract = contract;
-                Evidence = CreateEvidence(contract);
                 expectedIdentity = CreateSourceIdentity(contract.Source);
                 expectedVersion = contract.Source.Version;
                 Context = CreateContext(contract, expectedIdentity);
+                Evidence = CreateEvidence(contract, Context);
             }
 
             public IngredientMaturityEvaluationContext Context { get; }
@@ -198,6 +228,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     PlanDigest = target.PlanDigest,
                     TargetProfile = target.TargetProfile,
                     TargetPath = target.TargetPath,
+                    ReadbackStartedAtUtc = target.ReadbackStartedAtUtc,
                     ObservedAtUtc = target.ObservedAtUtc,
                     ListBaseTemplate = target.ListBaseTemplate,
                     ContentTypeId = target.ContentTypeId,
@@ -295,7 +326,9 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                 Assert.AreEqual(expectedVersion, Context.Source.SourceVersion);
             }
 
-            private static PageLayoutMaturityEvidence CreateEvidence(FixtureContract fixture)
+            private static PageLayoutMaturityEvidence CreateEvidence(
+                FixtureContract fixture,
+                IngredientMaturityEvaluationContext context)
             {
                 var snapshot = new ClassicWikiCaptureBundle
                 {
@@ -331,13 +364,21 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                     EvidenceReferences = new List<string> { "wiki-row-00003.fixture.json" }
                 };
                 var normalized = PageLayoutWikiEvidenceNormalizer.Normalize(null, source);
-                var observations = normalized.ValueDigests.Select(value => new IngredientValueObservation
+                var observations = normalized.ValueDigests.Select(value =>
                 {
-                    ValuePath = value.Key,
-                    ValueDigest = value.Value,
-                    ObservedAtUtc = fixture.SourceObservedAtUtc,
-                    Origin = IngredientObservationOrigin.AuthenticatedSource,
-                    EvidenceReference = "wiki-row-00003.fixture.json#" + value.Key
+                    var evidenceReference = "wiki-row-00003.fixture.json#" + value.Key;
+                    return new IngredientValueObservation
+                    {
+                        ClaimId = context.Identity.ClaimId,
+                        IngredientId = context.Identity.IngredientId,
+                        Source = Clone(context.Source),
+                        Target = Clone(context.Target),
+                        ValuePath = value.Key,
+                        ValueDigest = value.Value,
+                        ObservedAtUtc = fixture.SourceObservedAtUtc,
+                        Origin = IngredientObservationOrigin.AuthenticatedSource,
+                        EvidenceReference = evidenceReference
+                    };
                 }).ToList();
                 return new PageLayoutMaturityEvidence
                 {
@@ -347,7 +388,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                         SourceAuthenticated = true,
                         TargetFreshReadback = false,
                         Observations = observations,
-                        SourceEvidenceReferences = new List<string> { "wiki-row-00003.fixture.json" }
+                        SourceEvidenceReferences = observations.Select(value => value.EvidenceReference).ToList()
                     }
                 };
             }
@@ -392,7 +433,29 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
                         PnPMigrationOutcome = PageMigrationOutcome.MitigationPending,
                         Status = IngredientTechnicalStatus.Unverified,
                         ReasonCode = "fresh-cupcollect-readback-required"
-                    }
+                    },
+                    ObservationWindowStartUtc = fixture.SourceObservedAtUtc,
+                    ObservationWindowEndUtc = target.ObservedAtUtc
+                };
+            }
+
+            private static IngredientMaturitySourceBinding Clone(IngredientMaturitySourceBinding value)
+            {
+                return new IngredientMaturitySourceBinding
+                {
+                    PageOrListItemIdentity = value.PageOrListItemIdentity,
+                    SourceVersion = value.SourceVersion,
+                    SourceArtifactDigest = value.SourceArtifactDigest,
+                    SourceSnapshotDigest = value.SourceSnapshotDigest
+                };
+            }
+
+            private static IngredientMaturityTargetBinding Clone(IngredientMaturityTargetBinding value)
+            {
+                return new IngredientMaturityTargetBinding
+                {
+                    TargetProfile = value.TargetProfile,
+                    TargetIdentity = value.TargetIdentity
                 };
             }
 
@@ -502,6 +565,8 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment.Maturity.PageLayout
             public string TargetPath { get; set; }
 
             public DateTimeOffset ObservedAtUtc { get; set; }
+
+            public DateTimeOffset ReadbackStartedAtUtc { get; set; }
 
             public int ListBaseTemplate { get; set; }
 

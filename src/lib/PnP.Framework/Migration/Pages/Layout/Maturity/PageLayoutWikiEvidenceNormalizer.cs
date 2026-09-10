@@ -165,15 +165,22 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 ["layout.publishingPageLayout"] = target.PublishingPageLayout,
                 ["runtime.adapterId"] = target.RuntimeAdapterId
             };
+            var targetObservationReferences = new List<string>();
             foreach (var value in targetValues.Where(value => targetReferences.Count > 0))
             {
+                var evidenceReference = targetReferences[0] + "#" + value.Key;
+                targetObservationReferences.Add(evidenceReference);
                 observations.Add(new IngredientValueObservation
                 {
+                    ClaimId = context?.Identity?.ClaimId,
+                    IngredientId = context?.Identity?.IngredientId,
+                    Source = Clone(context?.Source),
+                    Target = Clone(context?.Target),
                     ValuePath = value.Key,
                     ValueDigest = ScalarDigest(value.Value),
                     ObservedAtUtc = target.ObservedAtUtc,
                     Origin = IngredientObservationOrigin.CupCollectFreshReadback,
-                    EvidenceReference = targetReferences[0] + "#" + value.Key
+                    EvidenceReference = evidenceReference
                 });
             }
 
@@ -182,9 +189,10 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 SourceAuthenticated = live?.SourceAuthenticated == true,
                 TargetFreshReadback = bindingMatched,
                 HistoricalOrSyntheticSubstitution = live?.HistoricalOrSyntheticSubstitution == true,
+                ReadbackStartedAtUtc = target.ReadbackStartedAtUtc,
                 Observations = observations,
                 SourceEvidenceReferences = (live?.SourceEvidenceReferences ?? Array.Empty<string>()).ToList(),
-                TargetEvidenceReferences = targetReferences
+                TargetEvidenceReferences = targetObservationReferences
             };
         }
 
@@ -214,6 +222,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
                 SourceAuthenticated = evidence.SourceAuthenticated && sourceComplete,
                 TargetFreshReadback = evidence.TargetFreshReadback && targetComplete,
                 HistoricalOrSyntheticSubstitution = evidence.HistoricalOrSyntheticSubstitution,
+                ReadbackStartedAtUtc = evidence.ReadbackStartedAtUtc,
                 Observations = observations,
                 SourceEvidenceReferences = (evidence.SourceEvidenceReferences ?? Array.Empty<string>()).ToList(),
                 TargetEvidenceReferences = (evidence.TargetEvidenceReferences ?? Array.Empty<string>()).ToList()
@@ -255,6 +264,26 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
             return ClassicWikiPageDiscovery.IsClassicWikiContentType(contentTypeId)
                 ? WikiContentTypeLineage
                 : contentTypeId;
+        }
+
+        private static IngredientMaturitySourceBinding Clone(IngredientMaturitySourceBinding value)
+        {
+            return value == null ? null : new IngredientMaturitySourceBinding
+            {
+                PageOrListItemIdentity = value.PageOrListItemIdentity,
+                SourceVersion = value.SourceVersion,
+                SourceArtifactDigest = value.SourceArtifactDigest,
+                SourceSnapshotDigest = value.SourceSnapshotDigest
+            };
+        }
+
+        private static IngredientMaturityTargetBinding Clone(IngredientMaturityTargetBinding value)
+        {
+            return value == null ? null : new IngredientMaturityTargetBinding
+            {
+                TargetProfile = value.TargetProfile,
+                TargetIdentity = value.TargetIdentity
+            };
         }
 
         private sealed class WikiSemanticProjection

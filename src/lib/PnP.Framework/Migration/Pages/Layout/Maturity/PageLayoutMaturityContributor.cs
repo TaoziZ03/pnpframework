@@ -38,7 +38,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
             var live = PageLayoutWikiEvidenceNormalizer.ProjectLiveEvidence(liveInput, normalized);
             if (live != null)
             {
-                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(live));
+                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(context, live));
             }
 
             if (evidence.WikiSource != null)

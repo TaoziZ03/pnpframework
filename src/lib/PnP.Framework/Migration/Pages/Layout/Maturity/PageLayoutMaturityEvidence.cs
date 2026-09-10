@@ -46,6 +46,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.PageLayout
 
         public string TargetPath { get; set; }
 
+        public DateTimeOffset ReadbackStartedAtUtc { get; set; }
+
         public DateTimeOffset ObservedAtUtc { get; set; }
 
         public int ListBaseTemplate { get; set; }
