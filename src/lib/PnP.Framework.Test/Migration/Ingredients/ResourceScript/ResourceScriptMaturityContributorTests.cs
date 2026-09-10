@@ -5,6 +5,7 @@ using PnP.Framework.Migration.Pages;
 using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.ClassicWebParts;
+using PnP.Framework.Migration.Pages.ClassicWebParts.Bindings;
 using PnP.Framework.Migration.Pages.Ingredients;
 using PnP.Framework.Migration.Pages.Lifecycle;
 using PnP.Framework.Migration.Pages.Markup;
@@ -12,6 +13,7 @@ using PnP.Framework.Migration.Pages.Publishing.Capture;
 using PnP.Framework.Migration.Pages.Publishing.Ingredients;
 using PnP.Framework.Migration.Pages.Publishing.Layouts;
 using PnP.Framework.Migration.Pages.Publishing.Packaging;
+using PnP.Framework.Migration.Pages.Publishing.Planning;
 using PnP.Framework.Migration.Pages.References;
 using PnP.Framework.Migration.Pages.Runtime;
 using PnP.Framework.Migration.Pages.Security;
@@ -180,6 +182,179 @@ namespace PnP.Framework.Test.Migration.Ingredients.ResourceScript
             fixture.Evidence.Source.Reference.CaptureStatus = PageCaptureStatus.Failed;
 
             Assert.ThrowsException<InvalidDataException>(() => fixture.RefreshNormalization());
+        }
+
+        [TestMethod]
+        public void ComposedCatalogPreservesResourceScriptAndForeignEvidenceAcrossValidationProjectionAndPlanning()
+        {
+            var package = CreateValidMigrationPackage();
+            var resourceFixture = Fixture.Create();
+            var resourceHandler = new ResourceScriptIdentityHandler();
+            var foreignHandler = new ForeignIdentityHandler();
+            var catalog = new PublishingPageIngredientHandlerCatalog(new PublishingPageIngredientHandler[]
+            {
+                resourceHandler,
+                foreignHandler
+            });
+            var resourceEnvelope = AddResourceScriptEvidence(package.Snapshot, resourceFixture, resourceHandler);
+            package.Plan.WebPartActions.Add(new ClassicWebPartAction
+            {
+                SourceWebPartId = Guid.Parse("77777777-7777-4777-8777-777777777777"),
+                Disposition = ClassicWebPartDisposition.Block,
+                Reason = "REST property evidence is not a native replay export."
+            });
+            var foreignEnvelope = PublishingPageIngredientEvidenceEnvelope.Create(
+                foreignHandler,
+                ForeignIdentityHandler.EvidenceSchema,
+                "foreign",
+                new ForeignEvidence { NodeId = "dynamic-region:foreign", Value = "foreign-envelope" },
+                new[] { "fixture:foreign-envelope" });
+            package.Snapshot.IngredientEvidence = catalog.OrderEvidence(new[]
+            {
+                resourceEnvelope,
+                foreignEnvelope
+            }).ToList();
+
+            var graph = PublishingPageIngredientGraphProjector.Project(package.Snapshot, catalog);
+            package.Snapshot.IngredientGraph = graph;
+            package.SchemaVersion = PublishingPagePackageContract.IngredientExtensionMigrationSchemaVersion;
+            package.ExportSchemaVersion = PublishingPagePackageContract.IngredientExtensionExportSchemaVersion;
+            package.SnapshotDigest = PublishingPageDigest.ComputeSnapshotDigest(package.Snapshot);
+            package.Plan.SourceSnapshotDigest = package.SnapshotDigest;
+            package.Plan.IngredientGraph = graph;
+            package.Plan.IngredientActions = PublishingPageIngredientActionProjector.Project(
+                package.Snapshot,
+                package.Plan,
+                graph,
+                catalog);
+            var evaluation = PageIngredientPlanEvaluator.Evaluate(graph, package.Plan.IngredientActions);
+            package.Plan.MigrationOutcome = evaluation.Outcome;
+            package.Plan.IngredientIssues = evaluation.Issues;
+            package.Plan.ExecutionFrontier = evaluation.ExecutionFrontier;
+            package.PlanDigest = PublishingPageDigest.ComputePlanDigest(package.Plan);
+
+            PublishingPagePackageValidator.ValidateMigration(package, null, catalog);
+            var roundTrip = PublishingPagePackageSerializer.Deserialize<PublishingPageMigrationPackage>(
+                PublishingPagePackageSerializer.Serialize(package));
+            PublishingPagePackageValidator.ValidateMigration(roundTrip, null, catalog);
+
+            CollectionAssert.AreEqual(
+                package.Snapshot.IngredientEvidence.Select(value => value.HandlerId).ToArray(),
+                roundTrip.Snapshot.IngredientEvidence.Select(value => value.HandlerId).ToArray());
+            Assert.AreEqual(1, graph.Nodes.Count(value => value.Id == resourceEnvelope.IngredientKey));
+            Assert.AreEqual(1, graph.Nodes.Count(value => value.Id == "dynamic-region:foreign"));
+            Assert.AreEqual(1, package.Plan.IngredientActions.Count(value => value.IngredientId == resourceEnvelope.IngredientKey));
+            Assert.AreEqual(1, package.Plan.IngredientActions.Count(value => value.IngredientId == "dynamic-region:foreign"));
+
+            var planner = new PublishingPageMigrationPlanner(catalog);
+            var plannerCatalog = (PublishingPageIngredientHandlerCatalog)typeof(PublishingPageMigrationPlanner)
+                .GetField("handlerCatalog", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(planner);
+            Assert.AreSame(catalog, plannerCatalog);
+
+            Assert.ThrowsException<InvalidDataException>(() =>
+                PublishingPagePackageValidator.ValidateMigration(roundTrip, null, ResourceScriptIngredientCatalog.Create()));
+        }
+
+        [TestMethod]
+        public void ComposedCatalogStillRejectsUnknownDuplicateAndOverlappingEvidenceOwnership()
+        {
+            var fixture = Fixture.Create();
+            var resourceHandler = new ResourceScriptIdentityHandler();
+            var foreignHandler = new ForeignIdentityHandler();
+            var catalog = new PublishingPageIngredientHandlerCatalog(new PublishingPageIngredientHandler[]
+            {
+                resourceHandler,
+                foreignHandler
+            });
+            var envelope = PublishingPageIngredientEvidenceEnvelope.Create(
+                resourceHandler,
+                PublishingPageJsLinkReferenceEvidence.SchemaVersion,
+                fixture.Evidence.Source.IngredientId,
+                fixture.Evidence.Source,
+                fixture.Evidence.EvidenceReferences);
+
+            Assert.ThrowsException<InvalidDataException>(() => catalog.ValidateEvidence(new[] { envelope, envelope }));
+
+            var unknown = MigrationContractSerializer.Deserialize<PublishingPageIngredientEvidenceEnvelope>(
+                MigrationContractSerializer.SerializeCanonical(envelope));
+            unknown.HandlerId = "pnp.unknown/v1";
+            Assert.ThrowsException<InvalidDataException>(() => catalog.ValidateEvidence(new[] { unknown }));
+
+            Assert.ThrowsException<ArgumentException>(() =>
+                new PublishingPageIngredientHandlerCatalog(new PublishingPageIngredientHandler[]
+                {
+                    resourceHandler,
+                    new OverlappingResourceHandler()
+                }));
+        }
+
+        private static PublishingPageIngredientEvidenceEnvelope AddResourceScriptEvidence(
+            PublishingPageCaptureBundle snapshot,
+            Fixture fixture,
+            ResourceScriptIdentityHandler handler)
+        {
+            snapshot.Source.ListItemId = 17;
+            snapshot.SourceFence.ETag = "\"{aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee},1\"";
+            var hostId = Guid.Parse("77777777-7777-4777-8777-777777777777");
+            var rawLocator = fixture.Evidence.Source.Reference.OriginalValue;
+            var hostJson = MigrationContractSerializer.SerializeCanonical(new
+            {
+                id = hostId.ToString("D"),
+                properties = new Dictionary<string, string>
+                {
+                    ["JSLink"] = rawLocator,
+                    ["XmlDefinition"] = "<View><Query /><JSLink>sp.ui.blogs.js</JSLink></View>"
+                },
+                title = "Resource script host",
+                type = (string)null,
+                zoneIndex = 7
+            });
+            var hostDigest = MigrationDigest.ComputeSha256(hostJson);
+            snapshot.WebParts.Add(new ClassicWebPartSnapshot
+            {
+                Id = hostId,
+                Title = "Resource script host",
+                ZoneIndex = 7,
+                ExportSha256 = MigrationDigest.ComputeSha256(string.Empty),
+                PropertyEvidenceFormat = ClassicWebPartPropertyEvidenceValidator.RestExpandedFormat,
+                PropertyEvidenceJson = hostJson,
+                PropertyEvidenceArtifact = new ArtifactReference
+                {
+                    Sha256 = hostDigest,
+                    Length = Encoding.UTF8.GetByteCount(hostJson),
+                    MediaType = "application/json"
+                }
+            });
+
+            var source = MigrationContractSerializer.Deserialize<PublishingPageJsLinkReferenceEvidence>(
+                MigrationContractSerializer.SerializeCanonical(fixture.Evidence.Source));
+            source.SourcePageFileUniqueId = snapshot.Source.FileUniqueId;
+            source.SourceListItemId = snapshot.Source.ListItemId;
+            source.SourcePageServerRelativeUrl = snapshot.Source.PageServerRelativeUrl;
+            source.SourcePageETag = snapshot.SourceFence.ETag;
+            source.HostWebPartId = hostId;
+            source.HostWebPartOrder = 7;
+            source.HostEvidenceSha256 = hostDigest;
+            source.Reference.Consumer = PublishingPageIngredientIds.WebPart(hostId);
+            source.Reference.SourceAbsoluteUrl = snapshot.Source.WebUrl.TrimEnd('/') + "/SiteAssets/canary.js";
+            source.Reference.SourceServerRelativeUrl = snapshot.Source.WebServerRelativeUrl.TrimEnd('/') + "/SiteAssets/canary.js";
+            source.IngredientId = PublishingPageJsLinkReferenceEvidence.IngredientIdPrefix
+                + snapshot.Source.FileUniqueId.ToString("D") + ":" + hostId.ToString("D") + ":JSLink:" + rawLocator;
+
+            return PublishingPageIngredientEvidenceEnvelope.Create(
+                handler,
+                PublishingPageJsLinkReferenceEvidence.SchemaVersion,
+                source.IngredientId,
+                source,
+                fixture.Evidence.EvidenceReferences);
+        }
+
+        private static PublishingPageMigrationPackage CreateValidMigrationPackage()
+        {
+            return (PublishingPageMigrationPackage)typeof(PnP.Framework.Test.EnterpriseWiki.EnterpriseWikiMigrationTests)
+                .GetMethod("CreateMigrationPackage", BindingFlags.NonPublic | BindingFlags.Static)
+                .Invoke(null, null);
         }
 
         private static void AssertGate(
@@ -511,6 +686,93 @@ namespace PnP.Framework.Test.Migration.Ingredients.ResourceScript
             public string Sha256 { get; set; }
             public string ContentType { get; set; }
             public string Encoding { get; set; }
+        }
+
+        private sealed class ForeignEvidence
+        {
+            public string NodeId { get; set; }
+
+            public string Value { get; set; }
+        }
+
+        private sealed class ForeignIdentityHandler : PublishingPageIngredientHandler<ForeignEvidence>
+        {
+            public const string EvidenceSchema = "pnp-resource-script-coexistence-foreign/v1";
+
+            public override PageIngredientHandlerDescriptor Descriptor { get; } = new PageIngredientHandlerDescriptor(
+                "pnp.resource-script.coexistence-foreign/v1",
+                new PageIngredientLaneDescriptor("dynamic.region", new[] { "publishing" }),
+                new[] { EvidenceSchema },
+                PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                100,
+                new[] { new PageIngredientIdOwnership(PageIngredientIdOwnershipKind.Prefix, "dynamic-region:") });
+
+            protected override void ProjectGraph(
+                PublishingPageIngredientGraphProjectionContext context,
+                PublishingPageIngredientEvidenceEnvelope envelope,
+                ForeignEvidence evidence)
+            {
+                context.AddNode(new PageIngredientNode
+                {
+                    Id = evidence.NodeId,
+                    Kind = PageIngredientKind.Runtime,
+                    KindId = "pnp.runtime",
+                    Subtype = "runtime.dynamic-region",
+                    SemanticRole = "provider-derived-runtime-region",
+                    SourcePredicateId = "runtime.dynamic-region.typed-provider-binding",
+                    SourcePageOrListItemIdentity = "source/page/" + evidence.NodeId,
+                    SourceVersionIdentity = "version=1",
+                    PrimaryOwnerLane = "dynamic.region",
+                    Label = evidence.Value,
+                    HasContent = true,
+                    Ownership = PageIngredientOwnership.SourceOwned,
+                    SourceAuthority = "Coexistence test envelope",
+                    EvidenceDigest = envelope.EvidenceDigest,
+                    EvidenceReferences = envelope.EvidenceReferences.ToList()
+                });
+            }
+
+            protected override void ProjectActions(
+                PublishingPageIngredientActionProjectionContext context,
+                PublishingPageIngredientEvidenceEnvelope envelope,
+                ForeignEvidence evidence)
+            {
+                context.AddAction(new PageIngredientAction
+                {
+                    ActionId = "action:" + evidence.NodeId,
+                    IngredientId = evidence.NodeId,
+                    Capability = IngredientCapability.Available,
+                    Disposition = IngredientDisposition.Preserve,
+                    Realization = "coexistence-test-handler",
+                    PolicyId = "policy.coexistence-test-handler",
+                    PolicyVersion = "1",
+                    Reason = "Foreign handler evidence remains in the composed plan."
+                });
+            }
+        }
+
+        private sealed class OverlappingResourceHandler : PublishingPageIngredientHandler<ForeignEvidence>
+        {
+            public override PageIngredientHandlerDescriptor Descriptor { get; } = new PageIngredientHandlerDescriptor(
+                "pnp.resource-script.overlap-test/v1",
+                new PageIngredientLaneDescriptor("dynamic.region", new[] { "publishing" }),
+                new[] { ForeignIdentityHandler.EvidenceSchema },
+                PublishingPageIngredientGraphProjector.IngredientExtensionProjectionVersion,
+                200,
+                new[]
+                {
+                    new PageIngredientIdOwnership(
+                        PageIngredientIdOwnershipKind.Prefix,
+                        PublishingPageJsLinkReferenceEvidence.IngredientIdPrefix)
+                });
+
+            protected override void ProjectGraph(
+                PublishingPageIngredientGraphProjectionContext context,
+                PublishingPageIngredientEvidenceEnvelope envelope,
+                ForeignEvidence evidence)
+            {
+                throw new AssertFailedException("The overlapping handler must be rejected before projection.");
+            }
         }
     }
 }
