@@ -1,6 +1,1 @@
-{
-  "caseId": "pending-preservation",
-  "runtimeEvidenceAuthority": "none",
-  "expectedRuntimeVerificationStatus": "Pending",
-  "expectedAcceptanceStatus": "Pending"
-}
+{"fixtureSchemaVersion":"ccd263-conformance-fixture/v1","caseId":"pending-preservation","synthetic":true,"originEvidencePackageDigest":"40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283","sourceIdentity":"site:c37b3679/web:041e70b3/list:3fed0145/item:2/file:c3b2c2bb","sourceVersionDigest":"7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5","claimId":"d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53","contractRevision":"pnp-native-page-runtime-acceptance-receipt/v1","transformRecipeDigest":"1111111111111111111111111111111111111111111111111111111111111111","expected":{"runtimeStatus":"Pending","acceptanceStatus":"Pending"},"inputArtifacts":[{"sha256":"2222222222222222222222222222222222222222222222222222222222222222","length":1}]}

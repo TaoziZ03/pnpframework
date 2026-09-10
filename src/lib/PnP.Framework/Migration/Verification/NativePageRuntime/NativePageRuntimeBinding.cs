@@ -1,12 +1,47 @@
+using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Verification;
 using System;
+using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Verification.NativePageRuntime
 {
+    public sealed class NativePageRuntimeSubject
+    {
+        public string IngredientId { get; set; }
+
+        public string PageIngredientKind { get; set; }
+
+        public string Subtype { get; set; }
+
+        public string SemanticRole { get; set; }
+
+        public string PrimaryOwnerLane { get; set; }
+
+        public IList<string> DependencyIds { get; set; } = new List<string>();
+    }
+
+    public sealed class NativePageRuntimeSourceIdentity
+    {
+        public Guid SiteId { get; set; }
+
+        public Guid WebId { get; set; }
+
+        public Guid ListId { get; set; }
+
+        public int ListItemId { get; set; }
+
+        public Guid FileUniqueId { get; set; }
+
+        public string PageServerRelativeUrl { get; set; }
+    }
+
     public sealed class NativePageRuntimeTargetIdentity
     {
         public Guid SiteId { get; set; }
 
         public Guid WebId { get; set; }
+
+        public Guid ListId { get; set; }
 
         public string WebUrl { get; set; }
 
@@ -19,42 +54,92 @@ namespace PnP.Framework.Migration.Verification.NativePageRuntime
         public string ListItemVersion { get; set; }
 
         public string ListItemETag { get; set; }
+
+        public string CanonicalUrl { get; set; }
+    }
+
+    public sealed class NativePageRuntimeArtifactReference
+    {
+        public string Sha256 { get; set; }
+
+        public long Length { get; set; }
+
+        public string MediaType { get; set; }
+
+        public string Locator { get; set; }
+    }
+
+    public sealed class NativePageRuntimeTargetIdentityEvidence
+    {
+        public string ObservationId { get; set; }
+
+        public DateTimeOffset ObservedAtUtc { get; set; }
+
+        public NativePageRuntimeTargetIdentity Identity { get; set; }
+
+        public NativePageRuntimeArtifactReference Artifact { get; set; }
     }
 
     public sealed class NativePageRuntimeBinding
     {
         public string SchemaVersion { get; set; } = NativePageRuntimeContract.BindingSchemaVersion;
 
+        public string ContentSha256 { get; set; }
+
+        public Guid RunId { get; set; }
+
+        public string ClaimId { get; set; } = NativePageRuntimeContract.ClaimId;
+
+        public NativePageRuntimeSubject Subject { get; set; }
+
         public string ProfileId { get; set; } = NativePageRuntimeContract.ClassicWikiProfile;
 
-        public string PageFamily { get; set; } = NativePageRuntimeContract.ClassicWikiFamily;
+        public string PolicyVersion { get; set; } = NativePageRuntimeContract.ClassicWikiPolicyVersion;
 
-        public string RuntimeEvidenceAuthority { get; set; } = NativePageRuntimeContract.NoAuthority;
+        public NativePageRuntimeSourceIdentity SourceIdentity { get; set; }
 
-        public Guid RuntimeOperationId { get; set; }
+        public CurrentSourceVersionIdentity SourceVersion { get; set; }
 
-        public string SourceIdentityDigestSha256 { get; set; }
+        public string SnapshotDigestSha256 { get; set; }
 
-        public string SourceVersionDigestSha256 { get; set; }
+        public string PlanDigest { get; set; }
 
         public string AdmittedPlanDigestSha256 { get; set; }
 
         public string ImportReceiptDigestSha256 { get; set; }
 
-        public NativePageRuntimeTargetIdentity Target { get; set; }
+        public ReproOperationIds Operations { get; set; }
 
-        public string RequestedUrl { get; set; }
+        public NativePageRuntimeTargetIdentity TargetStorageIdentity { get; set; }
 
-        public string FinalUrl { get; set; }
+        public NativePageRuntimeTargetIdentityEvidence TargetIdentityEvidence { get; set; }
 
-        public string RuntimeReceiptSchemaVersion { get; set; }
+        public NativePageRuntimeArtifactReference NativeImportEvidence { get; set; }
 
-        public string RuntimeEvidenceDigestSha256 { get; set; }
+        public NativePageRuntimeArtifactReference PackageEvidence { get; set; }
 
-        public RuntimeVerificationStatus RuntimeVerificationStatus { get; set; } = RuntimeVerificationStatus.Pending;
+        public NativePageRuntimeArtifactReference PolicyArtifact { get; set; }
 
-        public string ExternalEvidenceDigestSha256 { get; set; }
+        public RuntimeVerificationManifest RequirementsManifest { get; set; }
 
-        public string ProducerBuildProvenanceReceiptDigestSha256 { get; set; }
+        public string RequirementsManifestDigestSha256 { get; set; }
+
+        public string ExpectedAuthoredContentSha256 { get; set; }
+
+        public DateTimeOffset IssuedAtUtc { get; set; }
+
+        public DateTimeOffset CaptureNotBeforeUtc { get; set; }
+
+        public DateTimeOffset CaptureExpiresAtUtc { get; set; }
+
+        public string ImportProducerRef { get; set; }
+
+        public string ContractProducerRef { get; set; }
+
+        public string ContractProducerProvenanceManifestDigestSha256 { get; set; }
+
+        public string ContractProducerProvenanceStatus { get; set; }
+
+        public IDictionary<string, string> Extensions { get; set; } = new Dictionary<string, string>();
     }
 }

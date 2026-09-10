@@ -1,20 +1,21 @@
+using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Verification;
+
 namespace PnP.Framework.Migration.Verification.NativePageRuntime
 {
-    public sealed class NativePageRuntimePolicyDecision
-    {
-        public RuntimeVerificationStatus RuntimeVerificationStatus { get; set; }
-
-        public MigrationAcceptanceStatus AcceptanceStatus { get; set; }
-
-        public string DecisionCode { get; set; }
-    }
-
     public interface INativePageRuntimeEvidencePolicy
     {
         string ProfileId { get; }
 
-        NativePageRuntimePolicyDecision Decide(
+        string PolicyVersion { get; }
+
+        void ValidateBinding(
             NativePageRuntimeBinding binding,
-            bool hasExplicitExclusions);
+            IMigrationArtifactStore artifactStore);
+
+        bool VerifyResult(
+            NativePageRuntimeBinding binding,
+            RuntimeVerificationResult result,
+            IMigrationArtifactStore artifactStore);
     }
 }
