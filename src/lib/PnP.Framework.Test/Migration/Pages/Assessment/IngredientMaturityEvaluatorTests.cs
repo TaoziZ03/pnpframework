@@ -24,6 +24,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
         private const string ImplementationCommit = "dddddddddddddddddddddddddddddddddddddddd";
         private const string BinaryDigest = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
         private const string TargetIdentity = "cupcollect:/sites/ccd/pages/ingredient.aspx";
+        private static readonly DateTimeOffset EvidenceTime = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero);
 
         [TestMethod]
         public void ContinuousEvaluatorAttainsM5WithIndependentConditionalOutcome()
@@ -124,7 +125,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
 
             var mismatch = Fixture.Create();
             operational = mismatch.OperationalEvidence();
-            operational.VerificationReceipt.OperationId = Guid.NewGuid();
+            operational.VerificationReceipt.OperationId = Guid.Parse("22222222-2222-2222-2222-222222222222");
             operational.VerificationReceipt.ActionId = "action:foreign";
             mismatch.ReplaceLevel(IngredientMaturityLevel.M4, IngredientMaturityEvidenceValidator.ValidateM4(operational));
             Assert.AreEqual(IngredientMaturityGateStatus.Failed,
@@ -150,7 +151,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
                 {
                     PlanDigest = runtime.PlanDigest,
                     TargetIdentity = TargetIdentity,
-                    CompletedAtUtc = DateTimeOffset.UtcNow,
+                    CompletedAtUtc = EvidenceTime,
                     Status = status
                 };
                 runtime.ReplaceLevel(IngredientMaturityLevel.M4, IngredientMaturityEvidenceValidator.ValidateM4(operational));
@@ -183,7 +184,8 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
                 (IIngredientMaturityContributor)new TestContributor($"contributor-{index}", lane, new List<IngredientMaturityGateReceipt>())));
             Assert.AreEqual(8, catalog.Contributors.Count);
 
-            var context = Fixture.Create().Context;
+            var fixture = Fixture.Create();
+            var context = fixture.Context;
             context.Identity = new IngredientMaturityIdentity
             {
                 ClaimId = ClaimId,
@@ -195,12 +197,21 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
                 SemanticRole = "runtime-verification-assertion",
                 SourcePredicateId = "runtime.assertion"
             };
-            var receipts = IngredientMaturityEvidenceValidator.ValidateM0(context, null, null, null, Refs("behavior-m0.json"));
+            fixture.Plan.IngredientActions[0].VerificationAssertions.Add(context.Identity.IngredientId);
+            var receipts = IngredientMaturityEvidenceValidator.ValidateM0(context, null, null, null, Refs("behavior-m0.json"),
+                new IngredientRuntimeAssertionEvidence
+                {
+                    SourcePredicateId = context.Identity.SourcePredicateId,
+                    CanonicalIngredient = fixture.Node,
+                    Action = fixture.Plan.IngredientActions[0]
+                });
             var behavior = new TestContributor("behavior-maturity/v1", "behavior.interaction", receipts.ToList());
             var assessment = IngredientMaturityEvaluator.Evaluate(
                 context,
                 new IngredientMaturityContributorCatalog(new[] { behavior }));
             Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity);
+            IngredientMaturityEvaluator.ValidateAssessment(assessment, context,
+                new IngredientMaturityContributorCatalog(new[] { behavior }));
         }
 
         [TestMethod]
@@ -245,6 +256,395 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
             var assessment = Fixture.Create().Evaluate();
             assessment.TechnicalOutcome.ReasonCode = "tampered";
             Assert.ThrowsException<System.IO.InvalidDataException>(() => IngredientMaturityEvaluator.ValidateAssessment(assessment));
+        }
+
+        [DataTestMethod]
+        [DataRow("attained")]
+        [DataRow("confidence")]
+        [DataRow("missing-promotion")]
+        [DataRow("target-enum")]
+        [DataRow("technical-status-enum")]
+        [DataRow("migration-outcome-enum")]
+        [DataRow("technical-reason")]
+        [DataRow("identity-predicate")]
+        [DataRow("identity-work-item")]
+        [DataRow("identity-kind-enum")]
+        [DataRow("identity-lane")]
+        [DataRow("null-levels")]
+        [DataRow("missing-level")]
+        [DataRow("duplicate-level")]
+        [DataRow("unknown-level")]
+        [DataRow("level-order")]
+        [DataRow("level-passed")]
+        [DataRow("null-gates")]
+        [DataRow("missing-gate")]
+        [DataRow("duplicate-gate")]
+        [DataRow("unknown-gate")]
+        [DataRow("gate-order")]
+        [DataRow("gate-category")]
+        [DataRow("gate-status-enum")]
+        [DataRow("gate-validator")]
+        [DataRow("gate-validator-version")]
+        [DataRow("gate-references")]
+        [DataRow("gate-reference-order")]
+        [DataRow("gate-reference-duplicate")]
+        [DataRow("passed-gate-failure")]
+        public void AssessmentRejectsRedigestedSemanticTamper(string mutation)
+        {
+            var assessment = RoundTrip(Fixture.Create().Evaluate());
+            var gate = Gate(assessment, IngredientMaturityGateCatalog.CanonicalIdentity);
+            switch (mutation)
+            {
+                case "attained": assessment.AttainedMaturity = IngredientMaturityLevel.M0; break;
+                case "confidence": assessment.Confidence = IngredientMaturityConfidence.None; break;
+                case "missing-promotion": assessment.MissingPromotionGate = gate.GateId; break;
+                case "target-enum": assessment.TargetMaturity = (IngredientMaturityLevel)99; break;
+                case "technical-status-enum": assessment.TechnicalOutcome.Status = (IngredientTechnicalStatus)99; break;
+                case "migration-outcome-enum": assessment.TechnicalOutcome.PnPMigrationOutcome = (PageMigrationOutcome)99; break;
+                case "technical-reason": assessment.TechnicalOutcome.ReasonCode = null; break;
+                case "identity-predicate": assessment.Identity.SourcePredicateId = " "; break;
+                case "identity-work-item": assessment.Identity.WorkItemType = "unknown"; break;
+                case "identity-kind-enum": assessment.Identity.Kind = (PageIngredientKind)999; break;
+                case "identity-lane": assessment.Identity.Lane = "unknown"; break;
+                case "null-levels": assessment.Levels = null; break;
+                case "missing-level": assessment.Levels.RemoveAt(1); break;
+                case "duplicate-level": assessment.Levels.Add(assessment.Levels[0]); break;
+                case "unknown-level": assessment.Levels[0].Level = (IngredientMaturityLevel)99; break;
+                case "level-order": assessment.Levels = assessment.Levels.Reverse().ToList(); break;
+                case "level-passed": assessment.Levels[1].Passed = false; break;
+                case "null-gates": assessment.Levels[0].Gates = null; break;
+                case "missing-gate": assessment.Levels[0].Gates.RemoveAt(0); break;
+                case "duplicate-gate": assessment.Levels[0].Gates.Add(gate); break;
+                case "unknown-gate": gate.GateId = "m0.self-awarded"; break;
+                case "gate-order": assessment.Levels[0].Gates = assessment.Levels[0].Gates.Reverse().ToList(); break;
+                case "gate-category": gate.Category = IngredientMaturityGateCategory.DeliveryProcess; break;
+                case "gate-status-enum": gate.Status = (IngredientMaturityGateStatus)99; break;
+                case "gate-validator": gate.ValidatorId = "lane-self-award"; break;
+                case "gate-validator-version": gate.ValidatorVersion = "unknown"; break;
+                case "gate-references": gate.EvidenceReferences.Clear(); break;
+                case "gate-reference-order": gate.EvidenceReferences = new List<string> { "z", "a" }; break;
+                case "gate-reference-duplicate": gate.EvidenceReferences.Add(gate.EvidenceReferences[0]); break;
+                case "passed-gate-failure": gate.FailureReason = "This gate actually failed."; break;
+                default: Assert.Fail("Unknown mutation."); break;
+            }
+            assessment.AssessmentDigest = IngredientMaturityEvaluator.ComputeDigest(assessment);
+            var independentlyRead = RoundTrip(assessment);
+            Assert.ThrowsException<System.IO.InvalidDataException>(
+                () => IngredientMaturityEvaluator.ValidateAssessment(independentlyRead), mutation);
+        }
+
+        [TestMethod]
+        public void AssessmentRejectsRedigestedContinuityBypass()
+        {
+            var fixture = Fixture.Create();
+            fixture.RemoveGates(IngredientMaturityGateCatalog.CupCollectFreshReadback);
+            var assessment = RoundTrip(fixture.Evaluate());
+            assessment.AttainedMaturity = IngredientMaturityLevel.M5;
+            assessment.Confidence = IngredientMaturityConfidence.High;
+            assessment.MissingPromotionGate = null;
+            foreach (var level in assessment.Levels)
+            {
+                level.Passed = true;
+            }
+            assessment.AssessmentDigest = IngredientMaturityEvaluator.ComputeDigest(assessment);
+            Assert.ThrowsException<System.IO.InvalidDataException>(
+                () => IngredientMaturityEvaluator.ValidateAssessment(RoundTrip(assessment)));
+        }
+
+        private static IngredientMaturityAssessment RoundTrip(IngredientMaturityAssessment assessment)
+        {
+            return MigrationContractSerializer.Deserialize<IngredientMaturityAssessment>(
+                MigrationContractSerializer.SerializeCanonical(assessment));
+        }
+
+        [DataTestMethod]
+        [DataRow("technical-status")]
+        [DataRow("migration-outcome")]
+        [DataRow("technical-reason")]
+        [DataRow("source-version")]
+        [DataRow("source-digest")]
+        [DataRow("target-identity")]
+        [DataRow("producer-commit")]
+        [DataRow("target-maturity")]
+        [DataRow("evidence-reference")]
+        public void BoundAssessmentRejectsCoherentRedigestedSubstitution(string mutation)
+        {
+            var fixture = Fixture.Create();
+            var assessment = RoundTrip(fixture.Evaluate());
+            switch (mutation)
+            {
+                case "technical-status": assessment.TechnicalOutcome.Status = IngredientTechnicalStatus.Pass; break;
+                case "migration-outcome": assessment.TechnicalOutcome.PnPMigrationOutcome = PageMigrationOutcome.Exact; break;
+                case "technical-reason": assessment.TechnicalOutcome.ReasonCode = "another-policy"; break;
+                case "source-version": assessment.Source.SourceVersion = "etag:13"; break;
+                case "source-digest": assessment.Source.SourceArtifactDigest = new string('f', 64); break;
+                case "target-identity": assessment.Target.TargetIdentity = "cupcollect:/another-page.aspx"; break;
+                case "producer-commit": assessment.Producer.ImplementationCommit = new string('f', 40); break;
+                case "target-maturity": assessment.TargetMaturity = IngredientMaturityLevel.M0; break;
+                case "evidence-reference":
+                    Gate(assessment, IngredientMaturityGateCatalog.CanonicalIdentity).EvidenceReferences = Refs("foreign-evidence.json");
+                    break;
+                default: Assert.Fail("Unknown substitution."); break;
+            }
+            assessment.AssessmentDigest = IngredientMaturityEvaluator.ComputeDigest(assessment);
+            var independentlyRead = RoundTrip(assessment);
+            // Intrinsic validation cannot authenticate a completely coherent substitution.
+            IngredientMaturityEvaluator.ValidateAssessment(independentlyRead);
+            Assert.ThrowsException<System.IO.InvalidDataException>(() =>
+                IngredientMaturityEvaluator.ValidateAssessment(independentlyRead, fixture.Context, fixture.Catalog()), mutation);
+        }
+
+        [TestMethod]
+        public void BoundAssessmentRejectsCoherentlyReawardedMissingGate()
+        {
+            var fixture = Fixture.Create();
+            fixture.RemoveGates(IngredientMaturityGateCatalog.CupCollectFreshReadback);
+            var assessment = RoundTrip(fixture.Evaluate());
+            var genuine = Fixture.Create().Evaluate();
+            var gates = assessment.Levels[1].Gates;
+            gates[1] = Gate(genuine, IngredientMaturityGateCatalog.CupCollectFreshReadback);
+            foreach (var level in assessment.Levels)
+            {
+                level.Passed = true;
+            }
+            assessment.AttainedMaturity = IngredientMaturityLevel.M5;
+            assessment.Confidence = IngredientMaturityConfidence.High;
+            assessment.MissingPromotionGate = null;
+            assessment.AssessmentDigest = IngredientMaturityEvaluator.ComputeDigest(assessment);
+            IngredientMaturityEvaluator.ValidateAssessment(RoundTrip(assessment));
+            Assert.ThrowsException<System.IO.InvalidDataException>(() =>
+                IngredientMaturityEvaluator.ValidateAssessment(RoundTrip(assessment), fixture.Context, fixture.Catalog()));
+        }
+
+        [TestMethod]
+        public void AssessmentOwnsBindingsAndRejectsLegacyEvaluatorVersion()
+        {
+            var fixture = Fixture.Create();
+            var assessment = fixture.Evaluate();
+            fixture.Context.Source.SourceVersion = "changed-after-evaluation";
+            fixture.Context.TechnicalOutcome.ReasonCode = "changed-after-evaluation";
+            Assert.AreEqual("etag:12", assessment.Source.SourceVersion);
+            Assert.AreEqual("policy-limited-but-deterministic", assessment.TechnicalOutcome.ReasonCode);
+            IngredientMaturityEvaluator.ValidateAssessment(assessment);
+            assessment.EvaluatorVersion = "pnp-ingredient-maturity-evaluator/v1";
+            assessment.AssessmentDigest = IngredientMaturityEvaluator.ComputeDigest(assessment);
+            Assert.ThrowsException<System.IO.InvalidDataException>(() => IngredientMaturityEvaluator.ValidateAssessment(assessment));
+        }
+
+        [TestMethod]
+        public void EveryContinuousLevelRoundTripsWithRecomputedPromotionGate()
+        {
+            for (var attained = -1; attained <= 5; attained++)
+            {
+                var fixture = Fixture.Create();
+                if (attained < 5)
+                {
+                    fixture.RemoveGates(IngredientMaturityGateCatalog.ForLevel((IngredientMaturityLevel)(attained + 1))[0].GateId);
+                }
+                var assessment = RoundTrip(fixture.Evaluate());
+                Assert.AreEqual(attained < 0 ? (IngredientMaturityLevel?)null : (IngredientMaturityLevel)attained, assessment.AttainedMaturity);
+                IngredientMaturityEvaluator.ValidateAssessment(assessment, fixture.Context, fixture.Catalog());
+            }
+        }
+
+        [TestMethod]
+        public void TargetMaturityIsAGoalAndDoesNotChangeTechnicalOutcomeOrCapEvidence()
+        {
+            var fixture = Fixture.Create();
+            fixture.Context.TargetMaturity = IngredientMaturityLevel.M0;
+            var assessment = fixture.Evaluate();
+            Assert.AreEqual(IngredientMaturityLevel.M5, assessment.AttainedMaturity);
+            Assert.IsNull(assessment.MissingPromotionGate);
+            Assert.AreEqual(IngredientTechnicalStatus.Conditional, assessment.TechnicalOutcome.Status);
+            IngredientMaturityEvaluator.ValidateAssessment(assessment, fixture.Context, fixture.Catalog());
+        }
+
+        [DataTestMethod]
+        [DataRow("foreign-claim")]
+        [DataRow("foreign-ingredient")]
+        [DataRow("foreign-source-page")]
+        [DataRow("foreign-source-version")]
+        [DataRow("foreign-source-artifact")]
+        [DataRow("foreign-source-snapshot")]
+        [DataRow("foreign-target-profile")]
+        [DataRow("foreign-target-identity")]
+        [DataRow("missing-source-binding")]
+        [DataRow("missing-target-binding")]
+        [DataRow("missing-fence")]
+        [DataRow("reversed-fence")]
+        [DataRow("stale-source")]
+        [DataRow("late-source")]
+        [DataRow("stale-target")]
+        [DataRow("future-target")]
+        [DataRow("missing-readback-start")]
+        [DataRow("unpaired-value")]
+        [DataRow("duplicate-value")]
+        [DataRow("missing-target-value")]
+        [DataRow("invalid-value-digest")]
+        [DataRow("unbound-source-reference")]
+        [DataRow("unbound-target-reference")]
+        [DataRow("unknown-origin")]
+        [DataRow("historical-origin")]
+        [DataRow("synthetic-origin")]
+        [DataRow("substituted-evidence")]
+        [DataRow("source-not-authenticated")]
+        [DataRow("target-not-fresh")]
+        public void M1RejectsForeignUnpairedOrStaleObservations(string mutation)
+        {
+            var fixture = Fixture.Create();
+            var evidence = fixture.LiveEvidence();
+            var source = evidence.Observations[0];
+            var target = evidence.Observations[1];
+            switch (mutation)
+            {
+                case "foreign-claim": source.ClaimId = new string('f', 64); break;
+                case "foreign-ingredient": target.IngredientId = "ingredient:other"; break;
+                case "foreign-source-page": source.Source.PageOrListItemIdentity = "another-page"; break;
+                case "foreign-source-version": source.Source.SourceVersion = "etag:11"; break;
+                case "foreign-source-artifact": source.Source.SourceArtifactDigest = new string('f', 64); break;
+                case "foreign-source-snapshot": target.Source.SourceSnapshotDigest = new string('f', 64); break;
+                case "foreign-target-profile": target.Target.TargetProfile = "MSIT"; break;
+                case "foreign-target-identity": target.Target.TargetIdentity = "cupcollect:/other.aspx"; break;
+                case "missing-source-binding": source.Source = null; break;
+                case "missing-target-binding": target.Target = null; break;
+                case "missing-fence": fixture.Context.ObservationWindowStartUtc = null; break;
+                case "reversed-fence": fixture.Context.ObservationWindowEndUtc = fixture.Context.ObservationWindowStartUtc.Value.AddSeconds(-1); break;
+                case "stale-source": source.ObservedAtUtc = fixture.Context.ObservationWindowStartUtc.Value.AddSeconds(-1); break;
+                case "late-source": source.ObservedAtUtc = evidence.ReadbackStartedAtUtc.AddSeconds(1); break;
+                case "stale-target": target.ObservedAtUtc = evidence.ReadbackStartedAtUtc.AddSeconds(-1); break;
+                case "future-target": target.ObservedAtUtc = fixture.Context.ObservationWindowEndUtc.Value.AddSeconds(1); break;
+                case "missing-readback-start": evidence.ReadbackStartedAtUtc = default; break;
+                case "unpaired-value": target.ValuePath = "another-value"; break;
+                case "duplicate-value": evidence.Observations.Add(source); break;
+                case "missing-target-value": evidence.Observations.RemoveAt(1); break;
+                case "invalid-value-digest": target.ValueDigest = "invalid"; break;
+                case "unbound-source-reference": source.EvidenceReference = "foreign-source.json"; break;
+                case "unbound-target-reference": target.EvidenceReference = "foreign-target.json"; break;
+                case "unknown-origin": target.Origin = (IngredientObservationOrigin)99; break;
+                case "historical-origin": source.Origin = IngredientObservationOrigin.Historical; break;
+                case "synthetic-origin": target.Origin = IngredientObservationOrigin.Synthetic; break;
+                case "substituted-evidence": evidence.HistoricalOrSyntheticSubstitution = true; break;
+                case "source-not-authenticated": evidence.SourceAuthenticated = false; break;
+                case "target-not-fresh": evidence.TargetFreshReadback = false; break;
+                default: Assert.Fail("Unknown observation mutation."); break;
+            }
+            fixture.ReplaceLevel(IngredientMaturityLevel.M1, IngredientMaturityEvidenceValidator.ValidateM1(fixture.Context, evidence));
+            var assessment = fixture.Evaluate();
+            Assert.AreEqual(IngredientMaturityLevel.M0, assessment.AttainedMaturity, mutation);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed,
+                Gate(assessment, IngredientMaturityGateCatalog.PerValueObservation).Status, mutation);
+        }
+
+        [TestMethod]
+        public void M1LegacyUnboundOverloadCannotAwardMaturity()
+        {
+            var fixture = Fixture.Create();
+            var receipts = IngredientMaturityEvidenceValidator.ValidateM1(fixture.LiveEvidence());
+            Assert.IsTrue(receipts.All(value => !value.Passed));
+            fixture.ReplaceLevel(IngredientMaturityLevel.M1, receipts);
+            Assert.AreEqual(IngredientMaturityLevel.M0, fixture.Evaluate().AttainedMaturity);
+        }
+
+        [TestMethod]
+        public void M1RecordsDifferentValueDigestsWithoutInventingAnOutcomeRule()
+        {
+            var fixture = Fixture.Create();
+            var evidence = fixture.LiveEvidence();
+            evidence.Observations[1].ValueDigest = MigrationDigest.ComputeSha256("policy-transformed-value");
+            var receipts = IngredientMaturityEvidenceValidator.ValidateM1(fixture.Context, evidence);
+            Assert.IsTrue(receipts.All(value => value.Passed));
+            fixture.ReplaceLevel(IngredientMaturityLevel.M1, receipts);
+            var assessment = fixture.Evaluate();
+            Assert.AreEqual(IngredientMaturityLevel.M5, assessment.AttainedMaturity);
+            Assert.AreEqual(IngredientTechnicalStatus.Conditional, assessment.TechnicalOutcome.Status);
+        }
+
+        [DataTestMethod]
+        [DataRow("missing-predicate")]
+        [DataRow("blank-predicate")]
+        [DataRow("foreign-predicate")]
+        [DataRow("missing-evidence")]
+        [DataRow("foreign-action-ingredient")]
+        [DataRow("missing-assertion")]
+        [DataRow("duplicate-assertion")]
+        [DataRow("foreign-dependency-version")]
+        public void RuntimeM0RequiresPredicateAndCanonicalActionDependency(string mutation)
+        {
+            var fixture = Fixture.Create();
+            var context = fixture.Context;
+            context.Identity.WorkItemType = IngredientMaturityContract.RuntimeVerificationWorkItem;
+            context.Identity.Kind = null;
+            context.Identity.Lane = "behavior.interaction";
+            context.Identity.IngredientId = "assertion:interaction";
+            context.Identity.Subtype = "interaction-state-transition";
+            context.Identity.SemanticRole = "runtime-verification-assertion";
+            context.Identity.SourcePredicateId = "runtime.assertion";
+            var action = fixture.Plan.IngredientActions[0];
+            action.VerificationAssertions.Add(context.Identity.IngredientId);
+            var evidence = new IngredientRuntimeAssertionEvidence
+            {
+                SourcePredicateId = context.Identity.SourcePredicateId,
+                CanonicalIngredient = fixture.Node,
+                Action = action
+            };
+            switch (mutation)
+            {
+                case "missing-predicate": context.Identity.SourcePredicateId = null; break;
+                case "blank-predicate": context.Identity.SourcePredicateId = " "; break;
+                case "foreign-predicate": evidence.SourcePredicateId = "another.predicate"; break;
+                case "missing-evidence": evidence = null; break;
+                case "foreign-action-ingredient": action.IngredientId = "another-ingredient"; break;
+                case "missing-assertion": action.VerificationAssertions.Clear(); break;
+                case "duplicate-assertion": action.VerificationAssertions.Add(context.Identity.IngredientId); break;
+                case "foreign-dependency-version": fixture.Node.SourceVersionIdentity = "etag:13"; break;
+                default: Assert.Fail("Unknown runtime mutation."); break;
+            }
+            var receipts = IngredientMaturityEvidenceValidator.ValidateM0(context, null, null, null, Refs("runtime-m0.json"), evidence);
+            Assert.IsTrue(receipts.Any(value => !value.Passed), mutation);
+            var catalog = new IngredientMaturityContributorCatalog(new[]
+            {
+                new TestContributor("behavior-maturity/v2", "behavior.interaction", receipts.ToList())
+            });
+            if (mutation == "missing-predicate" || mutation == "blank-predicate")
+            {
+                Assert.ThrowsException<System.IO.InvalidDataException>(() => IngredientMaturityEvaluator.Evaluate(context, catalog));
+            }
+            else
+            {
+                var assessment = IngredientMaturityEvaluator.Evaluate(context, catalog);
+                Assert.IsNull(assessment.AttainedMaturity, mutation);
+                IngredientMaturityEvaluator.ValidateAssessment(assessment, context, catalog);
+            }
+        }
+
+        [TestMethod]
+        public void ContributorUnknownNullDuplicateAndUnsupportedValidatorReceiptsFailClosed()
+        {
+            foreach (var mutation in new[] { "unknown", "null", "duplicate", "validator", "version", "missing-failure" })
+            {
+                var fixture = Fixture.Create();
+                var receipts = IngredientMaturityEvidenceValidator.ValidateM0(fixture.Context, fixture.Node, null, CreateOwnerRegistry(), Refs("m0.json")).ToList();
+                switch (mutation)
+                {
+                    case "unknown": receipts[0].GateId = "unknown"; break;
+                    case "null": receipts.Add(null); break;
+                    case "duplicate": receipts.Add(receipts[0]); break;
+                    case "validator": receipts[0].ValidatorId = "self-awarded"; break;
+                    case "version": receipts[0].ValidatorVersion = "v1"; break;
+                    case "missing-failure": receipts[0].Passed = false; receipts[0].FailureReason = null; break;
+                }
+                fixture.ReplaceLevel(IngredientMaturityLevel.M0, receipts);
+                if (mutation == "unknown" || mutation == "null")
+                {
+                    Assert.ThrowsException<System.IO.InvalidDataException>(() => fixture.Evaluate(), mutation);
+                }
+                else
+                {
+                    var assessment = fixture.Evaluate();
+                    Assert.IsNull(assessment.AttainedMaturity, mutation);
+                    IngredientMaturityEvaluator.ValidateAssessment(assessment);
+                }
+            }
         }
 
         private static IngredientMaturityGateResult Gate(IngredientMaturityAssessment assessment, string gateId)
@@ -362,6 +762,8 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
                         BinaryDigest = BinaryDigest
                     },
                     TargetMaturity = IngredientMaturityLevel.M5,
+                    ObservationWindowStartUtc = EvidenceTime.AddMinutes(-2),
+                    ObservationWindowEndUtc = EvidenceTime.AddMinutes(1),
                     TechnicalOutcome = new IngredientTechnicalOutcome
                     {
                         PnPMigrationOutcome = PageMigrationOutcome.ExecutableWithLoss,
@@ -411,10 +813,17 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
 
             public IngredientMaturityAssessment Evaluate()
             {
-                var contributor = new TestContributor("content.text.maturity/v1", "content.text", receipts);
-                return IngredientMaturityEvaluator.Evaluate(
-                    Context,
-                    new IngredientMaturityContributorCatalog(new[] { contributor }));
+                var assessment = IngredientMaturityEvaluator.Evaluate(Context, Catalog());
+                IngredientMaturityEvaluator.ValidateAssessment(assessment);
+                return assessment;
+            }
+
+            public IngredientMaturityContributorCatalog Catalog()
+            {
+                return new IngredientMaturityContributorCatalog(new[]
+                {
+                    new TestContributor("content.text.maturity/v1", "content.text", receipts)
+                });
             }
 
             public void RefreshPlanDigest()
@@ -426,7 +835,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
             {
                 receipts.Clear();
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM0(Context, Node, null, CreateOwnerRegistry(), Refs("m0.json")));
-                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(LiveEvidence()));
+                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(Context, LiveEvidence()));
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM2(ContentIntegrity()));
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM3(PlanEvidence()));
                 receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM4(OperationalEvidence()));
@@ -492,7 +901,7 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
 
             public IngredientOperationalEvidence OperationalEvidence()
             {
-                var now = DateTimeOffset.UtcNow;
+                var now = EvidenceTime;
                 var startedAt = now.AddMinutes(-1);
                 var signature = MigrationActionSignature.Create(
                     Plan.IngredientActions[0].ActionId,
@@ -600,29 +1009,36 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
                 };
             }
 
-            private IngredientLiveEvidence LiveEvidence()
+            public IngredientLiveEvidence LiveEvidence()
             {
                 return new IngredientLiveEvidence
                 {
                     SourceAuthenticated = true,
                     TargetFreshReadback = true,
-                    SourceEvidenceReferences = Refs("m1-source.json"),
-                    TargetEvidenceReferences = Refs("m1-target.json"),
+                    ReadbackStartedAtUtc = EvidenceTime.AddMinutes(-1),
+                    SourceEvidenceReferences = Refs("m1-observation-source.json"),
+                    TargetEvidenceReferences = Refs("m1-observation-target.json"),
                     Observations = new List<IngredientValueObservation>
                     {
-                        Observation("source.value", IngredientObservationOrigin.AuthenticatedSource, "m1-observation-source.json"),
-                        Observation("target.value", IngredientObservationOrigin.CupCollectFreshReadback, "m1-observation-target.json")
+                        Observation("body.value", IngredientObservationOrigin.AuthenticatedSource, "m1-observation-source.json"),
+                        Observation("body.value", IngredientObservationOrigin.CupCollectFreshReadback, "m1-observation-target.json")
                     }
                 };
             }
 
-            private static IngredientValueObservation Observation(string path, IngredientObservationOrigin origin, string evidenceReference)
+            private IngredientValueObservation Observation(string path, IngredientObservationOrigin origin, string evidenceReference)
             {
                 return new IngredientValueObservation
                 {
+                    ClaimId = Context.Identity.ClaimId,
+                    IngredientId = Context.Identity.IngredientId,
+                    Source = MigrationContractSerializer.Deserialize<IngredientMaturitySourceBinding>(
+                        MigrationContractSerializer.SerializeCanonical(Context.Source)),
+                    Target = MigrationContractSerializer.Deserialize<IngredientMaturityTargetBinding>(
+                        MigrationContractSerializer.SerializeCanonical(Context.Target)),
                     ValuePath = path,
                     ValueDigest = MigrationDigest.ComputeSha256(path),
-                    ObservedAtUtc = DateTimeOffset.UtcNow,
+                    ObservedAtUtc = origin == IngredientObservationOrigin.AuthenticatedSource ? EvidenceTime.AddMinutes(-2) : EvidenceTime,
                     Origin = origin,
                     EvidenceReference = evidenceReference
                 };

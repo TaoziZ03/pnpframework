@@ -20,6 +20,14 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
 
     internal sealed class IngredientValueObservation
     {
+        public string ClaimId { get; set; }
+
+        public string IngredientId { get; set; }
+
+        public IngredientMaturitySourceBinding Source { get; set; }
+
+        public IngredientMaturityTargetBinding Target { get; set; }
+
         public string ValuePath { get; set; }
 
         public string ValueDigest { get; set; }
@@ -39,12 +47,23 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
 
         public bool HistoricalOrSyntheticSubstitution { get; set; }
 
+        public DateTimeOffset ReadbackStartedAtUtc { get; set; }
+
         public IList<IngredientValueObservation> Observations { get; set; } =
             new List<IngredientValueObservation>();
 
         public IList<string> SourceEvidenceReferences { get; set; } = new List<string>();
 
         public IList<string> TargetEvidenceReferences { get; set; } = new List<string>();
+    }
+
+    internal sealed class IngredientRuntimeAssertionEvidence
+    {
+        public string SourcePredicateId { get; set; }
+
+        public PageIngredientNode CanonicalIngredient { get; set; }
+
+        public PageIngredientAction Action { get; set; }
     }
 
     internal sealed class IngredientContentIntegrityEvidence

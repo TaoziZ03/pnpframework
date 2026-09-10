@@ -51,6 +51,11 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
 
         public IReadOnlyList<IIngredientMaturityContributor> Contributors { get; }
 
+        internal static bool IsKnownLane(string lane)
+        {
+            return lane != null && KnownLanes.Contains(lane);
+        }
+
         public IIngredientMaturityContributor Resolve(string lane)
         {
             if (string.IsNullOrWhiteSpace(lane) || !byLane.TryGetValue(lane, out var contributor))

@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Pages.Ingredients;
+using System;
 using System.Collections.Generic;
 
 namespace PnP.Framework.Migration.Pages.Assessment.Maturity
@@ -45,7 +46,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
     internal static class IngredientMaturityContract
     {
         public const string SchemaVersion = "pnp-ingredient-maturity-assessment/v1";
-        public const string EvaluatorVersion = "pnp-ingredient-maturity-evaluator/v1";
+        public const string EvaluatorVersion = "pnp-ingredient-maturity-evaluator/v2";
         public const string CanonicalIngredientWorkItem = "canonical-ingredient";
         public const string RuntimeVerificationWorkItem = "runtime-verification";
     }
@@ -162,6 +163,12 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
         public IngredientMaturityLevel TargetMaturity { get; set; }
 
         public IngredientTechnicalOutcome TechnicalOutcome { get; set; }
+
+        // Supplied by the evidence consumer/run, not inferred from wall-clock time
+        // or copied out of an untrusted assessment. Required only for M1 evidence.
+        public DateTimeOffset? ObservationWindowStartUtc { get; set; }
+
+        public DateTimeOffset? ObservationWindowEndUtc { get; set; }
     }
 
     internal sealed class IngredientMaturityGateResult
