@@ -497,11 +497,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.DynamicRegi
             IngredientValueObservation observation,
             IReadOnlyCollection<string> evidenceReferences)
         {
-            var suffix = "#" + observation.ValuePath;
-            return !string.IsNullOrWhiteSpace(observation.EvidenceReference)
-                && observation.EvidenceReference.Length > suffix.Length
-                && observation.EvidenceReference.EndsWith(suffix, StringComparison.Ordinal)
-                && evidenceReferences?.Contains(observation.EvidenceReference, StringComparer.Ordinal) == true;
+            var evidenceReference = observation.EvidenceReference;
+            if (string.IsNullOrWhiteSpace(evidenceReference)
+                || evidenceReferences?.Contains(evidenceReference, StringComparer.Ordinal) != true)
+            {
+                return false;
+            }
+
+            var fragmentSeparator = evidenceReference.IndexOf('#');
+            return fragmentSeparator > 0
+                && string.Equals(
+                    evidenceReference.Substring(fragmentSeparator + 1),
+                    observation.ValuePath,
+                    StringComparison.Ordinal);
         }
 
         private static string Digest(JsonElement value)
