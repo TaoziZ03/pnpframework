@@ -13,6 +13,7 @@ RELEASE = ROOT / "versioned" / "spo-online-16.0.27709.12000"
 sys.path.insert(0, str(ROOT))
 
 import generate_registry as generator  # noqa: E402
+import cross_build_equivalence as equivalence  # noqa: E402
 import validate_registry as validator  # noqa: E402
 
 
@@ -122,6 +123,45 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
         for source in virtual_sources:
             self.assertRegex(source["blobId"], r"^[0-9a-f]{40}$")
             self.assertTrue(source["symbols"])
+
+    def test_equivalence_variant_is_explicit_schema_valid_and_release_spec_bound(self) -> None:
+        equivalence_registry = validator.load_json(
+            RELEASE / "registry" / "spo-online-16.0.27709.12000-equivalence.registry.json"
+        )
+        equivalence_profile = validator.load_json(
+            RELEASE / "profile" / "spo-online-16.0.27709.12000-equivalence.profile.json"
+        )
+        equivalence_schema = validator.load_json(
+            RELEASE / "schema" / "aspx-platform-registry-equivalence.schema.json"
+        )
+        equivalence_profile_schema = validator.load_json(
+            RELEASE / "schema" / "aspx-platform-registry-equivalence-profile.schema.json"
+        )
+        certificate = validator.load_json(
+            RELEASE / "certificates" / "27708-to-27709.cross-build-equivalence.json"
+        )
+        self.assertEqual(
+            generator.EQUIVALENCE_ADMISSION_MODE,
+            equivalence_registry["admission"]["mode"],
+        )
+        self.assertEqual(
+            [], validator.schema_validation_errors(equivalence_registry, equivalence_schema)
+        )
+        self.assertEqual(
+            [], validator.schema_validation_errors(
+                equivalence_profile, equivalence_profile_schema
+            )
+        )
+        self.assertEqual(
+            [], equivalence.validate_certificate(certificate, RELEASE / "release-spec.json")
+        )
+        self.assertEqual(219, len(certificate["sourceClosure"]["members"]))
+        self.assertEqual(219, len(certificate["targetClosure"]["members"]))
+        self.assertIn(
+            "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml",
+            {member["path"] for member in certificate["targetClosure"]["members"]},
+        )
+        self.assertNotIn("admission", self.registry)
 
     def test_offline_cli_receipt_binds_managed_assemblies_and_fail_closed_stages(self) -> None:
         receipt = validator.load_json(RELEASE / "offline-assessment-compatibility.json")

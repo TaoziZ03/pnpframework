@@ -2,8 +2,8 @@
   "benchmarkVersion": "cross-build-equivalence-benchmark/v1",
   "exitCode": 0,
   "fallbackReason": null,
-  "fullGenerationSeconds": 2.677372,
+  "fullGenerationSeconds": 3.59,
   "mode": "equivalence_reuse",
-  "proofSeconds": 3.763462,
-  "savedSeconds": -1.08609
+  "proofSeconds": 7.201968,
+  "savedSeconds": -3.611968
 }

@@ -1,5 +1,5 @@
 {
-  "certificateHash": "a551b9cdb67c27e259ec8fb89457a5976a712061f117c5e97d8f0a06248fe2c1",
+  "certificateHash": "2ac59d8769f900aa469b46f02105f31727cefe97760cd3a47f37ad327e8c0e50",
   "certificateVersion": "cross-build-equivalence-certificate/v1",
   "comparison": {
     "added": [],
@@ -8,29 +8,29 @@
     "deleted": [],
     "equivalent": true,
     "renameOrAliasCandidates": [],
-    "sourceMemberCount": 145,
-    "targetMemberCount": 145,
+    "sourceMemberCount": 219,
+    "targetMemberCount": 219,
     "uncertainties": []
   },
   "generator": {
     "canonicalization": "canonical-json/sorted-utf8-no-whitespace/v1",
-    "commit": "2428e8a9ff0293c12c463628414fc96a3ff76412",
+    "commit": "7f1622c55db6d46fb38cefcc5166f6fda366480d",
     "generatorVersion": "aspx-registry-generator/v2-equivalence",
-    "manifestHash": "756780cbc560c5a4d8e38a2d5c9e1b7951da6f0f94664723733884a98c215675",
+    "manifestHash": "c9fb7e8e4e81bdde26e83f3afd58827ed9f28f2169ffa00c2f8d9b3096c7730f",
     "members": [
       {
-        "blobId": "239fdd80267cdb34bfe69c540562bfcc205e0571",
-        "byteLength": 36765,
+        "blobId": "56d4979c842de0950acdd8d1fd0237657d070936",
+        "byteLength": 44982,
         "parserId": "registry-generator-input/v1-exact-bytes",
         "path": "tools/aspx-platform-registry/cross_build_equivalence.py",
-        "sha256": "77108b5412f5748624c726fad5822a2e0f042a966dde90555a26967def4fa694"
+        "sha256": "746059022641389fe436fa9b202a66266a85e6c32cd325a7907b7fff798db4ce"
       },
       {
-        "blobId": "39b448852fcdc712e90122128dc2311127b986a5",
-        "byteLength": 52953,
+        "blobId": "4878459d0fe5702f03bd2cbc8e2f963f9a8fd4d1",
+        "byteLength": 57635,
         "parserId": "registry-generator-input/v1-exact-bytes",
         "path": "tools/aspx-platform-registry/generate_registry.py",
-        "sha256": "ee9ebf6887b3340d432c9f74a610c74e43b55e9bb28ae71630ad4c678faa614a"
+        "sha256": "cce27af186cc17b51d93fd759ae2e33797dc9a7e63e3763d9820058a4aff3845"
       },
       {
         "blobId": "a26da2e64889d7bf39237a0d266be8073a6e859d",
@@ -40,20 +40,27 @@
         "sha256": "03fe8642f3de54a65238cbad37600442885bfc76fc06d5ce3987fc6f7481b0a6"
       },
       {
-        "blobId": "b533ed0d70669f8e5ac516f650ac0efb2d727ef1",
-        "byteLength": 6195,
+        "blobId": "84c5a659c8b2467df3ed689513b094d552255fa4",
+        "byteLength": 6824,
         "parserId": "registry-generator-input/v1-exact-bytes",
         "path": "tools/aspx-platform-registry/schema/cross-build-equivalence-certificate.schema.json",
-        "sha256": "99e163cac9299be825589f877606016cdb30a7630bd118e4ba3bf7e2ae1b4c23"
+        "sha256": "e11fccd74d780461b659f8cdd2ad748c0c56cc3e48eab16e860a60e87f7382f7"
       }
     ],
-    "tree": "7e8b1e70e3cf06fbf7c1dc9ad9c15be5928f4ab2"
+    "tree": "e1acf5e7122d94c21ccf4aae03907ac0d5891217"
   },
   "issuedAtUtc": "2026-09-10T07:38:25Z",
   "proofDisposition": "equivalent_reuse",
+  "releaseSpec": {
+    "bindingVersion": "aspx-platform-registry-release-spec-binding/v1",
+    "canonicalHash": "40685ac88d861b62a2376be18b97fe67be156cfde62d58f4c4f4dd82e9a1a9d5",
+    "fileName": "release-spec.json",
+    "fileSha256": "ec23663411837fb5fe679dddef290ac3a647f6c5eced95be3a62c4df4eb58a78",
+    "releaseSpecVersion": "aspx-platform-registry-release-spec/v1"
+  },
   "schemaBindings": {
-    "profileSchemaHash": "f74303e088bdf6c4c34024f0f0ee0f9e17f891a5994ae28c6ba36ccde22688af",
-    "registrySchemaHash": "041b89abbbbe77a696a8161d5cef0f9027d4051b3bf0befdbca23536479f85ad"
+    "profileSchemaHash": "41a0f15adfa8c50303d1089c5c5dcc16785a23b8e3d3e98b4305e395fca1b092",
+    "registrySchemaHash": "41fd0761afe8dadb84442e64d0a86757d4ce583381401212d8df26fd0cb86ed5"
   },
   "source": {
     "build": "16.0.27708.12757",
@@ -63,7 +70,7 @@
   },
   "sourceClosure": {
     "build": "16.0.27708.12757",
-    "closureHash": "72dfacf075472eed996ac7dd70fa5230746a2e0cdef1a3aab0e912fd9dc7b4c7",
+    "closureHash": "ab61a3a3aca7b00762c69dee2439928322f03a36dc4f0bacf461c738865b428e",
     "closureVersion": "aspx-registry-input-closure/v1",
     "commit": "1826a78bef6194afb25edc44b9abf61b7798de0a",
     "members": [
@@ -908,6 +915,746 @@
         "sha256": "d4597c11e11fdc643aadbbd2fed20ff0a3138efaf2ef33585b55d954b5e2b41f"
       },
       {
+        "blobId": "5996276d32f2e4b4007887927d4e253efb404267",
+        "byteLength": 1672,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/dnsclientcache.xml",
+        "pathCaseFold": "otools/deploy/packages/dnsclientcache.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "87ba13ec0350b90c10cf612fdb38c33eb95eceeaf679bcc2878b10c1c46dcc50"
+      },
+      {
+        "blobId": "ce4715ee9e34c030ef57804bdbcac0463133c4ae",
+        "byteLength": 26670,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.postxdserverc.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.postxdserverc.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8bd2df1328ce78f681a05182dedc7e1ec822a7ecf8fd3c4be0f7d96e7d7058be"
+      },
+      {
+        "blobId": "bfd55a6c7051591c6d0e0f9ee3e4feed21b9a3d4",
+        "byteLength": 4513,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.azureclouddns.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.azureclouddns.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "7e231e0670caaedeadea8eab5b27bf3e2c1f17b76166bcca0045ae2be331dc76"
+      },
+      {
+        "blobId": "5c5d8be3c3dc3040724a15ad50ccb3206a2b3561",
+        "byteLength": 504,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.azuresdk.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.azuresdk.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a3de600e44fa932ef9d99b01f8934dd495a8e5475e47298e7aeb84cdc57abd51"
+      },
+      {
+        "blobId": "dbda3c7fe7e48586d541ef48d9221effcd794f39",
+        "byteLength": 31070,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.chicago.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.chicago.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "696d0650c739159ce27cc350aa64c31d193358841e6603fd8559db1b7dd79c25"
+      },
+      {
+        "blobId": "f66758f8f65f3be718aee21a625c17e7352da59d",
+        "byteLength": 450857,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_layoutsimages.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_layoutsimages.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "c41254dfd39c79d6818b53477e54850bb83466342fd7d27ad58522e7916b642e"
+      },
+      {
+        "blobId": "10d29ca9bfc1cb9d5df3169a4de0a0803624d3bd",
+        "byteLength": 532893,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishinglayoutsfeature.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishinglayoutsfeature.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "aa0ce5c0fd962be19c223bf524e6c8b060429594c6d9da811285a3f88e0b2fe9"
+      },
+      {
+        "blobId": "597b2f36c0d1532c78e9601500243cc9e2003ba1",
+        "byteLength": 103505,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishingresourcesfeature.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishingresourcesfeature.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "41eba27a5f401c8cc0fbd8ee7ab79f4293e55c26470cf105761e035e395a56d8"
+      },
+      {
+        "blobId": "5af6c93c5b284872689e28c52813bba6a7d5fce3",
+        "byteLength": 35901,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_prottemplates.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_prottemplates.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6a24c09ae50e436dbe23ab67edfd712445eca32883d777f4cb8362a0894ce634"
+      },
+      {
+        "blobId": "d5b470701263492cec02b8aa5518248a632837fe",
+        "byteLength": 218603,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_workflowfallbacktemplates.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_workflowfallbacktemplates.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a50c3592436c3bec8904bdefce69c11bd9e0487a19d20df9c91b0332a10204f9"
+      },
+      {
+        "blobId": "648a73b53b8093ed7d662aaa29ceec1b5381da7e",
+        "byteLength": 41511,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_resources.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_resources.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "ee953e724aac3cc6c4bd1359a72cfadf77cd014b45e2a9574a12f15f9909167d"
+      },
+      {
+        "blobId": "4cce54694baed1ddd02050949e1cfcbacae47818",
+        "byteLength": 72621,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_templates.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_templates.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "200b65f88aeeb4843a3694eec2809e3395a27f89920dd9c3dd29af9189cb166e"
+      },
+      {
+        "blobId": "81c888618003d1644e89fd664f53a97790676b54",
+        "byteLength": 25615,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.excel_powerpivot.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.excel_powerpivot.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1304f78d983d1b886bf2da50be5efdb5e309dd03eaea5d116fcdc1ea166ae6b5"
+      },
+      {
+        "blobId": "bbcf254f3e640a3a932e2388069b8b1541da9a09",
+        "byteLength": 210499,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchange_activemonitoring_spo.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchange_activemonitoring_spo.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a394e4d26c40abff6df27fd4536a082634292b24a890195a20c5ae61712a5d78"
+      },
+      {
+        "blobId": "95cb0eec98f722daee5286800ab91d6c51613c19",
+        "byteLength": 16852,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchangelocalactivemonitoring.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchangelocalactivemonitoring.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "59bf72d8f5686b2f523ba291c20297d08b121ad9b867af9b98c9fbfa3c7c176c"
+      },
+      {
+        "blobId": "791dd12f5d49db72342c1ad29cb6ae78982e0d2a",
+        "byteLength": 5289,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.federateddirectory.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.federateddirectory.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "dbdd429ba8be926b6ab23603f8028825bf7cfa11a91ac6b5c556c8f58ce823ff"
+      },
+      {
+        "blobId": "5dd9d3dc2f4c9c84eeeb984a137c7f74bd9fcc5e",
+        "byteLength": 25896,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_officedev_eula.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_officedev_eula.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1f888fc01b333e159c1f17d68311571af45b49f73c7cd8afc471fc74dd41da79"
+      },
+      {
+        "blobId": "913d267c2f9feecfffa29080cd6ca19c43ea0032",
+        "byteLength": 795462,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimages.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimages.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "349a2ff7926038403a583df1ce50b59becc745d9e5e67156b2ad3fd2e0cdaead"
+      },
+      {
+        "blobId": "19def0ec01f8b9dd5e598c75871677f769b03a37",
+        "byteLength": 1708382,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimagesintl.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimagesintl.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "48a5330c1346f4b8c8e6547e872fa1e53c615027a548212f71cecd9b1e132377"
+      },
+      {
+        "blobId": "333ef494a93bb80c373dd45e8bb629d522e7deee",
+        "byteLength": 222060,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibexcel.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibexcel.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "06430a1c9b6c0a8ac28fdacc0c65f6814aad85d01d011789ec2d59807bf08833"
+      },
+      {
+        "blobId": "ca9116a7b548ca8386ab7b6f09803a7479c1be87",
+        "byteLength": 30232,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibfrontpage.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibfrontpage.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "069d706fa7556b529e88451a045c0537e7b9ffb317022d14ebd3d0e642d6d5c5"
+      },
+      {
+        "blobId": "41e03d8e2e952a415e68423a467f884b56262ad3",
+        "byteLength": 53674,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibonenote.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibonenote.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "41b12662753c56f6ba7190455699bb990ccf4873432e6013b9f166fa837b6973"
+      },
+      {
+        "blobId": "d483ade109b9e245e79a826b140745884abf7334",
+        "byteLength": 289762,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibpowerpoint.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibpowerpoint.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "47f558daec38674dee346746661396f2b8882e486ab9a1f935c23819d187f5a8"
+      },
+      {
+        "blobId": "92976695c274ae64fe9d2dbf461a2c6c2cb6c3e9",
+        "byteLength": 32800,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibvisio.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibvisio.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8c775d4ca91c0a4190b7cc49d89d3c2996a9b6336c473aac33efff72301eb0a6"
+      },
+      {
+        "blobId": "c24d23bfe8a3ab0fe09c616f6dc9dc4abdf185b0",
+        "byteLength": 61562,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibword.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibword.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "ed0ff58f65ba7d2615258a4a116cf4901b95622022da1b0d5b18add40316a20f"
+      },
+      {
+        "blobId": "325d851a09e52e267388264857e18154526a195a",
+        "byteLength": 30959,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestslayouts.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestslayouts.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5ea32d3fb1ab357dcb0e1a32714748f7d0c6ef3a32c1e9a28c35c8351288e32e"
+      },
+      {
+        "blobId": "69015ff0615b3331b3650ccc42fadb10b8dd979b",
+        "byteLength": 227721,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_webfonts.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_webfonts.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "d37afb9cb231d322eb7cdb3aefaa213e1b98f1b96e39934fb9a727b8f37320f0"
+      },
+      {
+        "blobId": "8fe6ec3d39eb5e683a15492aa8a724f307b9af2d",
+        "byteLength": 362989,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_userassistance_setup.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_userassistance_setup.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a612e6c548fd101054a64b705cb64e46d679bd237fd3bee1ed67083713571a27"
+      },
+      {
+        "blobId": "c9d9ec17b0e807ede33090ab44092162ee2b78af",
+        "byteLength": 1281,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.highcharts.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.highcharts.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "d6a3ffa6e9b834dbfb9336acf2ca95135927468fe3ed02ee556f0151abf4e9fe"
+      },
+      {
+        "blobId": "9150a5446019aad0358d657bfc9cfdb9cbc09b2c",
+        "byteLength": 363114,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_awsuaxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_awsuaxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "fb3f21cd708c46cb61e50e1f246ac0564e02e759fba4a5484f811a8b3634a2d1"
+      },
+      {
+        "blobId": "ac1fd648fef651752d634bf093b1114f239f183d",
+        "byteLength": 40867,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_cmsxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_cmsxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "2cccb676d1f6d352086c8e5748e5bc14bb8a3fd2c62db92e97f995eea8022824"
+      },
+      {
+        "blobId": "508b4a7b513fa86885785eb7818a9edd6850630e",
+        "byteLength": 138887,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_dlcxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_dlcxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1f0d4f84793d63e3275072e9bbcc0a6b38bac22627ac46784c5e10dc5b24ad69"
+      },
+      {
+        "blobId": "7f5907da0f62953e2cb06091c9bec25fed802094",
+        "byteLength": 207052,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_eduxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_eduxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "3359f67cdb047187f76fe07509729525568056a6fb4aa68768c11bb9c453186c"
+      },
+      {
+        "blobId": "da2c79f0611627f1a82a53e28abeabb89ff6e932",
+        "byteLength": 26030,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_pptxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_pptxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "bb1d2925b9b853d9ad5626032c93520787a789bfcbe7e448db3108f9761a8929"
+      },
+      {
+        "blobId": "19f5c723d657f6ae593d656e9dace6793595321e",
+        "byteLength": 61465,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_projectserverxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_projectserverxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "4c1333a9f5368c76ae354eab9e960d1a36617953aa82c774994a774669418fcf"
+      },
+      {
+        "blobId": "b9a2ef2094e07afe756a05ce7d31f9766bc7e1dd",
+        "byteLength": 314951,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_stsxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_stsxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "15039ca69e82f6ba8e97c28fe137420a07dadbf7484b485137854d59f43f69e7"
+      },
+      {
+        "blobId": "8461f51fc18db9ee1acac2d4280192974b4013cd",
+        "byteLength": 24774,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_wordxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_wordxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "52681fa6867c73f96d681907f6b6ef0cb229da04e1a89c8f9c62334deb6a07a2"
+      },
+      {
+        "blobId": "f76472ca828da4b14dabc719eeaf3f7cc44632ef",
+        "byteLength": 15967,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_xlxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_xlxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5cde23339fe0a7a4b0d3ea20352414e55f70e878175330084f16a04002e6adf4"
+      },
+      {
+        "blobId": "2563234a1981ecd8912f65f9a176c80641c74a48",
+        "byteLength": 157137,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nooverride_drop.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nooverride_drop.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8c6c57718141ccce862faacd6cb674aa3a9e92f63ce8c9e9a5207b6cf8316896"
+      },
+      {
+        "blobId": "ee7e1b86a2bb6f1174e33563548a13ab7e0c423c",
+        "byteLength": 25625,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfclient4sp.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfclient4sp.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "08052ed60a63d1fced4a411c9e83d7057cc3abb4b76c4f4c7e810110d2b2556b"
+      },
+      {
+        "blobId": "616d4551d454e43c94963c8e8305d3c58585b1a7",
+        "byteLength": 2131,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfserver_appfabric.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfserver_appfabric.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1117743f48e2dad541ece5159cd777b55a2bcd13f2ed6af9a3a70e1064e89926"
+      },
+      {
+        "blobId": "355e0f38dda24cdb9376e30951701532e23f51e0",
+        "byteLength": 615,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osi_files.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osi_files.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "f2d641ce95aa5234662c298be1558091c3222898dcd8419d0ef3d5d46fa7d9e7"
+      },
+      {
+        "blobId": "6b1339d666ea969c1be359c5d502a210eb386c2c",
+        "byteLength": 30259,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osrv_images.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osrv_images.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1f9b7fb1b7cf8acd7ba8e39f43c61602b19f286bdfe18944b713f549796bcdd1"
+      },
+      {
+        "blobId": "2fd9053f193f474b5a265f25a5496006da380c5c",
+        "byteLength": 2339,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.oss_ue.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.oss_ue.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "194384476497829ffbb0668c4d53e6f71ef25e5e96e126dafcff36a1a192d85d"
+      },
+      {
+        "blobId": "6be97ce717cfd5b63e7143f754779b5bf058028c",
+        "byteLength": 650,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.project_producthelp.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.project_producthelp.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5872206d0a20d6eb113ab495ee005894491df1b228c2ca88e47c534a1cbf6799"
+      },
+      {
+        "blobId": "38543e2b88833371855d17cde1f9348edfd264e7",
+        "byteLength": 18700,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_autocorrect.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_autocorrect.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "928abf9300b90e065e306517dd51d3a930f74e68fb88aef0366ade17539d1fbd"
+      },
+      {
+        "blobId": "845fac443f8a30f3c5ce09137d5eba4e3728b578",
+        "byteLength": 1201,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_hyphenationapi3.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_hyphenationapi3.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "dc3cfb4651db508bfa537ebb000b6fe41a30b2579f392ea7cbe2cdbcb2e18c38"
+      },
+      {
+        "blobId": "2ab74753a68d5b2a7682ab21e9a64f9e34c75347",
+        "byteLength": 1029331,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.pulse.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.pulse.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6628e5b7b6ff8674e1468cdbfaef5017ae69c8f2c3b95c051bcf37b068cce52d"
+      },
+      {
+        "blobId": "dabedf362a778f4819ef6dc0154e29a42edb083d",
+        "byteLength": 3833,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.rmssdk.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.rmssdk.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "57181ebbb73354f4ab02a015db3555ba1b9e85edd062b816137d20a308433a55"
+      },
+      {
+        "blobId": "d2efaf8d748093c9a7ce3da1781588b305ca4250",
+        "byteLength": 89009,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_images.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_images.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "4bbe59206296d6bad6d61e0406f3e721e4957f2fbe09f5880c0d14d7d1fb887f"
+      },
+      {
+        "blobId": "4fec4e78a27a8e0026b9ed026b1905f7b3fac3da",
+        "byteLength": 19203,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_thirdparty.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_thirdparty.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "f4981b2da9c27ae0d733a43e236cdcb91ed9102d3ec2dbc013153232ee41d9bb"
+      },
+      {
+        "blobId": "68e8a9e6db9e47d932a65010e907dd748bafeb6e",
+        "byteLength": 1712,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.servertools_auth.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.servertools_auth.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5791e7fdd37f35a87bc1ff2ccb6c0ee66293ffb9eed0235ef7ab5ca3ca38bb16"
+      },
+      {
+        "blobId": "fceeb2c3801c52df4b1a13143e6e0e6bfdb07cf0",
+        "byteLength": 59249,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo14.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo14.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "0b57e26f16af20bc6aa9cd25edcf21c6a6f0356446c7457bcce57a5fa379484b"
+      },
+      {
+        "blobId": "0eb7d7ee8722557a3607f1ec72d0751ea60714de",
+        "byteLength": 2328,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_identitymodel.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_identitymodel.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6007eb7576db436cbfb3d2098edc23895f3e6af30ae267d826f778cf044993ae"
+      },
+      {
+        "blobId": "3fb395cba13e60c37419e159abe070cdbed9d1c4",
+        "byteLength": 4720,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_prerequisites.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_prerequisites.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a2f558486db3c2777265db64cbf7e23b6013f784ad85551a5ab8510b2ed262bb"
+      },
+      {
+        "blobId": "1a9e7f7540cdf2f6e17830c64417102378c3270e",
+        "byteLength": 441699,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_dimage.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_dimage.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "e1892b98fe9a11018a005e7a81603dbd56765a7e3605f13fdd7af9b416cf7080"
+      },
+      {
+        "blobId": "450d8089bd7e1ff8bbbba73777e00ca41667fa16",
+        "byteLength": 656,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_sqlsupport.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_sqlsupport.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "40f653547925c5c6e97a7b465fe5c2fee00be266a2d04094219aea53adc8481e"
+      },
+      {
+        "blobId": "2ae05ea9cc0cfe28b8e1246a81edae6e4a5503f0",
+        "byteLength": 33535,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spthirdpartynoticefile.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spthirdpartynoticefile.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "95140ec0783cb50c63701dbb27f65b90279f60eca73ea5c1bf5ee8c8c6ed9e98"
+      },
+      {
+        "blobId": "2e6bf600d20fbc9e2125fb6ce03c45b77bed7f7e",
+        "byteLength": 1039,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_cacheclientdeps.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_cacheclientdeps.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "94730c197a8aa13001402d88d862b33c381b8a13f5f80db5495809935f2e1eb3"
+      },
+      {
+        "blobId": "e3839152cd73fc2acf09dfa83611ac13b5b82527",
+        "byteLength": 11004,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_client.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_client.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "72036c587243225277922e51cbd41f90efbda902defe6fcc013c816b42f37482"
+      },
+      {
+        "blobId": "c986769b81b3980313698e81ee8215a2f6696f3c",
+        "byteLength": 37696,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_exchange.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_exchange.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8f3cc6f38ec06201763368c094bca503e7e376a0951da2936c8e688c011fdba6"
+      },
+      {
+        "blobId": "62f9d1a187607428862c0aff4ee69a4fc0489ff7",
+        "byteLength": 2363,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hccab.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hccab.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "87a351146b52574fee2c21f6386336e3ba957fc5ba495fe7520f9428fbc7ce8e"
+      },
+      {
+        "blobId": "5f45a42014ed72f036e6f3c8b7ae46dfdfce922f",
+        "byteLength": 638,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hclocovr.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hclocovr.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "23fd1c2e54cac5552dbb9036f42f5dd54f074a6e895192f92536d7cb083b4671"
+      },
+      {
+        "blobId": "384c44d3aa69fd0885090b9baaf737418f771982",
+        "byteLength": 3122,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_odata.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_odata.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "321b5aeb02036a41b4544d7af587bfb4a5f28f0254ce03b5e815135cd1c0ea01"
+      },
+      {
+        "blobId": "d5301309f6d12f1ed6216a2994cec8fd5398e17f",
+        "byteLength": 491,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_parallax.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_parallax.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "d17bc55667cdb9aef0f0dcc39616a1406478935dfab1387446acdd995367ef4e"
+      },
+      {
+        "blobId": "923afbecd80dead657b4d83f0d4ea29ff608f3ba",
+        "byteLength": 1227,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_precreateddb.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_precreateddb.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "12487cfadc76814254abfabbef1ea099b6b139f557b75e819181b85266d0675b"
+      },
+      {
+        "blobId": "667e30fbe60bc83a647b250f188462a039a69e8d",
+        "byteLength": 30959,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_templatestsdclodc.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_templatestsdclodc.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "96b47bcad7a7fc76892f92b5258a4b23d5dcba3f947c0a1f56702a53b0e8e1d0"
+      },
+      {
+        "blobId": "69c3aefc353c4740c56ceae256903d6121e5d39c",
+        "byteLength": 8899,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.telemetry.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.telemetry.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "89eba71f3792d2ff110440830de0a24e3512f4f7b1dd830610156a0307912145"
+      },
+      {
+        "blobId": "27237066704885ea1c1beb169c602c210ecc7e53",
+        "byteLength": 21016005,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "68c9fe47c8fb7366250862b8ebeff86eb5a18fa32a9f964c32ec2a34d17b85a8"
+      },
+      {
+        "blobId": "3d61735ca60d8065bdcd28f3305c76fb8b3423d5",
+        "byteLength": 9248,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.webapi_libraries.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.webapi_libraries.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5d5e272d09c0788663107c5c0ecb41642452ef84ebfb50183504af6268be42dc"
+      },
+      {
+        "blobId": "eaaaa17f77100eec8445e3c01557ee652c3fc76d",
+        "byteLength": 521,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/office.sharepoint.nuget.chicago.xml",
+        "pathCaseFold": "otools/deploy/packages/office.sharepoint.nuget.chicago.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "9a46fcd18f08666f18d3c9f78675ceb290079071919bf1fa6ae4bc28d1585297"
+      },
+      {
+        "blobId": "f1355ba4ef29512f891d3b86739f3ba08b01dc05",
+        "byteLength": 33464,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/spo.retina.develop.xml",
+        "pathCaseFold": "otools/deploy/packages/spo.retina.develop.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "805d5b10e30d423d8f021eed146559af407dbc5cf8f48e9b2a15d49bf5398a25"
+      },
+      {
+        "blobId": "4dd8dea7e26c3f6c0bf6d4d84c142cd8813c438b",
+        "byteLength": 31977,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/spo.retina.xml",
+        "pathCaseFold": "otools/deploy/packages/spo.retina.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "7f4e58c59a594d4a07ceb9d2851c1605b81ffae24070140fe36b1c6483471e18"
+      },
+      {
+        "blobId": "e093c106ee1d0bde17b9606034c81d8f2306adb1",
+        "byteLength": 2229080,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/sporel.baseline.warehouse.xml",
+        "pathCaseFold": "otools/deploy/packages/sporel.baseline.warehouse.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6a56edea6eaf040cee911363a2a0315ef28313b94b26939c165f1e5676579334"
+      },
+      {
         "blobId": "08a23b97cd615dcb08863fa1de8400f59068aa98",
         "byteLength": 427178,
         "kind": "shipping_manifest",
@@ -1519,8 +2266,9 @@
       }
     ],
     "selection": {
+      "deployPathspec": "otools/deploy/*.xml",
       "deployRoot": "otools/deploy",
-      "deployRule": "direct children with exact .xml extension; parse every blob",
+      "deployRule": "shared generator git-grep pathspec enumeration; parse every selected blob",
       "includeRule": "resolve repository-relative include/import paths recursively",
       "redirectMap": "sts/template/sts/layouts/FilesToRedirect.sts.xms",
       "virtualSources": [
@@ -1555,7 +2303,7 @@
   },
   "targetClosure": {
     "build": "16.0.27709.12000",
-    "closureHash": "3f245e7fa467aa602c9cbd8accbb421a5c0cda596621e3b5053c5c9a10a9876b",
+    "closureHash": "36c90fd75554a8594004abb7e969b34618dca78d9047aabf79e4a0bcc09b399f",
     "closureVersion": "aspx-registry-input-closure/v1",
     "commit": "ab4856999051acfe946fab5632b45ce6427287aa",
     "members": [
@@ -2400,6 +3148,746 @@
         "sha256": "d4597c11e11fdc643aadbbd2fed20ff0a3138efaf2ef33585b55d954b5e2b41f"
       },
       {
+        "blobId": "5996276d32f2e4b4007887927d4e253efb404267",
+        "byteLength": 1672,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/dnsclientcache.xml",
+        "pathCaseFold": "otools/deploy/packages/dnsclientcache.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "87ba13ec0350b90c10cf612fdb38c33eb95eceeaf679bcc2878b10c1c46dcc50"
+      },
+      {
+        "blobId": "ce4715ee9e34c030ef57804bdbcac0463133c4ae",
+        "byteLength": 26670,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.postxdserverc.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.postxdserverc.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8bd2df1328ce78f681a05182dedc7e1ec822a7ecf8fd3c4be0f7d96e7d7058be"
+      },
+      {
+        "blobId": "bfd55a6c7051591c6d0e0f9ee3e4feed21b9a3d4",
+        "byteLength": 4513,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.azureclouddns.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.azureclouddns.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "7e231e0670caaedeadea8eab5b27bf3e2c1f17b76166bcca0045ae2be331dc76"
+      },
+      {
+        "blobId": "5c5d8be3c3dc3040724a15ad50ccb3206a2b3561",
+        "byteLength": 504,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.azuresdk.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.azuresdk.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a3de600e44fa932ef9d99b01f8934dd495a8e5475e47298e7aeb84cdc57abd51"
+      },
+      {
+        "blobId": "dbda3c7fe7e48586d541ef48d9221effcd794f39",
+        "byteLength": 31070,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.chicago.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.chicago.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "696d0650c739159ce27cc350aa64c31d193358841e6603fd8559db1b7dd79c25"
+      },
+      {
+        "blobId": "f66758f8f65f3be718aee21a625c17e7352da59d",
+        "byteLength": 450857,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_layoutsimages.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_layoutsimages.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "c41254dfd39c79d6818b53477e54850bb83466342fd7d27ad58522e7916b642e"
+      },
+      {
+        "blobId": "10d29ca9bfc1cb9d5df3169a4de0a0803624d3bd",
+        "byteLength": 532893,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishinglayoutsfeature.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishinglayoutsfeature.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "aa0ce5c0fd962be19c223bf524e6c8b060429594c6d9da811285a3f88e0b2fe9"
+      },
+      {
+        "blobId": "597b2f36c0d1532c78e9601500243cc9e2003ba1",
+        "byteLength": 103505,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishingresourcesfeature.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.cms_publishingresourcesfeature.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "41eba27a5f401c8cc0fbd8ee7ab79f4293e55c26470cf105761e035e395a56d8"
+      },
+      {
+        "blobId": "5af6c93c5b284872689e28c52813bba6a7d5fce3",
+        "byteLength": 35901,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_prottemplates.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_prottemplates.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6a24c09ae50e436dbe23ab67edfd712445eca32883d777f4cb8362a0894ce634"
+      },
+      {
+        "blobId": "d5b470701263492cec02b8aa5518248a632837fe",
+        "byteLength": 218603,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_workflowfallbacktemplates.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.dlc_workflowfallbacktemplates.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a50c3592436c3bec8904bdefce69c11bd9e0487a19d20df9c91b0332a10204f9"
+      },
+      {
+        "blobId": "648a73b53b8093ed7d662aaa29ceec1b5381da7e",
+        "byteLength": 41511,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_resources.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_resources.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "ee953e724aac3cc6c4bd1359a72cfadf77cd014b45e2a9574a12f15f9909167d"
+      },
+      {
+        "blobId": "4cce54694baed1ddd02050949e1cfcbacae47818",
+        "byteLength": 72621,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_templates.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.eawf_templates.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "200b65f88aeeb4843a3694eec2809e3395a27f89920dd9c3dd29af9189cb166e"
+      },
+      {
+        "blobId": "81c888618003d1644e89fd664f53a97790676b54",
+        "byteLength": 25615,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.excel_powerpivot.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.excel_powerpivot.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1304f78d983d1b886bf2da50be5efdb5e309dd03eaea5d116fcdc1ea166ae6b5"
+      },
+      {
+        "blobId": "bbcf254f3e640a3a932e2388069b8b1541da9a09",
+        "byteLength": 210499,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchange_activemonitoring_spo.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchange_activemonitoring_spo.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a394e4d26c40abff6df27fd4536a082634292b24a890195a20c5ae61712a5d78"
+      },
+      {
+        "blobId": "95cb0eec98f722daee5286800ab91d6c51613c19",
+        "byteLength": 16852,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchangelocalactivemonitoring.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.exchangelocalactivemonitoring.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "59bf72d8f5686b2f523ba291c20297d08b121ad9b867af9b98c9fbfa3c7c176c"
+      },
+      {
+        "blobId": "791dd12f5d49db72342c1ad29cb6ae78982e0d2a",
+        "byteLength": 5289,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.federateddirectory.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.federateddirectory.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "dbdd429ba8be926b6ab23603f8028825bf7cfa11a91ac6b5c556c8f58ce823ff"
+      },
+      {
+        "blobId": "5dd9d3dc2f4c9c84eeeb984a137c7f74bd9fcc5e",
+        "byteLength": 25896,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_officedev_eula.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_officedev_eula.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1f888fc01b333e159c1f17d68311571af45b49f73c7cd8afc471fc74dd41da79"
+      },
+      {
+        "blobId": "913d267c2f9feecfffa29080cd6ca19c43ea0032",
+        "byteLength": 795462,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimages.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimages.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "349a2ff7926038403a583df1ce50b59becc745d9e5e67156b2ad3fd2e0cdaead"
+      },
+      {
+        "blobId": "19def0ec01f8b9dd5e598c75871677f769b03a37",
+        "byteLength": 1708382,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimagesintl.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templateimagesintl.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "48a5330c1346f4b8c8e6547e872fa1e53c615027a548212f71cecd9b1e132377"
+      },
+      {
+        "blobId": "333ef494a93bb80c373dd45e8bb629d522e7deee",
+        "byteLength": 222060,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibexcel.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibexcel.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "06430a1c9b6c0a8ac28fdacc0c65f6814aad85d01d011789ec2d59807bf08833"
+      },
+      {
+        "blobId": "ca9116a7b548ca8386ab7b6f09803a7479c1be87",
+        "byteLength": 30232,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibfrontpage.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibfrontpage.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "069d706fa7556b529e88451a045c0537e7b9ffb317022d14ebd3d0e642d6d5c5"
+      },
+      {
+        "blobId": "41e03d8e2e952a415e68423a467f884b56262ad3",
+        "byteLength": 53674,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibonenote.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibonenote.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "41b12662753c56f6ba7190455699bb990ccf4873432e6013b9f166fa837b6973"
+      },
+      {
+        "blobId": "d483ade109b9e245e79a826b140745884abf7334",
+        "byteLength": 289762,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibpowerpoint.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibpowerpoint.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "47f558daec38674dee346746661396f2b8882e486ab9a1f935c23819d187f5a8"
+      },
+      {
+        "blobId": "92976695c274ae64fe9d2dbf461a2c6c2cb6c3e9",
+        "byteLength": 32800,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibvisio.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibvisio.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8c775d4ca91c0a4190b7cc49d89d3c2996a9b6336c473aac33efff72301eb0a6"
+      },
+      {
+        "blobId": "c24d23bfe8a3ab0fe09c616f6dc9dc4abdf185b0",
+        "byteLength": 61562,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibword.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestsdoclibword.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "ed0ff58f65ba7d2615258a4a116cf4901b95622022da1b0d5b18add40316a20f"
+      },
+      {
+        "blobId": "325d851a09e52e267388264857e18154526a195a",
+        "byteLength": 30959,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestslayouts.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_templatestslayouts.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5ea32d3fb1ab357dcb0e1a32714748f7d0c6ef3a32c1e9a28c35c8351288e32e"
+      },
+      {
+        "blobId": "69015ff0615b3331b3650ccc42fadb10b8dd979b",
+        "byteLength": 227721,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_webfonts.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_sts_webfonts.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "d37afb9cb231d322eb7cdb3aefaa213e1b98f1b96e39934fb9a727b8f37320f0"
+      },
+      {
+        "blobId": "8fe6ec3d39eb5e683a15492aa8a724f307b9af2d",
+        "byteLength": 362989,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_userassistance_setup.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.global_userassistance_setup.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a612e6c548fd101054a64b705cb64e46d679bd237fd3bee1ed67083713571a27"
+      },
+      {
+        "blobId": "c9d9ec17b0e807ede33090ab44092162ee2b78af",
+        "byteLength": 1281,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.highcharts.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.highcharts.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "d6a3ffa6e9b834dbfb9336acf2ca95135927468fe3ed02ee556f0151abf4e9fe"
+      },
+      {
+        "blobId": "9150a5446019aad0358d657bfc9cfdb9cbc09b2c",
+        "byteLength": 363114,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_awsuaxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_awsuaxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "fb3f21cd708c46cb61e50e1f246ac0564e02e759fba4a5484f811a8b3634a2d1"
+      },
+      {
+        "blobId": "ac1fd648fef651752d634bf093b1114f239f183d",
+        "byteLength": 40867,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_cmsxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_cmsxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "2cccb676d1f6d352086c8e5748e5bc14bb8a3fd2c62db92e97f995eea8022824"
+      },
+      {
+        "blobId": "508b4a7b513fa86885785eb7818a9edd6850630e",
+        "byteLength": 138887,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_dlcxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_dlcxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1f0d4f84793d63e3275072e9bbcc0a6b38bac22627ac46784c5e10dc5b24ad69"
+      },
+      {
+        "blobId": "7f5907da0f62953e2cb06091c9bec25fed802094",
+        "byteLength": 207052,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_eduxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_eduxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "3359f67cdb047187f76fe07509729525568056a6fb4aa68768c11bb9c453186c"
+      },
+      {
+        "blobId": "da2c79f0611627f1a82a53e28abeabb89ff6e932",
+        "byteLength": 26030,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_pptxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_pptxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "bb1d2925b9b853d9ad5626032c93520787a789bfcbe7e448db3108f9761a8929"
+      },
+      {
+        "blobId": "19f5c723d657f6ae593d656e9dace6793595321e",
+        "byteLength": 61465,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_projectserverxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_projectserverxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "4c1333a9f5368c76ae354eab9e960d1a36617953aa82c774994a774669418fcf"
+      },
+      {
+        "blobId": "b9a2ef2094e07afe756a05ce7d31f9766bc7e1dd",
+        "byteLength": 314951,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_stsxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_stsxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "15039ca69e82f6ba8e97c28fe137420a07dadbf7484b485137854d59f43f69e7"
+      },
+      {
+        "blobId": "8461f51fc18db9ee1acac2d4280192974b4013cd",
+        "byteLength": 24774,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_wordxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_wordxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "52681fa6867c73f96d681907f6b6ef0cb229da04e1a89c8f9c62334deb6a07a2"
+      },
+      {
+        "blobId": "f76472ca828da4b14dabc719eeaf3f7cc44632ef",
+        "byteLength": 15967,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_xlxtras.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nb_xlxtras.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5cde23339fe0a7a4b0d3ea20352414e55f70e878175330084f16a04002e6adf4"
+      },
+      {
+        "blobId": "2563234a1981ecd8912f65f9a176c80641c74a48",
+        "byteLength": 157137,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nooverride_drop.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.intl_nooverride_drop.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8c6c57718141ccce862faacd6cb674aa3a9e92f63ce8c9e9a5207b6cf8316896"
+      },
+      {
+        "blobId": "ee7e1b86a2bb6f1174e33563548a13ab7e0c423c",
+        "byteLength": 25625,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfclient4sp.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfclient4sp.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "08052ed60a63d1fced4a411c9e83d7057cc3abb4b76c4f4c7e810110d2b2556b"
+      },
+      {
+        "blobId": "616d4551d454e43c94963c8e8305d3c58585b1a7",
+        "byteLength": 2131,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfserver_appfabric.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osfserver_appfabric.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1117743f48e2dad541ece5159cd777b55a2bcd13f2ed6af9a3a70e1064e89926"
+      },
+      {
+        "blobId": "355e0f38dda24cdb9376e30951701532e23f51e0",
+        "byteLength": 615,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osi_files.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osi_files.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "f2d641ce95aa5234662c298be1558091c3222898dcd8419d0ef3d5d46fa7d9e7"
+      },
+      {
+        "blobId": "6b1339d666ea969c1be359c5d502a210eb386c2c",
+        "byteLength": 30259,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.osrv_images.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.osrv_images.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "1f9b7fb1b7cf8acd7ba8e39f43c61602b19f286bdfe18944b713f549796bcdd1"
+      },
+      {
+        "blobId": "2fd9053f193f474b5a265f25a5496006da380c5c",
+        "byteLength": 2339,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.oss_ue.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.oss_ue.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "194384476497829ffbb0668c4d53e6f71ef25e5e96e126dafcff36a1a192d85d"
+      },
+      {
+        "blobId": "6be97ce717cfd5b63e7143f754779b5bf058028c",
+        "byteLength": 650,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.project_producthelp.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.project_producthelp.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5872206d0a20d6eb113ab495ee005894491df1b228c2ca88e47c534a1cbf6799"
+      },
+      {
+        "blobId": "38543e2b88833371855d17cde1f9348edfd264e7",
+        "byteLength": 18700,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_autocorrect.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_autocorrect.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "928abf9300b90e065e306517dd51d3a930f74e68fb88aef0366ade17539d1fbd"
+      },
+      {
+        "blobId": "845fac443f8a30f3c5ce09137d5eba4e3728b578",
+        "byteLength": 1201,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_hyphenationapi3.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.proof_hyphenationapi3.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "dc3cfb4651db508bfa537ebb000b6fe41a30b2579f392ea7cbe2cdbcb2e18c38"
+      },
+      {
+        "blobId": "2ab74753a68d5b2a7682ab21e9a64f9e34c75347",
+        "byteLength": 1029331,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.pulse.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.pulse.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6628e5b7b6ff8674e1468cdbfaef5017ae69c8f2c3b95c051bcf37b068cce52d"
+      },
+      {
+        "blobId": "dabedf362a778f4819ef6dc0154e29a42edb083d",
+        "byteLength": 3833,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.rmssdk.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.rmssdk.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "57181ebbb73354f4ab02a015db3555ba1b9e85edd062b816137d20a308433a55"
+      },
+      {
+        "blobId": "d2efaf8d748093c9a7ce3da1781588b305ca4250",
+        "byteLength": 89009,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_images.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_images.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "4bbe59206296d6bad6d61e0406f3e721e4957f2fbe09f5880c0d14d7d1fb887f"
+      },
+      {
+        "blobId": "4fec4e78a27a8e0026b9ed026b1905f7b3fac3da",
+        "byteLength": 19203,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_thirdparty.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.search_thirdparty.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "f4981b2da9c27ae0d733a43e236cdcb91ed9102d3ec2dbc013153232ee41d9bb"
+      },
+      {
+        "blobId": "68e8a9e6db9e47d932a65010e907dd748bafeb6e",
+        "byteLength": 1712,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.servertools_auth.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.servertools_auth.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5791e7fdd37f35a87bc1ff2ccb6c0ee66293ffb9eed0235ef7ab5ca3ca38bb16"
+      },
+      {
+        "blobId": "fceeb2c3801c52df4b1a13143e6e0e6bfdb07cf0",
+        "byteLength": 59249,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo14.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo14.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "0b57e26f16af20bc6aa9cd25edcf21c6a6f0356446c7457bcce57a5fa379484b"
+      },
+      {
+        "blobId": "0eb7d7ee8722557a3607f1ec72d0751ea60714de",
+        "byteLength": 2328,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_identitymodel.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_identitymodel.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6007eb7576db436cbfb3d2098edc23895f3e6af30ae267d826f778cf044993ae"
+      },
+      {
+        "blobId": "3fb395cba13e60c37419e159abe070cdbed9d1c4",
+        "byteLength": 4720,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_prerequisites.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spo_prerequisites.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "a2f558486db3c2777265db64cbf7e23b6013f784ad85551a5ab8510b2ed262bb"
+      },
+      {
+        "blobId": "1a9e7f7540cdf2f6e17830c64417102378c3270e",
+        "byteLength": 441699,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_dimage.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_dimage.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "e1892b98fe9a11018a005e7a81603dbd56765a7e3605f13fdd7af9b416cf7080"
+      },
+      {
+        "blobId": "450d8089bd7e1ff8bbbba73777e00ca41667fa16",
+        "byteLength": 656,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_sqlsupport.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sps_sqlsupport.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "40f653547925c5c6e97a7b465fe5c2fee00be266a2d04094219aea53adc8481e"
+      },
+      {
+        "blobId": "2ae05ea9cc0cfe28b8e1246a81edae6e4a5503f0",
+        "byteLength": 33535,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.spthirdpartynoticefile.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.spthirdpartynoticefile.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "95140ec0783cb50c63701dbb27f65b90279f60eca73ea5c1bf5ee8c8c6ed9e98"
+      },
+      {
+        "blobId": "2e6bf600d20fbc9e2125fb6ce03c45b77bed7f7e",
+        "byteLength": 1039,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_cacheclientdeps.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_cacheclientdeps.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "94730c197a8aa13001402d88d862b33c381b8a13f5f80db5495809935f2e1eb3"
+      },
+      {
+        "blobId": "e3839152cd73fc2acf09dfa83611ac13b5b82527",
+        "byteLength": 11004,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_client.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_client.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "72036c587243225277922e51cbd41f90efbda902defe6fcc013c816b42f37482"
+      },
+      {
+        "blobId": "c986769b81b3980313698e81ee8215a2f6696f3c",
+        "byteLength": 37696,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_exchange.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_exchange.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "8f3cc6f38ec06201763368c094bca503e7e376a0951da2936c8e688c011fdba6"
+      },
+      {
+        "blobId": "62f9d1a187607428862c0aff4ee69a4fc0489ff7",
+        "byteLength": 2363,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hccab.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hccab.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "87a351146b52574fee2c21f6386336e3ba957fc5ba495fe7520f9428fbc7ce8e"
+      },
+      {
+        "blobId": "5f45a42014ed72f036e6f3c8b7ae46dfdfce922f",
+        "byteLength": 638,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hclocovr.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_hclocovr.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "23fd1c2e54cac5552dbb9036f42f5dd54f074a6e895192f92536d7cb083b4671"
+      },
+      {
+        "blobId": "384c44d3aa69fd0885090b9baaf737418f771982",
+        "byteLength": 3122,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_odata.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_odata.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "321b5aeb02036a41b4544d7af587bfb4a5f28f0254ce03b5e815135cd1c0ea01"
+      },
+      {
+        "blobId": "d5301309f6d12f1ed6216a2994cec8fd5398e17f",
+        "byteLength": 491,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_parallax.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_parallax.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "d17bc55667cdb9aef0f0dcc39616a1406478935dfab1387446acdd995367ef4e"
+      },
+      {
+        "blobId": "923afbecd80dead657b4d83f0d4ea29ff608f3ba",
+        "byteLength": 1227,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_precreateddb.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_precreateddb.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "12487cfadc76814254abfabbef1ea099b6b139f557b75e819181b85266d0675b"
+      },
+      {
+        "blobId": "667e30fbe60bc83a647b250f188462a039a69e8d",
+        "byteLength": 30959,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_templatestsdclodc.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.sts_templatestsdclodc.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "96b47bcad7a7fc76892f92b5258a4b23d5dcba3f947c0a1f56702a53b0e8e1d0"
+      },
+      {
+        "blobId": "69c3aefc353c4740c56ceae256903d6121e5d39c",
+        "byteLength": 8899,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.telemetry.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.telemetry.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "89eba71f3792d2ff110440830de0a24e3512f4f7b1dd830610156a0307912145"
+      },
+      {
+        "blobId": "27237066704885ea1c1beb169c602c210ecc7e53",
+        "byteLength": 21016005,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "68c9fe47c8fb7366250862b8ebeff86eb5a18fa32a9f964c32ec2a34d17b85a8"
+      },
+      {
+        "blobId": "3d61735ca60d8065bdcd28f3305c76fb8b3423d5",
+        "byteLength": 9248,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/microsoft.sharepoint.warehouse.webapi_libraries.xml",
+        "pathCaseFold": "otools/deploy/packages/microsoft.sharepoint.warehouse.webapi_libraries.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "5d5e272d09c0788663107c5c0ecb41642452ef84ebfb50183504af6268be42dc"
+      },
+      {
+        "blobId": "eaaaa17f77100eec8445e3c01557ee652c3fc76d",
+        "byteLength": 521,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/office.sharepoint.nuget.chicago.xml",
+        "pathCaseFold": "otools/deploy/packages/office.sharepoint.nuget.chicago.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "9a46fcd18f08666f18d3c9f78675ceb290079071919bf1fa6ae4bc28d1585297"
+      },
+      {
+        "blobId": "f1355ba4ef29512f891d3b86739f3ba08b01dc05",
+        "byteLength": 33464,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/spo.retina.develop.xml",
+        "pathCaseFold": "otools/deploy/packages/spo.retina.develop.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "805d5b10e30d423d8f021eed146559af407dbc5cf8f48e9b2a15d49bf5398a25"
+      },
+      {
+        "blobId": "4dd8dea7e26c3f6c0bf6d4d84c142cd8813c438b",
+        "byteLength": 31977,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/spo.retina.xml",
+        "pathCaseFold": "otools/deploy/packages/spo.retina.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "7f4e58c59a594d4a07ceb9d2851c1605b81ffae24070140fe36b1c6483471e18"
+      },
+      {
+        "blobId": "e093c106ee1d0bde17b9606034c81d8f2306adb1",
+        "byteLength": 2229080,
+        "kind": "shipping_manifest",
+        "parserId": "otools-deploy-xml/v2-exact-order",
+        "path": "otools/deploy/packages/sporel.baseline.warehouse.xml",
+        "pathCaseFold": "otools/deploy/packages/sporel.baseline.warehouse.xml",
+        "semanticHash": "cd9fa110912cc9af41dfe025456a7ca3851135e255fd8ccb3897ffb242dc2ae8",
+        "sha256": "6a56edea6eaf040cee911363a2a0315ef28313b94b26939c165f1e5676579334"
+      },
+      {
         "blobId": "08a23b97cd615dcb08863fa1de8400f59068aa98",
         "byteLength": 427178,
         "kind": "shipping_manifest",
@@ -3011,8 +4499,9 @@
       }
     ],
     "selection": {
+      "deployPathspec": "otools/deploy/*.xml",
       "deployRoot": "otools/deploy",
-      "deployRule": "direct children with exact .xml extension; parse every blob",
+      "deployRule": "shared generator git-grep pathspec enumeration; parse every selected blob",
       "includeRule": "resolve repository-relative include/import paths recursively",
       "redirectMap": "sts/template/sts/layouts/FilesToRedirect.sts.xms",
       "virtualSources": [
@@ -3029,14 +4518,14 @@
       "fileSha256": "9e7849a985e4addaad19b6fac35b550a2df34b886405b39022a0ed699169670d",
       "revision": "aspx-platform-authority/v1"
     },
-    "canonicalHash": "050e1b18ea16207b3fdbe6c3b2fed57d6453bcac7e2ec063ce91b27727d99c87",
-    "fileSha256": "7431631550f9ff1133497285a353f807cb459374dd6a5c439efbf2184429dbe0",
+    "canonicalHash": "455393305023c848d1dd84a659c718dbc3443a5875c2a60d6a7e1726e52fd508",
+    "fileSha256": "362fd58e48b459fdba2d05d8730f3d35702d54e14ef18bddcd39f853c1c9e4b2",
     "payloadHash": "805fa210c5c1157d787b8d15411f1bfb9cae2839e846f6ee9b4a637e6a9e2ac8",
     "profile": {
-      "canonicalHash": "7406683883f81c47a53171785775615fa7899b4aa565a454e5c2eedf8c676d2f",
-      "fileSha256": "2dc95dd6f472d0effdd9529c5836e8d887ec14fc522c9dc175fd089f55299818",
-      "revision": "spo-online-16.0.27709.12000-profile-r1"
+      "canonicalHash": "54e22ee94cfeef2db9ed36da542e63123c49ae7a465bb02f3b2352b184c257cb",
+      "fileSha256": "00b7c680757a8612b342147f50cedf0b4bd25568efa4869aeb2de7016e39c0b6",
+      "revision": "spo-online-16.0.27709.12000-equivalence-profile-r1"
     },
-    "revision": "spo-online-16.0.27709.12000-r1"
+    "revision": "spo-online-16.0.27709.12000-equivalence-r1"
   }
 }

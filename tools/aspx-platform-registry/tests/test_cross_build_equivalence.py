@@ -142,9 +142,13 @@ class CrossBuildEquivalenceTests(unittest.TestCase):
             / "versioned"
             / "spo-online-16.0.27709.12000"
             / "registry"
-            / "spo-online-16.0.27709.12000.registry.json"
+            / "spo-online-16.0.27709.12000-equivalence.registry.json"
         )
         self.assertEqual(1161, old_registry["entryCount"])
+        self.assertEqual(
+            equivalence.CERTIFICATE_VERSION,
+            new_registry["admission"]["certificateVersion"],
+        )
         self.assertEqual(
             equivalence.registry_payload_hash(old_registry),
             equivalence.registry_payload_hash(new_registry),

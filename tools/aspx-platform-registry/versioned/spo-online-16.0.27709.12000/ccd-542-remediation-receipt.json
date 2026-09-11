@@ -1,0 +1,61 @@
+{
+  "assessment": {
+    "build": {
+      "errors": 0,
+      "exitCode": 0,
+      "sdk": "8.0.424",
+      "seconds": 6.49,
+      "targetFramework": "net8.0"
+    },
+    "commit": "3fe4ab726ce41934f04d7f143712daac8cc5dfe2",
+    "tests": {
+      "failed": 0,
+      "passed": 3,
+      "seconds": 0.031,
+      "suite": "PnP.Scanning.Core.Tests.Discovery.AspxRegistryEquivalenceTests"
+    },
+    "tree": "f53eb48f462b15664c56d128bf4f4d7d4d06eb0b"
+  },
+  "benchmark": {
+    "fullGenerationSeconds": 3.59,
+    "proofSeconds": 7.201968,
+    "savedSeconds": -3.611968
+  },
+  "certificate": {
+    "canonicalHash": "2ac59d8769f900aa469b46f02105f31727cefe97760cd3a47f37ad327e8c0e50",
+    "fileSha256": "9736c92b44fd54611dfea17700df17ae0a3877c13921b59763cc33bb15ce641a",
+    "releaseSpecCanonicalHash": "40685ac88d861b62a2376be18b97fe67be156cfde62d58f4c4f4dd82e9a1a9d5",
+    "releaseSpecFileSha256": "ec23663411837fb5fe679dddef290ac3a647f6c5eced95be3a62c4df4eb58a78"
+  },
+  "closure": {
+    "nestedWitness": "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml",
+    "sourceHash": "ab61a3a3aca7b00762c69dee2439928322f03a36dc4f0bacf461c738865b428e",
+    "sourceMembers": 219,
+    "targetHash": "36c90fd75554a8594004abb7e969b34618dca78d9047aabf79e4a0bcc09b399f",
+    "targetMembers": 219
+  },
+  "independentVerification": {
+    "priorRevision": "85da3f33-93fa-44ca-b0a4-c36b2a32bcce",
+    "priorVerdict": "FAIL",
+    "status": "reverification_pending"
+  },
+  "oldReleaseImmutable": true,
+  "pnp": {
+    "commit": "7f1622c55db6d46fb38cefcc5166f6fda366480d",
+    "generatorManifestHash": "c9fb7e8e4e81bdde26e83f3afd58827ed9f28f2169ffa00c2f8d9b3096c7730f",
+    "tests": {
+      "failed": 0,
+      "passed": 28,
+      "seconds": 29.074
+    },
+    "tree": "e1acf5e7122d94c21ccf4aae03907ac0d5891217"
+  },
+  "publicationBlocker": "CCD-202",
+  "remediatedFindings": [
+    "F1_SHARED_RECURSIVE_GENERATOR_ENUMERATION",
+    "F2_EXPLICIT_EQUIVALENCE_ADMISSION_AND_MISSING_CHAIN_FAIL_CLOSED",
+    "F3_SOURCE_BUILD_BOUND_TO_ADMITTED_PROFILE",
+    "F4_ACTUAL_RELEASE_SPEC_HASH_BINDING"
+  ],
+  "schema": "ccd-542-cross-build-equivalence-remediation/v1"
+}

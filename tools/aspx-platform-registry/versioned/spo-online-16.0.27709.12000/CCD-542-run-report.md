@@ -2,14 +2,15 @@
 
 ## Verdict
 
-**PASS（作者实现与离线执行）**。`16.0.27708.12757` 到
+**CONDITIONAL（CCD-543 FAIL 的 bounded remediation 已完成，等待原非作者路径复验）**。`16.0.27708.12757` 到
 `16.0.27709.12000` 的真实 proof 已由新机制独立计算并签发；未使用
 build 邻接、手工复制 CCD-516 结论或生成结果偶然相同作为充分证据。
-独立 Verification verdict 由 CCD-542 的非作者 child 单独给出，作者
-PASS 不替代该 gate。
+CCD-543 revision `85da3f33-93fa-44ca-b0a4-c36b2a32bcce` 的独立 FAIL
+已被消费；本报告记录 F1–F4 修复，但作者执行不替代重新验证 gate。
 
 本任务未访问 tenant、浏览器或身份提供者。SPO.Core 仅从
 `/mnt/q/spocore/src` 读取两个精确 Git commit 的 object/tree/blob。
+机器可读修复 receipt：`ccd-542-remediation-receipt.json`。
 
 ## KB workflow
 
@@ -37,36 +38,45 @@ PASS 不替代该 gate。
   `ab4856999051acfe946fab5632b45ce6427287aa` /
   `239647a562ddd5263dbcc4d8bc72c57e780c10e8`。
 - generator commit/tree/version：
-  `2428e8a9ff0293c12c463628414fc96a3ff76412` /
-  `7e8b1e70e3cf06fbf7c1dc9ad9c15be5928f4ab2` /
+  `7f1622c55db6d46fb38cefcc5166f6fda366480d` /
+  `e1acf5e7122d94c21ccf4aae03907ac0d5891217` /
   `aspx-registry-generator/v2-equivalence`。
 - generator manifest hash：
-  `756780cbc560c5a4d8e38a2d5c9e1b7951da6f0f94664723733884a98c215675`。
+  `c9fb7e8e4e81bdde26e83f3afd58827ed9f28f2169ffa00c2f8d9b3096c7730f`。
 - Assessment consumer commit/tree：
-  `77aea495dd1c994ef7cfbfcfc66b7f19cf6805ef` /
-  `8ea05c4a22deb9e4b88471a8dfe9675d1e9ec948`。
+  `3fe4ab726ce41934f04d7f143712daac8cc5dfe2` /
+  `f53eb48f462b15664c56d128bf4f4d7d4d06eb0b`。
 
 ## Certificate and closure
 
 - schema：`cross-build-equivalence-certificate/v1`；schema file SHA-256
-  `99e163cac9299be825589f877606016cdb30a7630bd118e4ba3bf7e2ae1b4c23`。
+  `e11fccd74d780461b659f8cdd2ad748c0c56cc3e48eab16e860a60e87f7382f7`。
 - certificate canonical hash：
-  `a551b9cdb67c27e259ec8fb89457a5976a712061f117c5e97d8f0a06248fe2c1`；
+  `2ac59d8769f900aa469b46f02105f31727cefe97760cd3a47f37ad327e8c0e50`；
   file SHA-256
-  `8eb4fe1b865e8c3490cd2778118e4fbb54c4b4da09015b24ef4c34c6c79577d4`。
-- source closure：145 members，hash
-  `72dfacf075472eed996ac7dd70fa5230746a2e0cdef1a3aab0e912fd9dc7b4c7`。
-- target closure：145 members，hash
-  `3f245e7fa467aa602c9cbd8accbb421a5c0cda596621e3b5053c5c9a10a9876b`。
+  `9736c92b44fd54611dfea17700df17ae0a3877c13921b59763cc33bb15ce641a`。
+- source closure：219 members，hash
+  `ab61a3a3aca7b00762c69dee2439928322f03a36dc4f0bacf461c738865b428e`。
+- target closure：219 members，hash
+  `36c90fd75554a8594004abb7e969b34618dca78d9047aabf79e4a0bcc09b399f`。
 - comparison：`added=[]`、`deleted=[]`、`changed=[]`、
   `renameOrAliasCandidates=[]`、`caseChanges=[]`、`uncertainties=[]`。
 - 每个 member 均绑定 path/pathCaseFold、kind、Git blob、SHA-256、
-  byteLength、parserId、semanticHash。closure 覆盖全部 direct
-  `otools/deploy/*.xml`、legacy redirect map、两个 virtual path provider
+  byteLength、parserId、semanticHash。closure 通过 generator 与 proof 共用的
+  `git grep -- otools/deploy/*.xml` pathspec 枚举器覆盖全部 direct/nested
+  输入，包括 `otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml`，
+  以及 legacy redirect map、两个 virtual path provider
   source、解析到的间接 include/import，以及 generator code/schema/
   canonicalization manifest。
-- target registry/profile/authority 仍为 exact
-  `min=max=16.0.27709.12000` 的独立 revision；没有 build range。
+- 原 exact-generation registry/profile/authority 保持不变且不需要证书。
+  reuse variant 使用独立 revision
+  `spo-online-16.0.27709.12000-equivalence-r1` 与显式
+  `admission.mode=cross-build-equivalence-certificate/v1`；仍为 exact
+  `min=max=16.0.27709.12000`，没有 build range。
+- certificate 绑定实际 `release-spec.json`：file SHA-256
+  `ec23663411837fb5fe679dddef290ac3a647f6c5eced95be3a62c4df4eb58a78`，
+  canonical hash
+  `40685ac88d861b62a2376be18b97fe67be156cfde62d58f4c4f4dd82e9a1a9d5`。
 - source/target registry payload hash 均为
   `805fa210c5c1157d787b8d15411f1bfb9cae2839e846f6ee9b4a637e6a9e2ac8`，
   entry count 均为 1,161。
@@ -102,46 +112,43 @@ proof 前后旧 `16.0.27708.12757` 文件保持：
 
 ### PnP
 
-- `python3 -m unittest discover ...`：25/25 PASS，`30.291903s`。
+- `python3 -m unittest discover ...`：28/28 PASS，`29.074s`。
 - certificate Draft 2020-12 schema validation：PASS。
 - proof-first real execution：PASS，未执行 full registry extraction；
-  `proofSeconds=3.763462`。
+  `proofSeconds=7.201968`。
 - isolated full exact generation：PASS，registry/profile/authority hash 与
-  admitted 27709 release 完全一致；`fullGenerationSeconds=2.677372`。
-- 本 canary 的 `savedSeconds=-1.086090`，即 proof 比当前小输入 full
+  admitted 27709 exact release 完全一致；`fullGenerationSeconds=3.590000`。
+- 本 canary 的 `savedSeconds=-3.611968`，即 proof 比当前输入 full
   generation 慢。该负节省被保留为真实 baseline，不宣称性能收益。
 
 ### Assessment
 
 - task-owned native export：
   `Q:\src\paperclip-ccd542-f68b8175-v2\assessment`，精确 PnP.Core sibling
-  `Q:\src\paperclip-ccd542-f68b8175-v2\pnpcore`；SDK `8.0.425`，
+  `Q:\src\paperclip-ccd542-f68b8175-v2\pnpcore`；SDK `8.0.424`，
   `TargetFrameworks=net8.0`。
-- Process build：PASS，0 errors，约 `6.51s`；warning 仅为 export 无 Git
+- Core Tests + Process build：PASS，0 errors，`6.49s`；warning 仅为 export 无 Git
   metadata、既有 obsolete/unused-field warnings。
-- 两个永久 `AspxRegistryEquivalenceTests` 方法已编译并通过 package-free
-  reflection runner 实际执行：2/2 PASS，`0.329691s`。本机 VSTest adapter
-  自动 discovery 返回 no-test，因此保留 package-free runner 与真实 CLI
-  smoke 作为本轮执行证据；测试源码仍是标准 xUnit `[Fact]`。
-- real valid certificate CLI：通过 registry/certificate gate，随后按预期在
-  故意不存在的本地 certificate-store path 失败；未进入 provider/network/
-  page-chain，未产生输出。
-- real revoked certificate CLI：exit 1，精确包含
-  `registry_or_platform_binding:certificate[0]:revoked`；未认证、未产生输出。
+- `AspxRegistryEquivalenceTests` 三个永久 xUnit 方法在 native Q: mirror
+  编译并由 VSTest 执行：3/3 PASS，`31ms`；其中 command admission negative
+  证明缺 chain 与向 exact registry 注入 certificate 均在 runtime 前拒绝。
+- valid/revoked/tampered/source-build/release-spec cases 由同一 native 编译产物的
+  validator tests 执行；本轮未访问 tenant、未启动 provider/network/page-chain。
 
 ## Benchmark summary
 
 | 阶段 | wall-clock |
 | --- | ---: |
-| pure equivalence proof | 3.763462s |
-| full exact generation | 2.677372s |
-| PnP permanent tests | 30.291903s |
-| Assessment focused test execution | 0.329691s |
-| independent review | pending independent Verification child |
+| pure equivalence proof | 7.201968s |
+| full exact generation | 3.590000s |
+| PnP permanent tests | 29.074s |
+| Assessment focused test execution | 0.031s |
+| independent review | CCD-543 FAIL 已消费；修复后复验 pending |
 
 ## Remaining gate
 
-非作者 Verification 需要在独立 child 上审查 schema、closure completeness、
-negative semantics、Assessment pre-provider fail-closed、旧 release
-immutability 和 benchmark，并给出 PASS/CONDITIONAL/FAIL。独立 verdict 完成
-前，CCD-542 不应提升为最终准入完成。
+原非作者 Verification 路径需要针对上述 exact commits/artifacts 重新审查
+schema、219-member closure completeness、nested mutation、release-spec binding、
+Assessment pre-provider fail-closed、旧 release immutability 和 benchmark，给出
+新的 PASS/CONDITIONAL/FAIL。复验完成前，CCD-542 不提升为最终准入完成；
+GitHub publication 仍独立依赖 CCD-202。

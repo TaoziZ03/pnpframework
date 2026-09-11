@@ -32,14 +32,21 @@ profile hash are independently regenerated and pinned.
 
 ## Cross-build equivalence certificate
 
-CCD-542 adds a separate, revocable proof that this exact release can reuse the
-admitted `16.0.27708.12757` registry payload without widening either build
-binding. The certificate is
+CCD-542 adds a separate, revocable proof variant that can reuse the admitted
+`16.0.27708.12757` registry payload without widening either build binding. The
+original exact-generation registry/profile above remain unchanged and valid
+without a certificate. The reuse variant is
+`registry/spo-online-16.0.27709.12000-equivalence.registry.json` with explicit
+`admission.mode=cross-build-equivalence-certificate/v1`; its independent
+revision is `spo-online-16.0.27709.12000-equivalence-r1`. The certificate is
 `certificates/27708-to-27709.cross-build-equivalence.json`; its canonical hash
-is `a551b9cdb67c27e259ec8fb89457a5976a712061f117c5e97d8f0a06248fe2c1`.
-It binds 145 source and 145 target closure members, the exact SPO.Core commits
+is `2ac59d8769f900aa469b46f02105f31727cefe97760cd3a47f37ad327e8c0e50`.
+It binds 219 source and 219 target closure members, including nested pathspec
+input `otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml`,
+the exact SPO.Core commits
 and trees, generator commit/tree/version, both schema hashes, all source and
-target artifact hashes, and payload hash
+target artifact hashes, the actual `release-spec.json` file/canonical hashes,
+and payload hash
 `805fa210c5c1157d787b8d15411f1bfb9cae2839e846f6ee9b4a637e6a9e2ac8`.
 
 The proof requires identical path sets plus identical blob, byte, parser and
@@ -64,11 +71,11 @@ python3 tools/aspx-platform-registry/cross_build_equivalence.py \
   --certificate-out tools/aspx-platform-registry/versioned/spo-online-16.0.27709.12000/certificates/27708-to-27709.cross-build-equivalence.json \
   --benchmark-out tools/aspx-platform-registry/versioned/spo-online-16.0.27709.12000/cross-build-equivalence-benchmark.json \
   --generator-repo . \
-  --generator-ref 2428e8a9ff0293c12c463628414fc96a3ff76412
+  --generator-ref 7f1622c55db6d46fb38cefcc5166f6fda366480d
 ```
 
-The direct-Git benchmark recorded pure proof `3.763462s` and full generation
-`2.677372s`. This first small-input canary is therefore `1.086090s` slower; the
+The direct-Git benchmark recorded pure proof `7.201968s` and full generation
+`3.590000s`. This first canary is therefore `3.611968s` slower; the
 result is retained rather than presented as a saving. It establishes the
 observable baseline for later builds where extraction cost may differ.
 

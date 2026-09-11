@@ -1,0 +1,381 @@
+{
+  "$defs": {
+    "artifactVerification": {
+      "additionalProperties": false,
+      "properties": {
+        "acquisitionRunId": {
+          "const": "Exact"
+        },
+        "actualOutputBytes": {
+          "const": "Required"
+        },
+        "actualOutputLength": {
+          "const": "Required"
+        },
+        "jsonOutputVersion": {
+          "const": "Exact"
+        },
+        "jsonTypedContent": {
+          "const": "ExactVersionedConformance"
+        },
+        "outputStoreManifestBinding": {
+          "const": "Required"
+        },
+        "physicalStoreSchemaHash": {
+          "const": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504"
+        },
+        "referenceStoreSchemaHash": {
+          "const": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec"
+        },
+        "sqliteIntegrityCheck": {
+          "const": "Required"
+        },
+        "sqliteRunManifestHash": {
+          "const": "Required"
+        },
+        "sqliteSchemaManifestAlgorithm": {
+          "const": "sqlite-schema-manifest/v2"
+        },
+        "sqliteTypedRows": {
+          "const": "ExactVersionedConformance"
+        }
+      },
+      "required": [
+        "actualOutputBytes",
+        "actualOutputLength",
+        "jsonOutputVersion",
+        "jsonTypedContent",
+        "acquisitionRunId",
+        "sqliteIntegrityCheck",
+        "sqliteSchemaManifestAlgorithm",
+        "physicalStoreSchemaHash",
+        "referenceStoreSchemaHash",
+        "sqliteTypedRows",
+        "sqliteRunManifestHash",
+        "outputStoreManifestBinding"
+      ],
+      "type": "object"
+    },
+    "dispositions": {
+      "items": false,
+      "maxItems": 7,
+      "minItems": 7,
+      "prefixItems": [
+        {
+          "const": "ReferenceOnlyAvailable"
+        },
+        {
+          "const": "ReferenceUnavailable"
+        },
+        {
+          "const": "LinkedPhysicalGhosted"
+        },
+        {
+          "const": "LinkedPhysicalCustomized"
+        },
+        {
+          "const": "VirtualHandler"
+        },
+        {
+          "const": "NonAspx"
+        },
+        {
+          "const": "Unknown"
+        }
+      ],
+      "type": "array"
+    },
+    "failureSemantics": {
+      "additionalProperties": false,
+      "properties": {
+        "aliasCollision": {
+          "const": "Unknown"
+        },
+        "bindingMismatch": {
+          "const": "Unknown"
+        },
+        "missingAcquisitionEnvelope": {
+          "const": "Unknown"
+        },
+        "missingArtifactEvidence": {
+          "const": "Unknown"
+        },
+        "missingPhysicalVolume": {
+          "const": "Unknown"
+        },
+        "missingReferenceVolume": {
+          "const": "Unknown"
+        },
+        "missingRegistryVolume": {
+          "const": "Unknown"
+        },
+        "outputStoreManifestMismatch": {
+          "const": "Unknown"
+        },
+        "registryProfileMismatch": {
+          "const": "Unknown"
+        },
+        "runtimePathAbsent": {
+          "const": "Unknown"
+        },
+        "sameRevisionChangedHash": {
+          "const": "Unknown"
+        },
+        "storeIntegrityFailure": {
+          "const": "Unknown"
+        },
+        "storeManifestMismatch": {
+          "const": "Unknown"
+        },
+        "storeRowContentMismatch": {
+          "const": "Unknown"
+        },
+        "storeSchemaMismatch": {
+          "const": "Unknown"
+        },
+        "unknownBuild": {
+          "const": "Unknown"
+        },
+        "unknownSourceKindOrDisposition": {
+          "const": "Unknown"
+        },
+        "unsupportedContractVersion": {
+          "const": "Unknown"
+        },
+        "unsupportedOutputVersion": {
+          "const": "Unknown"
+        },
+        "unsupportedStoreVersion": {
+          "const": "Unknown"
+        },
+        "volumeBuildMismatch": {
+          "const": "Unknown"
+        },
+        "volumeContentMismatch": {
+          "const": "Unknown"
+        },
+        "volumeFenceMismatch": {
+          "const": "Unknown"
+        },
+        "volumeHashMismatch": {
+          "const": "Unknown"
+        },
+        "volumeLengthMismatch": {
+          "const": "Unknown"
+        },
+        "volumeRefMismatch": {
+          "const": "Unknown"
+        }
+      },
+      "required": [
+        "unknownBuild",
+        "missingRegistryVolume",
+        "registryProfileMismatch",
+        "sameRevisionChangedHash",
+        "aliasCollision",
+        "runtimePathAbsent",
+        "unknownSourceKindOrDisposition",
+        "missingAcquisitionEnvelope",
+        "missingPhysicalVolume",
+        "missingReferenceVolume",
+        "unsupportedOutputVersion",
+        "unsupportedContractVersion",
+        "unsupportedStoreVersion",
+        "missingArtifactEvidence",
+        "volumeHashMismatch",
+        "volumeLengthMismatch",
+        "volumeContentMismatch",
+        "storeIntegrityFailure",
+        "storeSchemaMismatch",
+        "storeRowContentMismatch",
+        "storeManifestMismatch",
+        "outputStoreManifestMismatch",
+        "volumeRefMismatch",
+        "volumeFenceMismatch",
+        "volumeBuildMismatch",
+        "bindingMismatch"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "sourceKinds": {
+      "items": false,
+      "maxItems": 5,
+      "minItems": 5,
+      "prefixItems": [
+        {
+          "const": "ListFormReference"
+        },
+        {
+          "const": "ListViewReference"
+        },
+        {
+          "const": "WebWelcomePageReference"
+        },
+        {
+          "const": "PlatformRegistryReference"
+        },
+        {
+          "const": "RuntimeRequestReference"
+        }
+      ],
+      "type": "array"
+    },
+    "volumeCompatibility": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregateOutput": {
+          "const": "aspx-acquisition-verdict/v1"
+        },
+        "physicalContract": {
+          "const": "aspx-discovery/v2"
+        },
+        "physicalOutput": {
+          "const": "aspx-discovery-output/v2"
+        },
+        "physicalStore": {
+          "const": "aspx-discovery-sqlite/v2"
+        },
+        "referenceContract": {
+          "const": "aspx-reference/v1"
+        },
+        "referenceOutput": {
+          "const": "aspx-reference-output/v1"
+        },
+        "referenceStore": {
+          "const": "aspx-reference-sqlite/v1"
+        }
+      },
+      "required": [
+        "physicalOutput",
+        "physicalContract",
+        "physicalStore",
+        "referenceOutput",
+        "referenceContract",
+        "referenceStore",
+        "aggregateOutput"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27709.12000-equivalence:r1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "const": "../schema/aspx-platform-registry-equivalence-profile.schema.json"
+    },
+    "artifactVerification": {
+      "$ref": "#/$defs/artifactVerification"
+    },
+    "authorityArtifactHash": {
+      "const": "6b7392ba6bf81d6a62f01bb396032f5eb6b042f1426e001d453b2ce26fbe02c2"
+    },
+    "authorityKind": {
+      "const": "SPOCoreReleaseShippingManifest"
+    },
+    "authoritySchemaVersion": {
+      "const": "aspx-platform-authority/v1"
+    },
+    "authoritySourceRef": {
+      "const": "ab4856999051acfe946fab5632b45ce6427287aa"
+    },
+    "authoritySourceTag": {
+      "const": "release/16.0.27709.12000"
+    },
+    "compatibilityDecisionRef": {
+      "const": "CCD-411:approve_with_changes"
+    },
+    "consumerCompatibilityHash": {
+      "const": "7a38a2b1e643637d2e6a8e34d41e3784416238519bc99e526d74ac4b65435e7a"
+    },
+    "consumerProductId": {
+      "const": "pnp/assessment"
+    },
+    "consumerProductRef": {
+      "const": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8"
+    },
+    "consumerSourceRef": {
+      "const": "3012555317d5a8ee981b9e103206f3f0680333d8"
+    },
+    "contractReviewRef": {
+      "const": "CCD-394#document-aspx-surface-applicability-denominator-v3@7d44f61d-919e-478a-ab8e-bb4c8f9b4b4a"
+    },
+    "dispositions": {
+      "$ref": "#/$defs/dispositions"
+    },
+    "failureSemantics": {
+      "$ref": "#/$defs/failureSemantics"
+    },
+    "platformBuild": {
+      "const": "16.0.27709.12000"
+    },
+    "platformFamily": {
+      "const": "SharePointOnline-16"
+    },
+    "profileHash": {
+      "const": "54e22ee94cfeef2db9ed36da542e63123c49ae7a465bb02f3b2352b184c257cb"
+    },
+    "profileRevision": {
+      "const": "spo-online-16.0.27709.12000-equivalence-profile-r1"
+    },
+    "profileSchemaVersion": {
+      "const": "aspx-platform-registry-profile/v2"
+    },
+    "recordKind": {
+      "const": "AspxReferenceObservation"
+    },
+    "registryHash": {
+      "const": "455393305023c848d1dd84a659c718dbc3443a5875c2a60d6a7e1726e52fd508"
+    },
+    "registryRevision": {
+      "const": "spo-online-16.0.27709.12000-equivalence-r1"
+    },
+    "registrySchemaHash": {
+      "const": "41fd0761afe8dadb84442e64d0a86757d4ce583381401212d8df26fd0cb86ed5"
+    },
+    "registrySchemaVersion": {
+      "const": "aspx-platform-registry/v1"
+    },
+    "sourceKinds": {
+      "$ref": "#/$defs/sourceKinds"
+    },
+    "volumeCompatibility": {
+      "$ref": "#/$defs/volumeCompatibility"
+    }
+  },
+  "required": [
+    "$schema",
+    "profileSchemaVersion",
+    "profileRevision",
+    "profileHash",
+    "registrySchemaVersion",
+    "registrySchemaHash",
+    "registryRevision",
+    "registryHash",
+    "authoritySchemaVersion",
+    "authorityKind",
+    "authoritySourceRef",
+    "authoritySourceTag",
+    "authorityArtifactHash",
+    "platformFamily",
+    "platformBuild",
+    "consumerProductId",
+    "consumerSourceRef",
+    "consumerProductRef",
+    "contractReviewRef",
+    "compatibilityDecisionRef",
+    "consumerCompatibilityHash",
+    "recordKind",
+    "sourceKinds",
+    "dispositions",
+    "volumeCompatibility",
+    "artifactVerification",
+    "failureSemantics"
+  ],
+  "title": "Externally pinned ASPX platform registry compatibility profile",
+  "type": "object"
+}
