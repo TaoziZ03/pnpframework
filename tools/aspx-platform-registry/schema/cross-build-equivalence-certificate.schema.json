@@ -11,6 +11,7 @@
     "source",
     "target",
     "generator",
+    "releaseSpec",
     "schemaBindings",
     "sourceRegistry",
     "targetRegistry",
@@ -26,6 +27,7 @@
     "source": { "$ref": "#/$defs/gitBuild" },
     "target": { "$ref": "#/$defs/gitBuild" },
     "generator": { "$ref": "#/$defs/generator" },
+    "releaseSpec": { "$ref": "#/$defs/releaseSpec" },
     "schemaBindings": {
       "type": "object",
       "additionalProperties": false,
@@ -139,6 +141,18 @@
         "canonicalization": { "type": "string" },
         "members": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/generatorMember" } },
         "manifestHash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "releaseSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bindingVersion", "fileName", "releaseSpecVersion", "canonicalHash", "fileSha256"],
+      "properties": {
+        "bindingVersion": { "const": "aspx-platform-registry-release-spec-binding/v1" },
+        "fileName": { "const": "release-spec.json" },
+        "releaseSpecVersion": { "const": "aspx-platform-registry-release-spec/v1" },
+        "canonicalHash": { "$ref": "#/$defs/sha256" },
+        "fileSha256": { "$ref": "#/$defs/sha256" }
       }
     },
     "comparison": {

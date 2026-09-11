@@ -29,6 +29,7 @@ import generate_registry as registry_generator
 CERTIFICATE_VERSION = "cross-build-equivalence-certificate/v1"
 CLOSURE_VERSION = "aspx-registry-input-closure/v1"
 GENERATOR_VERSION = "aspx-registry-generator/v2-equivalence"
+RELEASE_SPEC_BINDING_VERSION = "aspx-platform-registry-release-spec-binding/v1"
 DEPLOY_PARSER = "otools-deploy-xml/v2-exact-order"
 REDIRECT_PARSER = "files-to-redirect/v2-exact-order"
 SOURCE_PARSER = "virtual-path-provider-source/v1-exact-bytes"
@@ -280,19 +281,18 @@ def collect_spocore_closure(
     blob_cache = blob_cache if blob_cache is not None else {}
     semantic_cache = semantic_cache if semantic_cache is not None else {}
     identity = resolve_git_identity(git_executable, repo, ref)
+    try:
+        deploy_paths = registry_generator.enumerate_deploy_input_paths(
+            git_executable, repo, identity["commit"]
+        )
+    except (RuntimeError, ValueError) as error:
+        raise ProofUnavailable(f"deploy input enumeration failed: {error}") from error
     blobs = list_tree_blobs(
-        git_executable, repo, identity["commit"], [DEPLOY_ROOT, REDIRECT_PATH, *VIRTUAL_PATHS]
+        git_executable,
+        repo,
+        identity["commit"],
+        [*deploy_paths, REDIRECT_PATH, *VIRTUAL_PATHS],
     )
-    deploy_paths = sorted(
-        path
-        for path in blobs
-        if posixpath.dirname(path) == DEPLOY_ROOT and path.casefold().endswith(".xml")
-    )
-    if not deploy_paths:
-        raise ProofUnavailable("otools/deploy contains no XML inputs")
-    noncanonical_case = [path for path in deploy_paths if not path.endswith(".xml")]
-    if noncanonical_case:
-        raise ProofUnavailable(f"deploy XML extension casing changed: {noncanonical_case}")
     for required in (REDIRECT_PATH, *VIRTUAL_PATHS):
         if required not in blobs:
             raise ProofUnavailable(f"required generator input is missing: {required}")
@@ -388,7 +388,8 @@ def collect_spocore_closure(
         "tree": identity["tree"],
         "selection": {
             "deployRoot": DEPLOY_ROOT,
-            "deployRule": "direct children with exact .xml extension; parse every blob",
+            "deployPathspec": registry_generator.DEPLOY_PATHSPEC,
+            "deployRule": "shared generator git-grep pathspec enumeration; parse every selected blob",
             "redirectMap": REDIRECT_PATH,
             "virtualSources": list(VIRTUAL_PATHS),
             "includeRule": "resolve repository-relative include/import paths recursively",
@@ -512,6 +513,12 @@ def write_json(path: Path, value: Any) -> None:
     )
 
 
+def json_file_bytes(value: Any) -> bytes:
+    return (
+        json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    ).encode("utf-8")
+
+
 def source_release_artifacts(root: Path, build: str) -> dict[str, Any]:
     stem = f"spo-online-{build}"
     paths = {
@@ -530,6 +537,34 @@ def source_release_artifacts(root: Path, build: str) -> dict[str, Any]:
     }
 
 
+def validate_release_artifact_build(
+    label: str,
+    artifacts: dict[str, Any],
+    expected_build: str,
+) -> None:
+    registry = artifacts["registry"]
+    authority = artifacts["authority"]
+    profile = artifacts["profile"]
+    if (
+        registry.get("platformBuildMin") != expected_build
+        or registry.get("platformBuildMax") != expected_build
+    ):
+        raise ProofUnavailable(f"{label} registry is not exact build {expected_build}")
+    if (
+        authority.get("platformBuildMin") != expected_build
+        or authority.get("platformBuildMax") != expected_build
+    ):
+        raise ProofUnavailable(f"{label} authority is not exact build {expected_build}")
+    if profile.get("platformBuild") != expected_build:
+        raise ProofUnavailable(f"{label} profile build does not match {expected_build}")
+    if profile.get("registryRevision") != registry.get("registryRevision"):
+        raise ProofUnavailable(f"{label} profile registry revision mismatch")
+    if profile.get("registryHash") != registry.get("registryHash"):
+        raise ProofUnavailable(f"{label} profile registry hash mismatch")
+    if profile.get("authorityArtifactHash") != authority.get("authorityArtifactHash"):
+        raise ProofUnavailable(f"{label} profile authority hash mismatch")
+
+
 def _artifact_binding(document: dict[str, Any], path: Path, revision_field: str, hash_field: str) -> dict[str, Any]:
     return {
         "revision": document[revision_field],
@@ -538,12 +573,79 @@ def _artifact_binding(document: dict[str, Any], path: Path, revision_field: str,
     }
 
 
-def build_reused_target(
+def _release_spec_binding(path: Path, document: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "bindingVersion": RELEASE_SPEC_BINDING_VERSION,
+        "fileName": path.name,
+        "releaseSpecVersion": document["releaseSpecVersion"],
+        "canonicalHash": semantic_hash(document),
+        "fileSha256": sha256_bytes(path.read_bytes()),
+    }
+
+
+def _equivalence_registry_schema(
+    exact_schema: dict[str, Any],
+    registry: dict[str, Any],
+    target_build: str,
+) -> dict[str, Any]:
+    schema = copy.deepcopy(exact_schema)
+    schema["$id"] = (
+        "urn:ccd:pnp:aspx-platform-registry-equivalence:"
+        f"spo-online-{target_build}:r1"
+    )
+    required = list(schema["required"])
+    if "admission" not in required:
+        required.append("admission")
+    schema["required"] = required
+    properties = schema["properties"]
+    for name in (
+        "$schema",
+        "registryRevision",
+        "registryHash",
+        "authoritySourceRef",
+        "authoritySourceTag",
+        "authorityArtifactHash",
+        "authorityArtifactPath",
+        "platformBuildMin",
+        "platformBuildMax",
+    ):
+        if name in properties and name in registry:
+            properties[name] = {"const": registry[name]}
+    properties["admission"] = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["mode", "certificateVersion"],
+        "properties": {
+            "mode": {"const": registry_generator.EQUIVALENCE_ADMISSION_MODE},
+            "certificateVersion": {"const": CERTIFICATE_VERSION},
+        },
+    }
+    return schema
+
+
+def _equivalence_profile_schema(
+    exact_schema: dict[str, Any],
+    profile: dict[str, Any],
+    resource_id: str,
+) -> dict[str, Any]:
+    schema = copy.deepcopy(exact_schema)
+    schema["$id"] = resource_id
+    properties = schema["properties"]
+    for name, value in profile.items():
+        if name in properties and isinstance(properties[name], dict) and "const" in properties[name]:
+            properties[name] = {"const": value}
+    return schema
+
+
+def derive_reused_target(
     source_artifacts: dict[str, Any],
     target_collected: dict[str, Any],
     target_release_spec: dict[str, Any],
     output_root: Path,
 ) -> dict[str, Any]:
+    equivalence = target_release_spec.get("equivalenceProof")
+    if not isinstance(equivalence, dict):
+        raise ProofUnavailable("target release spec has no equivalenceProof contract")
     registry_generator.configure_release(target_release_spec)
     authority = registry_generator.build_authority(
         target_collected["deployRows"],
@@ -556,8 +658,8 @@ def build_reused_target(
     registry = copy.deepcopy(source_registry)
     registry.update(
         {
-            "$schema": "../schema/aspx-platform-registry.schema.json",
-            "registryRevision": registry_generator.REGISTRY_REVISION,
+            "$schema": f"../schema/{equivalence['registrySchemaFile']}",
+            "registryRevision": equivalence["registryRevision"],
             "registryHash": "",
             "authorityKind": authority["authorityKind"],
             "authoritySourceRef": authority["authoritySourceRef"],
@@ -568,45 +670,99 @@ def build_reused_target(
             "generatedAtUtc": authority["authorityCommitTime"],
             "platformBuildMin": registry_generator.PLATFORM_BUILD,
             "platformBuildMax": registry_generator.PLATFORM_BUILD,
+            "admission": {
+                "mode": registry_generator.EQUIVALENCE_ADMISSION_MODE,
+                "certificateVersion": CERTIFICATE_VERSION,
+            },
         }
     )
     registry["registryHash"] = registry_generator.object_hash(registry, "registryHash")
-    registry_schema_path = output_root / "schema" / "aspx-platform-registry.schema.json"
-    profile_schema_path = output_root / "schema" / "aspx-platform-registry-profile.schema.json"
-    if not registry_schema_path.is_file() or not profile_schema_path.is_file():
+
+    exact_registry_schema_path = output_root / "schema" / "aspx-platform-registry.schema.json"
+    exact_profile_schema_path = output_root / "schema" / "aspx-platform-registry-profile.schema.json"
+    if not exact_registry_schema_path.is_file() or not exact_profile_schema_path.is_file():
         raise ProofUnavailable("target registry/profile schemas are missing")
-    profile = registry_generator.build_profile(
-        registry, authority, registry_generator.artifact_sha256(registry_schema_path)
+    registry_schema = _equivalence_registry_schema(
+        load_json(exact_registry_schema_path), registry, registry_generator.PLATFORM_BUILD
     )
+    registry_schema_bytes = json_file_bytes(registry_schema)
+    registry_schema_hash = sha256_bytes(registry_schema_bytes)
+
+    profile = registry_generator.build_profile(registry, authority, registry_schema_hash)
+    profile.update(
+        {
+            "$schema": f"../schema/{equivalence['profileSchemaFile']}",
+            "profileRevision": equivalence["profileRevision"],
+            "profileHash": "",
+        }
+    )
+    profile["profileHash"] = registry_generator.object_hash(profile, "profileHash")
+    profile_schema = _equivalence_profile_schema(
+        load_json(exact_profile_schema_path),
+        profile,
+        equivalence["profileSchemaResourceId"],
+    )
+    profile_schema_bytes = json_file_bytes(profile_schema)
+
+    stem = equivalence["registryArtifactStem"]
+    paths = {
+        "authority": output_root / "authority" / f"{registry_generator.ARTIFACT_STEM}.authority.json",
+        "registry": output_root / "registry" / f"{stem}.registry.json",
+        "profile": output_root / "profile" / f"{stem}.profile.json",
+        "registrySchema": output_root / "schema" / equivalence["registrySchemaFile"],
+        "profileSchema": output_root / "schema" / equivalence["profileSchemaFile"],
+    }
+    return {
+        "authority": authority,
+        "registry": registry,
+        "profile": profile,
+        "registrySchema": registry_schema,
+        "profileSchema": profile_schema,
+        "paths": paths,
+        "hashes": {
+            "authorityArtifactHash": authority["authorityArtifactHash"],
+            "registryHash": registry["registryHash"],
+            "registrySchemaHash": registry_schema_hash,
+            "profileHash": profile["profileHash"],
+            "profileSchemaHash": sha256_bytes(profile_schema_bytes),
+        },
+    }
+
+
+def build_reused_target(
+    source_artifacts: dict[str, Any],
+    target_collected: dict[str, Any],
+    target_release_spec: dict[str, Any],
+    output_root: Path,
+) -> dict[str, Any]:
+    target = derive_reused_target(
+        source_artifacts, target_collected, target_release_spec, output_root
+    )
+    equivalence = target_release_spec["equivalenceProof"]
+    authority = target["authority"]
+    registry = target["registry"]
+    profile = target["profile"]
     actual_expected = {
         "authorityArtifactHash": (authority["authorityArtifactHash"], target_release_spec["expectedAuthorityArtifactHash"]),
-        "registryHash": (registry["registryHash"], target_release_spec["expectedRegistryHash"]),
-        "registrySchemaHash": (profile["registrySchemaHash"], target_release_spec["expectedRegistrySchemaHash"]),
+        "registryHash": (registry["registryHash"], equivalence["expectedRegistryHash"]),
+        "registrySchemaHash": (profile["registrySchemaHash"], equivalence["expectedRegistrySchemaHash"]),
         "consumerCompatibilityHash": (profile["consumerCompatibilityHash"], target_release_spec["expectedConsumerCompatibilityHash"]),
-        "profileHash": (profile["profileHash"], target_release_spec["expectedProfileHash"]),
+        "profileHash": (profile["profileHash"], equivalence["expectedProfileHash"]),
+        "profileSchemaHash": (target["hashes"]["profileSchemaHash"], equivalence["expectedProfileSchemaHash"]),
     }
     drift = [f"{key}: expected {expected}, got {actual}" for key, (actual, expected) in actual_expected.items() if actual != expected]
     if drift:
         raise ProofUnavailable("reused target artifacts do not match pinned exact release: " + "; ".join(drift))
 
-    authority_path = output_root / "authority" / f"{registry_generator.ARTIFACT_STEM}.authority.json"
-    registry_path = output_root / "registry" / f"{registry_generator.ARTIFACT_STEM}.registry.json"
-    profile_path = output_root / "profile" / f"{registry_generator.ARTIFACT_STEM}.profile.json"
+    authority_path = target["paths"]["authority"]
+    if authority_path.is_file() and authority_path.read_bytes() != json_file_bytes(authority):
+        raise ProofUnavailable("existing exact target authority would be mutated")
     registry_generator.write_json(authority_path, authority)
-    registry_generator.write_json(registry_path, registry)
-    registry_generator.write_json(profile_path, profile)
-    return {
-        "authority": authority,
-        "registry": registry,
-        "profile": profile,
-        "paths": {
-            "authority": authority_path,
-            "registry": registry_path,
-            "profile": profile_path,
-            "registrySchema": registry_schema_path,
-            "profileSchema": profile_schema_path,
-        },
-    }
+    registry_generator.write_json(target["paths"]["registry"], registry)
+    registry_generator.write_json(target["paths"]["profile"], profile)
+    registry_generator.write_json(target["paths"]["registrySchema"], target["registrySchema"])
+    registry_generator.write_json(target["paths"]["profileSchema"], target["profileSchema"])
+    return target
 
 
 def build_certificate(
@@ -616,6 +772,8 @@ def build_certificate(
     comparison: dict[str, Any],
     source_artifacts: dict[str, Any],
     target_artifacts: dict[str, Any],
+    target_release_spec: dict[str, Any],
+    target_release_spec_path: Path,
 ) -> dict[str, Any]:
     source_paths = source_artifacts["paths"]
     target_paths = target_artifacts["paths"]
@@ -642,6 +800,9 @@ def build_certificate(
             "tree": target_collected["closure"]["tree"],
         },
         "generator": generator,
+        "releaseSpec": _release_spec_binding(
+            target_release_spec_path, target_release_spec
+        ),
         "schemaBindings": {
             "registrySchemaHash": sha256_bytes(target_paths["registrySchema"].read_bytes()),
             "profileSchemaHash": sha256_bytes(target_paths["profileSchema"].read_bytes()),
@@ -667,7 +828,10 @@ def build_certificate(
     return certificate
 
 
-def validate_certificate(certificate: dict[str, Any]) -> list[str]:
+def validate_certificate(
+    certificate: dict[str, Any],
+    release_spec_path: Path | None = None,
+) -> list[str]:
     errors: list[str] = []
     if certificate.get("certificateVersion") != CERTIFICATE_VERSION:
         errors.append("unsupported certificate version")
@@ -703,10 +867,38 @@ def validate_certificate(certificate: dict[str, Any]) -> list[str]:
             errors.append("generator commit is invalid")
         if not GIT_SHA_RE.fullmatch(str(generator.get("tree"))):
             errors.append("generator tree is invalid")
+    release_spec = certificate.get("releaseSpec")
+    if not isinstance(release_spec, dict):
+        errors.append("release spec binding is missing")
+    else:
+        if release_spec.get("bindingVersion") != RELEASE_SPEC_BINDING_VERSION:
+            errors.append("release spec binding version mismatch")
+        for field in ("canonicalHash", "fileSha256"):
+            if not HASH_RE.fullmatch(str(release_spec.get(field))):
+                errors.append(f"release spec {field} is invalid")
+        if release_spec_path is not None:
+            release_spec_document = load_json(release_spec_path)
+            if release_spec.get("fileSha256") != sha256_bytes(release_spec_path.read_bytes()):
+                errors.append("release spec file hash mismatch")
+            if release_spec.get("canonicalHash") != semantic_hash(release_spec_document):
+                errors.append("release spec canonical hash mismatch")
+            if release_spec.get("releaseSpecVersion") != release_spec_document.get("releaseSpecVersion"):
+                errors.append("release spec version mismatch")
     for closure_name in ("sourceClosure", "targetClosure"):
         closure = certificate.get(closure_name)
         if not isinstance(closure, dict) or closure.get("closureHash") != canonical_hash(closure, "closureHash"):
             errors.append(f"{closure_name} hash mismatch")
+    for side, closure_name in (("source", "sourceClosure"), ("target", "targetClosure")):
+        identity = certificate.get(side, {})
+        closure = certificate.get(closure_name, {})
+        expected = {
+            "build": closure.get("build"),
+            "ref": closure.get("sourceTag"),
+            "commit": closure.get("commit"),
+            "tree": closure.get("tree"),
+        }
+        if any(identity.get(field) != value for field, value in expected.items()):
+            errors.append(f"certificate {side} identity does not match closure")
     return errors
 
 
@@ -820,8 +1012,12 @@ def main() -> int:
             args.git_executable, args.generator_repo, args.generator_ref
         )
         source_artifacts = source_release_artifacts(args.source_root, args.source_build)
+        validate_release_artifact_build("source", source_artifacts, args.source_build)
         target_artifacts = build_reused_target(
             source_artifacts, target_collected, target_spec, args.output_root
+        )
+        validate_release_artifact_build(
+            "target", target_artifacts, target_spec["platformBuild"]
         )
         certificate = build_certificate(
             source_collected,
@@ -830,8 +1026,10 @@ def main() -> int:
             comparison,
             source_artifacts,
             target_artifacts,
+            target_spec,
+            args.target_release_spec,
         )
-        errors = validate_certificate(certificate)
+        errors = validate_certificate(certificate, args.target_release_spec)
         if errors:
             raise ProofUnavailable("generated certificate is invalid: " + "; ".join(errors))
         write_json(args.certificate_out, certificate)

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -96,6 +98,13 @@ class CrossBuildEquivalenceTests(unittest.TestCase):
                 "members": generator_members,
                 "manifestHash": equivalence.semantic_hash(generator_members),
             },
+            "releaseSpec": {
+                "bindingVersion": equivalence.RELEASE_SPEC_BINDING_VERSION,
+                "fileName": "release-spec.json",
+                "releaseSpecVersion": "aspx-platform-registry-release-spec/v1",
+                "canonicalHash": "e" * 64,
+                "fileSha256": "f" * 64,
+            },
             "schemaBindings": {
                 "registrySchemaHash": "c" * 64,
                 "profileSchemaHash": "d" * 64,
@@ -177,6 +186,93 @@ class CrossBuildEquivalenceTests(unittest.TestCase):
                 "otools/deploy/a.xml", b"<root>", equivalence.DEPLOY_PARSER
             )
 
+    def test_shared_generator_enumerator_captures_nested_input_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git = "/usr/bin/git"
+            git_environment = {
+                **os.environ,
+                "GIT_AUTHOR_NAME": "CCD Test",
+                "GIT_AUTHOR_EMAIL": "ccd@example.invalid",
+                "GIT_COMMITTER_NAME": "CCD Test",
+                "GIT_COMMITTER_EMAIL": "ccd@example.invalid",
+            }
+            files = {
+                "otools/deploy/a.xml": (
+                    '<Root><File dest="FILES\\Program Files\\Common Files\\Microsoft Shared\\'
+                    'Web Server Extensions\\16\\TEMPLATE\\LAYOUTS\\a.aspx" /></Root>'
+                ),
+                "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml":
+                    "<Root><Package Name=\"warehouse\" /></Root>",
+                equivalence.REDIRECT_PATH: "<file>redirect.aspx</file>",
+                equivalence.VIRTUAL_PATHS[0]: "class SPLayoutsMappedFile { SPVirtualPathProvider provider; }",
+                equivalence.VIRTUAL_PATHS[1]: "class SPVirtualFile { }",
+            }
+            for relative, content in files.items():
+                path = repo / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+            subprocess.run([git, "init", "-q", str(repo)], check=True)
+            subprocess.run([git, "-C", str(repo), "add", "."], check=True)
+            subprocess.run(
+                [git, "-C", str(repo), "commit", "-qm", "source"],
+                check=True, env=git_environment,
+            )
+            source_ref = subprocess.run(
+                [git, "-C", str(repo), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            nested = repo / "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml"
+            nested.write_text("<Root><Package Name=\"warehouse-v2\" /></Root>", encoding="utf-8")
+            subprocess.run([git, "-C", str(repo), "add", str(nested)], check=True)
+            subprocess.run(
+                [git, "-C", str(repo), "commit", "-qm", "target"],
+                check=True, env=git_environment,
+            )
+            target_ref = subprocess.run(
+                [git, "-C", str(repo), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+
+            source = equivalence.collect_spocore_closure(
+                git, str(repo), source_ref, "16.0.1.1", "release/16.0.1.1"
+            )["closure"]
+            target = equivalence.collect_spocore_closure(
+                git, str(repo), target_ref, "16.0.1.2", "release/16.0.1.2"
+            )["closure"]
+            nested_path = "otools/deploy/packages/microsoft.sharepoint.warehouse.template_14.xml"
+            self.assertIn(nested_path, {member["path"] for member in source["members"]})
+            comparison = equivalence.compare_closures(source, target)
+            self.assertFalse(comparison["equivalent"])
+            self.assertEqual(nested_path, comparison["changed"][0]["path"])
+
+    def test_source_build_must_match_admitted_profile_and_exact_artifacts(self) -> None:
+        artifacts = {
+            "registry": {
+                "platformBuildMin": "16.0.1.1",
+                "platformBuildMax": "16.0.1.1",
+                "registryRevision": "registry-r1",
+                "registryHash": "a" * 64,
+            },
+            "authority": {
+                "platformBuildMin": "16.0.1.1",
+                "platformBuildMax": "16.0.1.1",
+                "authorityArtifactHash": "b" * 64,
+            },
+            "profile": {
+                "platformBuild": "16.0.9.9",
+                "registryRevision": "registry-r1",
+                "registryHash": "a" * 64,
+                "authorityArtifactHash": "b" * 64,
+            },
+        }
+        with self.assertRaisesRegex(
+            equivalence.ProofUnavailable, "source profile build"
+        ):
+            equivalence.validate_release_artifact_build(
+                "source", artifacts, "16.0.1.1"
+            )
+
     def test_certificate_tamper_generator_change_wrong_target_revocation_cycle_and_length(self) -> None:
         certificate = self.certificate()
         self.assertEqual([], equivalence.validate_certificate(certificate))
@@ -189,6 +285,26 @@ class CrossBuildEquivalenceTests(unittest.TestCase):
         generator_change["generator"]["members"][0]["sha256"] = "e" * 64
         generator_change["certificateHash"] = equivalence.canonical_hash(generator_change, "certificateHash")
         self.assertIn("generator manifest hash mismatch", equivalence.validate_certificate(generator_change))
+
+        source_build_drift = copy.deepcopy(certificate)
+        source_build_drift["source"]["build"] = "16.0.9.9"
+        source_build_drift["certificateHash"] = equivalence.canonical_hash(
+            source_build_drift, "certificateHash"
+        )
+        self.assertIn(
+            "certificate source identity does not match closure",
+            equivalence.validate_certificate(source_build_drift),
+        )
+
+        missing_release_spec = copy.deepcopy(certificate)
+        del missing_release_spec["releaseSpec"]
+        missing_release_spec["certificateHash"] = equivalence.canonical_hash(
+            missing_release_spec, "certificateHash"
+        )
+        self.assertIn(
+            "release spec binding is missing",
+            equivalence.validate_certificate(missing_release_spec),
+        )
 
         wrong_target = equivalence.validate_certificate_chain(
             [certificate], "16.0.1.3", "registry-r2", {"registry-r1"}

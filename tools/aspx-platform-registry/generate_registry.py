@@ -135,6 +135,7 @@ FAILURE_SEMANTICS = {
 }
 
 DEPLOY_PATHSPEC = "otools/deploy/*.xml"
+EQUIVALENCE_ADMISSION_MODE = "cross-build-equivalence-certificate/v1"
 REDIRECT_MAP_PATH = "sts/template/sts/layouts/FilesToRedirect.sts.xms"
 VIRTUAL_HANDLER_SOURCE_PATH = "sts/stsom/ApplicationRuntime/spvirtualpathprovider.cs"
 VIRTUAL_FILE_SOURCE_PATH = "sts/stsom/ApplicationRuntime/spvirtualfile.cs"
@@ -167,7 +168,7 @@ def configure_release(spec: dict[str, Any]) -> None:
         "expectedProfileHash",
     }
     missing = sorted(required - set(spec))
-    extra = sorted(set(spec) - required)
+    extra = sorted(set(spec) - required - {"equivalenceProof"})
     if missing or extra:
         raise ValueError(
             f"release spec keys are not closed: missing={missing}, extra={extra}"
@@ -205,6 +206,58 @@ def configure_release(spec: dict[str, Any]) -> None:
             raise ValueError(f"release spec {key} is not SHA-256")
     if not str(spec["independentReviewRef"]).strip():
         raise ValueError("release spec independentReviewRef is empty")
+
+    equivalence = spec.get("equivalenceProof")
+    if equivalence is not None:
+        if not isinstance(equivalence, dict):
+            raise ValueError("release spec equivalenceProof must be an object")
+        expected_keys = {
+            "admissionMode",
+            "registryRevision",
+            "profileRevision",
+            "registryArtifactStem",
+            "registrySchemaFile",
+            "profileSchemaFile",
+            "profileSchemaResourceId",
+            "expectedRegistryHash",
+            "expectedRegistrySchemaHash",
+            "expectedProfileHash",
+            "expectedProfileSchemaHash",
+        }
+        missing_equivalence = sorted(expected_keys - set(equivalence))
+        extra_equivalence = sorted(set(equivalence) - expected_keys)
+        if missing_equivalence or extra_equivalence:
+            raise ValueError(
+                "release spec equivalenceProof keys are not closed: "
+                f"missing={missing_equivalence}, extra={extra_equivalence}"
+            )
+        if equivalence["admissionMode"] != EQUIVALENCE_ADMISSION_MODE:
+            raise ValueError("release spec equivalenceProof admissionMode is invalid")
+        expected_stem = f"spo-online-{build}-equivalence"
+        if equivalence["registryArtifactStem"] != expected_stem:
+            raise ValueError("release spec equivalence registryArtifactStem is not build-derived")
+        if equivalence["registryRevision"] != f"{expected_stem}-r1":
+            raise ValueError("release spec equivalence registryRevision is not exact-build r1")
+        if equivalence["profileRevision"] != f"{expected_stem}-profile-r1":
+            raise ValueError("release spec equivalence profileRevision is not exact-build profile r1")
+        if equivalence["registrySchemaFile"] != "aspx-platform-registry-equivalence.schema.json":
+            raise ValueError("release spec equivalence registrySchemaFile is invalid")
+        if equivalence["profileSchemaFile"] != "aspx-platform-registry-equivalence-profile.schema.json":
+            raise ValueError("release spec equivalence profileSchemaFile is invalid")
+        expected_equivalence_resource_id = (
+            "urn:ccd:pnp:aspx-platform-registry-profile:"
+            f"{expected_stem}:r1"
+        )
+        if equivalence["profileSchemaResourceId"] != expected_equivalence_resource_id:
+            raise ValueError("release spec equivalence profileSchemaResourceId is not build-derived")
+        for key in [
+            "expectedRegistryHash",
+            "expectedRegistrySchemaHash",
+            "expectedProfileHash",
+            "expectedProfileSchemaHash",
+        ]:
+            if not re.fullmatch(r"[0-9a-f]{64}", str(equivalence[key])):
+                raise ValueError(f"release spec equivalenceProof {key} is not SHA-256")
 
     global PLATFORM_BUILD, REGISTRY_REVISION, PROFILE_REVISION
     global PROFILE_SCHEMA_RESOURCE_ID, AUTHORITY_REF, AUTHORITY_TAG
@@ -474,6 +527,46 @@ def parse_tree_blobs(tree_output: str) -> dict[str, str]:
         if kind == "blob":
             blobs[path] = object_id
     return blobs
+
+
+def parse_deploy_input_paths(grep_output: str, ref: str) -> list[str]:
+    """Parse the exact path denominator selected by Git's deploy pathspec."""
+    prefix = f"{ref}:"
+    paths: list[str] = []
+    for raw_line in grep_output.splitlines():
+        if not raw_line.startswith(prefix):
+            raise ValueError(f"unexpected deploy input line: {raw_line}")
+        path = raw_line[len(prefix):]
+        if not path.startswith("otools/deploy/") or not path.endswith(".xml"):
+            raise ValueError(f"unexpected deploy input path: {path}")
+        paths.append(path)
+    unique = sorted(set(paths))
+    if len(unique) != len(paths):
+        raise ValueError("deploy input enumeration returned duplicate paths")
+    if not unique:
+        raise ValueError("the frozen deploy authority returned no XML inputs")
+    return unique
+
+
+def enumerate_deploy_input_paths(
+    git_executable: str,
+    repo: str,
+    ref: str,
+) -> list[str]:
+    """Instrument the generator's recursive Git pathspec selection.
+
+    Git's ``otools/deploy/*.xml`` pathspec also selects nested files for
+    ``git grep``.  The proof and generator call this one enumerator so their
+    closure denominator cannot drift.
+    """
+    return parse_deploy_input_paths(
+        run_git(
+            git_executable,
+            repo,
+            ["grep", "-l", "-e", "", ref, "--", DEPLOY_PATHSPEC],
+        ),
+        ref,
+    )
 
 
 def extract_deploy_rows(grep_output: str) -> list[dict[str, Any]]:
@@ -996,6 +1089,9 @@ def collect_source(
         git_executable, repo, ["show", "-s", "--format=%ct", AUTHORITY_REF]
     ).strip()
     commit_time = canonical_utc_from_epoch(commit_epoch)
+    deploy_input_paths = enumerate_deploy_input_paths(
+        git_executable, repo, AUTHORITY_REF
+    )
     grep_output = run_git(
         git_executable,
         repo,
@@ -1011,6 +1107,14 @@ def collect_source(
         ],
     )
     rows = extract_deploy_rows(grep_output)
+    unexpected_rows = sorted(
+        {row["manifestPath"] for row in rows} - set(deploy_input_paths)
+    )
+    if unexpected_rows:
+        raise ValueError(
+            "deploy row enumeration escaped the instrumented input denominator: "
+            f"{unexpected_rows}"
+        )
     tree_output = run_git(
         git_executable,
         repo,
