@@ -62,8 +62,12 @@ python3 -m unittest discover \
   -s tools/aspx-platform-registry/tests -p 'test_*.py' -v
 ```
 
-The offline exact Assessment runtime accepted `16.0.27709.12000` and advanced
-to an intentionally missing local-certificate gate. Both `16.0.27708.12757`
-and `unknown` failed with `registry_or_platform_binding`; no provider, network,
-page chain or output volume started in any case. See
-`offline-assessment-compatibility.json`.
+The v2 offline CLI receipt binds the exact Assessment and PnP Core commits to
+the executed `microsoft365-assessment.dll`, `PnP.Scanning.Core.dll`,
+`PnP.Core.dll`, apphost and runtime-config SHA-256 values. The isolated
+`--no-restore` build used SDK `8.0.425`; the apphost selected .NET and ASP.NET
+Core runtime `8.0.31`. The exact runtime accepted `16.0.27709.12000` and
+advanced to an intentionally missing local-certificate gate. Both
+`16.0.27708.12757` and `unknown` failed with
+`registry_or_platform_binding`; no provider, network, page chain or output
+volume started in any case. See `offline-assessment-compatibility.json`.

@@ -123,6 +123,72 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
             self.assertRegex(source["blobId"], r"^[0-9a-f]{40}$")
             self.assertTrue(source["symbols"])
 
+    def test_offline_cli_receipt_binds_managed_assemblies_and_fail_closed_stages(self) -> None:
+        receipt = validator.load_json(RELEASE / "offline-assessment-compatibility.json")
+        self.assertEqual("ccd516-offline-assessment-compatibility/v2", receipt["schema"])
+        self.assertEqual(
+            "3012555317d5a8ee981b9e103206f3f0680333d8",
+            receipt["assessmentSource"]["commit"],
+        )
+        self.assertEqual(
+            "f7b7ae7cea232a067734319ff9124e31ce00c921",
+            receipt["assessmentSource"]["tree"],
+        )
+        self.assertEqual(
+            "1f07296b186698c3cc9ca8580f00af36c0f3f4f5",
+            receipt["pnpCoreSource"]["commit"],
+        )
+        self.assertEqual("8.0.425", receipt["build"]["actualSdk"])
+        self.assertFalse(receipt["build"]["restoreStarted"])
+        self.assertEqual(0, receipt["build"]["exitCode"])
+        self.assertEqual("8.0.31", receipt["runtime"]["microsoftNetCoreApp"])
+        self.assertEqual("8.0.31", receipt["runtime"]["microsoftAspNetCoreApp"])
+        for name in [
+            "microsoft365-assessment.exe",
+            "microsoft365-assessment.dll",
+            "PnP.Scanning.Core.dll",
+            "PnP.Core.dll",
+            "microsoft365-assessment.runtimeconfig.json",
+        ]:
+            self.assertRegex(receipt["binaries"][name], r"^[0-9a-f]{64}$")
+        self.assertNotEqual(
+            "028c1736a274de013d540b50d8681fda2855fbab7607cf656499c8694b2de956",
+            receipt["binaries"]["microsoft365-assessment.exe"],
+        )
+
+        cases = {row["name"]: row for row in receipt["cases"]}
+        self.assertEqual(
+            {"exact-current", "prior-incompatible", "unknown"}, set(cases)
+        )
+        current = cases["exact-current"]
+        self.assertEqual("16.0.27709.12000", current["platformBuild"])
+        self.assertFalse(current["registryBindingRejected"])
+        self.assertEqual("authentication.certificate_load", current["terminalStage"])
+        for name in ["prior-incompatible", "unknown"]:
+            self.assertTrue(cases[name]["registryBindingRejected"])
+            self.assertEqual("registry_binding", cases[name]["terminalStage"])
+            self.assertIn("registry_or_platform_binding", cases[name]["stdoutLines"])
+        for case in cases.values():
+            self.assertEqual(1, case["exitCode"])
+            self.assertFalse(case["providerInvoked"])
+            self.assertFalse(case["networkAcquisitionStarted"])
+            self.assertFalse(case["pageChainStarted"])
+            self.assertEqual([], case["outputFilesPresent"])
+            self.assertRegex(case["stdoutSha256"], r"^[0-9a-f]{64}$")
+            self.assertRegex(case["stderrSha256"], r"^[0-9a-f]{64}$")
+
+        self.assertEqual(
+            [
+                "physical.sqlite",
+                "physical.json",
+                "reference.sqlite",
+                "reference.json",
+                "aggregate.json",
+            ],
+            receipt["expectedOutputFiles"],
+        )
+        self.assertIn("--platform-build", receipt["commandContract"]["caseSpecificArgv"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

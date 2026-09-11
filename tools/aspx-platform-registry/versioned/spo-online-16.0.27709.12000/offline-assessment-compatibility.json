@@ -1,36 +1,148 @@
 {
-  "assessmentProductRef": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8",
-  "assessmentTree": "f7b7ae7cea232a067734319ff9124e31ce00c921",
+  "schema": "ccd516-offline-assessment-compatibility/v2",
+  "assessmentSource": {
+    "repository": "pnp/assessment",
+    "commit": "3012555317d5a8ee981b9e103206f3f0680333d8",
+    "tree": "f7b7ae7cea232a067734319ff9124e31ce00c921",
+    "exportMethod": "git archive of the exact commit"
+  },
+  "pnpCoreSource": {
+    "repository": "pnp/pnpcore",
+    "commit": "1f07296b186698c3cc9ca8580f00af36c0f3f4f5",
+    "tree": "0534cd65f8e942671886ae0f6820580f81031572"
+  },
+  "build": {
+    "configuration": "Release",
+    "requestedSdkFromSource": "8.0.424",
+    "actualSdk": "8.0.425",
+    "sdkOverrideScope": "run-owned exact-source export only; producer and Assessment source were not modified",
+    "restoreStarted": false,
+    "command": "dotnet build assessment/src/PnP.Scanning/PnP.Scanning.Process/PnP.Scanning.Process.csproj -c Release --no-restore --nologo --verbosity:minimal -p:Protobuf_ProtocFullPath=Q:\\.tools\\.nuget\\packages\\grpc.tools\\2.61.0\\tools\\windows_x64\\protoc.exe -p:gRPC_PluginFullPath=Q:\\.tools\\.nuget\\packages\\grpc.tools\\2.61.0\\tools\\windows_x64\\grpc_csharp_plugin.exe -p:Protobuf_StandardImportsPath=Q:\\.tools\\.nuget\\packages\\grpc.tools\\2.61.0\\build\\native\\include",
+    "exitCode": 0,
+    "warnings": 6,
+    "errors": 0
+  },
+  "runtime": {
+    "targetFramework": "net8.0",
+    "microsoftNetCoreApp": "8.0.31",
+    "microsoftAspNetCoreApp": "8.0.31",
+    "selectionProbe": "microsoft365-assessment.exe aspx-acquisition --help with COREHOST_TRACE=1",
+    "selectionTraceSha256": "29ed80b42b6f0827710074d082ae509c72c303dbdc30c68c9e7842f557fde8a9"
+  },
+  "binaries": {
+    "microsoft365-assessment.exe": "e3bec3b809ca3e62c2645b92f5a8ebb1df7c872405200fcc3e9397e49053494d",
+    "microsoft365-assessment.dll": "dd96b07bb5eba514df3a9cc292daca76a9ed11f5d88887f30b43e77e3d503b2a",
+    "PnP.Scanning.Core.dll": "0185e2a147a71e8bc5f08dd89a01f1ee77ab91e9d873552cd80b5162b9047eba",
+    "PnP.Core.dll": "139119ba78185b4085e255aaba1ba1b992cf2313d9b7fc8ba97051a8fd9a34fe",
+    "microsoft365-assessment.runtimeconfig.json": "9fd574d18b66ff801e2934adf8397e67d2f237ef284452251177a05dd3236350"
+  },
+  "inputs": {
+    "manifestSha256": "611e28ae2676f4afe650f10366fd989752e83896e8a713c1f7afe25eb37873c1",
+    "registryFileSha256": "7431631550f9ff1133497285a353f807cb459374dd6a5c439efbf2184429dbe0"
+  },
+  "commandContract": {
+    "workingDirectory": "<run-owned-windows-temp>/runtime",
+    "commonArgv": [
+      "microsoft365-assessment.exe",
+      "aspx-acquisition",
+      "--site",
+      "https://example.invalid/sites/ccd516",
+      "--tenant",
+      "example.invalid",
+      "--authMode",
+      "Application",
+      "--applicationId",
+      "00000000-0000-0000-0000-000000000001",
+      "--tenantId",
+      "00000000-0000-0000-0000-000000000002",
+      "--certPath",
+      "My|CurrentUser|0000000000000000000000000000000000000000",
+      "--manifest",
+      "<run-owned-windows-temp>/cli-inputs/manifest.json",
+      "--registry",
+      "<run-owned-windows-temp>/cli-inputs/registry.json",
+      "--snapshot-fence",
+      "ccd516-offline-2026-09-11",
+      "--permission-context",
+      "ccd516-offline-dummy",
+      "--visibility-boundary",
+      "none",
+      "--authority-revision",
+      "ccd516-offline-authority",
+      "--authority-hash",
+      "0000000000000000000000000000000000000000000000000000000000000000"
+    ],
+    "caseSpecificArgv": "--physical-database <case>/physical.sqlite --physical-output <case>/physical.json --reference-database <case>/reference.sqlite --reference-output <case>/reference.json --aggregate-output <case>/aggregate.json --platform-build <case.platformBuild>"
+  },
   "cases": [
     {
-      "exitCode": 1,
       "name": "exact-current",
-      "outputFilesPresent": [],
       "platformBuild": "16.0.27709.12000",
+      "exitCode": 1,
       "registryBindingRejected": false,
-      "result": "registry accepted; execution advanced to the intentionally missing local certificate gate"
+      "terminalStage": "authentication.certificate_load",
+      "stdoutLines": [
+        "ASPX live acquisition failed: Certificate could not be loaded using this path",
+        "information My|CurrentUser|0000000000000000000000000000000000000000"
+      ],
+      "stdoutSha256": "60c101c7862c6f4793a8db6172cf55e85e07bb91116390e37657b38bf71efaa6",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "providerInvoked": false,
+      "networkAcquisitionStarted": false,
+      "pageChainStarted": false,
+      "outputFilesPresent": []
     },
     {
-      "exitCode": 1,
       "name": "prior-incompatible",
-      "outputFilesPresent": [],
       "platformBuild": "16.0.27708.12757",
+      "exitCode": 1,
       "registryBindingRejected": true,
-      "result": "registry_or_platform_binding"
+      "terminalStage": "registry_binding",
+      "stdoutLines": [
+        "ASPX live acquisition failed: Independent registry cannot close this build:",
+        "registry_or_platform_binding"
+      ],
+      "stdoutSha256": "20aeef1ed5f10652fdbf67d7f9c81ef5b8eb518b51d9f88eed0f10207fa153e0",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "providerInvoked": false,
+      "networkAcquisitionStarted": false,
+      "pageChainStarted": false,
+      "outputFilesPresent": []
     },
     {
-      "exitCode": 1,
       "name": "unknown",
-      "outputFilesPresent": [],
       "platformBuild": "unknown",
+      "exitCode": 1,
       "registryBindingRejected": true,
-      "result": "registry_or_platform_binding"
+      "terminalStage": "registry_binding",
+      "stdoutLines": [
+        "ASPX live acquisition failed: Independent registry cannot close this build:",
+        "registry_or_platform_binding"
+      ],
+      "stdoutSha256": "20aeef1ed5f10652fdbf67d7f9c81ef5b8eb518b51d9f88eed0f10207fa153e0",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "providerInvoked": false,
+      "networkAcquisitionStarted": false,
+      "pageChainStarted": false,
+      "outputFilesPresent": []
     }
   ],
-  "networkAcquisitionStarted": false,
-  "pageChainStarted": false,
-  "providerInvoked": false,
-  "registryFileSha256": "7431631550f9ff1133497285a353f807cb459374dd6a5c439efbf2184429dbe0",
-  "runtimeExeSha256": "028c1736a274de013d540b50d8681fda2855fbab7607cf656499c8694b2de956",
-  "schema": "ccd516-offline-assessment-compatibility/v1"
+  "expectedOutputFiles": [
+    "physical.sqlite",
+    "physical.json",
+    "reference.sqlite",
+    "reference.json",
+    "aggregate.json"
+  ],
+  "controlFlowEvidence": {
+    "symbol": "PnP.Scanning.Process.Commands.AspxAcquisitionCommandHandler.ExecuteAsync",
+    "order": [
+      "manifest_deserialize",
+      "registry_deserialize_and_validate",
+      "authentication_verify",
+      "provider_construct",
+      "runtime_and_page_chain"
+    ],
+    "interpretation": "The current case stopped while loading the intentionally absent local certificate. The prior and unknown cases stopped in registry validation. Provider construction, network acquisition, page-chain execution, and output creation are therefore unreachable in all three cases."
+  }
 }
