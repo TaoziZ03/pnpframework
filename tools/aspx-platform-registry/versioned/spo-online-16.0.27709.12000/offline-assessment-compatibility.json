@@ -1,0 +1,36 @@
+{
+  "assessmentProductRef": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8",
+  "assessmentTree": "f7b7ae7cea232a067734319ff9124e31ce00c921",
+  "cases": [
+    {
+      "exitCode": 1,
+      "name": "exact-current",
+      "outputFilesPresent": [],
+      "platformBuild": "16.0.27709.12000",
+      "registryBindingRejected": false,
+      "result": "registry accepted; execution advanced to the intentionally missing local certificate gate"
+    },
+    {
+      "exitCode": 1,
+      "name": "prior-incompatible",
+      "outputFilesPresent": [],
+      "platformBuild": "16.0.27708.12757",
+      "registryBindingRejected": true,
+      "result": "registry_or_platform_binding"
+    },
+    {
+      "exitCode": 1,
+      "name": "unknown",
+      "outputFilesPresent": [],
+      "platformBuild": "unknown",
+      "registryBindingRejected": true,
+      "result": "registry_or_platform_binding"
+    }
+  ],
+  "networkAcquisitionStarted": false,
+  "pageChainStarted": false,
+  "providerInvoked": false,
+  "registryFileSha256": "7431631550f9ff1133497285a353f807cb459374dd6a5c439efbf2184429dbe0",
+  "runtimeExeSha256": "028c1736a274de013d540b50d8681fda2855fbab7607cf656499c8694b2de956",
+  "schema": "ccd516-offline-assessment-compatibility/v1"
+}

@@ -5,6 +5,23 @@ CCD-394 `aspx-surface-applicability/v3` contract. It is an input to Assessment
 live acquisition and to PnP/Repro/Ingredient/Compare consumers. It is not
 generated from Assessment results, CUPCollect paths, or a tenant scan.
 
+## Versioned exact-build releases
+
+The original top-level files remain the immutable
+`16.0.27708.12757` release. Later exact-build authorities live in isolated
+release roots so their schemas, fixtures and hashes cannot rewrite the prior
+authority:
+
+- `versioned/spo-online-16.0.27709.12000/` — exact-only CUPCollect authority
+  generated from SPO.Core `release/16.0.27709.12000` at
+  `ab4856999051acfe946fab5632b45ce6427287aa`.
+
+Pass that release's `release-spec.json` to both the generator and validator.
+The release spec is closed, exact-build-shaped input; incomplete or extra-key
+specs are rejected and all pinned hashes must match the derived artifacts. The
+pushed commit and independent review provide the external admission boundary.
+See the release-local README for exact commands and consumer evidence.
+
 ## Frozen authority and external profile
 
 - SPO.Core commit: `1826a78bef6194afb25edc44b9abf61b7798de0a`

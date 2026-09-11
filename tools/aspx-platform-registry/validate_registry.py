@@ -40,6 +40,7 @@ from generate_registry import (
     SOURCE_KINDS,
     VOLUME_COMPATIBILITY,
     canonical_json_bytes,
+    configure_release,
     discovery_hash,
     normalize_registry_key,
     object_hash,
@@ -123,6 +124,29 @@ ARTIFACT_BINDING_KEYS = {
     "referenceStore",
 }
 ARTIFACT_DESCRIPTOR_KEYS = {"path", "sha256", "length"}
+
+
+def configure_validation_release(spec: dict[str, Any]) -> None:
+    """Keep validator pins aligned with the selected generator release spec."""
+    import generate_registry as generator
+
+    configure_release(spec)
+    names = [
+        "AUTHORITY_REF",
+        "AUTHORITY_TAG",
+        "EXPECTED_AUTHORITY_ARTIFACT_HASH",
+        "EXPECTED_CONSUMER_COMPATIBILITY_HASH",
+        "EXPECTED_PROFILE_HASH",
+        "EXPECTED_REGISTRY_HASH",
+        "EXPECTED_REGISTRY_SCHEMA_HASH",
+        "PLATFORM_BUILD",
+        "PROFILE_REVISION",
+        "REGISTRY_REVISION",
+    ]
+    for name in names:
+        globals()[name] = getattr(generator, name)
+    globals()["KNOWN_DISPOSITIONS"] = set(generator.DISPOSITIONS)
+    globals()["KNOWN_SOURCE_KINDS"] = set(generator.SOURCE_KINDS)
 STORE_ARTIFACT_DESCRIPTOR_KEYS = ARTIFACT_DESCRIPTOR_KEYS | {"schemaManifestHash"}
 
 PHYSICAL_SOURCE_KINDS = {
@@ -2043,7 +2067,11 @@ def main() -> int:
     parser.add_argument("--profile-schema", type=Path)
     parser.add_argument("--fixtures", type=Path)
     parser.add_argument("--receipt-out", type=Path)
+    parser.add_argument("--release-spec", type=Path)
     args = parser.parse_args()
+
+    if args.release_spec is not None:
+        configure_validation_release(load_json(args.release_spec))
 
     registry = load_json(args.registry)
     authority = load_json(args.authority)

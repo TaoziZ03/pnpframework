@@ -61,6 +61,9 @@ EXPECTED_CONSUMER_COMPATIBILITY_HASH = (
 EXPECTED_PROFILE_HASH = (
     "b73d44d9a98e8aeb810e98a8e546975150641f9e86be0bf5f2f7200885f1726b"
 )
+ARTIFACT_STEM = f"spo-online-{PLATFORM_BUILD}"
+RELEASE_SPEC_VERSION = "aspx-platform-registry-release-spec/v1"
+INCLUDE_VIRTUAL_SOURCE_PROVENANCE = False
 
 REFERENCE_RECORD_KIND = "AspxReferenceObservation"
 SOURCE_KINDS = [
@@ -143,6 +146,90 @@ LAYOUT_DEST_RE = re.compile(
     re.IGNORECASE,
 )
 GREP_LINE_RE = re.compile(r"^[0-9a-f]{40}:(.*?):([0-9]+):(.*)$")
+
+
+def configure_release(spec: dict[str, Any]) -> None:
+    """Select one immutable exact-build release without changing the legacy default."""
+    required = {
+        "releaseSpecVersion",
+        "platformBuild",
+        "registryRevision",
+        "profileRevision",
+        "profileSchemaResourceId",
+        "authorityRef",
+        "authorityTag",
+        "artifactStem",
+        "independentReviewRef",
+        "expectedAuthorityArtifactHash",
+        "expectedRegistryHash",
+        "expectedRegistrySchemaHash",
+        "expectedConsumerCompatibilityHash",
+        "expectedProfileHash",
+    }
+    missing = sorted(required - set(spec))
+    extra = sorted(set(spec) - required)
+    if missing or extra:
+        raise ValueError(
+            f"release spec keys are not closed: missing={missing}, extra={extra}"
+        )
+    if spec["releaseSpecVersion"] != RELEASE_SPEC_VERSION:
+        raise ValueError("unsupported release spec version")
+    build = str(spec["platformBuild"])
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+", build):
+        raise ValueError("release spec platformBuild is invalid")
+    artifact_stem = str(spec["artifactStem"])
+    if artifact_stem != f"spo-online-{build}":
+        raise ValueError("release spec artifactStem is not build-derived")
+    if spec["registryRevision"] != f"spo-online-{build}-r1":
+        raise ValueError("release spec registryRevision is not exact-build r1")
+    if spec["profileRevision"] != f"spo-online-{build}-profile-r1":
+        raise ValueError("release spec profileRevision is not exact-build profile r1")
+    expected_resource_id = (
+        "urn:ccd:pnp:aspx-platform-registry-profile:"
+        f"spo-online-{build}:r1"
+    )
+    if spec["profileSchemaResourceId"] != expected_resource_id:
+        raise ValueError("release spec profileSchemaResourceId is not build-derived")
+    if not re.fullmatch(r"[0-9a-f]{40}", str(spec["authorityRef"])):
+        raise ValueError("release spec authorityRef is not a full Git commit")
+    if not str(spec["authorityTag"]).endswith(f"/{build}"):
+        raise ValueError("release spec authorityTag is not build-bound")
+    for key in [
+        "expectedAuthorityArtifactHash",
+        "expectedRegistryHash",
+        "expectedRegistrySchemaHash",
+        "expectedConsumerCompatibilityHash",
+        "expectedProfileHash",
+    ]:
+        if not re.fullmatch(r"[0-9a-f]{64}", str(spec[key])):
+            raise ValueError(f"release spec {key} is not SHA-256")
+    if not str(spec["independentReviewRef"]).strip():
+        raise ValueError("release spec independentReviewRef is empty")
+
+    global PLATFORM_BUILD, REGISTRY_REVISION, PROFILE_REVISION
+    global PROFILE_SCHEMA_RESOURCE_ID, AUTHORITY_REF, AUTHORITY_TAG
+    global ARTIFACT_STEM, DEFAULT_INDEPENDENT_REVIEW_REF
+    global INCLUDE_VIRTUAL_SOURCE_PROVENANCE
+    global EXPECTED_AUTHORITY_ARTIFACT_HASH, EXPECTED_REGISTRY_HASH
+    global EXPECTED_REGISTRY_SCHEMA_HASH, EXPECTED_CONSUMER_COMPATIBILITY_HASH
+    global EXPECTED_PROFILE_HASH
+
+    PLATFORM_BUILD = build
+    REGISTRY_REVISION = str(spec["registryRevision"])
+    PROFILE_REVISION = str(spec["profileRevision"])
+    PROFILE_SCHEMA_RESOURCE_ID = str(spec["profileSchemaResourceId"])
+    AUTHORITY_REF = str(spec["authorityRef"])
+    AUTHORITY_TAG = str(spec["authorityTag"])
+    ARTIFACT_STEM = artifact_stem
+    DEFAULT_INDEPENDENT_REVIEW_REF = str(spec["independentReviewRef"])
+    INCLUDE_VIRTUAL_SOURCE_PROVENANCE = True
+    EXPECTED_AUTHORITY_ARTIFACT_HASH = str(spec["expectedAuthorityArtifactHash"])
+    EXPECTED_REGISTRY_HASH = str(spec["expectedRegistryHash"])
+    EXPECTED_REGISTRY_SCHEMA_HASH = str(spec["expectedRegistrySchemaHash"])
+    EXPECTED_CONSUMER_COMPATIBILITY_HASH = str(
+        spec["expectedConsumerCompatibilityHash"]
+    )
+    EXPECTED_PROFILE_HASH = str(spec["expectedProfileHash"])
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -671,6 +758,22 @@ def build_authority(
                 "entryCount": len(redirect_map),
             },
             "virtualHandlerSources": [
+                {
+                    "path": VIRTUAL_HANDLER_SOURCE_PATH,
+                    "blobId": manifest_blobs[VIRTUAL_HANDLER_SOURCE_PATH],
+                    "symbols": [
+                        "Microsoft.SharePoint.ApplicationRuntime.SPLayoutsMappedFile",
+                        "Microsoft.SharePoint.ApplicationRuntime.SPVirtualPathProvider",
+                    ],
+                },
+                {
+                    "path": VIRTUAL_FILE_SOURCE_PATH,
+                    "blobId": manifest_blobs[VIRTUAL_FILE_SOURCE_PATH],
+                    "symbols": [
+                        "Microsoft.SharePoint.ApplicationRuntime.SPVirtualFile",
+                    ],
+                },
+            ] if INCLUDE_VIRTUAL_SOURCE_PROVENANCE else [
                 VIRTUAL_HANDLER_SOURCE_PATH,
                 VIRTUAL_FILE_SOURCE_PATH,
             ],
@@ -831,7 +934,7 @@ def build_registry(
         "authoritySourceTag": AUTHORITY_TAG,
         "authorityArtifactHash": authority["authorityArtifactHash"],
         "authorityArtifactPath": (
-            "authority/spo-online-16.0.27708.12757.authority.json"
+            f"authority/{ARTIFACT_STEM}.authority.json"
         ),
         "reviewRef": independent_review_ref,
         "contractReviewRef": CONTRACT_REVIEW_REF,
@@ -911,7 +1014,16 @@ def collect_source(
     tree_output = run_git(
         git_executable,
         repo,
-        ["ls-tree", "-r", AUTHORITY_REF, "--", "otools/deploy", REDIRECT_MAP_PATH],
+        [
+            "ls-tree",
+            "-r",
+            AUTHORITY_REF,
+            "--",
+            "otools/deploy",
+            REDIRECT_MAP_PATH,
+            VIRTUAL_HANDLER_SOURCE_PATH,
+            VIRTUAL_FILE_SOURCE_PATH,
+        ],
     )
     blobs = parse_tree_blobs(tree_output)
     redirect_blob = blobs.get(REDIRECT_MAP_PATH)
@@ -1082,22 +1194,26 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--spocore-repo", required=True)
     parser.add_argument("--git-executable", default="git")
+    parser.add_argument("--release-spec", type=Path)
     parser.add_argument(
         "--output-root",
         type=Path,
         default=Path(__file__).resolve().parent,
     )
-    parser.add_argument(
-        "--independent-review-ref",
-        default=DEFAULT_INDEPENDENT_REVIEW_REF,
-    )
+    parser.add_argument("--independent-review-ref")
     args = parser.parse_args()
+
+    if args.release_spec is not None:
+        configure_release(load_json(args.release_spec))
 
     rows, blobs, redirect_blob, redirect_map, commit_time = collect_source(
         args.git_executable, args.spocore_repo
     )
     authority = build_authority(rows, blobs, redirect_blob, redirect_map, commit_time)
-    registry = build_registry(authority, args.independent_review_ref)
+    registry = build_registry(
+        authority,
+        args.independent_review_ref or DEFAULT_INDEPENDENT_REVIEW_REF,
+    )
 
     registry_schema_path = (
         args.output_root / "schema" / "aspx-platform-registry.schema.json"
@@ -1154,15 +1270,15 @@ def main() -> int:
     )
 
     write_json(
-        args.output_root / "authority" / "spo-online-16.0.27708.12757.authority.json",
+        args.output_root / "authority" / f"{ARTIFACT_STEM}.authority.json",
         authority,
     )
     write_json(
-        args.output_root / "registry" / "spo-online-16.0.27708.12757.registry.json",
+        args.output_root / "registry" / f"{ARTIFACT_STEM}.registry.json",
         registry,
     )
     write_json(
-        args.output_root / "profile" / "spo-online-16.0.27708.12757.profile.json",
+        args.output_root / "profile" / f"{ARTIFACT_STEM}.profile.json",
         profile,
     )
     write_json(fixture_path, fixtures)

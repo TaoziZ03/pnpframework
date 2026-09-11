@@ -1,0 +1,27 @@
+{
+  "acquisitionMethod": "Windows Git exact release tag and immutable commit object",
+  "authorityCommit": "ab4856999051acfe946fab5632b45ce6427287aa",
+  "authorityRef": "release/16.0.27709.12000",
+  "authorityTree": "239647a562ddd5263dbcc4d8bc72c57e780c10e8",
+  "boundedAuthorityDiffFromPrevious": {
+    "changedPaths": 0,
+    "previousBuild": "16.0.27708.12757",
+    "previousCommit": "1826a78bef6194afb25edc44b9abf61b7798de0a",
+    "result": "no content changes in the bounded authority paths"
+  },
+  "forbiddenInputs": [
+    "Assessment provider output",
+    "Assessment scanner-observed paths",
+    "CUPCollect scan output",
+    "tenant runtime enumeration"
+  ],
+  "platformBuild": "16.0.27709.12000",
+  "sourceAuthorityPaths": [
+    "otools/deploy/*.xml",
+    "sts/template/sts/layouts/FilesToRedirect.sts.xms",
+    "sts/stsom/ApplicationRuntime/spvirtualpathprovider.cs",
+    "sts/stsom/ApplicationRuntime/spvirtualfile.cs"
+  ],
+  "sourceRepository": "SPO.Core",
+  "verificationIssue": "CCD-517"
+}

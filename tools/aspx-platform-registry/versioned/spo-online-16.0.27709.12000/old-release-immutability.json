@@ -1,0 +1,12 @@
+{
+  "files": {
+    "authority/spo-online-16.0.27708.12757.authority.json": "0cfc45a75ff33c51f0c2b7b1f4effdd922bf71967cb5836b876ea8d6869b7801",
+    "fixtures/contract-cases.json": "5cae239f21b5eadb566443a8ed187de2ec5de94bb6c84bfc54be38182a83bc2c",
+    "fixtures/f1-f4-negative-receipts.json": "c3f2dc2c9ac6e19e18076469cf702f15e79236b70efe5acb8378f4dd8e4a92d7",
+    "profile/spo-online-16.0.27708.12757.profile.json": "f453c76729595cf43179ee247314dc66e0aaa9232c7d1f4aed4e12bb32ceec78",
+    "registry/spo-online-16.0.27708.12757.registry.json": "402de4a697e3c236c2a7ebe46ff90764ec5b6b91442654b3ba13b3ed6556c7a9",
+    "schema/aspx-platform-registry-profile.schema.json": "cb677e8451cf58f35aeec0638a41c43b58b5846447e5807bd9bbd285339402c7",
+    "schema/aspx-platform-registry.schema.json": "d1fbce7acf41c27d78cd68222f141d311da3ce8bfa006b57c4c5d742237d6ac6"
+  },
+  "release": "spo-online-16.0.27708.12757-r1"
+}
