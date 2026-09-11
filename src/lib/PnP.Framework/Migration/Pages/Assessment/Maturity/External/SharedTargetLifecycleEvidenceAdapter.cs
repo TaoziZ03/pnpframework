@@ -329,7 +329,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             // An unsuccessful query may explicitly report no identity. An
             // observed foreign identity is never repaired by a later summary.
             if (value.ValueKind == JsonValueKind.Null) return false;
-            Equal(Text(observed, field), expected, "native Web sample " + field);
+            Equal(Text(observed, field), expected, "dependency sample " + field);
             return true;
         }
 
@@ -353,12 +353,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             if (preStatus == 404)
             {
                 Success(Property(library, "create"), "status", "requestGuid");
-                var readiness = Property(library, "readiness");
-                ValidatePoll(readiness, "capability-readiness", 200, "list");
-                var body = Property(readiness, "lastBody");
-                Equal(Text(body, "Id"), Target.ListId, "created capability List ID");
-                Equal(Text(Property(body, "RootFolder"), "ServerRelativeUrl"), Binding.TargetListPath,
-                    "created capability List root");
+                ValidateCapabilityListPoll(Property(library, "readiness"));
             }
             else
             {
@@ -368,6 +363,40 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             // The original existing-list receipt has no raw samples or request
             // ID. Do not invent them, nor interpret baseTemplate/content types:
             // domain readiness/fidelity remains with its existing lane validator.
+        }
+
+        private void ValidateCapabilityListPoll(JsonElement poll)
+        {
+            Equal(Text(poll, "kind"), "list-provision", "capability List poll protocol");
+            Require(Number(poll, "elapsedMs") >= 0 && Number(poll, "elapsedMs") <= Number(poll, "timeoutMs"),
+                "Capability List polling elapsed time is outside its bound.");
+            var previousStreak = 0;
+            var terminal = ValidatePoll(poll, "capability-readiness", 200, "list", (sample, isTerminal) =>
+            {
+                // The pinned native producer emits these six fields per GET.
+                // Missing identity is not captured null; mixed error/HTTP or
+                // unknown observation shapes cannot impersonate that protocol.
+                Require(sample.EnumerateObject().Count() == 6, "Unknown or mixed capability List sample evidence.");
+                var status = Number(sample, "status");
+                Require(status >= 100 && status <= 599 && status != 401 && status != 403,
+                    "Capability List readiness contains an unavailable/access-denied observation.");
+                var sameIdentity = ObservedIdentity(sample, "objectId", Target.ListId);
+                var streak = Number(sample, "readyStreak");
+                Require(streak >= 0 && streak <= 3 && (streak == 0
+                    || (status == 200 && sameIdentity && streak == previousStreak + 1)),
+                    "Capability List stability contradicts its observed identity/status or preceding streak.");
+                // Unlike native Web readiness, this producer stops at the
+                // FIRST run of three ready observations. Earlier non-ready
+                // samples may have null identity or incomplete path evidence.
+                Require((streak == 3) == isTerminal,
+                    "Capability List polling has no exact first stable terminal observation.");
+                previousStreak = streak;
+            });
+            var body = Property(poll, "lastBody");
+            Equal(Text(body, "Id"), Target.ListId, "created capability List ID");
+            Equal(Text(terminal, "objectId"), Text(body, "Id"), "capability List terminal sample / body");
+            Equal(Text(Property(body, "RootFolder"), "ServerRelativeUrl"), Binding.TargetListPath,
+                "created capability List root");
         }
 
         public void ValidateFreshStorage()
@@ -521,7 +550,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             return page;
         }
 
-        private void ValidatePoll(JsonElement poll, string phase, int status, string policy)
+        private JsonElement ValidatePoll(JsonElement poll, string phase, int status, string policy,
+            Action<JsonElement, bool> validateSample = null)
         {
             Equal(Text(poll, "state"), "ready", "bounded readback state");
             var limits = Property(Property(plan.Input, "pollPolicy"), policy);
@@ -543,10 +573,12 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
                 Require(Number(sample, "attempt") == index + 1 && at >= previous && at <= finished,
                     "Retry attempts are missing, reordered or outside their time fence.");
                 Text(sample, "requestGuid");
+                validateSample?.Invoke(sample, index == samples.Length - 1);
                 previous = at;
             }
             Require(samples.Length >= 3 && samples.Skip(samples.Length - 3).All(sample => Number(sample, "status") == status),
                 "The producer's three-observation stability fence is missing.");
+            return samples[samples.Length - 1];
         }
 
         private void InPhase(string phase, DateTimeOffset observed)

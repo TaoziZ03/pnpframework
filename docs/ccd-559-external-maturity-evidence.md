@@ -14,6 +14,14 @@ on `codex/ccd559-lifecycle-closure`, based on that exact commit. The completed
 review remains adverse for its original input; the correction requires a new
 bounded non-author review, not a relabeled approval.
 
+The next input, `49f147ae9fb4ef260b862b8a607a9870ac240f95`
+(tree `51773f5f91b1d5fec219666805218c3ca2df181b`), also received
+`CHANGES_REQUIRED` in CCD-571: the absent-list poll could hide a foreign or
+missing terminal sample identity, or a denied prefix, behind its final body.
+That bounded correction is isolated on `codex/ccd559-list-poll-closure` from
+the exact reviewed input. Both completed reviews remain valid for their own
+inputs; this correction requires another non-author verdict.
+
 ## Decision and compatibility
 
 Use a generic internal artifact envelope and a separately admitted plan-binding
@@ -168,6 +176,38 @@ required Site/Web and capability List before accepting dependent page evidence:
   persist raw samples or request IDs, so the reader does not invent them.
   Template, field/schema, ContentType and layout semantics remain lane-owned.
 
+For an absent List, `ValidateCapabilityListPoll` supplies the List-specific
+sample validator to the existing `ValidatePoll` helper. The helper retains
+attempt coverage, phase/time bounds, correlation and three-observation HTTP
+stability; its File/item/cleanup callers have no List-specific callback.
+
+- The poll must be the original `kind=list-provision`, with bounded elapsed
+  time. Every sample must preserve `objectId` and `readyStreak`, which the
+  original producer writes. A missing identity field is not a captured null.
+  Only its six-field native sample shape is admitted; mixed exception/error
+  evidence and unknown fields are not silently discarded.
+- Every observed non-null List ID must equal the independently admitted target
+  List ID, even on an earlier unsuccessful observation. Explicit null may
+  describe a non-ready attempt; it cannot enter a successful stability streak.
+  HTTP 401/403 anywhere in the poll is terminal adverse evidence for this
+  instance and cannot be erased by later successes.
+- The captured streak must reset to zero on a non-ready attempt or increase
+  by exactly one on an HTTP 200 observation of the bound identity. The first
+  streak of three must be terminal. The producer did not retain every earlier
+  response body/root path, so the reader does not invent those bodies or
+  infer readiness from HTTP 200 alone: a captured non-ready observation may
+  have the right ID but incomplete path evidence.
+- Terminal `lastBody.Id`, the same final sample's `objectId`, the library
+  receipt and the independent target List ID must agree. The terminal body's
+  root path must match the bound target List path in the bound Web.
+
+These are evidence-binding checks, not a List provisioning implementation or
+a lane's template/ContentType outcome validator. The original existing-list
+branch and native Web first-success protocol are unchanged. Unknown or
+contradictory evidence rejects all six M4 gates for this dependent instance,
+retains continuous M3 when M0-M3 remain valid, and leaves independent instances
+unaffected. No rejected instance receives M5 or an exact migration outcome.
+
 The protocol was checked against the original producer
 `ccd-143/scripts/build-lifecycle-expressions.mjs` at
 `a0f34fe93473152818ef30842bcb82c2216135d3`, SHA-256
@@ -303,6 +343,22 @@ Additional controls cover poll metadata, first-success semantics, accepted but
 incomplete creation, retained non-ready attempts, contradictory earlier
 observations, duplicate List coverage and the absent-list creation branch.
 All original 97 common and 90 external cases remain in the focused cohort.
+
+CCD-571's three List counterexamples are permanent resealed controls in
+`CapabilityListSamplesCannotBeReplacedByFinalBodyOrLaterSuccess`; they require
+all six M4 gates to reject, continuous M3, and an unaffected independent M4
+instance. The earlier synthetic absent-list baseline now includes the actual
+producer's `kind`, `elapsedMs`, per-sample `objectId` and `readyStreak` fields.
+This does not alter the ten historical resource members or remove any of the
+237 pre-correction test cases. Additional controls cover earlier identities,
+captured null versus missing, HTTP 401/403, terminal body/path, streak ordering,
+the first terminal streak, explicit non-ready prefixes, existing-list history
+and File/cleanup independence from List-only fields.
+The three permanent assertions were first run RED against the unchanged
+reviewed library source. The corrected development cohort has 268 passing
+cases: the existing 237 plus three CTO rejections, 21 protocol/identity
+rejections, five retained-non-ready controls and two compatibility controls.
+Development overlay versions are not immutable build provenance.
 
 Final exact-commit build/test receipts, hashes, downloadable patch and the
 separate non-author review path are recorded on CCD-559. Tests and this document
