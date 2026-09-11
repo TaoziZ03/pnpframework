@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ccd:pnp:cross-build-equivalence-certificate:v1",
+  "title": "Cross-build ASPX registry equivalence certificate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "certificateVersion",
+    "certificateHash",
+    "issuedAtUtc",
+    "source",
+    "target",
+    "generator",
+    "schemaBindings",
+    "sourceRegistry",
+    "targetRegistry",
+    "sourceClosure",
+    "targetClosure",
+    "comparison",
+    "proofDisposition"
+  ],
+  "properties": {
+    "certificateVersion": { "const": "cross-build-equivalence-certificate/v1" },
+    "certificateHash": { "$ref": "#/$defs/sha256" },
+    "issuedAtUtc": { "type": "string", "format": "date-time" },
+    "source": { "$ref": "#/$defs/gitBuild" },
+    "target": { "$ref": "#/$defs/gitBuild" },
+    "generator": { "$ref": "#/$defs/generator" },
+    "schemaBindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registrySchemaHash", "profileSchemaHash"],
+      "properties": {
+        "registrySchemaHash": { "$ref": "#/$defs/sha256" },
+        "profileSchemaHash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "sourceRegistry": { "$ref": "#/$defs/registryBinding" },
+    "targetRegistry": { "$ref": "#/$defs/registryBinding" },
+    "sourceClosure": { "$ref": "#/$defs/closure" },
+    "targetClosure": { "$ref": "#/$defs/closure" },
+    "comparison": { "$ref": "#/$defs/comparison" },
+    "proofDisposition": { "const": "equivalent_reuse" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "ref", "commit", "tree"],
+      "properties": {
+        "build": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "ref": { "type": "string", "minLength": 1 },
+        "commit": { "$ref": "#/$defs/sha1" },
+        "tree": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "canonicalHash", "fileSha256"],
+      "properties": {
+        "revision": { "type": "string", "minLength": 1 },
+        "canonicalHash": { "$ref": "#/$defs/sha256" },
+        "fileSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "registryBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "canonicalHash",
+        "fileSha256",
+        "payloadHash",
+        "authority",
+        "profile"
+      ],
+      "properties": {
+        "revision": { "type": "string", "minLength": 1 },
+        "canonicalHash": { "$ref": "#/$defs/sha256" },
+        "fileSha256": { "$ref": "#/$defs/sha256" },
+        "payloadHash": { "$ref": "#/$defs/sha256" },
+        "authority": { "$ref": "#/$defs/fileBinding" },
+        "profile": { "$ref": "#/$defs/fileBinding" }
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "pathCaseFold", "kind", "blobId", "sha256", "byteLength", "parserId", "semanticHash"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "pathCaseFold": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "blobId": { "$ref": "#/$defs/sha1" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "byteLength": { "type": "integer", "minimum": 0 },
+        "parserId": { "type": "string", "minLength": 1 },
+        "semanticHash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "closure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["closureVersion", "build", "sourceTag", "commit", "tree", "selection", "members", "closureHash"],
+      "properties": {
+        "closureVersion": { "const": "aspx-registry-input-closure/v1" },
+        "build": { "type": "string" },
+        "sourceTag": { "type": "string" },
+        "commit": { "$ref": "#/$defs/sha1" },
+        "tree": { "$ref": "#/$defs/sha1" },
+        "selection": { "type": "object" },
+        "members": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/member" } },
+        "closureHash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "generatorMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "blobId", "sha256", "byteLength", "parserId"],
+      "properties": {
+        "path": { "type": "string" },
+        "blobId": { "$ref": "#/$defs/sha1" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "byteLength": { "type": "integer", "minimum": 0 },
+        "parserId": { "type": "string" }
+      }
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generatorVersion", "commit", "tree", "canonicalization", "members", "manifestHash"],
+      "properties": {
+        "generatorVersion": { "const": "aspx-registry-generator/v2-equivalence" },
+        "commit": { "$ref": "#/$defs/sha1" },
+        "tree": { "$ref": "#/$defs/sha1" },
+        "canonicalization": { "type": "string" },
+        "members": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/generatorMember" } },
+        "manifestHash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["equivalent", "sourceMemberCount", "targetMemberCount", "added", "deleted", "changed", "renameOrAliasCandidates", "caseChanges", "uncertainties"],
+      "properties": {
+        "equivalent": { "const": true },
+        "sourceMemberCount": { "type": "integer", "minimum": 1 },
+        "targetMemberCount": { "type": "integer", "minimum": 1 },
+        "added": { "type": "array", "maxItems": 0 },
+        "deleted": { "type": "array", "maxItems": 0 },
+        "changed": { "type": "array", "maxItems": 0 },
+        "renameOrAliasCandidates": { "type": "array", "maxItems": 0 },
+        "caseChanges": { "type": "array", "maxItems": 0 },
+        "uncertainties": { "type": "array", "maxItems": 0 }
+      }
+    }
+  }
+}
