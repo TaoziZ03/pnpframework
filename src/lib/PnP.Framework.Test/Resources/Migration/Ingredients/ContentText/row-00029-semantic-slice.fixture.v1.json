@@ -1,0 +1,40 @@
+{
+  "schema": "pnp-content-text-hermetic-fixture/v1",
+  "claimId": "41a30939465c0fadeb2a35c030b33b793e569deda85f04fa14ad57257c2d4542",
+  "ingredientId": "ccd.ingredient.content.text/v1:5971c9ad-eb9b-4e2e-9c96-5e5707ad3e90:PublishingPageContent",
+  "sourceClaim": {
+    "rawSha256": "8c041eaf18cf071b6db96380797ac22da825a222d3794e23bbb93648c4f0c3ef",
+    "semanticSha256": "80e0fba7ad78fd5752e917bfbb44202385cceff903e21b977bae6f23f2d526f9",
+    "sourceSnapshotSha256": "afc933295d0ff9675a7df2eb2ac2eb576c24d9618d5a0d134a0075333c4477c9"
+  },
+  "source": {
+    "pageUrl": "https://microsoft.sharepoint.com/sites/ccd-redacted/Pages/content-text-canary.aspx",
+    "webUrl": "https://microsoft.sharepoint.com/sites/ccd-redacted",
+    "fileServerRelativeUrl": "/sites/ccd-redacted/Pages/content-text-canary.aspx",
+    "listId": "3155254a-3e47-425f-8900-8fe342056a10",
+    "listTitle": "Pages",
+    "listBaseTemplate": 850,
+    "itemId": 240,
+    "fileUniqueId": "5971c9ad-eb9b-4e2e-9c96-5e5707ad3e90",
+    "sourceVersion": "\"{5971C9AD-EB9B-4E2E-9C96-5E5707AD3E90},17\"",
+    "contentTypeId": "0x010100C568DB52D9D0A14D9B2FDCC96666E9F2",
+    "contentTypeName": "Article Page"
+  },
+  "field": {
+    "id": "f55c4d88-1f2e-4ad9-aaa8-819af4ee7ee8",
+    "internalName": "PublishingPageContent",
+    "type": "HTML",
+    "required": false,
+    "readOnly": false,
+    "hidden": false,
+    "sealed": true
+  },
+  "semanticSlice": {
+    "provenance": "lossless slice from the controlled row-00029 PublishingPageContent artifact",
+    "raw": "http&#58;//developer.android.com/guide/topics/manifest/application-element.html#label",
+    "canonical": "http://developer.android.com/guide/topics/manifest/application-element.html#label",
+    "rawBytes": 85,
+    "rawSha256": "8fb5bbfe739e16261c519f6006c5683fd59abba45c9b05d9ad2b1021162b4de5",
+    "semanticSha256": "c28846a17247c055b20584fef8d6af3931ba4ff7befcc08b32d32d3cd8692358"
+  }
+}
