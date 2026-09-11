@@ -30,6 +30,48 @@ new release is not a copied authority: its immutable source commit, source ref,
 commit time, exact build binding, revision, authority hash, registry hash and
 profile hash are independently regenerated and pinned.
 
+## Cross-build equivalence certificate
+
+CCD-542 adds a separate, revocable proof that this exact release can reuse the
+admitted `16.0.27708.12757` registry payload without widening either build
+binding. The certificate is
+`certificates/27708-to-27709.cross-build-equivalence.json`; its canonical hash
+is `a551b9cdb67c27e259ec8fb89457a5976a712061f117c5e97d8f0a06248fe2c1`.
+It binds 145 source and 145 target closure members, the exact SPO.Core commits
+and trees, generator commit/tree/version, both schema hashes, all source and
+target artifact hashes, and payload hash
+`805fa210c5c1157d787b8d15411f1bfb9cae2839e846f6ee9b4a637e6a9e2ac8`.
+
+The proof requires identical path sets plus identical blob, byte, parser and
+semantic hashes. Added/deleted inputs, rename/case changes, unresolved imports,
+parser drift, generator/schema/canonicalization drift, target mismatch,
+certificate tamper, revocation, cycles and overlong chains fail closed. The
+empty versioned revocation input is `certificate-revocations.json`.
+
+Run proof-first generation (omit `--no-fallback` in normal operation so any
+proof uncertainty explicitly invokes full exact generation):
+
+```bash
+python3 tools/aspx-platform-registry/cross_build_equivalence.py \
+  --spocore-repo /mnt/q/spocore/src \
+  --git-executable /usr/bin/git \
+  --source-build 16.0.27708.12757 \
+  --source-ref 1826a78bef6194afb25edc44b9abf61b7798de0a \
+  --source-tag build/main/16.0.27708.12757 \
+  --source-root tools/aspx-platform-registry \
+  --target-release-spec tools/aspx-platform-registry/versioned/spo-online-16.0.27709.12000/release-spec.json \
+  --output-root tools/aspx-platform-registry/versioned/spo-online-16.0.27709.12000 \
+  --certificate-out tools/aspx-platform-registry/versioned/spo-online-16.0.27709.12000/certificates/27708-to-27709.cross-build-equivalence.json \
+  --benchmark-out tools/aspx-platform-registry/versioned/spo-online-16.0.27709.12000/cross-build-equivalence-benchmark.json \
+  --generator-repo . \
+  --generator-ref 2428e8a9ff0293c12c463628414fc96a3ff76412
+```
+
+The direct-Git benchmark recorded pure proof `3.763462s` and full generation
+`2.677372s`. This first small-input canary is therefore `1.086090s` slower; the
+result is retained rather than presented as a saving. It establishes the
+observable baseline for later builds where extraction cost may differ.
+
 ## Validation
 
 Regenerate from the exact SPO.Core commit:

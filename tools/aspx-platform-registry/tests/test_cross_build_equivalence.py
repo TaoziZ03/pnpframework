@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import copy
 import sys
+import tempfile
+import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -216,6 +220,30 @@ class CrossBuildEquivalenceTests(unittest.TestCase):
             max_length=1,
         )
         self.assertIn("equivalence certificate chain is overlong", overlong)
+
+    def test_failed_proof_explicitly_invokes_full_exact_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            benchmark = Path(directory) / "benchmark.json"
+            args = SimpleNamespace(
+                spocore_repo="Q:/spocore/src",
+                git_executable="git",
+                target_release_spec=Path("release-spec.json"),
+                output_root=Path("target-release"),
+                benchmark_out=benchmark,
+            )
+            completed = SimpleNamespace(returncode=0)
+            with mock.patch.object(equivalence.subprocess, "run", return_value=completed) as run:
+                actual = equivalence.run_fallback(
+                    args, "one-byte input change", time.perf_counter()
+                )
+            self.assertEqual(0, actual)
+            command = run.call_args.args[0]
+            self.assertTrue(str(command[1]).endswith("generate_registry.py"))
+            self.assertIn("--release-spec", command)
+            receipt = equivalence.load_json(benchmark)
+            self.assertEqual("full_exact_generation_fallback", receipt["mode"])
+            self.assertEqual("one-byte input change", receipt["fallbackReason"])
+            self.assertEqual(0, receipt["exitCode"])
 
 
 if __name__ == "__main__":
