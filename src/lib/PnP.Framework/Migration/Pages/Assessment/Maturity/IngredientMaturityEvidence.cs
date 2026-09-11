@@ -85,6 +85,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
     {
         public PublishingPageMigrationPlan Plan { get; set; }
 
+        public External.IngredientExternalPlanEvidence External { get; set; }
+
         public string ExpectedSourceSnapshotDigest { get; set; }
 
         public string ExpectedPlanDigest { get; set; }
@@ -101,6 +103,8 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
     internal sealed class IngredientOperationalEvidence
     {
         public PublishingPageMigrationPlan Plan { get; set; }
+
+        public External.IngredientExternalOperationalEvidence External { get; set; }
 
         public string AdmittedPlanDigest { get; set; }
 

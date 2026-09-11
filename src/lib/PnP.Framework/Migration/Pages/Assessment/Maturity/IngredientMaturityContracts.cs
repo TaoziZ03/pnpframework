@@ -46,7 +46,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
     internal static class IngredientMaturityContract
     {
         public const string SchemaVersion = "pnp-ingredient-maturity-assessment/v1";
-        public const string EvaluatorVersion = "pnp-ingredient-maturity-evaluator/v2";
+        public const string EvaluatorVersion = "pnp-ingredient-maturity-evaluator/v3";
         public const string CanonicalIngredientWorkItem = "canonical-ingredient";
         public const string RuntimeVerificationWorkItem = "runtime-verification";
     }
@@ -169,6 +169,10 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
         public DateTimeOffset? ObservationWindowStartUtc { get; set; }
 
         public DateTimeOffset? ObservationWindowEndUtc { get; set; }
+
+        // Admission authority belongs to the consumer. Never populate these pins
+        // by copying a submitted annex, receipt set, or assessment.
+        public External.IngredientExternalEvidenceAdmission ExternalAdmission { get; set; }
     }
 
     internal sealed class IngredientMaturityGateResult

@@ -15,10 +15,10 @@ using System.Text.Json;
 
 namespace PnP.Framework.Migration.Pages.Assessment.Maturity
 {
-    internal static class IngredientMaturityEvidenceValidator
+    internal static partial class IngredientMaturityEvidenceValidator
     {
         internal const string ValidatorId = "pnp-ingredient-maturity-common-validator";
-        internal const string ValidatorVersion = "v2";
+        internal const string ValidatorVersion = "v3";
 
         public static IReadOnlyList<IngredientMaturityGateReceipt> ValidateM0(
             IngredientMaturityEvaluationContext context,
@@ -262,6 +262,11 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
 
         public static IReadOnlyList<IngredientMaturityGateReceipt> ValidateM3(IngredientPlanEvidence evidence)
         {
+            if (evidence?.External != null)
+            {
+                // External evidence cannot grant maturity without independent pins.
+                return ValidateM3(null, evidence);
+            }
             PageIngredientPlanEvaluation evaluation = null;
             return new[]
             {
@@ -302,6 +307,10 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity
 
         public static IReadOnlyList<IngredientMaturityGateReceipt> ValidateM4(IngredientOperationalEvidence evidence)
         {
+            if (evidence?.External != null)
+            {
+                return ValidateM4(null, evidence);
+            }
             return new[]
             {
                 Validate(IngredientMaturityGateCatalog.AdmittedExactPlan, evidence?.PlanAdmissionEvidenceReferences, () =>

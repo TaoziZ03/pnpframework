@@ -2,7 +2,7 @@
 
 Contract: `pnp-ingredient-maturity-assessment/v1`
 
-Evaluator: `pnp-ingredient-maturity-evaluator/v2`
+Evaluator: `pnp-ingredient-maturity-evaluator/v3`
 Scope: internal migration tooling. This revision does not add M0-M5 to the public PnP API.
 
 ## Decision
@@ -123,7 +123,29 @@ The shared boundary remains these eight paths; lanes do not edit them:
 - `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityEvidenceValidator.cs`
 - `src/lib/PnP.Framework/Migration/Pages/Assessment/Maturity/IngredientMaturityGateCatalog.cs`
 
-Contributors generate receipts through the current common-validator wrappers (`pnp-ingredient-maturity-common-validator`, `v2`), which reuse the PnP domain validators. Unsupported/self-awarded validator IDs or versions fail closed. A lane does not emit an assessment, register new gates, change continuity, or normalize another lane's values.
+Contributors generate receipts through the current common-validator wrappers (`pnp-ingredient-maturity-common-validator`, `v3`), which reuse the PnP domain validators. Unsupported/self-awarded validator IDs or versions fail closed. A lane does not emit an assessment, register new gates, change continuity, or normalize another lane's values.
+
+## External plans and lifecycle receipts (evaluator v3)
+
+The additive, internal `pnp-ingredient-external-evidence/v1` seam is specified in
+[`ccd-559-external-maturity-evidence.md`](ccd-559-external-maturity-evidence.md).
+An original external plan is not a `PublishingPageMigrationPlan`, and an original
+string operation ID is not converted to a synthetic GUID. An independently
+admitted annex supplies the typed PnP ingredient graph/action/policy closure that
+the external page-only plan does not contain. The original bytes and original
+plan digest remain distinct and immutable.
+
+External consumers keep `IngredientPlanEvidence` / `IngredientOperationalEvidence`,
+populate their new `External` property, and call the context-bound
+`ValidateM3(context, evidence)` / `ValidateM4(context, evidence)` overloads.
+`context.ExternalAdmission` comes from the admission consumer, not from the
+submitted annex or receipt manifest. The older one-argument overloads still
+support Publishing inputs but deliberately fail for external inputs.
+
+The new `Maturity/External/*`, `IngredientMaturityExternalEvidenceValidator.cs`,
+shared external conformance tests/resource/test fixture, and the CCD-559 document
+are also frozen Architect/Integration-owned paths. Lane owners do not edit them.
+Existing M0-M2, M5, continuity and outcome behavior is unchanged.
 
 Permanent shared controls include:
 
@@ -143,6 +165,6 @@ These are hermetic contract controls, not evidence of a lane's live M5. PnP Lead
 - Assessment digest uses the existing canonical serializer and SHA-256 implementation. There is no second digest algorithm.
 - Source/site/page-family differences remain lane evidence and fixture concerns. They do not enter the evaluator.
 - The evaluator consumes existing `PageMigrationOutcome`; it does not replace product outcome or Compare acceptance.
-- The assessment JSON schema remains v1; the strengthened evaluation semantics are explicitly versioned as evaluator v2. Old evaluator-v1 assessments must be regenerated from their original bound evidence, not relabeled.
+- The assessment JSON schema remains v1; external evidence semantics are explicitly versioned as evaluator v3/common-validator v3. Old evaluator-v1/v2 assessments must be regenerated from their original bound evidence, not relabeled. Publishing contributor source calls remain compatible; saved older summaries are not silently upgraded.
 - Existing contributor and M0 call signatures remain source-compatible; runtime-verification M0 additionally requires the optional typed assertion evidence to pass. The old single-argument `ValidateM1(evidence)` overload remains callable but returns failed receipts because it has no independent claim/time binding. Callers must adopt the context-bound overload to attain M1.
 - No graph/action/receipt/Compare/owner-registry or tenant change is part of this remediation. Integration admission belongs to a non-author reviewer on the implementation issue's native review stage; implementation tests do not self-approve admission.
