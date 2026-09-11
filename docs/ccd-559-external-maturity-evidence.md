@@ -7,6 +7,13 @@ Base: `3748a6d8c3ad919437f2310a68b81e3029e7b072`,
 tree `95bba6fbe5adba397517226ebd1ef4a5b7bf5a44`.
 Branch: `codex/ccd559-external-maturity-evidence`.
 
+The initial implementation at `35be03c36222d23884e3f33414a37138be708473`
+(tree `1db9631635b11d6498200a650cb71ffcd52c2330`) received
+`CHANGES_REQUIRED` in CCD-565. Its dependency-primitive correction is isolated
+on `codex/ccd559-lifecycle-closure`, based on that exact commit. The completed
+review remains adverse for its original input; the correction requires a new
+bounded non-author review, not a relabeled approval.
+
 ## Decision and compatibility
 
 Use a generic internal artifact envelope and a separately admitted plan-binding
@@ -133,6 +140,44 @@ following same-Web readiness evidence; it does not rewrite that label.
 `retained-or-partial` is also the producer's literal cleanup input label.
 All phases remain ordered inside the independently supplied time fence.
 
+### Native dependency primitives are not summary verdicts
+
+`ValidateTargetDependencies` is shared by all six M4 gate paths. It checks the
+required Site/Web and capability List before accepting dependent page evidence:
+
+- Native Web creation requires the exact parent/path-derived original operation
+  ID, an absent-path `preStatus=404` fence, a provision-phase UTC timestamp,
+  CSOM HTTP 200, explicitly null `errorInfo`, request correlation and the
+  accepted object/Web/ownership identity. Create acceptance does **not** require
+  provisioning to be complete; the subsequent fresh native query proves that.
+- The native Web poll reopens its original samples, requires complete bounded
+  attempts and ordered phase-bound times, and recomputes identity, ownership
+  and readiness from each observation. The terminal summary must equal the
+  first successful sample. One successful `OpenWebById` sample is sufficient;
+  the file/list/cleanup three-observation rule is not applied to Web readiness.
+  Captured non-ready attempts or the producer's exact request-exception shape
+  (`AbortError`, `TimeoutError`, `TypeError`) may precede it. Unknown or mixed
+  exception/HTTP evidence fails closed. HTTP 401/403,
+  non-null CSOM `errorInfo`, foreign identities, contradictory flags and
+  observations after a first success fail closed; a later PASS cannot erase
+  them. The failure affects this assessed instance, not independent claims.
+- The required capability List has exactly one receipt at the bound root path,
+  in the bound Web, with the independently supplied List ID and `readStatus=200`.
+  An absent-list branch also needs its original successful create and bounded
+  List readiness/identity evidence. The original existing-list branch does not
+  persist raw samples or request IDs, so the reader does not invent them.
+  Template, field/schema, ContentType and layout semantics remain lane-owned.
+
+The protocol was checked against the original producer
+`ccd-143/scripts/build-lifecycle-expressions.mjs` at
+`a0f34fe93473152818ef30842bcb82c2216135d3`, SHA-256
+`441ce088a3e2d4f5860412d8ce4d99e4c83f0ddc9e3890e8a843cff56fde19ca`.
+This is the producer pinned in the unmodified historical fixture, not this
+adapter's implementation commit. No envelope/schema/public API changes or
+additional evaluator version are introduced while the v3 candidate is still
+awaiting shared admission. Context-bound validation must replay evidence with
+the corrected implementation; an old summary cannot substitute for that replay.
+
 ## Runtime authority is not duplicated
 
 This intake supports only the original lifecycle producer's required
@@ -249,6 +294,15 @@ target, producer, operation/action, policy/dependency, raw corruption, absent
 admission/cleanup, stale readback, denial and fail-soft instance isolation.
 Four execution-frontier/page-admission counterexamples were run RED before the
 hardening and retained as permanent rejection tests.
+
+CCD-565's twelve dependency-primitive counterexamples were subsequently run
+RED against the original library source and are permanent resealed rejection
+cases in `LifecycleDependencyPrimitivesCannotBeReplacedBySummaryPass`. Each
+also proves M3 continuity and an independent instance's unaffected M4 control.
+Additional controls cover poll metadata, first-success semantics, accepted but
+incomplete creation, retained non-ready attempts, contradictory earlier
+observations, duplicate List coverage and the absent-list creation branch.
+All original 97 common and 90 external cases remain in the focused cohort.
 
 Final exact-commit build/test receipts, hashes, downloadable patch and the
 separate non-author review path are recorded on CCD-559. Tests and this document

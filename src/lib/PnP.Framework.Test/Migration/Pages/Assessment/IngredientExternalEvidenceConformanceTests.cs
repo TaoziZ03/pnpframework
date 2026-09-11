@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace PnP.Framework.Test.Migration.Pages.Assessment
 {
@@ -314,6 +315,188 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
             AnyFailed(IngredientMaturityEvidenceValidator.ValidateM4(fixture.Context, fixture.Operational));
         }
 
+        // CCD-565's twelve independently discovered counterexamples. Re-admit
+        // the mutated bytes in the test-only fixture so a raw hash check cannot
+        // conceal an incomplete primitive-evidence validator.
+        [DataTestMethod]
+        [DataRow("web-create-http403", "provision", "webs/0/create/status", "403")]
+        [DataRow("web-create-http200-csom-error", "provision", "webs/0/create/errorInfo",
+            "{\"ErrorCode\":-2147024891,\"ErrorMessage\":\"Access denied\",\"ErrorTypeName\":\"System.UnauthorizedAccessException\"}")]
+        [DataRow("web-create-missing-operation-result", "provision", "webs/0/create", "null")]
+        [DataRow("web-create-preexisting-target", "provision", "webs/0/preStatus", "200")]
+        [DataRow("web-create-out-of-phase-time", "provision", "webs/0/timestampUtc", "\"2026-09-11T00:00:00Z\"")]
+        [DataRow("web-readiness-http403", "readiness", "webs/0/samples/0/status", "403")]
+        [DataRow("web-readiness-missing-samples", "readiness", "webs/0/samples", "[]")]
+        [DataRow("web-readiness-unbounded-attempts", "readiness", "webs/0/attempts", "999")]
+        [DataRow("web-readiness-semantic-error", "readiness", "webs/0/samples/0/errorInfo",
+            "{\"ErrorCode\":-2147024891,\"ErrorMessage\":\"Access denied\"}")]
+        [DataRow("web-readiness-foreign-sample-identity", "readiness", "webs/0/samples/0/web/webId",
+            "\"11111111-1111-1111-1111-111111111111\"")]
+        [DataRow("capability-library-foreign-list", "capability", "libraries/0/listId",
+            "\"11111111-1111-1111-1111-111111111111\"")]
+        [DataRow("capability-library-http403", "capability", "libraries/0/readStatus", "403")]
+        public void LifecycleDependencyPrimitivesCannotBeReplacedBySummaryPass(
+            string counterexample, string phase, string path, string valueJson)
+        {
+            var fixture = new IngredientExternalEvidenceTestFixture();
+            fixture.MutateReceipt(phase, root => SetJson(root, path, JsonNode.Parse(valueJson)));
+            AnyFailed(IngredientMaturityEvidenceValidator.ValidateM4(fixture.Context, fixture.Operational), counterexample);
+            Assert.AreEqual(IngredientMaturityLevel.M3, fixture.Evaluate().AttainedMaturity, counterexample);
+            // Denial/missing dependency evidence is local to the assessed
+            // instance, not an exception that stops independent ingredients.
+            Assert.AreEqual(IngredientMaturityLevel.M4, new IngredientExternalEvidenceTestFixture().Evaluate().AttainedMaturity);
+        }
+
+        [DataTestMethod]
+        [DataRow("provision", "webs/0/parentPath", "\"/foreign-parent\"")]
+        [DataRow("provision", "webs/0/create", "{\"status\":200,\"requestGuid\":\"test-only\"}")]
+        [DataRow("readiness", "webs/0/ownedObjectIdentity", "\"foreign-accepted-object\"")]
+        [DataRow("readiness", "webs/0/timeoutMs", "999")]
+        [DataRow("readiness", "webs/0/elapsedMs", "999999")]
+        [DataRow("readiness", "webs/0/startedAtUtc", "\"2026-09-10T10:16:00Z\"")]
+        [DataRow("readiness", "webs/0/samples/0/attempt", "2")]
+        [DataRow("readiness", "webs/0/samples/0/atUtc", "\"2026-09-10T10:16:00Z\"")]
+        [DataRow("readiness", "webs/0/samples/0/requestGuid", "\"\"")]
+        [DataRow("readiness", "webs/0/samples/0/web/url", "\"https://foreign.invalid/web\"")]
+        [DataRow("readiness", "webs/0/samples/0/web/description", "\"foreign-owner\"")]
+        [DataRow("readiness", "webs/0/samples/0/identityMatches", "false")]
+        [DataRow("readiness", "webs/0/samples/0/ownershipMatches", "false")]
+        [DataRow("readiness", "webs/0/samples/0/ready", "false")]
+        [DataRow("readiness", "webs/0/identity/objectIdentity", "\"foreign-terminal-object\"")]
+        [DataRow("capability", "libraries", "[]")]
+        [DataRow("capability", "libraries/0/webPath", "\"/foreign-web\"")]
+        [DataRow("capability", "libraries/0/rootPath", "\"/foreign-list\"")]
+        [DataRow("capability", "libraries/0/preStatus", "403")]
+        [DataRow("capability", "libraries/0/preStatus", "404")]
+        [DataRow("native-create", "pages/0/nativeCreate/status", "403")]
+        public void NativeDependencyProtocolMetadataFailsClosed(string phase, string path, string valueJson)
+        {
+            var fixture = new IngredientExternalEvidenceTestFixture();
+            fixture.MutateReceipt(phase, root => SetJson(root, path, JsonNode.Parse(valueJson)));
+            AnyFailed(IngredientMaturityEvidenceValidator.ValidateM4(fixture.Context, fixture.Operational), phase + "/" + path);
+        }
+
+        [DataTestMethod]
+        [DataRow("single-success")]
+        [DataRow("accepted-create-incomplete")]
+        [DataRow("incomplete-then-ready")]
+        [DataRow("request-exception-then-ready")]
+        [DataRow("http-unavailable-then-ready")]
+        public void NativeWebPollingRetainsItsFirstSuccessProtocol(string observation)
+        {
+            var fixture = new IngredientExternalEvidenceTestFixture();
+            if (observation == "accepted-create-incomplete")
+                fixture.MutateReceipt("provision", root => root["webs"][0]["identity"]["isProvisioningComplete"] = false);
+            else if (observation != "single-success")
+                AddNonReadyWebAttempt(fixture, observation);
+            AllPassed(IngredientMaturityEvidenceValidator.ValidateM4(fixture.Context, fixture.Operational));
+        }
+
+        [DataTestMethod]
+        [DataRow("denied-before-success")]
+        [DataRow("semantic-error-before-success")]
+        [DataRow("success-before-terminal")]
+        [DataRow("mixed-exception-observation")]
+        [DataRow("http-exception-observation")]
+        [DataRow("unknown-request-exception")]
+        [DataRow("foreign-operation-pair")]
+        [DataRow("duplicate-library")]
+        public void LaterSuccessCannotEraseContradictoryDependencyEvidence(string mutation)
+        {
+            var fixture = new IngredientExternalEvidenceTestFixture();
+            if (mutation == "foreign-operation-pair")
+            {
+                fixture.MutateReceipt("provision", root => root["webs"][0]["operationId"] = "foreign-pair");
+                fixture.MutateReceipt("readiness", root => root["webs"][0]["operationId"] = "foreign-pair");
+            }
+            else if (mutation == "duplicate-library")
+                fixture.MutateReceipt("capability", root => root["libraries"].AsArray().Add(root["libraries"][0].DeepClone()));
+            else
+            {
+                AddNonReadyWebAttempt(fixture, mutation == "unknown-request-exception"
+                    ? "request-exception-then-ready" : "incomplete-then-ready");
+                fixture.MutateReceipt("readiness", root =>
+                {
+                    var sample = root["webs"][0]["samples"][0];
+                    if (mutation == "denied-before-success") sample["status"] = 403;
+                    else if (mutation == "semantic-error-before-success")
+                        sample["errorInfo"] = JsonNode.Parse("{\"ErrorCode\":-2147024891,\"ErrorMessage\":\"Access denied\"}");
+                    else if (mutation == "mixed-exception-observation")
+                    { sample["status"] = null; sample["error"] = "TimeoutError"; }
+                    else if (mutation == "http-exception-observation") sample["error"] = "TypeError";
+                    else if (mutation == "unknown-request-exception") sample["error"] = "UnauthorizedAccessException";
+                    else { sample["ready"] = true; sample["web"]["isProvisioningComplete"] = true; }
+                });
+            }
+            AnyFailed(IngredientMaturityEvidenceValidator.ValidateM4(fixture.Context, fixture.Operational), mutation);
+        }
+
+        [DataTestMethod]
+        [DataRow("valid", true)]
+        [DataRow("foreign-list", false)]
+        [DataRow("missing-readiness", false)]
+        [DataRow("unfenced-create", false)]
+        public void CapabilityListCreationRequiresItsOwnBoundedIdentityEvidence(string mutation, bool expectedPass)
+        {
+            var fixture = new IngredientExternalEvidenceTestFixture();
+            fixture.MutateReceipt("capability", root =>
+            {
+                var library = root["libraries"][0];
+                library["preStatus"] = mutation == "unfenced-create" ? 200 : 404;
+                library["create"] = new JsonObject { ["status"] = 201, ["requestGuid"] = "test-only-list-create" };
+                if (mutation == "missing-readiness") return;
+                library["readiness"] = new JsonObject
+                {
+                    ["state"] = "ready", ["attempts"] = 3, ["timeoutMs"] = 15000,
+                    ["startedAtUtc"] = "2026-09-10T10:16:41.200Z", ["finishedAtUtc"] = "2026-09-10T10:16:43.000Z",
+                    ["samples"] = new JsonArray(
+                        new JsonObject { ["attempt"] = 1, ["atUtc"] = "2026-09-10T10:16:41.500Z", ["status"] = 200, ["requestGuid"] = "test-only-1" },
+                        new JsonObject { ["attempt"] = 2, ["atUtc"] = "2026-09-10T10:16:42.250Z", ["status"] = 200, ["requestGuid"] = "test-only-2" },
+                        new JsonObject { ["attempt"] = 3, ["atUtc"] = "2026-09-10T10:16:43.000Z", ["status"] = 200, ["requestGuid"] = "test-only-3" }),
+                    ["lastBody"] = new JsonObject
+                    {
+                        ["Id"] = mutation == "foreign-list" ? "11111111-1111-1111-1111-111111111111" : fixture.Context.ExternalAdmission.Target.ListId,
+                        ["RootFolder"] = new JsonObject { ["ServerRelativeUrl"] = fixture.Binding.TargetListPath }
+                    }
+                };
+            });
+            var receipts = IngredientMaturityEvidenceValidator.ValidateM4(fixture.Context, fixture.Operational);
+            if (expectedPass) AllPassed(receipts);
+            else AnyFailed(receipts, mutation);
+        }
+
+        private static void AddNonReadyWebAttempt(IngredientExternalEvidenceTestFixture fixture, string observation)
+        {
+            fixture.MutateReceipt("readiness", root =>
+            {
+                root["startedAtUtc"] = "2026-09-10T10:16:34.220Z";
+                root["finishedAtUtc"] = "2026-09-10T10:16:39.501Z";
+                var web = root["webs"][0];
+                web["startedAtUtc"] = "2026-09-10T10:16:34.220Z";
+                web["finishedAtUtc"] = "2026-09-10T10:16:39.500Z";
+                web["elapsedMs"] = 5280;
+                web["attempts"] = 2;
+                var samples = web["samples"].AsArray();
+                var first = samples[0].DeepClone();
+                if (observation == "request-exception-then-ready")
+                    first = new JsonObject { ["status"] = null, ["error"] = "TimeoutError" };
+                else if (observation == "http-unavailable-then-ready")
+                {
+                    first["status"] = 503;
+                    first["identityMatches"] = false;
+                    first["ownershipMatches"] = false;
+                    foreach (var field in first["web"].AsObject().Select(value => value.Key).ToArray()) first["web"][field] = null;
+                }
+                else first["web"]["isProvisioningComplete"] = false;
+                first["attempt"] = 1;
+                first["atUtc"] = "2026-09-10T10:16:34.221Z";
+                first["ready"] = false;
+                samples[0]["attempt"] = 2;
+                samples[0]["atUtc"] = "2026-09-10T10:16:39.500Z";
+                samples.Insert(0, first);
+            });
+        }
+
         [TestMethod]
         public void DeniedInstanceFailsLocallyAndIndependentInstanceContinues()
         {
@@ -337,7 +520,9 @@ namespace PnP.Framework.Test.Migration.Pages.Assessment
             Assert.ThrowsException<InvalidDataException>(() => IngredientMaturityEvaluator.ValidateAssessment(assessment));
         }
 
-        private static void Set(System.Text.Json.Nodes.JsonNode root, string path, string value)
+        private static void Set(JsonNode root, string path, string value) => SetJson(root, path, JsonValue.Create(value));
+
+        private static void SetJson(JsonNode root, string path, JsonNode value)
         {
             var parts = path.Split('/');
             foreach (var part in parts.Take(parts.Length - 1))

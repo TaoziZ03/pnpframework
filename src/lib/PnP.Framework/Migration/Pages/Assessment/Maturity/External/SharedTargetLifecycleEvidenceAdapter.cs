@@ -158,7 +158,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             // CCD-143's provision receipt retains stateAfter=provisioned while
             // containing native Web creation. Validate that evidence explicitly;
             // do not rewrite the historical state to manufacture continuity.
-            ValidateSiteWebIdentity();
+            ValidateTargetDependencies();
         }
 
         public void ValidateOperations()
@@ -191,7 +191,7 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
 
         public void ValidateOwnership()
         {
-            ValidateSiteWebIdentity();
+            ValidateTargetDependencies();
             var provisionMarker = Property(receipts["provision"], "ownership");
             Equal(Text(provisionMarker, "path"), Text(plan.Input, "markerPath"), "created marker path");
             Success(provisionMarker, "createStatus", "requestGuid");
@@ -203,6 +203,12 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             }
             ValidateTargetIdentity(Property(Page("native-create"), "identity"));
             ValidateTargetIdentity(Property(Page("fresh-readback"), "identity"));
+        }
+
+        private void ValidateTargetDependencies()
+        {
+            ValidateSiteWebIdentity();
+            ValidateCapabilityListIdentity();
         }
 
         private void ValidateSiteWebIdentity()
@@ -221,6 +227,22 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             Text(readySite, "requestGuid");
             var createdWeb = SingleBy(receipts["provision"], "webs", "path", Binding.TargetWebPath);
             var readyWeb = SingleBy(receipts["native-web-readiness"], "webs", "path", Binding.TargetWebPath);
+            Equal(Text(createdWeb, "parentPath"), Binding.TargetWebPath.Substring(0, Binding.TargetWebPath.LastIndexOf('/')),
+                "created Web parent path");
+            Require(Number(createdWeb, "preStatus") == 404, "Native Web creation has no absent-path fence.");
+            InPhase("provision", Time(createdWeb, "timestampUtc"));
+            Equal(Text(createdWeb, "operationId"), "ccd143-native-web-create-" +
+                MigrationDigest.ComputeSha256(Binding.TargetWebPath).Substring(0, 12), "original native Web operation");
+            var creation = Property(createdWeb, "create");
+            Success(creation, "status", "requestGuid");
+            Require(Number(creation, "status") == 200 && Property(creation, "errorInfo").ValueKind == JsonValueKind.Null,
+                "Native Web CSOM creation is missing, denied or contains a semantic error.");
+            var createdIdentity = Property(createdWeb, "identity");
+            Equal(Text(readyWeb, "ownedObjectIdentity"), Text(createdIdentity, "objectIdentity"), "accepted Web object identity");
+            Equal(Text(createdIdentity, "ownershipFingerprint"), Binding.OwnershipMarker + " " + Binding.TargetWebPath,
+                "created Web ownership fingerprint");
+            Equal(Text(readyWeb, "ownershipFingerprint"), Text(createdIdentity, "ownershipFingerprint"),
+                "readiness Web ownership fingerprint");
             Equal(Text(readyWeb, "sitePath"), Binding.TargetSitePath, "ready Web parent Site");
             Equal(Text(createdWeb, "operationId"), Text(readyWeb, "operationId"), "native Web operation");
             Equal(Text(readyWeb, "ownedWebId"), Target.WebId, "owned Web ID");
@@ -232,8 +254,120 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
                 Equal(Text(identity, "serverRelativeUrl"), Binding.TargetWebPath, "native Web path");
                 Equal(Text(identity, "url"), Binding.TargetOrigin + Binding.TargetWebPath, "native Web URL");
                 Equal(Text(identity, "description"), Binding.OwnershipMarker + " " + Binding.TargetWebPath, "native Web ownership");
-                Require(Flag(identity, "isProvisioningComplete"), "Native Web provisioning is not complete.");
+                // Native create may be accepted before provisioning completes.
+                // Only the following fresh OpenWebById observation proves ready.
+                ProvisioningComplete(identity);
             }
+            Require(ProvisioningComplete(Property(readyWeb, "identity")), "Native Web provisioning is not complete.");
+            ValidateNativeWebPoll(readyWeb);
+        }
+
+        private void ValidateNativeWebPoll(JsonElement poll)
+        {
+            var limits = Property(Property(plan.Input, "pollPolicy"), "web");
+            var attempts = Number(poll, "attempts");
+            var samples = Array(poll, "samples");
+            var started = Time(poll, "startedAtUtc");
+            var finished = Time(poll, "finishedAtUtc");
+            var timeout = Number(limits, "timeoutMs");
+            InPhase("native-web-readiness", started);
+            InPhase("native-web-readiness", finished);
+            Require(attempts > 0 && attempts <= Number(limits, "attempts") && samples.Length == attempts
+                && timeout > 0 && Number(poll, "timeoutMs") == timeout
+                && finished >= started && (finished - started).TotalMilliseconds <= timeout
+                && Number(poll, "elapsedMs") >= 0 && Number(poll, "elapsedMs") <= timeout,
+                "Missing, unbounded or stale native Web readiness evidence.");
+            var previous = started;
+            for (var index = 0; index < samples.Length; index++)
+            {
+                var sample = samples[index];
+                var observed = Time(sample, "atUtc");
+                Require(Number(sample, "attempt") == index + 1 && observed >= previous && observed <= finished,
+                    "Native Web readiness samples are missing, reordered or outside their time fence.");
+                previous = observed;
+                if (Property(sample, "status").ValueKind == JsonValueKind.Null)
+                {
+                    // The producer records a caught request exception as a
+                    // non-ready attempt. Retain it; it cannot be terminal success.
+                    var error = Text(sample, "error");
+                    Require(sample.EnumerateObject().Count() == 5
+                        && (error == "AbortError" || error == "TimeoutError" || error == "TypeError"),
+                        "Unknown or mixed native Web request-exception evidence.");
+                    Require(!Flag(sample, "ready") && index < samples.Length - 1,
+                        "A failed native Web request cannot establish readiness.");
+                    continue;
+                }
+                Require(!sample.TryGetProperty("error", out _), "A native Web HTTP observation cannot hide an exception.");
+                var status = Number(sample, "status");
+                Require(status >= 100 && status <= 599 && status != 401 && status != 403,
+                    "Native Web readiness contains an unavailable/access-denied observation.");
+                Text(sample, "requestGuid");
+                Require(Property(sample, "errorInfo").ValueKind == JsonValueKind.Null,
+                    "Native Web readiness contains a CSOM semantic error.");
+                var web = Property(sample, "web");
+                var sameId = ObservedIdentity(web, "webId", Target.WebId);
+                var samePath = ObservedIdentity(web, "serverRelativeUrl", Binding.TargetWebPath);
+                var sameUrl = ObservedIdentity(web, "url", Binding.TargetOrigin + Binding.TargetWebPath);
+                var sameOwner = ObservedIdentity(web, "description", Binding.OwnershipMarker + " " + Binding.TargetWebPath);
+                Require(Flag(sample, "identityMatches") == (sameId && samePath)
+                    && Flag(sample, "ownershipMatches") == sameOwner,
+                    "Native Web readiness flags contradict the observed identity/ownership.");
+                var complete = ProvisioningComplete(web);
+                var ready = status == 200 && sameId && samePath && sameOwner && complete;
+                // CCD-143 stops at the FIRST successful native sample. It does
+                // not use the file/list/cleanup three-observation streak rule.
+                Require(Flag(sample, "ready") == ready && ready == (index == samples.Length - 1)
+                    && (!ready || sameUrl), "Native Web readiness has no exact first-success terminal observation.");
+            }
+            EqualObject(Property(poll, "identity"), Property(samples[samples.Length - 1], "web"),
+                "native Web terminal sample / summary");
+        }
+
+        private static bool ObservedIdentity(JsonElement observed, string field, string expected)
+        {
+            var value = Property(observed, field);
+            // An unsuccessful query may explicitly report no identity. An
+            // observed foreign identity is never repaired by a later summary.
+            if (value.ValueKind == JsonValueKind.Null) return false;
+            Equal(Text(observed, field), expected, "native Web sample " + field);
+            return true;
+        }
+
+        private static bool ProvisioningComplete(JsonElement identity)
+        {
+            var value = Property(identity, "isProvisioningComplete");
+            Require(value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.False
+                || value.ValueKind == JsonValueKind.True, "Invalid native Web provisioning state.");
+            return value.ValueKind == JsonValueKind.True;
+        }
+
+        private void ValidateCapabilityListIdentity()
+        {
+            var library = SingleBy(receipts["capability-readiness"], "libraries", "rootPath", Binding.TargetListPath);
+            Equal(Text(library, "webPath"), Binding.TargetWebPath, "capability List parent Web");
+            Equal(Text(library, "listId"), Target.ListId, "capability List ID");
+            Equal(Text(library, "verdict"), "pass", "capability List verdict");
+            Require(Number(library, "readStatus") == 200, "The required capability List was not readable.");
+            var preStatus = Number(library, "preStatus");
+            Require(preStatus == 200 || preStatus == 404, "Capability List preflight was unavailable.");
+            if (preStatus == 404)
+            {
+                Success(Property(library, "create"), "status", "requestGuid");
+                var readiness = Property(library, "readiness");
+                ValidatePoll(readiness, "capability-readiness", 200, "list");
+                var body = Property(readiness, "lastBody");
+                Equal(Text(body, "Id"), Target.ListId, "created capability List ID");
+                Equal(Text(Property(body, "RootFolder"), "ServerRelativeUrl"), Binding.TargetListPath,
+                    "created capability List root");
+            }
+            else
+            {
+                Require(!library.TryGetProperty("create", out _) && !library.TryGetProperty("readiness", out _),
+                    "An existing capability List cannot carry an unfenced creation branch.");
+            }
+            // The original existing-list receipt has no raw samples or request
+            // ID. Do not invent them, nor interpret baseTemplate/content types:
+            // domain readiness/fidelity remains with its existing lane validator.
         }
 
         public void ValidateFreshStorage()
