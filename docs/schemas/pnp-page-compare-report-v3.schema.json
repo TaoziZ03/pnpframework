@@ -1,0 +1,868 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:pnp:page-compare-report:v3",
+  "title": "PnP single-ingredient external terminal Compare report v3",
+  "description": "Explicitly bound CCD lifecycle/browser evidence. A negative/conditional terminal report only; not whole-page success, native import, plan revalidation, lane value comparison, cleanup completion, or maturity authority. Original v1/v2 schemas remain unchanged.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAtUtc",
+    "producer",
+    "assessmentHandoff",
+    "bindings",
+    "sourceVersionComparison",
+    "targetIdentity",
+    "storage",
+    "runtime",
+    "ingredients",
+    "acceptance",
+    "externalEvidence",
+    "reportDigestSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "pnp-page-compare-report/v3"
+    },
+    "generatedAtUtc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(Z|\\+00:00)$"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "implementationRef"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "implementationRef": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "assessmentHandoff": {
+      "type": "null"
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifestDigestSha256",
+        "sourceCaptureReceiptDigestSha256",
+        "exportSchemaVersion",
+        "snapshotDigestSha256",
+        "ingredientGraphSchemaVersion",
+        "ingredientProjectionVersion",
+        "migrationPackageSchemaVersion",
+        "planDigestSha256",
+        "importReceiptSchemaVersion",
+        "importReceiptDigestSha256",
+        "runtimeReceiptSchemaVersion",
+        "runtimeReceiptDigestSha256"
+      ],
+      "properties": {
+        "manifestDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sourceCaptureReceiptDigestSha256": {
+          "type": "null"
+        },
+        "exportSchemaVersion": {
+          "type": "null"
+        },
+        "snapshotDigestSha256": {
+          "type": "null"
+        },
+        "ingredientGraphSchemaVersion": {
+          "type": "null"
+        },
+        "ingredientProjectionVersion": {
+          "type": "null"
+        },
+        "migrationPackageSchemaVersion": {
+          "type": "null"
+        },
+        "planDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "importReceiptSchemaVersion": {
+          "const": "ccd.shared-target-lifecycle-receipt/v2"
+        },
+        "importReceiptDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "runtimeReceiptSchemaVersion": {
+          "const": "ccd.browser-runtime-review/v1"
+        },
+        "runtimeReceiptDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "sourceVersionComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expectedCompositeDigestSha256",
+        "observedCompositeDigestSha256",
+        "status"
+      ],
+      "properties": {
+        "expectedCompositeDigestSha256": {
+          "type": "null"
+        },
+        "observedCompositeDigestSha256": {
+          "type": "null"
+        },
+        "status": {
+          "const": "not-checked"
+        }
+      }
+    },
+    "targetIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "webUrlHashSha256",
+        "pageServerRelativeUrlHashSha256",
+        "fileUniqueId",
+        "listItemId",
+        "versionLabel"
+      ],
+      "properties": {
+        "webUrlHashSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "pageServerRelativeUrlHashSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "fileUniqueId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "listItemId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "versionLabel": {
+          "type": "null"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "freshReadback"
+      ],
+      "properties": {
+        "status": {
+          "const": "not-run"
+        },
+        "freshReadback": {
+          "const": true
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "failed",
+            "passed"
+          ]
+        }
+      }
+    },
+    "ingredients": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ingredientId",
+          "kind",
+          "material",
+          "lineage",
+          "expected",
+          "actual",
+          "targetEvidenceState",
+          "observedAtUtc",
+          "resultClass",
+          "reasonCode",
+          "message"
+        ],
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "material": {
+            "const": true
+          },
+          "lineage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "requestedUrlHashSha256",
+              "sourceArtifactDigestSha256",
+              "sourceIngredientId",
+              "actionId",
+              "targetIdentity",
+              "planDigestSha256",
+              "targetEvidenceDigestSha256",
+              "evidenceRefs",
+              "causeIngredientIds"
+            ],
+            "properties": {
+              "requestedUrlHashSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "sourceArtifactDigestSha256": {
+                "type": "null"
+              },
+              "sourceIngredientId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "actionId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "targetIdentity": {
+                "type": "string",
+                "format": "uri"
+              },
+              "planDigestSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "targetEvidenceDigestSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true,
+                "minItems": 5,
+                "maxItems": 5
+              },
+              "causeIngredientIds": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          },
+          "expected": {
+            "type": "null"
+          },
+          "actual": {
+            "type": "null"
+          },
+          "targetEvidenceState": {
+            "const": "partial"
+          },
+          "observedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "(Z|\\+00:00)$"
+          },
+          "resultClass": {
+            "enum": [
+              "mismatch",
+              "unknown"
+            ]
+          },
+          "reasonCode": {
+            "enum": [
+              "runtime.requirement.failed",
+              "evidence.incomplete"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verdict",
+        "reasonCodes",
+        "storageStatus",
+        "runtimeStatus"
+      ],
+      "properties": {
+        "verdict": {
+          "enum": [
+            "fail",
+            "conditional"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "allOf": [
+            {
+              "contains": {
+                "const": "NATIVE_CLEANUP_RECEIPT_UNAVAILABLE"
+              }
+            },
+            {
+              "contains": {
+                "const": "compare.external.single-ingredient-terminal"
+              }
+            },
+            {
+              "contains": {
+                "const": "compare.external.plan.reference-only"
+              }
+            },
+            {
+              "contains": {
+                "const": "compare.external.domain-comparison.not-run"
+              }
+            }
+          ]
+        },
+        "storageStatus": {
+          "const": "not-run"
+        },
+        "runtimeStatus": {
+          "enum": [
+            "failed",
+            "passed"
+          ]
+        }
+      }
+    },
+    "externalEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "admissionDigestSha256",
+        "claimId",
+        "subtype",
+        "semanticRole",
+        "primaryOwnerLane",
+        "sourcePageUrl",
+        "sourceListId",
+        "sourceItemId",
+        "sourceFileUniqueId",
+        "sourceETag",
+        "targetUrl",
+        "targetListId",
+        "targetETag",
+        "implementationCommit",
+        "implementationTree",
+        "lifecycleRunId",
+        "lifecycleDigestSha256",
+        "targetMappingDigestSha256",
+        "nativeOperationId",
+        "executionWindowStartUtc",
+        "executionWindowEndUtc",
+        "readbackAtUtc",
+        "browserObservedAtUtc",
+        "browserVerdict",
+        "browserFailedGates",
+        "storageIdentityStatus",
+        "planEvidenceStatus",
+        "domainComparisonStatus",
+        "nativeCleanupReceiptStatus",
+        "nativeCleanupReceiptDigestSha256",
+        "postCleanupStatus",
+        "artifacts",
+        "browserReviewIssue",
+        "browserReviewRunId",
+        "browserSurfaceClassification",
+        "planSchemaVersion"
+      ],
+      "properties": {
+        "scope": {
+          "const": "single-ingredient-terminal"
+        },
+        "admissionDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "claimId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subtype": {
+          "type": "string",
+          "minLength": 1
+        },
+        "semanticRole": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primaryOwnerLane": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourcePageUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sourceListId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sourceItemId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sourceFileUniqueId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sourceETag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "targetListId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "targetETag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "implementationCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "implementationTree": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "lifecycleRunId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lifecycleDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "targetMappingDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "nativeOperationId": {
+          "type": "string",
+          "pattern": "^ccd143-native-page-[0-9a-f]{16}$"
+        },
+        "executionWindowStartUtc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|\\+00:00)$"
+        },
+        "executionWindowEndUtc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|\\+00:00)$"
+        },
+        "readbackAtUtc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|\\+00:00)$"
+        },
+        "browserObservedAtUtc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|\\+00:00)$"
+        },
+        "browserVerdict": {
+          "enum": [
+            "BROWSER_RUNTIME_FAIL",
+            "BROWSER_RUNTIME_PASS"
+          ]
+        },
+        "browserFailedGates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "storageIdentityStatus": {
+          "const": "verified"
+        },
+        "planEvidenceStatus": {
+          "const": "admitted-digest-reference-only"
+        },
+        "domainComparisonStatus": {
+          "const": "not-run"
+        },
+        "nativeCleanupReceiptStatus": {
+          "const": "unavailable"
+        },
+        "nativeCleanupReceiptDigestSha256": {
+          "type": "null"
+        },
+        "postCleanupStatus": {
+          "const": "FRESH_POST_CLEANUP_ABSENCE_PASS"
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "role",
+              "schemaVersion",
+              "rawDigestSha256",
+              "length"
+            ],
+            "properties": {
+              "role": {
+                "enum": [
+                  "manifest",
+                  "fresh-readback",
+                  "browser-runtime",
+                  "cleanup-unavailable",
+                  "post-cleanup"
+                ]
+              },
+              "schemaVersion": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rawDigestSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "role": {
+                      "const": "manifest"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "schemaVersion": {
+                      "const": "ccd.shared-target-lifecycle-manifest/v1"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "role": {
+                      "const": "fresh-readback"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "schemaVersion": {
+                      "const": "ccd.shared-target-lifecycle-receipt/v2"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "role": {
+                      "const": "browser-runtime"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "schemaVersion": {
+                      "const": "ccd.browser-runtime-review/v1"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "role": {
+                      "const": "cleanup-unavailable"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "schemaVersion": {
+                      "const": "ccd.lifecycle-cleanup-transport-observation/v1"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "role": {
+                      "const": "post-cleanup"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "schemaVersion": {
+                      "const": "ccd.shared-target-lifecycle-receipt/v2"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "manifest"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            },
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "fresh-readback"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            },
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "browser-runtime"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            },
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "cleanup-unavailable"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            },
+            {
+              "contains": {
+                "properties": {
+                  "role": {
+                    "const": "post-cleanup"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            }
+          ]
+        },
+        "browserReviewIssue": {
+          "type": "string",
+          "minLength": 1
+        },
+        "browserReviewRunId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "browserSurfaceClassification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "planSchemaVersion": {
+          "const": "ccd.batch1-repro-plan/v1"
+        }
+      }
+    },
+    "reportDigestSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "externalEvidence": {
+            "properties": {
+              "browserVerdict": {
+                "const": "BROWSER_RUNTIME_FAIL"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "externalEvidence": {
+            "properties": {
+              "browserFailedGates": {
+                "minItems": 1
+              }
+            }
+          },
+          "runtime": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            }
+          },
+          "acceptance": {
+            "properties": {
+              "verdict": {
+                "const": "fail"
+              },
+              "runtimeStatus": {
+                "const": "failed"
+              },
+              "reasonCodes": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "BROWSER_RUNTIME_FAIL"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "acceptance.runtime.failed"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ingredients": {
+            "items": {
+              "properties": {
+                "resultClass": {
+                  "const": "mismatch"
+                },
+                "reasonCode": {
+                  "const": "runtime.requirement.failed"
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "externalEvidence": {
+            "properties": {
+              "browserFailedGates": {
+                "maxItems": 0
+              }
+            }
+          },
+          "runtime": {
+            "properties": {
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "acceptance": {
+            "properties": {
+              "verdict": {
+                "const": "conditional"
+              },
+              "runtimeStatus": {
+                "const": "passed"
+              }
+            }
+          },
+          "ingredients": {
+            "items": {
+              "properties": {
+                "resultClass": {
+                  "const": "unknown"
+                },
+                "reasonCode": {
+                  "const": "evidence.incomplete"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

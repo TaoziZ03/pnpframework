@@ -11,6 +11,7 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
     {
         public const string SchemaVersion = "pnp-page-compare-report/v1";
         public const string IngredientContributionSchemaVersion = "pnp-page-compare-report/v2";
+        public const string ExternalTerminalSchemaVersion = "pnp-page-compare-report/v3";
         public const string RuntimeReceiptSchemaVersion = "pnp-migration-runtime-verification-receipt/v1";
         public const string RuntimeManifestSchemaVersion = "pnp-migration-runtime-verification/v1";
         public const string RuntimeReceiptSchemaVersionV2 = "pnp-migration-runtime-verification-receipt/v2";
@@ -96,6 +97,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
         public IList<RuntimeAssertionCompareResult> Assertions { get; set; }
 
         public CompareAcceptance Acceptance { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public CompareExternalEvidenceSummary ExternalEvidence { get; set; }
+
         public string ReportDigestSha256 { get; set; }
     }
 
@@ -248,6 +253,10 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
 
     public sealed class PublishingPageCompareRequest
     {
+        // Internal, versioned intake, like CCD-559. It is deliberately not a
+        // second public import/runtime receipt or a lane-authored PASS surface.
+        internal ExternalTerminalCompareEvidence ExternalEvidence { get; set; }
+
         public DateTimeOffset GeneratedAtUtc { get; set; }
         public CompareProducer Producer { get; set; }
         public AssessmentCaptureHandoff AssessmentHandoff { get; set; }

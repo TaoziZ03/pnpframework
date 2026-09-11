@@ -294,12 +294,12 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
             RuntimeVerificationContractValidator.ValidateManifest(manifest, binding.Graph, binding.Actions);
         }
 
-        private static bool Under(string child, string parent)
+        internal static bool Under(string child, string parent)
         {
             return child == parent || child.StartsWith(parent + "/", StringComparison.Ordinal);
         }
 
-        private static bool ValidPath(string path)
+        internal static bool ValidPath(string path)
         {
             return !string.IsNullOrWhiteSpace(path) && path.StartsWith("/", StringComparison.Ordinal)
                 && !path.StartsWith("//", StringComparison.Ordinal) && !path.Contains("\\")

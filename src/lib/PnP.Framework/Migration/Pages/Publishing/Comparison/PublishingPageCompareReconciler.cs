@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Comparison
 {
-    public static class PublishingPageCompareReconciler
+    public static partial class PublishingPageCompareReconciler
     {
         public static PublishingPageCompareReport Reconcile(
             PublishingPageCompareRequest request,
@@ -96,6 +96,19 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
             if (report == null)
             {
                 throw new ArgumentNullException(nameof(report));
+            }
+
+            Require(report.ExternalEvidence == null
+                || report.SchemaVersion == PublishingPageCompareContract.ExternalTerminalSchemaVersion,
+                "External evidence cannot be attached to an unversioned/legacy report digest.");
+
+            if (report.SchemaVersion == PublishingPageCompareContract.ExternalTerminalSchemaVersion)
+            {
+                // Unlike v1/v2, a terminal evidence report seals its complete
+                // projection, including observation times and original schemas.
+                return MigrationDigest.ComputeSha256(
+                    MigrationContractSerializer.SerializeCanonicalWithNullRootProperty(
+                        report, nameof(PublishingPageCompareReport.ReportDigestSha256)));
             }
 
             if (string.Equals(
@@ -205,6 +218,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Comparison
             IList<IngredientCompareObservation> observations,
             IMigrationArtifactStore artifactStore)
         {
+            Require(request?.ExternalEvidence == null,
+                "External terminal evidence requires the explicit v3 reconciliation entry point.");
             if (request == null || request.Package == null || request.ImportReceipt == null)
             {
                 throw new InvalidDataException("Compare reconciliation requires a migration package and import receipt.");

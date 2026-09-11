@@ -91,40 +91,48 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
 
         private void ValidateHeader(JsonElement receipt, string phase)
         {
+            ValidateReceiptBinding(receipt, phase, Binding, Property(plan.Input, "execution"));
+        }
+
+        // Shared wire binding only. Calling this helper is not lifecycle/M4
+        // acceptance: all original phase, primitive and cleanup checks remain.
+        internal static void ValidateReceiptBinding(
+            JsonElement receipt, string phase, IngredientExternalPlanBinding binding, JsonElement expectedExecution)
+        {
             Equal(Text(receipt, "schema"), IngredientExternalEvidenceContract.LifecycleReceiptSchema, "receipt schema");
             Equal(Text(receipt, "issue"), "CCD-143", "receipt producer protocol");
             Equal(Text(receipt, "phase"), phase, "phase ordering");
-            Equal(Text(receipt, "runId"), Binding.RunId, "receipt run");
-            Equal(Text(receipt, "operationId"), "ccd143-" + phase + "-" + Binding.LifecycleDigest.Substring(0, 16),
+            Equal(Text(receipt, "runId"), binding.RunId, "receipt run");
+            Equal(Text(receipt, "operationId"), "ccd143-" + phase + "-" + binding.LifecycleDigest.Substring(0, 16),
                 "original phase operation ID");
-            Equal(Text(receipt, "actionId"), "ccd143-action-" + phase + "-" + Binding.LifecycleDigest.Substring(0, 16),
+            Equal(Text(receipt, "actionId"), "ccd143-action-" + phase + "-" + binding.LifecycleDigest.Substring(0, 16),
                 "original phase action ID");
-            Equal(Text(receipt, "planDigest"), Binding.PlanDigest, "receipt plan");
-            Equal(Text(receipt, "lifecycleDigest"), Binding.LifecycleDigest, "receipt lifecycle");
-            Equal(Text(receipt, "targetMappingDigest"), Binding.TargetMappingDigest, "receipt target mapping");
-            Equal(Text(receipt, "targetOrigin"), Binding.TargetOrigin, "receipt target origin");
-            Equal(Text(receipt, "ownershipMarker"), Binding.OwnershipMarker, "receipt ownership");
+            Equal(Text(receipt, "planDigest"), binding.PlanDigest, "receipt plan");
+            Equal(Text(receipt, "lifecycleDigest"), binding.LifecycleDigest, "receipt lifecycle");
+            Equal(Text(receipt, "targetMappingDigest"), binding.TargetMappingDigest, "receipt target mapping");
+            Equal(Text(receipt, "targetOrigin"), binding.TargetOrigin, "receipt target origin");
+            Equal(Text(receipt, "ownershipMarker"), binding.OwnershipMarker, "receipt ownership");
             Require(Number(receipt, "sourceRequests") == 0 && Number(receipt, "sourceMutations") == 0,
                 "A target-only lifecycle cannot claim source collection or mutate the source.");
             Equal(Text(receipt, "verdict"), "pass", "producer phase verdict");
-            Batch1SealedPlanEvidenceAdapter.ValidateProducer(Property(receipt, "producerRef"), Binding);
+            Batch1SealedPlanEvidenceAdapter.ValidateProducer(Property(receipt, "producerRef"), binding);
             var lineage = Property(receipt, "digestLineage");
-            Equal(Text(lineage, "parentPlanDigest"), Binding.PlanDigest, "parent plan lineage");
-            Equal(Text(lineage, "lifecycleDigest"), Binding.LifecycleDigest, "lifecycle lineage");
-            Equal(Text(lineage, "targetMappingDigest"), Binding.TargetMappingDigest, "target mapping lineage");
-            Batch1SealedPlanEvidenceAdapter.ValidateProducer(Property(lineage, "producer"), Binding);
+            Equal(Text(lineage, "parentPlanDigest"), binding.PlanDigest, "parent plan lineage");
+            Equal(Text(lineage, "lifecycleDigest"), binding.LifecycleDigest, "lifecycle lineage");
+            Equal(Text(lineage, "targetMappingDigest"), binding.TargetMappingDigest, "target mapping lineage");
+            Batch1SealedPlanEvidenceAdapter.ValidateProducer(Property(lineage, "producer"), binding);
             var execution = Property(receipt, "executionBinding");
             Equal(Text(execution, "mode"), "single-claim", "receipt execution mode");
             Require(Number(execution, "expectedPageCount") == 1, "Receipt claim coverage mismatch.");
-            Equal(Text(execution, "claimId"), Binding.Identity.ClaimId, "receipt claim");
-            Equal(Text(execution, "consumerIssue"), Text(Property(plan.Input, "execution"), "consumerIssue"), "receipt consumer");
-            Equal(Text(execution, "rowId"), Binding.RowId, "receipt row");
-            Equal(Text(execution, "admittedPlanDigest"), Binding.PlanDigest, "receipt execution plan");
-            Equal(Text(execution, "pnpCommit"), Binding.Producer.ImplementationCommit, "receipt implementation commit");
-            Equal(Text(execution, "pnpBranch"), Text(Property(Property(plan.Input, "execution"), "pnpImplementation"), "branch"),
+            Equal(Text(execution, "claimId"), binding.Identity.ClaimId, "receipt claim");
+            Equal(Text(execution, "consumerIssue"), Text(expectedExecution, "consumerIssue"), "receipt consumer");
+            Equal(Text(execution, "rowId"), binding.RowId, "receipt row");
+            Equal(Text(execution, "admittedPlanDigest"), binding.PlanDigest, "receipt execution plan");
+            Equal(Text(execution, "pnpCommit"), binding.Producer.ImplementationCommit, "receipt implementation commit");
+            Equal(Text(execution, "pnpBranch"), Text(Property(expectedExecution, "pnpImplementation"), "branch"),
                 "receipt implementation branch");
-            Equal(Text(execution, "targetProfile"), Binding.Target.TargetProfile, "receipt target profile");
-            Batch1SealedPlanEvidenceAdapter.ValidateSource(Property(execution, "sourceVersion"), Binding, true);
+            Equal(Text(execution, "targetProfile"), binding.Target.TargetProfile, "receipt target profile");
+            Batch1SealedPlanEvidenceAdapter.ValidateSource(Property(execution, "sourceVersion"), binding, true);
         }
 
         public void ValidateAdmission()
@@ -553,17 +561,25 @@ namespace PnP.Framework.Migration.Pages.Assessment.Maturity.External
         private JsonElement ValidatePoll(JsonElement poll, string phase, int status, string policy,
             Action<JsonElement, bool> validateSample = null)
         {
-            Equal(Text(poll, "state"), "ready", "bounded readback state");
             var limits = Property(Property(plan.Input, "pollPolicy"), policy);
+            return ValidateBoundedPoll(poll, status, Number(limits, "attempts"), Number(limits, "timeoutMs"),
+                Time(receipts[phase], "startedAtUtc"), Time(receipts[phase], "finishedAtUtc"), validateSample);
+        }
+
+        internal static JsonElement ValidateBoundedPoll(JsonElement poll, int status, int maximumAttempts,
+            int timeoutMilliseconds, DateTimeOffset phaseStart, DateTimeOffset phaseEnd,
+            Action<JsonElement, bool> validateSample = null)
+        {
+            Equal(Text(poll, "state"), "ready", "bounded readback state");
             var attempts = Number(poll, "attempts");
             var samples = Array(poll, "samples");
             var started = Time(poll, "startedAtUtc");
             var finished = Time(poll, "finishedAtUtc");
-            InPhase(phase, started);
-            InPhase(phase, finished);
-            Require(attempts > 0 && attempts <= Number(limits, "attempts") && samples.Length == attempts
-                && finished >= started && (finished - started).TotalMilliseconds <= Number(limits, "timeoutMs")
-                && Number(poll, "timeoutMs") == Number(limits, "timeoutMs"),
+            Require(started >= phaseStart && started <= phaseEnd && finished >= phaseStart && finished <= phaseEnd,
+                "An observation is outside its original phase.");
+            Require(attempts > 0 && attempts <= maximumAttempts && samples.Length == attempts
+                && finished >= started && (finished - started).TotalMilliseconds <= timeoutMilliseconds
+                && Number(poll, "timeoutMs") == timeoutMilliseconds,
                 "Missing, unbounded or stale retry/readback evidence.");
             var previous = started;
             for (var index = 0; index < samples.Length; index++)
