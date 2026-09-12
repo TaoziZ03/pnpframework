@@ -1,7 +1,9 @@
 using Microsoft.SharePoint.Client;
 using PnP.Framework.Migration.Packaging;
+using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.ClassicWiki.Capture;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Topology;
 using System;
@@ -93,8 +95,9 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
                 FileName = fileNameOnly
             };
 
+            var wikiFieldValue = ResolveWikiFieldValue(snapshot, out var wikiFieldDisposition);
             var rewrittenWikiContent = RewriteWikiContent(
-                snapshot.WikiField ?? string.Empty,
+                wikiFieldValue,
                 snapshot.Source.WebServerRelativeUrl,
                 webServerRelativeUrl);
 
@@ -214,6 +217,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
             var planDigest = ClassicWikiDigest.ComputePlanDigest(migrationPlan);
 
             var dispositions = new List<string> { "ClassicWikiPage: " + targetPageUrl };
+            dispositions.Add(wikiFieldDisposition);
             dispositions.Add("Fields: " + (fieldPlan.DeferredFieldNames.Count > 0 ? "Title materialized; metadata fields deferred" : "Title materialized"));
             dispositions.Add("Security: " + (hasUniqueSecurity ? "Unique permissions deferred (target inherits)" : "Inherited"));
 
@@ -243,6 +247,70 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Planning
 
             ClassicWikiPackageValidator.ValidateMigration(package, artifactStore);
             return package;
+        }
+
+        private static string ResolveWikiFieldValue(ClassicWikiCaptureBundle snapshot, out string disposition)
+        {
+            PageFieldValueSnapshot wikiFieldEvidence = null;
+            if (snapshot.Fields != null)
+            {
+                foreach (var field in snapshot.Fields)
+                {
+                    if (!string.Equals(field?.InternalName, "WikiField", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (wikiFieldEvidence != null)
+                    {
+                        throw new InvalidDataException(
+                            "WIKIFIELD_EVIDENCE_DUPLICATE: More than one Fields/WikiField record was captured; disposition Delegate and no WikiField write plan is admitted.");
+                    }
+
+                    wikiFieldEvidence = field;
+                }
+            }
+
+            if (wikiFieldEvidence == null)
+            {
+                throw new InvalidDataException(
+                    "WIKIFIELD_EVIDENCE_FIELD_ABSENT: Fields/WikiField evidence is absent; disposition Delegate and no WikiField write plan is admitted.");
+            }
+
+            if (wikiFieldEvidence.CaptureStatus == PageCaptureStatus.NotReturned)
+            {
+                throw new InvalidDataException(
+                    "WIKIFIELD_EVIDENCE_NOT_RETURNED: WikiField was not returned for the bound list item; disposition Delegate and no WikiField write plan is admitted.");
+            }
+
+            if (wikiFieldEvidence.CaptureStatus != PageCaptureStatus.Captured)
+            {
+                throw new InvalidDataException(
+                    $"WIKIFIELD_EVIDENCE_UNAVAILABLE: WikiField capture status is '{wikiFieldEvidence.CaptureStatus}'; disposition Delegate and no WikiField write plan is admitted.");
+            }
+
+            if (!wikiFieldEvidence.HasValue || wikiFieldEvidence.Kind == PageFieldValueKind.Null)
+            {
+                throw new InvalidDataException(
+                    "WIKIFIELD_EVIDENCE_CAPTURED_NULL: WikiField was captured as null; disposition Delegate and no empty-string WikiField write plan is admitted.");
+            }
+
+            if (wikiFieldEvidence.Kind != PageFieldValueKind.String || wikiFieldEvidence.Value == null)
+            {
+                throw new InvalidDataException(
+                    $"WIKIFIELD_EVIDENCE_NOT_STRING: WikiField evidence kind is '{wikiFieldEvidence.Kind}'; disposition Delegate and no WikiField write plan is admitted.");
+            }
+
+            if (!string.Equals(snapshot.WikiField, wikiFieldEvidence.Value, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "WIKIFIELD_EVIDENCE_MISMATCH: Snapshot.WikiField does not match Fields/WikiField typed evidence; disposition Delegate and no WikiField write plan is admitted.");
+            }
+
+            disposition = wikiFieldEvidence.Value.Length == 0
+                ? "WikiField: captured empty string; exact empty-string write planned"
+                : "WikiField: captured string value; exact write planned";
+            return wikiFieldEvidence.Value;
         }
 
         private static string RewriteWikiContent(string content, string sourceWebUrl, string targetWebUrl)

@@ -368,6 +368,111 @@ namespace PnP.Framework.Test.ClassicWiki
         }
 
         [TestMethod]
+        public void PlanningAdmitsCapturedEmptyStringWithExplicitDisposition()
+        {
+            var export = CreateExportPackage(string.Empty, 119);
+
+            var package = ClassicWikiMigrationPlanner.PlanCore(
+                Guid.NewGuid(),
+                "https://contoso.sharepoint.com/sites/target",
+                "/sites/target",
+                export,
+                new PagePlanningOptions());
+
+            Assert.AreEqual(string.Empty, package.Plan.WikiFieldPlan.ExactValue);
+            Assert.IsTrue(package.Report.Dispositions.Any(value =>
+                value == "WikiField: captured empty string; exact empty-string write planned"));
+        }
+
+        [TestMethod]
+        public void PlanningRejectsCapturedNullInsteadOfPlanningEmptyString()
+        {
+            var export = CreateExportPackage(string.Empty, 119);
+            var wikiField = export.Snapshot.Fields.Single(value => value.InternalName == "WikiField");
+            wikiField.HasValue = false;
+            wikiField.Kind = PageFieldValueKind.Null;
+            wikiField.Value = null;
+            export.Snapshot.WikiField = null;
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ClassicWikiMigrationPlanner.PlanCore(
+                    Guid.NewGuid(),
+                    "https://contoso.sharepoint.com/sites/target",
+                    "/sites/target",
+                    export,
+                    new PagePlanningOptions()));
+
+            StringAssert.Contains(exception.Message, "WIKIFIELD_EVIDENCE_CAPTURED_NULL");
+            StringAssert.Contains(exception.Message, "no empty-string WikiField write plan is admitted");
+        }
+
+        [TestMethod]
+        public void PlanningRejectsNotReturnedWikiFieldInsteadOfPlanningEmptyString()
+        {
+            var export = CreateExportPackage(string.Empty, 119);
+            var wikiField = export.Snapshot.Fields.Single(value => value.InternalName == "WikiField");
+            wikiField.CaptureStatus = PageCaptureStatus.NotReturned;
+            wikiField.HasValue = false;
+            wikiField.Kind = PageFieldValueKind.Null;
+            wikiField.Value = null;
+            export.Snapshot.WikiField = null;
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ClassicWikiMigrationPlanner.PlanCore(
+                    Guid.NewGuid(),
+                    "https://contoso.sharepoint.com/sites/target",
+                    "/sites/target",
+                    export,
+                    new PagePlanningOptions()));
+
+            StringAssert.Contains(exception.Message, "WIKIFIELD_EVIDENCE_NOT_RETURNED");
+            StringAssert.Contains(exception.Message, "disposition Delegate");
+        }
+
+        [TestMethod]
+        public void PlanningRejectsAbsentWikiFieldEvidenceInsteadOfPlanningEmptyString()
+        {
+            var export = CreateExportPackage(string.Empty, 119);
+            export.Snapshot.Fields = export.Snapshot.Fields
+                .Where(value => value.InternalName != "WikiField")
+                .ToList();
+            export.Snapshot.WikiField = null;
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ClassicWikiMigrationPlanner.PlanCore(
+                    Guid.NewGuid(),
+                    "https://contoso.sharepoint.com/sites/target",
+                    "/sites/target",
+                    export,
+                    new PagePlanningOptions()));
+
+            StringAssert.Contains(exception.Message, "WIKIFIELD_EVIDENCE_FIELD_ABSENT");
+            StringAssert.Contains(exception.Message, "disposition Delegate");
+        }
+
+        [TestMethod]
+        public void PlanningRejectsWikiFieldTypedEvidenceMismatch()
+        {
+            var export = CreateExportPackage("top-level value", 119);
+            var wikiField = export.Snapshot.Fields.Single(value => value.InternalName == "WikiField");
+            wikiField.Value = "different typed value";
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                ClassicWikiMigrationPlanner.PlanCore(
+                    Guid.NewGuid(),
+                    "https://contoso.sharepoint.com/sites/target",
+                    "/sites/target",
+                    export,
+                    new PagePlanningOptions()));
+
+            StringAssert.Contains(exception.Message, "WIKIFIELD_EVIDENCE_MISMATCH");
+        }
+
+        [TestMethod]
         public void PlanningEvaluatesUniquePermissionsAndSetsSecurityPlan()
         {
             var export = CreateExportPackage("Wiki with unique security", 119);
@@ -474,6 +579,14 @@ namespace PnP.Framework.Test.ClassicWiki
                 LibraryForceCheckout = false,
                 Fields = new List<PageFieldValueSnapshot>
                 {
+                    new PageFieldValueSnapshot
+                    {
+                        InternalName = "WikiField",
+                        CaptureStatus = PageCaptureStatus.Captured,
+                        HasValue = content != null,
+                        Kind = content == null ? PageFieldValueKind.Null : PageFieldValueKind.String,
+                        Value = content
+                    },
                     new PageFieldValueSnapshot { InternalName = "Title", Value = "Test Page" },
                     new PageFieldValueSnapshot { InternalName = "FileLeafRef", Value = PagePath.GetFileName(pageUrl) }
                 },

@@ -79,6 +79,14 @@ namespace PnP.Framework.Test.ClassicWiki
                 LibraryForceCheckout = false,
                 Fields = new List<PageFieldValueSnapshot>
                 {
+                    new PageFieldValueSnapshot
+                    {
+                        InternalName = "WikiField",
+                        CaptureStatus = PageCaptureStatus.Captured,
+                        HasValue = content != null,
+                        Kind = content == null ? PageFieldValueKind.Null : PageFieldValueKind.String,
+                        Value = content
+                    },
                     new PageFieldValueSnapshot { InternalName = "Title", Value = "Test Page" },
                     new PageFieldValueSnapshot { InternalName = "FileLeafRef", Value = PagePath.GetFileName(pageUrl) }
                 },

@@ -75,10 +75,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Capture
             context.Load(item, value => value.Id, value => value.HasUniqueRoleAssignments);
             context.ExecuteQueryRetry();
 
-            var wikiField = GetFieldString(item, "WikiField") ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(wikiField))
+            var wikiField = GetFieldString(item, "WikiField");
+            if (wikiField == null)
             {
-                warnings.Add("WikiField content is empty.");
+                warnings.Add("WikiField content is null or was not returned; typed field evidence must determine the terminal disposition.");
+            }
+            else if (wikiField.Length == 0)
+            {
+                warnings.Add("WikiField content is a captured empty string.");
             }
 
             var pageArtifact = PageArtifactSnapshotReader.Read(context, file, artifactStore, blockers);
@@ -131,9 +135,12 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Capture
 
         internal static string GetFieldString(ListItem item, string internalName)
         {
-            return item.FieldValues.TryGetValue(internalName, out var value)
-                ? Convert.ToString(value, CultureInfo.InvariantCulture)
-                : null;
+            if (!item.FieldValues.TryGetValue(internalName, out var value) || value == null)
+            {
+                return null;
+            }
+
+            return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
 
         internal static int? TryGetInt32(ListItem item, string internalName)
