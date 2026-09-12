@@ -92,6 +92,27 @@
     },
     {
       "evidenceMutation": {
+        "kind": "aggregateOutstandingPaginationFalseComplete"
+      },
+      "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-OUTSTANDING-PAGINATION-FALSE-COMPLETE",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/aggregateVerdict",
+          "value": "CompleteAuthorizedSurface"
+        }
+      ],
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
         "kind": "aggregateTerminalUnsupportedVerdict"
       },
       "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",

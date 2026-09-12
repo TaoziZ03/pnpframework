@@ -157,8 +157,8 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
             self.acquisition_profile,
         )
         self.assertEqual(v1_receipt["caseCount"], v1_receipt["passCount"])
-        self.assertEqual(21, v2_receipt["caseCount"])
-        self.assertEqual(21, v2_receipt["passCount"])
+        self.assertEqual(22, v2_receipt["caseCount"])
+        self.assertEqual(22, v2_receipt["passCount"])
         self.assertEqual(
             v2_receipt,
             validator.evaluate_fixture_suite(
@@ -201,6 +201,10 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
         )
         self.assertEqual(
             "AGGREGATE_CONTENT_MISMATCH",
+            actual["V2-AGGREGATE-OUTSTANDING-PAGINATION-FALSE-COMPLETE"],
+        )
+        self.assertEqual(
+            "AGGREGATE_CONTENT_MISMATCH",
             actual["V2-AGGREGATE-VERDICT-UNSUPPORTED"],
         )
         self.assertEqual(
@@ -213,6 +217,70 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
             },
             self.acquisition_profile["terminalRoleVersions"],
         )
+
+    def test_v2_aggregate_derivation_mirrors_denominator_cross_field_gaps(self) -> None:
+        reference = validator.load_json(RELEASE / "fixtures" / "volumes" / "reference-output-v2.json")
+        base_row = copy.deepcopy(reference["denominator"][0])
+        base_row.update(
+            {
+                "applicability": "Applicable",
+                "applicabilityRuleId": None,
+                "applicabilityRuleVersion": None,
+                "applicabilityRuleHash": None,
+                "applicabilityReviewRef": None,
+                "applicabilityPlatformBinding": None,
+                "continuationRemaining": False,
+                "expectedCount": 0,
+                "expectedCountState": "Known",
+                "paginationOutstandingTokenCount": 0,
+                "terminalOutcome": "Complete",
+            }
+        )
+        physical = {"coverageVerdict": "CompleteAuthorizedSurface"}
+        cases = [
+            (
+                {"expectedCountState": "Unknown", "expectedCount": 1},
+                {
+                    "forms:system-users:expected_count_unknown",
+                    "forms:system-users:unknown_expected_count_must_be_null",
+                },
+            ),
+            (
+                {"expectedCountState": "Known", "expectedCount": None},
+                {"forms:system-users:known_expected_count_required"},
+            ),
+            (
+                {"terminalOutcome": "Failed"},
+                {"forms:system-users:non_success_expected_count_must_be_unknown"},
+            ),
+            (
+                {"continuationRemaining": True, "paginationOutstandingTokenCount": 1},
+                {"forms:system-users:terminal_with_outstanding_pagination"},
+            ),
+            (
+                {"applicability": "NotApplicable"},
+                {"forms:system-users:invalid_not_applicable_rule"},
+            ),
+            (
+                {"applicabilityRuleId": "incomplete-rule"},
+                {"forms:system-users:incomplete_applicability_disposition_rule"},
+            ),
+        ]
+        for mutation, expected_gaps in cases:
+            with self.subTest(mutation=mutation):
+                row = copy.deepcopy(base_row)
+                row.update(mutation)
+                case_reference = {
+                    "coverageVerdict": "CompleteAuthorizedSurface",
+                    "denominator": [row],
+                    "gapCodes": [],
+                    "references": [],
+                }
+                verdict, gaps = validator._derive_v2_aggregate_semantics(
+                    physical, case_reference
+                )
+                self.assertEqual("Unknown", verdict)
+                self.assertEqual(expected_gaps, set(gaps))
 
     def test_v2_fixture_bytes_and_sqlite_are_reopened_not_trusted_from_metadata(self) -> None:
         evidence, errors = validator.load_fixture_artifact_evidence(

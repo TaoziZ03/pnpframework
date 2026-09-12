@@ -1264,6 +1264,71 @@ def apply_evidence_mutation(
         terminal = json.loads(mutated["terminalReceipt"])
         terminal["aggregateVerdict"] = verdict
         mutated["terminalReceipt"] = _json_bytes(terminal)
+    elif kind == "aggregateOutstandingPaginationFalseComplete":
+        reference = json.loads(mutated["referenceOutput"])
+        denominator = reference["denominator"][0]
+        denominator.update(
+            {
+                "aggregateEffect": "complete",
+                "applicability": "Applicable",
+                "applicabilityRuleId": None,
+                "applicabilityRuleVersion": None,
+                "applicabilityRuleHash": None,
+                "applicabilityReviewRef": None,
+                "applicabilityPlatformBinding": None,
+                "continuationRemaining": True,
+                "expectedCount": 0,
+                "expectedCountState": "Known",
+                "paginationOutstandingTokenCount": 1,
+                "terminalOutcome": "Complete",
+            }
+        )
+        observation = reference["references"][0]
+        observation.update(
+            {
+                "disposition": "ReferenceOnlyAvailable",
+                "reasonCode": "synthetic_reference_only_available",
+            }
+        )
+        reference["coverageVerdict"] = "CompleteAuthorizedSurface"
+        reference["gapCodes"] = []
+        mutated["referenceOutput"] = _json_bytes(reference)
+
+        with closing(_sqlite_connection(mutated["referenceStore"])) as connection:
+            connection.execute(
+                "UPDATE ReferenceRuns SET CoverageVerdict=? WHERE RunId=?",
+                ("CompleteAuthorizedSurface", reference["acquisitionRunId"]),
+            )
+            connection.execute(
+                "UPDATE ReferenceDenominator SET Json=? WHERE RunId=? AND SurfaceId=?",
+                (
+                    json.dumps(denominator, separators=(",", ":")),
+                    reference["acquisitionRunId"],
+                    denominator["surfaceId"],
+                ),
+            )
+            connection.execute(
+                "UPDATE ReferenceObservations SET Json=? WHERE RunId=? AND ObservationId=?",
+                (
+                    json.dumps(observation, separators=(",", ":")),
+                    reference["acquisitionRunId"],
+                    observation["referenceObservationId"],
+                ),
+            )
+            connection.execute(
+                "DELETE FROM ReferenceGaps WHERE RunId=?",
+                (reference["acquisitionRunId"],),
+            )
+            connection.commit()
+            mutated["referenceStore"] = connection.serialize()
+
+        aggregate = json.loads(mutated["aggregateOutput"])
+        aggregate["aggregateVerdict"] = "CompleteAuthorizedSurface"
+        aggregate["gapCodes"] = []
+        mutated["aggregateOutput"] = _json_bytes(aggregate)
+        terminal = json.loads(mutated["terminalReceipt"])
+        terminal["aggregateVerdict"] = "CompleteAuthorizedSurface"
+        mutated["terminalReceipt"] = _json_bytes(terminal)
     elif kind in {
         "terminalRoleVersionSwap",
         "terminalMissingVolume",
@@ -2240,8 +2305,55 @@ def _derive_v2_aggregate_semantics(
         row for row in reference.get("references", []) if isinstance(row, dict)
     ]
     for row in denominator:
-        if row.get("expectedCountState") == "Unknown":
-            gaps.add(f"{row.get('surfaceId')}:expected_count_unknown")
+        surface_id = row.get("surfaceId")
+        expected_count_state = row.get("expectedCountState")
+        expected_count = row.get("expectedCount")
+        terminal_outcome = row.get("terminalOutcome")
+        if expected_count_state == "Unknown" and expected_count is not None:
+            gaps.add(f"{surface_id}:unknown_expected_count_must_be_null")
+        if expected_count_state == "Known" and expected_count is None:
+            gaps.add(f"{surface_id}:known_expected_count_required")
+        if terminal_outcome in {
+            "Denied",
+            "Failed",
+            "Truncated",
+            "Cancelled",
+            "Unknown",
+            "Pending",
+        } and (expected_count_state != "Unknown" or expected_count is not None):
+            gaps.add(f"{surface_id}:non_success_expected_count_must_be_unknown")
+        if terminal_outcome in {"Complete", "Empty"} and (
+            row.get("continuationRemaining")
+            or row.get("paginationOutstandingTokenCount") != 0
+        ):
+            gaps.add(f"{surface_id}:terminal_with_outstanding_pagination")
+        if row.get("applicability") == "NotApplicable":
+            gaps.add(f"{surface_id}:invalid_not_applicable_rule")
+
+        rule_fields = [
+            row.get("applicabilityRuleId"),
+            row.get("applicabilityRuleVersion"),
+            row.get("applicabilityRuleHash"),
+            row.get("applicabilityReviewRef"),
+            row.get("applicabilityPlatformBinding"),
+        ]
+        has_disposition_rule = any(
+            isinstance(value, str) and bool(value.strip()) for value in rule_fields
+        )
+        if has_disposition_rule and (
+            not isinstance(rule_fields[0], str)
+            or not rule_fields[0].strip()
+            or not isinstance(rule_fields[1], str)
+            or not rule_fields[1].strip()
+            or not SHA256_RE.fullmatch(str(rule_fields[2]))
+            or not isinstance(rule_fields[3], str)
+            or not rule_fields[3].strip()
+            or not isinstance(rule_fields[4], str)
+            or not rule_fields[4].strip()
+        ):
+            gaps.add(f"{surface_id}:incomplete_applicability_disposition_rule")
+        if expected_count_state == "Unknown":
+            gaps.add(f"{surface_id}:expected_count_unknown")
 
     has_unknown = (
         bool(gaps)
