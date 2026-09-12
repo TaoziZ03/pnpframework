@@ -454,6 +454,51 @@ namespace PnP.Framework.Test.ClassicWiki
         }
 
         [TestMethod]
+        public void PlanningRejectsDuplicateWikiFieldEvidenceBeforePlanAdmission()
+        {
+            var export = CreateExportPackage("captured source value", 119);
+            export.Snapshot.Fields.Add(new PageFieldValueSnapshot
+            {
+                InternalName = "WikiField",
+                CaptureStatus = PageCaptureStatus.Captured,
+                HasValue = true,
+                Kind = PageFieldValueKind.String,
+                Value = "duplicate source value"
+            });
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
+
+            AssertWikiFieldEvidenceRejectedBeforePlanAdmission(
+                export,
+                "WIKIFIELD_EVIDENCE_DUPLICATE");
+        }
+
+        [TestMethod]
+        public void PlanningRejectsUnavailableWikiFieldEvidenceBeforePlanAdmission()
+        {
+            var export = CreateExportPackage("captured source value", 119);
+            var wikiField = export.Snapshot.Fields.Single(value => value.InternalName == "WikiField");
+            wikiField.CaptureStatus = PageCaptureStatus.CapturedWithLimitations;
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
+
+            AssertWikiFieldEvidenceRejectedBeforePlanAdmission(
+                export,
+                "WIKIFIELD_EVIDENCE_UNAVAILABLE");
+        }
+
+        [TestMethod]
+        public void PlanningRejectsCapturedNonStringWikiFieldEvidenceBeforePlanAdmission()
+        {
+            var export = CreateExportPackage("captured source value", 119);
+            var wikiField = export.Snapshot.Fields.Single(value => value.InternalName == "WikiField");
+            wikiField.Kind = PageFieldValueKind.StringCollection;
+            export.SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(export.Snapshot);
+
+            AssertWikiFieldEvidenceRejectedBeforePlanAdmission(
+                export,
+                "WIKIFIELD_EVIDENCE_NOT_STRING");
+        }
+
+        [TestMethod]
         public void PlanningRejectsWikiFieldTypedEvidenceMismatch()
         {
             var export = CreateExportPackage("top-level value", 119);
@@ -517,6 +562,33 @@ namespace PnP.Framework.Test.ClassicWiki
             Assert.IsFalse(package.Plan.SecurityPlan.HasUniqueRoleAssignments);
             Assert.AreEqual("Inherit", package.Plan.SecurityPlan.Disposition);
             Assert.IsTrue(package.Report.Dispositions.Any(d => d.Contains("Security: Inherited")));
+        }
+
+        private static void AssertWikiFieldEvidenceRejectedBeforePlanAdmission(
+            ClassicWikiExportPackage export,
+            string expectedErrorCode)
+        {
+            ClassicWikiMigrationPackage package = null;
+
+            var exception = Assert.ThrowsException<InvalidDataException>(() =>
+                package = ClassicWikiMigrationPlanner.PlanCore(
+                    Guid.NewGuid(),
+                    "https://contoso.sharepoint.com/sites/target",
+                    "/sites/target",
+                    export,
+                    new PagePlanningOptions()));
+
+            Assert.IsNotNull(exception.TargetSite);
+            Assert.AreEqual(
+                "ResolveWikiFieldValue",
+                exception.TargetSite.Name,
+                "The evidence failure must originate before WikiFieldWritePolicy.Build is reached.");
+            Assert.IsNull(
+                package,
+                "Rejected evidence must not return a migration package containing an empty-string write, migration plan, planDigest, target action, equality/Copy admission, M4/M5 evidence, or success state.");
+            StringAssert.Contains(exception.Message, expectedErrorCode);
+            StringAssert.Contains(exception.Message, "disposition Delegate");
+            StringAssert.Contains(exception.Message, "no WikiField write plan is admitted");
         }
 
         private static ClassicWikiExportPackage CreateExportPackage(string content, int libraryTemplate, string pageUrl = "/sites/demo/SitePages/Welcome.aspx")
