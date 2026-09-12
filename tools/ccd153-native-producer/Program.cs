@@ -16,15 +16,22 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using IOFile = System.IO.File;
 
-if (args.Length != 2 || (args[0] != "import" && args[0] != "reconcile" && args[0] != "validate-import"))
+if (args.Length != 2 || (args[0] != "import"
+    && args[0] != "reconcile"
+    && args[0] != "validate-import"
+    && args[0] != "adapt-classic-wiki-rest"))
 {
     throw new ArgumentException(
-        "usage: ccd153-native-producer <import|reconcile|validate-import> <request.json>");
+        "usage: ccd153-native-producer <import|reconcile|validate-import|adapt-classic-wiki-rest> <request.json>");
 }
 
 var options = CreateJsonOptions(writeIndented: false);
 var indented = CreateJsonOptions(writeIndented: true);
-if (args[0] == "import")
+if (args[0] == "adapt-classic-wiki-rest")
+{
+    RunClassicWikiRestSourceAdaptation(Path.GetFullPath(args[1]), options, indented);
+}
+else if (args[0] == "import")
 {
     RunImport(Path.GetFullPath(args[1]), options, indented);
 }
@@ -35,6 +42,31 @@ else if (args[0] == "reconcile")
 else
 {
     RunValidateImport(Path.GetFullPath(args[1]), options, indented);
+}
+
+static void RunClassicWikiRestSourceAdaptation(
+    string requestPath,
+    JsonSerializerOptions options,
+    JsonSerializerOptions indented)
+{
+    var request = Read<ClassicWikiRestSourceAdaptationRequest>(requestPath, options);
+    Require(request.Schema == "ccd153.classic-wiki-rest-source-adaptation-request/v1",
+        "classic_wiki_rest_source_adaptation_request_schema_unsupported");
+    ValidateImplementationRef(request.ImplementationRef);
+
+    var package = Read<ClassicWikiMigrationPackage>(Resolve(requestPath, request.PackagePath), options);
+    var admittedPlan = Read<AdmittedReproExecutionPlan>(Resolve(requestPath, request.AdmittedPlanPath), options);
+    ValidateTargetWeb(package.Plan?.TargetLocation?.TargetWebUrl);
+    var outputDirectory = Resolve(requestPath, request.OutputDirectory);
+    var manifest = ClassicWikiRestSourceAdaptationEntry.Run(
+        request.CaseId,
+        request.ImplementationRef,
+        CurrentBinarySha256(),
+        outputDirectory,
+        package,
+        admittedPlan,
+        indented);
+    Console.WriteLine(JsonSerializer.Serialize(manifest, indented));
 }
 
 static void RunValidateImport(string requestPath, JsonSerializerOptions options, JsonSerializerOptions indented)
@@ -554,6 +586,16 @@ sealed class NativeImportRequest
     public string ArtifactStorePath { get; set; }
     public string OutputDirectory { get; set; }
     public string TargetCookieEnvironmentVariable { get; set; }
+}
+
+sealed class ClassicWikiRestSourceAdaptationRequest
+{
+    public string Schema { get; set; }
+    public string CaseId { get; set; }
+    public string ImplementationRef { get; set; }
+    public string PackagePath { get; set; }
+    public string AdmittedPlanPath { get; set; }
+    public string OutputDirectory { get; set; }
 }
 
 sealed class NativeImportValidationRequest

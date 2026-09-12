@@ -1,0 +1,785 @@
+using PnP.Framework.Migration.Evidence;
+using PnP.Framework.Migration.Pages;
+using PnP.Framework.Migration.Pages.ClassicWiki.Capture;
+using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
+using PnP.Framework.Migration.Pages.Capture;
+using PnP.Framework.Migration.Pages.Planning;
+using PnP.Framework.Migration.Pages.References;
+using PnP.Framework.Migration.Verification;
+
+internal static class ClassicWikiRestSourceAdapter
+{
+    public static ClassicWikiRestSourceAdaptationResult Adapt(
+        ClassicWikiMigrationPackage package,
+        AdmittedReproExecutionPlan admittedPlan)
+    {
+        if (package == null) throw new ArgumentNullException(nameof(package));
+        if (admittedPlan == null) throw new ArgumentNullException(nameof(admittedPlan));
+
+        ClassicWikiPackageValidator.ValidateMigration(package);
+        var priorAdmittedPlanDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+            admittedPlan,
+            package.PlanDigest,
+            admittedPlan.TargetIdentity);
+
+        var warnings = new List<string>();
+        var reconstructed = ClassicWikiReferenceInventory
+            .CaptureReferenceOnly(package.Snapshot, warnings)
+            .ToList();
+        var declared = package.Snapshot.Dependencies?.ToList() ?? new List<PageReferenceSnapshot>();
+        var inventoryResolution = declared.Count > 0
+            ? ResolveInventory(declared, reconstructed)
+            : ClassicWikiInventoryResolution.Empty;
+        if (inventoryResolution.HasConflict)
+        {
+            throw new InvalidDataException(
+                "classic_wiki_source_dependency_inventory_conflicts_with_wiki_field");
+        }
+
+        var sourceDependencies = declared.Count > 0 ? declared : reconstructed;
+        package.Snapshot.Dependencies = sourceDependencies;
+        package.Snapshot.Warnings ??= new List<string>();
+        AddOnce(
+            package.Snapshot.Warnings,
+            "Classic Wiki authored references were reconstructed from the digest-bound REST WikiField by the native reference-only source adapter.");
+        foreach (var warning in warnings)
+        {
+            AddOnce(package.Snapshot.Warnings, "Reference-only source adaptation: " + warning);
+        }
+        foreach (var unavailable in inventoryResolution.Unavailable)
+        {
+            unavailable.Diagnostics ??= new List<string>();
+            AddOnce(
+                unavailable.Diagnostics,
+                "Native source adaptation retained this dependency as unavailable and delegated its unsafe target rewrite branch.");
+        }
+
+        var export = new ClassicWikiExportPackage
+        {
+            SchemaVersion = package.ExportSchemaVersion,
+            ExportedAtUtc = package.ExportedAtUtc,
+            Selection = package.Selection,
+            SelectionDigest = package.SelectionDigest,
+            Snapshot = package.Snapshot,
+            SnapshotDigest = ClassicWikiDigest.ComputeSnapshotDigest(package.Snapshot)
+        };
+        var target = package.Plan.TargetLocation;
+        var targetWeb = new Uri(target.TargetWebUrl);
+        var adaptedPackage = new ClassicWikiMigrationPlanner().PlanOffline(
+            target.TargetWebId,
+            target.TargetWebUrl,
+            Uri.UnescapeDataString(targetWeb.AbsolutePath),
+            export,
+            new PagePlanningOptions
+            {
+                TargetPageServerRelativeUrl = package.Plan.TargetPageServerRelativeUrl
+            });
+
+        RequireSameTarget(package, adaptedPackage);
+        var dependencyDispositions = ApplyDependencyDispositions(
+            adaptedPackage,
+            package.Snapshot.Source,
+            sourceDependencies,
+            inventoryResolution.Unavailable);
+        adaptedPackage.Report.Dispositions.Add(
+            $"Dependencies: {sourceDependencies.Count} authored reference(s) reconstructed from digest-bound REST WikiField");
+        adaptedPackage.PlanDigest = ClassicWikiDigest.ComputePlanDigest(adaptedPackage.Plan);
+        ClassicWikiPackageValidator.ValidateMigration(adaptedPackage);
+
+        admittedPlan.PlanDigest = adaptedPackage.PlanDigest;
+        admittedPlan.Operations = new ReproOperationIds
+        {
+            MutationOperationId = Guid.NewGuid(),
+            ReadbackOperationId = Guid.NewGuid(),
+            RuntimeOperationId = Guid.NewGuid(),
+            CleanupOperationId = Guid.NewGuid()
+        };
+        var adaptedAdmittedPlanDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+            admittedPlan,
+            adaptedPackage.PlanDigest,
+            admittedPlan.TargetIdentity);
+
+        return new ClassicWikiRestSourceAdaptationResult
+        {
+            Package = adaptedPackage,
+            AdmittedPlan = admittedPlan,
+            PriorPlanDigestSha256 = package.PlanDigest,
+            AdaptedPlanDigestSha256 = adaptedPackage.PlanDigest,
+            PriorAdmittedPlanDigestSha256 = priorAdmittedPlanDigest,
+            AdaptedAdmittedPlanDigestSha256 = adaptedAdmittedPlanDigest,
+            DependencyCount = sourceDependencies.Count,
+            ReconstructedDependencyCount = reconstructed.Count,
+            UsedDeclaredInventory = declared.Count > 0,
+            DependencyDispositions = dependencyDispositions
+        };
+    }
+
+    internal static bool SameInventory(
+        IList<PageReferenceSnapshot> declared,
+        IList<PageReferenceSnapshot> reconstructed)
+    {
+        var resolution = ResolveInventory(declared, reconstructed);
+        return !resolution.HasConflict && resolution.Unavailable.Count == 0;
+    }
+
+    private static ClassicWikiInventoryResolution ResolveInventory(
+        IList<PageReferenceSnapshot> declared,
+        IList<PageReferenceSnapshot> reconstructed)
+    {
+        if (declared == null || reconstructed == null || declared.Count != reconstructed.Count)
+        {
+            return ClassicWikiInventoryResolution.Conflict;
+        }
+
+        var unused = reconstructed.ToList();
+        var unavailable = new List<PageReferenceSnapshot>();
+        foreach (var expected in declared)
+        {
+            var match = unused.FirstOrDefault(actual =>
+                expected != null
+                && actual != null
+                && RequiredEquals(expected.Id, actual.Id)
+                && expected.Kind == actual.Kind
+                && RequiredEquals(expected.Consumer, actual.Consumer)
+                && RequiredEquals(expected.OriginalValue, actual.OriginalValue)
+                && RequiredUrlEquals(expected.SourceAbsoluteUrl, actual.SourceAbsoluteUrl)
+                && OptionalPathEquals(expected.SourceServerRelativeUrl, actual.SourceServerRelativeUrl));
+            if (match == null
+                || !Enum.IsDefined(typeof(PageCaptureStatus), expected.CaptureStatus)
+                || !Enum.IsDefined(typeof(PageCaptureStatus), match.CaptureStatus))
+            {
+                return ClassicWikiInventoryResolution.Conflict;
+            }
+            if (expected.CaptureStatus == PageCaptureStatus.Captured
+                && match.CaptureStatus == PageCaptureStatus.Captured)
+            {
+                unused.Remove(match);
+                continue;
+            }
+            if (IsKnownUnavailable(expected.CaptureStatus)
+                && match.CaptureStatus == PageCaptureStatus.Captured)
+            {
+                unavailable.Add(expected);
+                unused.Remove(match);
+                continue;
+            }
+            return ClassicWikiInventoryResolution.Conflict;
+        }
+        return unused.Count == 0
+            ? new ClassicWikiInventoryResolution(unavailable, hasConflict: false)
+            : ClassicWikiInventoryResolution.Conflict;
+    }
+
+    private static IList<ClassicWikiRestSourceDependencyDisposition> ApplyDependencyDispositions(
+        ClassicWikiMigrationPackage adaptedPackage,
+        PageIdentity source,
+        IList<PageReferenceSnapshot> sourceDependencies,
+        IList<PageReferenceSnapshot> unavailableDependencies)
+    {
+        var unavailableById = unavailableDependencies.ToDictionary(value => value.Id, StringComparer.Ordinal);
+        var safeWikiField = adaptedPackage.Plan.WikiFieldPlan.ExactValue;
+        var result = new List<ClassicWikiRestSourceDependencyDisposition>();
+        foreach (var sourceDependency in sourceDependencies)
+        {
+            var plan = adaptedPackage.Plan.Dependencies.SingleOrDefault(value =>
+                string.Equals(value.SourceId, sourceDependency.Id, StringComparison.Ordinal));
+            if (plan == null)
+            {
+                throw new InvalidDataException(
+                    "classic_wiki_source_dependency_inventory_conflicts_with_planned_dependencies");
+            }
+
+            if (!unavailableById.ContainsKey(sourceDependency.Id))
+            {
+                result.Add(new ClassicWikiRestSourceDependencyDisposition
+                {
+                    SourceId = sourceDependency.Id,
+                    CaptureStatus = sourceDependency.CaptureStatus,
+                    Disposition = "Rewrite",
+                    ReasonCode = "CAPTURED"
+                });
+                continue;
+            }
+
+            var rewrittenValue = plan.TargetOriginalValue;
+            if (!string.Equals(rewrittenValue, sourceDependency.OriginalValue, StringComparison.Ordinal))
+            {
+                safeWikiField = RestoreCanonicalReference(
+                    safeWikiField,
+                    sourceDependency.Consumer,
+                    rewrittenValue,
+                    sourceDependency.OriginalValue);
+            }
+
+            plan.Disposition = "Delegate";
+            var reasonCode = ReasonCode(sourceDependency, source);
+            result.Add(new ClassicWikiRestSourceDependencyDisposition
+            {
+                SourceId = sourceDependency.Id,
+                CaptureStatus = sourceDependency.CaptureStatus,
+                Disposition = plan.Disposition,
+                ReasonCode = reasonCode
+            });
+            var message = $"Dependency '{sourceDependency.Id}' is {sourceDependency.CaptureStatus}; "
+                + $"disposition=Delegate; reason={reasonCode}; source locator is preserved and exact fidelity is not claimed.";
+            AddOnce(adaptedPackage.Plan.Warnings, message);
+            AddOnce(adaptedPackage.Report.Warnings, message);
+            adaptedPackage.Report.Dispositions.Add(message);
+        }
+
+        if (unavailableDependencies.Count > 0)
+        {
+            adaptedPackage.Plan.WikiFieldPlan = WikiFieldWritePolicy.Build(safeWikiField);
+            BindUnavailablePlansToTargetReadback(
+                adaptedPackage,
+                unavailableDependencies,
+                safeWikiField);
+            adaptedPackage.Report.Status = "Conditional";
+        }
+        return result;
+    }
+
+    private static void BindUnavailablePlansToTargetReadback(
+        ClassicWikiMigrationPackage adaptedPackage,
+        IList<PageReferenceSnapshot> unavailableDependencies,
+        string emittedWikiField)
+    {
+        var target = adaptedPackage.Plan.TargetLocation;
+        var targetWebUri = new Uri(target.TargetWebUrl);
+        var targetSnapshot = new ClassicWikiCaptureBundle
+        {
+            CapturePolicy = adaptedPackage.Snapshot.CapturePolicy,
+            Source = new PageIdentity
+            {
+                WebId = target.TargetWebId,
+                WebUrl = target.TargetWebUrl,
+                WebServerRelativeUrl = Uri.UnescapeDataString(targetWebUri.AbsolutePath).TrimEnd('/'),
+                PageServerRelativeUrl = adaptedPackage.Plan.TargetPageServerRelativeUrl
+            },
+            WikiField = emittedWikiField,
+            WikiFieldSha256 = ClassicWikiDigest.ComputeSha256(emittedWikiField ?? string.Empty)
+        };
+        var observed = ClassicWikiReferenceInventory.CaptureReferenceOnly(targetSnapshot);
+
+        foreach (var unavailable in unavailableDependencies)
+        {
+            var matches = observed.Where(value =>
+                value != null
+                && value.Kind == unavailable.Kind
+                && RequiredEquals(value.Consumer, unavailable.Consumer)
+                && string.Equals(value.OriginalValue, unavailable.OriginalValue, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (matches.Length != 1)
+            {
+                throw new InvalidDataException(
+                    "classic_wiki_unavailable_dependency_target_readback_is_not_unique");
+            }
+
+            var plan = adaptedPackage.Plan.Dependencies.Single(value =>
+                string.Equals(value.SourceId, unavailable.Id, StringComparison.Ordinal));
+            var targetReference = matches[0];
+            plan.TargetOriginalValue = targetReference.OriginalValue;
+            plan.TargetAbsoluteUrl = targetReference.SourceAbsoluteUrl;
+            plan.TargetServerRelativeUrl = targetReference.SourceServerRelativeUrl;
+        }
+    }
+
+    private static bool IsKnownUnavailable(PageCaptureStatus status) =>
+        status == PageCaptureStatus.Failed || status == PageCaptureStatus.NotReturned;
+
+    private static string ReasonCode(PageReferenceSnapshot dependency, PageIdentity source)
+    {
+        var evidence = dependency.AuthorizationEvidence;
+        if (evidence != null)
+        {
+            LiteralHttpAuthorizationEvidence.Validate(evidence);
+            var expectedCsomRequest = source?.WebUrl?.TrimEnd('/') + "/_vti_bin/client.svc/ProcessQuery";
+            if (!string.Equals(evidence.Operation, "capture-page-reference-payload", StringComparison.Ordinal)
+                || !RequiredUrlEquals(evidence.RequestUri, dependency.SourceAbsoluteUrl)
+                    && !RequiredUrlEquals(evidence.RequestUri, expectedCsomRequest))
+            {
+                throw new InvalidDataException(
+                    "classic_wiki_unavailable_dependency_authorization_evidence_invalid");
+            }
+            return "ACCESS_DENIED_SKIPPED";
+        }
+        return dependency.CaptureStatus == PageCaptureStatus.NotReturned
+            ? "SOURCE_REFERENCE_NOT_RETURNED"
+            : "SOURCE_REFERENCE_CAPTURE_FAILED";
+    }
+
+    private static string RestoreCanonicalReference(
+        string wikiField,
+        string consumer,
+        string rewrittenValue,
+        string sourceValue)
+    {
+        if (string.IsNullOrEmpty(wikiField)
+            || string.IsNullOrWhiteSpace(consumer)
+            || string.IsNullOrWhiteSpace(rewrittenValue)
+            || string.IsNullOrWhiteSpace(sourceValue))
+        {
+            throw new InvalidDataException(
+                "classic_wiki_unavailable_dependency_cannot_be_preserved_in_wiki_field");
+        }
+
+        var consumerMatch = System.Text.RegularExpressions.Regex.Match(
+            consumer,
+            @"^(?<tag>[A-Za-z][A-Za-z0-9:_-]*)\[(?<attribute>[A-Za-z][A-Za-z0-9:_-]*)\]$",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (!consumerMatch.Success)
+        {
+            throw new InvalidDataException(
+                "classic_wiki_unavailable_dependency_consumer_is_not_a_wiki_field_attribute");
+        }
+
+        var tagName = consumerMatch.Groups["tag"].Value;
+        var attributeName = consumerMatch.Groups["attribute"].Value;
+        var replacements = 0;
+        var restored = RestoreAttributeOnStartTags(
+            wikiField,
+            tagName,
+            attributeName,
+            rewrittenValue,
+            sourceValue,
+            ref replacements);
+
+        if (replacements == 0)
+        {
+            throw new InvalidDataException(
+                "classic_wiki_unavailable_dependency_cannot_be_preserved_in_wiki_field");
+        }
+        return restored;
+    }
+
+    private static string RestoreAttributeOnStartTags(
+        string wikiField,
+        string tagName,
+        string attributeName,
+        string rewrittenValue,
+        string sourceValue,
+        ref int replacements)
+    {
+        var output = new System.Text.StringBuilder(wikiField.Length);
+        var cursor = 0;
+        while (cursor < wikiField.Length)
+        {
+            var tagStart = wikiField.IndexOf('<', cursor);
+            if (tagStart < 0)
+            {
+                output.Append(wikiField, cursor, wikiField.Length - cursor);
+                break;
+            }
+
+            output.Append(wikiField, cursor, tagStart - cursor);
+            if (StartsWithOrdinal(wikiField, tagStart, "<!--"))
+            {
+                var commentEnd = wikiField.IndexOf("-->", tagStart + 4, StringComparison.Ordinal);
+                if (commentEnd < 0)
+                {
+                    output.Append(wikiField, tagStart, wikiField.Length - tagStart);
+                    break;
+                }
+                var commentLength = commentEnd + 3 - tagStart;
+                output.Append(wikiField, tagStart, commentLength);
+                cursor = tagStart + commentLength;
+                continue;
+            }
+
+            var tagEnd = FindTagEnd(wikiField, tagStart + 1);
+            if (tagEnd < 0)
+            {
+                output.Append(wikiField, tagStart, wikiField.Length - tagStart);
+                break;
+            }
+
+            var nameStart = tagStart + 1;
+            if (nameStart >= tagEnd
+                || wikiField[nameStart] == '/'
+                || wikiField[nameStart] == '!'
+                || wikiField[nameStart] == '?')
+            {
+                output.Append(wikiField, tagStart, tagEnd - tagStart + 1);
+                cursor = tagEnd + 1;
+                continue;
+            }
+
+            var nameEnd = nameStart;
+            while (nameEnd < tagEnd && IsMarkupNameCharacter(wikiField[nameEnd]))
+            {
+                nameEnd++;
+            }
+            var parsedTagName = wikiField.Substring(nameStart, nameEnd - nameStart);
+            if (string.Equals(parsedTagName, tagName, StringComparison.OrdinalIgnoreCase))
+            {
+                output.Append(RestoreAttributeInTag(
+                    wikiField.Substring(tagStart, tagEnd - tagStart + 1),
+                    nameEnd - tagStart,
+                    attributeName,
+                    rewrittenValue,
+                    sourceValue,
+                    ref replacements));
+            }
+            else
+            {
+                output.Append(wikiField, tagStart, tagEnd - tagStart + 1);
+            }
+            cursor = tagEnd + 1;
+
+            if (IsHtmlTextElement(parsedTagName))
+            {
+                var textEnd = FindHtmlTextElementEnd(wikiField, cursor, parsedTagName);
+                if (textEnd < 0)
+                {
+                    output.Append(wikiField, cursor, wikiField.Length - cursor);
+                    break;
+                }
+
+                output.Append(wikiField, cursor, textEnd - cursor);
+                cursor = textEnd;
+            }
+        }
+        return output.ToString();
+    }
+
+    private static string RestoreAttributeInTag(
+        string tag,
+        int attributesStart,
+        string attributeName,
+        string rewrittenValue,
+        string sourceValue,
+        ref int replacements)
+    {
+        var output = new System.Text.StringBuilder(tag.Length);
+        var copiedThrough = 0;
+        var cursor = attributesStart;
+        while (cursor < tag.Length - 1)
+        {
+            while (cursor < tag.Length - 1
+                && (char.IsWhiteSpace(tag[cursor]) || tag[cursor] == '/'))
+            {
+                cursor++;
+            }
+            var nameStart = cursor;
+            while (cursor < tag.Length - 1 && IsAttributeNameCharacter(tag[cursor]))
+            {
+                cursor++;
+            }
+            if (cursor == nameStart)
+            {
+                cursor++;
+                continue;
+            }
+
+            var nameEnd = cursor;
+            while (cursor < tag.Length - 1 && char.IsWhiteSpace(tag[cursor]))
+            {
+                cursor++;
+            }
+            if (cursor >= tag.Length - 1 || tag[cursor] != '=')
+            {
+                continue;
+            }
+            cursor++;
+            while (cursor < tag.Length - 1 && char.IsWhiteSpace(tag[cursor]))
+            {
+                cursor++;
+            }
+            if (cursor >= tag.Length - 1)
+            {
+                break;
+            }
+
+            var quote = tag[cursor] == '\"' || tag[cursor] == '\'' ? tag[cursor++] : '\0';
+            var valueStart = cursor;
+            if (quote == '\0')
+            {
+                while (cursor < tag.Length - 1
+                    && !char.IsWhiteSpace(tag[cursor])
+                    && tag[cursor] != '>')
+                {
+                    cursor++;
+                }
+            }
+            else
+            {
+                while (cursor < tag.Length - 1 && tag[cursor] != quote)
+                {
+                    cursor++;
+                }
+            }
+            var valueEnd = cursor;
+            if (quote != '\0' && cursor < tag.Length - 1)
+            {
+                cursor++;
+            }
+
+            if (!string.Equals(
+                tag.Substring(nameStart, nameEnd - nameStart),
+                attributeName,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var rawValue = tag.Substring(valueStart, valueEnd - valueStart);
+            string updatedRawValue;
+            var replacementCount = 0;
+            if (string.Equals(attributeName, "style", StringComparison.OrdinalIgnoreCase))
+            {
+                var cssReplacement = RestoreCssUrl(rawValue, rewrittenValue, sourceValue);
+                updatedRawValue = cssReplacement.Value;
+                replacementCount = cssReplacement.Count;
+            }
+            else
+            {
+                updatedRawValue = RestoreAttributeValue(
+                    rawValue,
+                    rewrittenValue,
+                    sourceValue,
+                    out var attributeReplaced);
+                replacementCount = attributeReplaced ? 1 : 0;
+            }
+            if (replacementCount == 0)
+            {
+                continue;
+            }
+
+            output.Append(tag, copiedThrough, valueStart - copiedThrough);
+            if (quote == '\0')
+            {
+                output.Append('\"').Append(updatedRawValue).Append('\"');
+            }
+            else
+            {
+                output.Append(updatedRawValue);
+            }
+            copiedThrough = valueEnd;
+            replacements += replacementCount;
+        }
+        output.Append(tag, copiedThrough, tag.Length - copiedThrough);
+        return output.ToString();
+    }
+
+    private static int FindTagEnd(string value, int start)
+    {
+        var quote = '\0';
+        for (var index = start; index < value.Length; index++)
+        {
+            var current = value[index];
+            if (quote == '\0' && (current == '\"' || current == '\''))
+            {
+                quote = current;
+            }
+            else if (quote != '\0' && current == quote)
+            {
+                quote = '\0';
+            }
+            else if (quote == '\0' && current == '>')
+            {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static bool StartsWithOrdinal(string value, int start, string expected) =>
+        start >= 0
+        && start + expected.Length <= value.Length
+        && string.CompareOrdinal(value, start, expected, 0, expected.Length) == 0;
+
+    private static bool IsMarkupNameCharacter(char value) =>
+        char.IsLetterOrDigit(value) || value == ':' || value == '_' || value == '-';
+
+    private static bool IsAttributeNameCharacter(char value) =>
+        !char.IsWhiteSpace(value)
+        && value != '/'
+        && value != '>'
+        && value != '=';
+
+    private static bool IsHtmlTextElement(string tagName) =>
+        string.Equals(tagName, "textarea", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "title", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "script", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "style", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "xmp", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "iframe", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "noembed", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "noframes", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "plaintext", StringComparison.OrdinalIgnoreCase);
+
+    private static int FindHtmlTextElementEnd(string value, int start, string tagName)
+    {
+        if (string.Equals(tagName, "plaintext", StringComparison.OrdinalIgnoreCase))
+        {
+            return -1;
+        }
+
+        var closingPrefix = "</" + tagName;
+        var candidate = start;
+        while (candidate < value.Length)
+        {
+            candidate = value.IndexOf(closingPrefix, candidate, StringComparison.OrdinalIgnoreCase);
+            if (candidate < 0)
+            {
+                return -1;
+            }
+
+            var delimiter = candidate + closingPrefix.Length;
+            if (delimiter >= value.Length
+                || char.IsWhiteSpace(value[delimiter])
+                || value[delimiter] == '>'
+                || value[delimiter] == '/')
+            {
+                return candidate;
+            }
+            candidate = delimiter;
+        }
+        return -1;
+    }
+
+    private static string RestoreAttributeValue(
+        string rawValue,
+        string rewrittenValue,
+        string sourceValue,
+        out bool replaced)
+    {
+        var decoded = System.Net.WebUtility.HtmlDecode(rawValue)?.Trim();
+        if (!string.Equals(decoded, rewrittenValue, StringComparison.OrdinalIgnoreCase))
+        {
+            replaced = false;
+            return rawValue;
+        }
+
+        replaced = true;
+        return System.Net.WebUtility.HtmlEncode(sourceValue);
+    }
+
+    private static CanonicalReferenceReplacement RestoreCssUrl(
+        string rawStyle,
+        string rewrittenValue,
+        string sourceValue)
+    {
+        var replacements = 0;
+        var value = System.Text.RegularExpressions.Regex.Replace(
+            rawStyle,
+            "(?<prefix>url\\(\\s*(?:[\\\"']?))(?<value>.*?)(?<suffix>(?:[\\\"']?)\\s*\\))",
+            match =>
+            {
+                var decoded = System.Net.WebUtility.HtmlDecode(match.Groups["value"].Value)?.Trim();
+                if (!string.Equals(decoded, rewrittenValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return match.Value;
+                }
+
+                replacements++;
+                return match.Groups["prefix"].Value
+                    + System.Net.WebUtility.HtmlEncode(sourceValue)
+                    + match.Groups["suffix"].Value;
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        return new CanonicalReferenceReplacement(value, replacements);
+    }
+
+    private static void RequireSameTarget(
+        ClassicWikiMigrationPackage original,
+        ClassicWikiMigrationPackage adapted)
+    {
+        var left = original.Plan.TargetLocation;
+        var right = adapted.Plan.TargetLocation;
+        if (left.TargetWebId != right.TargetWebId
+            || !RequiredUrlEquals(left.TargetWebUrl, right.TargetWebUrl)
+            || !OptionalPathEquals(left.TargetLibraryServerRelativeUrl, right.TargetLibraryServerRelativeUrl)
+            || !OptionalPathEquals(left.TargetFolderServerRelativeUrl, right.TargetFolderServerRelativeUrl)
+            || !OptionalPathEquals(original.Plan.TargetPageServerRelativeUrl, adapted.Plan.TargetPageServerRelativeUrl)
+            || left.TargetLibraryTemplate != right.TargetLibraryTemplate
+            || !RequiredEquals(left.TargetLibraryTitle, right.TargetLibraryTitle)
+            || !RequiredEquals(left.FileName, right.FileName))
+        {
+            throw new InvalidDataException("classic_wiki_source_adaptation_changed_target_scope");
+        }
+    }
+
+    private static bool RequiredEquals(string left, string right) =>
+        !string.IsNullOrWhiteSpace(left)
+        && !string.IsNullOrWhiteSpace(right)
+        && string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static bool RequiredUrlEquals(string left, string right) =>
+        Uri.TryCreate(left, UriKind.Absolute, out var leftUri)
+        && Uri.TryCreate(right, UriKind.Absolute, out var rightUri)
+        && string.Equals(leftUri.AbsoluteUri.TrimEnd('/'), rightUri.AbsoluteUri.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+
+    private static bool OptionalPathEquals(string left, string right) =>
+        string.IsNullOrWhiteSpace(left) && string.IsNullOrWhiteSpace(right)
+        || (!string.IsNullOrWhiteSpace(left)
+            && !string.IsNullOrWhiteSpace(right)
+            && string.Equals(
+                Uri.UnescapeDataString(left).TrimEnd('/'),
+                Uri.UnescapeDataString(right).TrimEnd('/'),
+                StringComparison.OrdinalIgnoreCase));
+
+    private static void AddOnce(ICollection<string> values, string value)
+    {
+        if (!values.Contains(value, StringComparer.Ordinal))
+        {
+            values.Add(value);
+        }
+    }
+}
+
+internal sealed class ClassicWikiRestSourceAdaptationResult
+{
+    public ClassicWikiMigrationPackage Package { get; init; }
+    public AdmittedReproExecutionPlan AdmittedPlan { get; init; }
+    public string PriorPlanDigestSha256 { get; init; }
+    public string AdaptedPlanDigestSha256 { get; init; }
+    public string PriorAdmittedPlanDigestSha256 { get; init; }
+    public string AdaptedAdmittedPlanDigestSha256 { get; init; }
+    public int DependencyCount { get; init; }
+    public int ReconstructedDependencyCount { get; init; }
+    public bool UsedDeclaredInventory { get; init; }
+    public IList<ClassicWikiRestSourceDependencyDisposition> DependencyDispositions { get; init; }
+}
+
+internal readonly struct CanonicalReferenceReplacement
+{
+    public CanonicalReferenceReplacement(string value, int count)
+    {
+        Value = value;
+        Count = count;
+    }
+
+    public string Value { get; }
+    public int Count { get; }
+}
+
+internal sealed class ClassicWikiRestSourceDependencyDisposition
+{
+    public string SourceId { get; init; }
+    public PageCaptureStatus CaptureStatus { get; init; }
+    public string Disposition { get; init; }
+    public string ReasonCode { get; init; }
+}
+
+internal sealed class ClassicWikiInventoryResolution
+{
+    public static ClassicWikiInventoryResolution Empty { get; } =
+        new ClassicWikiInventoryResolution(Array.Empty<PageReferenceSnapshot>(), hasConflict: false);
+
+    public static ClassicWikiInventoryResolution Conflict { get; } =
+        new ClassicWikiInventoryResolution(Array.Empty<PageReferenceSnapshot>(), hasConflict: true);
+
+    public ClassicWikiInventoryResolution(
+        IList<PageReferenceSnapshot> unavailable,
+        bool hasConflict)
+    {
+        Unavailable = unavailable;
+        HasConflict = hasConflict;
+    }
+
+    public IList<PageReferenceSnapshot> Unavailable { get; }
+    public bool HasConflict { get; }
+}

@@ -28,6 +28,15 @@ receipt or receipt aggregate. Set `pageFamily: classic-wiki` when validating a
 Wiki receipt. It is intended for independent negative verification and never
 opens a tenant connection.
 
+`adapt-classic-wiki-rest` is an offline, pre-mutation source-adaptation step for
+a digest-bound Classic Wiki package assembled from authenticated REST evidence.
+It reconstructs authored references from the sealed `WikiField` with the same
+native reader used by source export and fresh target verification, replans the
+unchanged target scope, and emits a new admitted plan with non-replayable
+operation IDs. It rejects stale WikiField digests, conflicting declared
+inventories, and any target-scope drift. The command does not contact either
+tenant and must run before `import`.
+
 Build from an immutable commit and bind the binary to that exact ref:
 
 ```powershell

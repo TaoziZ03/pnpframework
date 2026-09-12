@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "ccd487-f2-precommit-receipt-v1",
+  "issue": "CCD-487",
+  "baseCommit": "27e8fd6464a2ab3e1d191d77c8afe0f98f0383d1",
+  "baseTree": "571ea153a3bfba1ecdf9dbb131ef7515fab9d65c",
+  "branch": "codex/ccd487-f2-native-evidence",
+  "producerCommit": null,
+  "producerTree": null,
+  "sourceRevisionBinding": "pending_exact_producer_commit",
+  "environment": {
+    "sdk": "dotnet 10.0.400",
+    "targetFramework": "net10.0",
+    "executionSurface": "Windows run-owned temp copy",
+    "tempCopy": "C:\\Users\\titao\\AppData\\Local\\Temp\\paperclip-ccd487-5bfc6d53",
+    "reverifiedRunId": "47c5ea75-20c2-4fbd-ad04-258637cb2983",
+    "reverifiedTempCopy": "C:\\Users\\titao\\AppData\\Local\\Temp\\paperclip-ccd487-47c5ea75"
+  },
+  "sourceFiles": [
+    {
+      "path": "tools/ccd153-native-producer/ClassicWikiRestSourceAdapter.cs",
+      "sha256": "266b10f5e809947d9ec9c31998e4b142b3accf94ebc8fde5f45eafd9a0180a58"
+    },
+    {
+      "path": "tools/ccd153-native-producer.tests/ClassicWikiRestSourceAdapterTests.cs",
+      "sha256": "bd5ef7c029a7eefbab25a05fafe167dffea2cdb2a60b17e18dc0d699393c2d55"
+    }
+  ],
+  "tests": [
+    {
+      "name": "F2a/F2b RED on immutable old adapter",
+      "adapterSha256": "478722246a0bcbbf011ebc3a3e2114322d3da9ce128c3d0f4fee01ad20b7f25b",
+      "outcome": "expected_fail",
+      "failed": 3,
+      "passed": 0,
+      "receipt": "ccd487-red.trx",
+      "receiptSha256": "24216eb0279af30abbf38c5bc29b83b73916fb127126f39b0f67d39dec12d67e"
+    },
+    {
+      "name": "F2a/F2b GREEN on fixed adapter",
+      "adapterSha256": "266b10f5e809947d9ec9c31998e4b142b3accf94ebc8fde5f45eafd9a0180a58",
+      "outcome": "pass",
+      "failed": 0,
+      "passed": 3,
+      "receipt": "ccd487-green.trx",
+      "receiptSha256": "170a5f952028c8fbe2ad995c827ed3e40e67cd059acbc27d0656da6e15772399"
+    },
+    {
+      "name": "ccd153-native-producer.tests",
+      "outcome": "pass",
+      "failed": 0,
+      "passed": 12
+    },
+    {
+      "name": "PnP.Framework.Test ClassicWikiDependencyInventoryTests",
+      "outcome": "pass",
+      "failed": 0,
+      "passed": 9
+    }
+  ],
+  "precommitBinaries": [
+    {
+      "path": "tools/ccd153-native-producer/bin/Debug/net10.0/ccd153-native-producer.dll",
+      "sha256": "e56a3d465851c1ad5b9af31b448b84eeaa888c2b295a0231a7e5241807237392"
+    },
+    {
+      "path": "src/lib/PnP.Framework/bin/Debug/net10.0/PnP.Framework.dll",
+      "sha256": "78f0d6f5119590ad5819270863f113f51808eec3737742aee3f2644d5077b86d"
+    },
+    {
+      "path": "tools/ccd153-native-producer.tests/bin/Debug/net10.0/ccd153-native-producer.tests.dll",
+      "sha256": "74fda727d36d666d4f1715bc076353d30b07fe636aa073848f6f519f4a9c4f2a"
+    }
+  ],
+  "productVerdict": "conditional_precommit_pass",
+  "remaining": [
+    "Create the exact producer commit and tree, then rebuild with SourceRevisionId bound to that commit.",
+    "Push the producer ref and perform fresh source fence, target admission, native import/readback, runtime, strict reconcile and scoped cleanup."
+  ]
+}

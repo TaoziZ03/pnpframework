@@ -1,4 +1,5 @@
 using PnP.Framework.Migration.Pages.ClassicWebParts;
+using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
 using PnP.Framework.Migration.Pages.Fields;
@@ -256,6 +257,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             }
 
             var unused = snapshots.ToList();
+            var hasDegradedDisposition = false;
             foreach (var plan in plans)
             {
                 var expectedId = !string.IsNullOrWhiteSpace(plan.Consumer) && !string.IsNullOrWhiteSpace(plan.TargetAbsoluteUrl)
@@ -273,9 +275,45 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     result.Differences.Add($"Dependency exact-semantics mismatch for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
                     return;
                 }
+                if (!string.Equals(plan.Disposition, "Rewrite", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.Equals(plan.Disposition, "Delegate", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Differences.Add(
+                            $"Dependency '{plan.Consumer}'/'{plan.TargetOriginalValue}' has unsupported disposition '{plan.Disposition}'.");
+                        return;
+                    }
+                    hasDegradedDisposition = true;
+                    result.Differences.Add(
+                        $"Dependency '{plan.Consumer}'/'{plan.TargetOriginalValue}' has source disposition '{plan.Disposition}'; exact dependency fidelity is not claimed.");
+                    unused.Remove(match);
+                    continue;
+                }
+                if (!Enum.IsDefined(typeof(PageCaptureStatus), match.CaptureStatus))
+                {
+                    result.Differences.Add(
+                        $"Dependency fresh evidence has unsupported capture status '{(int)match.CaptureStatus}' for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
+                    return;
+                }
+                if (match.CaptureStatus == PageCaptureStatus.NotReturned
+                    || match.CaptureStatus == PageCaptureStatus.Failed)
+                {
+                    result.Differences.Add($"Dependency fresh evidence is unavailable for '{plan.Consumer}'/'{plan.TargetOriginalValue}'.");
+                    return;
+                }
+                if (match.CaptureStatus == PageCaptureStatus.CapturedWithLimitations)
+                {
+                    result.Differences.Add(
+                        $"Dependency fresh evidence is limited for '{plan.Consumer}'/'{plan.TargetOriginalValue}' and no reviewed reference-only profile accepts that limitation.");
+                    return;
+                }
                 unused.Remove(match);
             }
 
+            if (hasDegradedDisposition)
+            {
+                return;
+            }
             result.DependenciesMatched = true;
             result.CanariesPassed.Add("DependencyExactSemantics");
         }
