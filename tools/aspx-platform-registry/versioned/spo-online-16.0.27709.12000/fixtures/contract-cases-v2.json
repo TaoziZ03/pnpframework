@@ -1,0 +1,344 @@
+{
+  "artifactBindings": {
+    "aggregateOutput": {
+      "length": 1544,
+      "path": "volumes/aggregate-output-v2.json",
+      "sha256": "70eb70eeb560d43d1867c0d475a38f990b085b859424be1bf9ca7b104ea417c4"
+    },
+    "physicalOutput": {
+      "length": 324,
+      "path": "volumes/physical-output-v2.json",
+      "sha256": "669404cc1a96db9d2a7a48c54b1a2981ffc815fa1e25319a19e495f78b41df8b"
+    },
+    "physicalStore": {
+      "length": 126976,
+      "path": "volumes/physical-store-assessment-v2.sqlite",
+      "schemaManifestHash": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504",
+      "sha256": "5380e4b7302fac439149f1f1bf22f4a6513e3f99f3e78cd74f53df515e7048fc"
+    },
+    "referenceOutput": {
+      "length": 5475,
+      "path": "volumes/reference-output-v2.json",
+      "sha256": "bf2c76c488fd406224a1f8d9a39977c3a642b58c533281dff3f64308ad27f82d"
+    },
+    "referenceStore": {
+      "length": 45056,
+      "path": "volumes/reference-store-v2.sqlite",
+      "schemaManifestHash": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec",
+      "sha256": "9c7e09f2dfc1edb1ba5c9ca381f04af2ab73fce367c8483e1ec3b1ebbb6d8d7f"
+    },
+    "terminalReceipt": {
+      "length": 1817,
+      "path": "volumes/terminal-receipt-v1.json",
+      "sha256": "386021178797824fefa6c0df5dab2a31baa38aa51da2e89f2c6382a99dd1899d"
+    }
+  },
+  "fixtureProvenance": {
+    "assessmentConsumerSourceRef": "0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+    "assessmentConsumerTree": "46553801a1bdab1f0feda1b638514315004d5eb5",
+    "baselineReview": "CCD-745+CCD-755+CCD-756",
+    "consumerWireShape": "aspx-acquisition-verdict/v2",
+    "fixtureKind": "synthetic-no-tenant-payload",
+    "readerShape": "aspx-platform-registry-reader-envelope/v2"
+  },
+  "fixtureSchemaVersion": "aspx-platform-registry-fixtures/v6",
+  "negative": [
+    {
+      "evidenceMutation": {
+        "kind": "aggregateOutputV1"
+      },
+      "expectedReasonCode": "UNSUPPORTED_OUTPUT_VERSION",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-V1-AS-V2",
+      "kind": "readerRequest"
+    },
+    {
+      "expectedReasonCode": "PRODUCER_REF_UNSUPPORTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-PRODUCER-V1-AS-V2",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/productRef",
+          "value": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8"
+        }
+      ]
+    },
+    {
+      "expectedReasonCode": "UNSUPPORTED_STORE_VERSION",
+      "expectedVerdict": "Unknown",
+      "id": "V2-STORE-V1-AS-V2",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/referenceVolume/store/schemaVersion",
+          "value": "aspx-reference-sqlite/v1"
+        }
+      ]
+    },
+    {
+      "evidenceMutation": {
+        "kind": "referenceProviderV1"
+      },
+      "expectedReasonCode": "PROVIDER_VERSION_UNSUPPORTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-PROVIDER-V1-AS-V2",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindStoreManifestHash": [
+        "reference"
+      ],
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "referenceSurfaceV3"
+      },
+      "expectedReasonCode": "SURFACE_CONTRACT_VERSION_UNSUPPORTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-SURFACE-V3-AS-V4",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "paginationReceiptV1"
+      },
+      "expectedReasonCode": "PAGINATION_RECEIPT_VERSION_UNSUPPORTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-PAGINATION-V1-AS-V2",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "terminalRoleVersionSwap"
+      },
+      "expectedReasonCode": "TERMINAL_ROLE_VERSION_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-TERMINAL-ROLE-VERSION",
+      "kind": "readerRequest"
+    },
+    {
+      "evidenceMutation": {
+        "kind": "terminalMissingVolume"
+      },
+      "expectedReasonCode": "TERMINAL_VOLUME_MISSING",
+      "expectedVerdict": "Unknown",
+      "id": "V2-TERMINAL-MISSING",
+      "kind": "readerRequest"
+    },
+    {
+      "evidenceMutation": {
+        "kind": "terminalDuplicateVolume"
+      },
+      "expectedReasonCode": "TERMINAL_VOLUME_DUPLICATE",
+      "expectedVerdict": "Unknown",
+      "id": "V2-TERMINAL-DUPLICATE",
+      "kind": "readerRequest"
+    },
+    {
+      "evidenceMutation": {
+        "kind": "terminalHashDrift"
+      },
+      "expectedReasonCode": "TERMINAL_VOLUME_HASH_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-TERMINAL-HASH",
+      "kind": "readerRequest"
+    },
+    {
+      "evidenceMutation": {
+        "kind": "terminalLengthDrift"
+      },
+      "expectedReasonCode": "TERMINAL_VOLUME_LENGTH_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-TERMINAL-LENGTH",
+      "kind": "readerRequest"
+    },
+    {
+      "evidenceMutation": {
+        "kind": "paginationRawSkiptoken"
+      },
+      "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-RAW-SKIPTOKEN",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "paginationRawContinuationToken"
+      },
+      "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-RAW-CONTINUATION",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "paginationAuthorization"
+      },
+      "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AUTHORIZATION",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "paginationCookie"
+      },
+      "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-COOKIE",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "paginationSetCookie"
+      },
+      "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-SET-COOKIE",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    },
+    {
+      "evidenceMutation": {
+        "kind": "systemListNotApplicable"
+      },
+      "expectedReasonCode": "SYSTEM_LIST_FORMS_SEMANTICS_DRIFT",
+      "expectedVerdict": "Unknown",
+      "id": "V2-SYSTEM-LIST-NOT-APPLICABLE",
+      "kind": "readerRequest",
+      "rebindActualArtifact": [
+        "reference"
+      ],
+      "rebindAggregateVolumes": true,
+      "rebindTerminalVolumes": true
+    }
+  ],
+  "positive": [
+    {
+      "expectedReasonCode": "REGISTRY_MATCH",
+      "expectedVerdict": "ReferenceOnlyAvailable",
+      "id": "V2-Q1",
+      "kind": "readerRequest"
+    }
+  ],
+  "readerTemplate": {
+    "acquisitionEnvelope": {
+      "aggregateVerdict": "Unknown",
+      "asOfUtc": "2026-09-12T00:00:03Z",
+      "outputVersion": "aspx-acquisition-verdict/v2",
+      "physicalArtifactHash": "669404cc1a96db9d2a7a48c54b1a2981ffc815fa1e25319a19e495f78b41df8b",
+      "physicalVolume": {
+        "artifactHash": "669404cc1a96db9d2a7a48c54b1a2981ffc815fa1e25319a19e495f78b41df8b",
+        "artifactLength": 324,
+        "contractVersion": "aspx-discovery/v2",
+        "outputVersion": "aspx-discovery-output/v2",
+        "platformBuild": "16.0.27709.12000",
+        "productRef": "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+        "runId": "11111111-2222-3333-4444-555555555555",
+        "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+        "snapshotFence": "fixture-snapshot-v2-001",
+        "store": {
+          "manifestHash": "f87b55a4a32771469d2441c5b53914d2f21b33fda01e3d34165f4b5f824dbee8",
+          "schemaVersion": "aspx-discovery-sqlite/v2"
+        }
+      },
+      "platformBuild": "16.0.27709.12000",
+      "productRef": "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+      "referenceArtifactHash": "bf2c76c488fd406224a1f8d9a39977c3a642b58c533281dff3f64308ad27f82d",
+      "referenceVolume": {
+        "artifactHash": "bf2c76c488fd406224a1f8d9a39977c3a642b58c533281dff3f64308ad27f82d",
+        "artifactLength": 5475,
+        "contractVersion": "aspx-reference/v2",
+        "dispositions": [
+          "ReferenceOnlyAvailable",
+          "ReferenceUnavailable",
+          "LinkedPhysicalGhosted",
+          "LinkedPhysicalCustomized",
+          "VirtualHandler",
+          "NonAspx",
+          "Unknown"
+        ],
+        "outputVersion": "aspx-reference-output/v2",
+        "platformBuild": "16.0.27709.12000",
+        "productRef": "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+        "recordKind": "AspxReferenceObservation",
+        "registryHash": "050e1b18ea16207b3fdbe6c3b2fed57d6453bcac7e2ec063ce91b27727d99c87",
+        "registryRevision": "spo-online-16.0.27709.12000-r1",
+        "runId": "11111111-2222-3333-4444-555555555555",
+        "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+        "snapshotFence": "fixture-snapshot-v2-001",
+        "sourceKinds": [
+          "ListFormReference",
+          "ListViewReference",
+          "WebWelcomePageReference",
+          "PlatformRegistryReference",
+          "RuntimeRequestReference"
+        ],
+        "store": {
+          "manifestHash": "3be9b5ea0e364b945276c0d796271d35083edcb396642081a9263f2a7ea24634",
+          "schemaVersion": "aspx-reference-sqlite/v2"
+        }
+      },
+      "registryHash": "050e1b18ea16207b3fdbe6c3b2fed57d6453bcac7e2ec063ce91b27727d99c87",
+      "registryRevision": "spo-online-16.0.27709.12000-r1",
+      "runId": "11111111-2222-3333-4444-555555555555",
+      "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+      "snapshotFence": "fixture-snapshot-v2-001"
+    },
+    "platformBuild": "16.0.27709.12000",
+    "registryEnvelope": {
+      "authorityArtifactHash": "6b7392ba6bf81d6a62f01bb396032f5eb6b042f1426e001d453b2ce26fbe02c2",
+      "authoritySourceRef": "ab4856999051acfe946fab5632b45ce6427287aa",
+      "platformBuild": "16.0.27709.12000",
+      "platformFamily": "SharePointOnline-16",
+      "profileHash": "7406683883f81c47a53171785775615fa7899b4aa565a454e5c2eedf8c676d2f",
+      "profileRevision": "spo-online-16.0.27709.12000-profile-r1",
+      "profileSchemaVersion": "aspx-platform-registry-profile/v2",
+      "registryHash": "050e1b18ea16207b3fdbe6c3b2fed57d6453bcac7e2ec063ce91b27727d99c87",
+      "registryRevision": "spo-online-16.0.27709.12000-r1",
+      "registrySchemaHash": "041b89abbbbe77a696a8161d5cef0f9027d4051b3bf0befdbca23536479f85ad",
+      "registrySchemaVersion": "aspx-platform-registry/v1"
+    },
+    "runtimePath": "/_layouts/15/accessdenied.aspx"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "acquisitionRunId": "11111111-2222-3333-4444-555555555555",
+  "aggregateVerdict": "Unknown",
+  "gapCodes": [
+    "forms:system-users:expected_count_unknown"
+  ],
+  "outputVersion": "aspx-acquisition-verdict/v2",
+  "physicalVolume": {
+    "length": 324,
+    "outputVersion": "aspx-discovery-output/v2",
+    "productRef": "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+    "runId": "11111111-2222-3333-4444-555555555555",
+    "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+    "sha256": "669404cc1a96db9d2a7a48c54b1a2981ffc815fa1e25319a19e495f78b41df8b",
+    "snapshotFence": "fixture-snapshot-v2-001"
+  },
+  "platformBuildRef": "16.0.27709.12000",
+  "productRef": "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+  "referenceVolume": {
+    "length": 5475,
+    "outputVersion": "aspx-reference-output/v2",
+    "productRef": "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+    "runId": "11111111-2222-3333-4444-555555555555",
+    "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
+    "sha256": "bf2c76c488fd406224a1f8d9a39977c3a642b58c533281dff3f64308ad27f82d",
+    "snapshotFence": "fixture-snapshot-v2-001"
+  },
+  "registryHash": "050e1b18ea16207b3fdbe6c3b2fed57d6453bcac7e2ec063ce91b27727d99c87",
+  "registryRevision": "spo-online-16.0.27709.12000-r1",
+  "sdkRef": "1f07296b186698c3cc9ca8580f00af36c0f3f4f5",
+  "sealedAtUtc": "2026-09-12T00:00:03Z",
+  "surfaceContractVersion": "aspx-surface-applicability-denominator/v4"
+}

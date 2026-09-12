@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ccd:pnp:aspx-acquisition-consumer-profile:spo-online-16.0.27709.12000:r1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "profileSchemaVersion",
+    "profileRevision",
+    "profileHash",
+    "platformBuild",
+    "registryRevision",
+    "registryHash",
+    "dispatches",
+    "terminalRoleVersions"
+  ],
+  "properties": {
+    "$schema": { "const": "../schema/aspx-acquisition-consumer-profile.schema.json" },
+    "profileSchemaVersion": { "const": "aspx-acquisition-consumer-profile/v1" },
+    "profileRevision": { "const": "spo-online-16.0.27709.12000-acquisition-consumer-r1" },
+    "profileHash": { "$ref": "#/$defs/sha256" },
+    "platformBuild": { "const": "16.0.27709.12000" },
+    "registryRevision": { "const": "spo-online-16.0.27709.12000-r1" },
+    "registryHash": { "const": "050e1b18ea16207b3fdbe6c3b2fed57d6453bcac7e2ec063ce91b27727d99c87" },
+    "dispatches": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        { "$ref": "#/$defs/v1Dispatch" },
+        { "$ref": "#/$defs/v2Dispatch" }
+      ],
+      "items": false
+    },
+    "terminalRoleVersions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physical-database",
+        "physical-output",
+        "reference-database",
+        "reference-output",
+        "aggregate-output"
+      ],
+      "properties": {
+        "physical-database": { "const": "aspx-discovery-sqlite/v2" },
+        "physical-output": { "const": "aspx-discovery-output/v2" },
+        "reference-database": { "const": "aspx-reference-sqlite/v2" },
+        "reference-output": { "const": "aspx-reference-output/v2" },
+        "aggregate-output": { "const": "aspx-acquisition-verdict/v2" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "dispatchBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "productRef",
+        "aggregateOutput",
+        "physicalOutput",
+        "physicalContract",
+        "physicalStore",
+        "referenceOutput",
+        "referenceContract",
+        "referenceStore",
+        "surfaceContract",
+        "paginationReceipt",
+        "provider",
+        "terminalReceipt"
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "productRef": { "type": "string", "pattern": "^pnp/assessment@[0-9a-f]{40}$" },
+        "aggregateOutput": { "type": "string" },
+        "physicalOutput": { "const": "aspx-discovery-output/v2" },
+        "physicalContract": { "const": "aspx-discovery/v2" },
+        "physicalStore": { "const": "aspx-discovery-sqlite/v2" },
+        "referenceOutput": { "type": "string" },
+        "referenceContract": { "type": "string" },
+        "referenceStore": { "type": "string" },
+        "surfaceContract": { "type": "string" },
+        "paginationReceipt": { "type": ["string", "null"] },
+        "provider": { "type": "string" },
+        "terminalReceipt": { "type": ["string", "null"] }
+      }
+    },
+    "v1Dispatch": {
+      "allOf": [
+        { "$ref": "#/$defs/dispatchBase" },
+        {
+          "properties": {
+            "name": { "const": "assessment-v1" },
+            "productRef": { "const": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8" },
+            "aggregateOutput": { "const": "aspx-acquisition-verdict/v1" },
+            "referenceOutput": { "const": "aspx-reference-output/v1" },
+            "referenceContract": { "const": "aspx-reference/v1" },
+            "referenceStore": { "const": "aspx-reference-sqlite/v1" },
+            "surfaceContract": { "const": "aspx-surface-applicability-denominator/v3" },
+            "paginationReceipt": { "const": null },
+            "provider": { "const": "sharepoint-live-aspx-provider/v1" },
+            "terminalReceipt": { "const": null }
+          }
+        }
+      ]
+    },
+    "v2Dispatch": {
+      "allOf": [
+        { "$ref": "#/$defs/dispatchBase" },
+        {
+          "properties": {
+            "name": { "const": "assessment-v2" },
+            "productRef": { "const": "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466" },
+            "aggregateOutput": { "const": "aspx-acquisition-verdict/v2" },
+            "referenceOutput": { "const": "aspx-reference-output/v2" },
+            "referenceContract": { "const": "aspx-reference/v2" },
+            "referenceStore": { "const": "aspx-reference-sqlite/v2" },
+            "surfaceContract": { "const": "aspx-surface-applicability-denominator/v4" },
+            "paginationReceipt": { "const": "aspx-pagination-page-receipt/v2" },
+            "provider": { "const": "sharepoint-live-aspx-provider/v2" },
+            "terminalReceipt": { "const": "aspx-acquisition-terminal-receipt/v1" }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -125,6 +125,92 @@ ARTIFACT_BINDING_KEYS = {
 }
 ARTIFACT_DESCRIPTOR_KEYS = {"path", "sha256", "length"}
 
+ACQUISITION_PROFILE_KEYS = {
+    "$schema",
+    "profileSchemaVersion",
+    "profileRevision",
+    "profileHash",
+    "platformBuild",
+    "registryRevision",
+    "registryHash",
+    "dispatches",
+    "terminalRoleVersions",
+}
+ACQUISITION_DISPATCH_KEYS = {
+    "name",
+    "productRef",
+    "aggregateOutput",
+    "physicalOutput",
+    "physicalContract",
+    "physicalStore",
+    "referenceOutput",
+    "referenceContract",
+    "referenceStore",
+    "surfaceContract",
+    "paginationReceipt",
+    "provider",
+    "terminalReceipt",
+}
+TERMINAL_ROLE_VERSIONS_V2 = {
+    "physical-database": "aspx-discovery-sqlite/v2",
+    "physical-output": "aspx-discovery-output/v2",
+    "reference-database": "aspx-reference-sqlite/v2",
+    "reference-output": "aspx-reference-output/v2",
+    "aggregate-output": "aspx-acquisition-verdict/v2",
+}
+V2_ARTIFACT_BINDING_KEYS = ARTIFACT_BINDING_KEYS | {
+    "aggregateOutput",
+    "terminalReceipt",
+}
+
+V2_AGGREGATE_OUTPUT_KEYS = {
+    "outputVersion",
+    "acquisitionRunId",
+    "aggregateVerdict",
+    "physicalVolume",
+    "referenceVolume",
+    "surfaceContractVersion",
+    "registryRevision",
+    "registryHash",
+    "platformBuildRef",
+    "productRef",
+    "sdkRef",
+    "sealedAtUtc",
+    "gapCodes",
+}
+V2_AGGREGATE_VOLUME_KEYS = {
+    "outputVersion",
+    "runId",
+    "sha256",
+    "length",
+    "productRef",
+    "scopeAuthorityHash",
+    "snapshotFence",
+}
+TERMINAL_RECEIPT_KEYS = {
+    "receiptVersion",
+    "artifactRunId",
+    "exitCode",
+    "completionState",
+    "productRef",
+    "sdkRef",
+    "snapshotFence",
+    "aggregateVerdict",
+    "executable",
+    "volumes",
+    "completedAtUtc",
+    "errorCode",
+    "errorDigest",
+}
+TERMINAL_VOLUME_KEYS = {"role", "outputVersion", "fileName", "sha256", "length"}
+TERMINAL_ROLE_TO_EVIDENCE = {
+    "physical-database": "physicalStore",
+    "physical-output": "physicalOutput",
+    "reference-database": "referenceStore",
+    "reference-output": "referenceOutput",
+    "aggregate-output": "aggregateOutput",
+}
+
 
 def configure_validation_release(spec: dict[str, Any]) -> None:
     """Keep validator pins aligned with the selected generator release spec."""
@@ -329,6 +415,37 @@ REFERENCE_PAGINATION_KEYS = {
     "terminalFlag",
     "receivedAtUtc",
 }
+REFERENCE_PAGINATION_V2_KEYS = REFERENCE_PAGINATION_KEYS | {
+    "receiptVersion",
+    "actualMethod",
+    "actualEndpoint",
+    "actualSelect",
+    "actualFilter",
+    "httpStatusCode",
+    "semanticDetectorResult",
+    "attemptCount",
+    "attemptLimit",
+    "requestId",
+    "correlationId",
+    "errorCode",
+}
+
+SEMANTIC_DETECTOR_RESULTS = {
+    "none",
+    "login-shell",
+    "access-denied",
+    "unauthorized",
+    "forbidden",
+    "error-envelope",
+    "transport-failure",
+}
+SENSITIVE_HEADER_RE = re.compile(
+    r"(?:^|[?&;\s])(authorization|cookie|set-cookie)\s*[:=]", re.IGNORECASE
+)
+RAW_CONTINUATION_RE = re.compile(r"(?:\$skiptoken|continuationtoken)\s*=", re.IGNORECASE)
+HASHED_SKIPTOKEN_RE = re.compile(
+    r"\$skiptoken=(?:sha256(?::|%3a))?[0-9a-f]{64}(?:$|[&#])", re.IGNORECASE
+)
 
 
 def load_json(path: Path) -> Any:
@@ -412,6 +529,109 @@ def schema_validation_errors(instance: Any, schema: dict[str, Any]) -> list[str]
         f"{'.'.join(str(part) for part in failure.absolute_path) or '$'}: {failure.message}"
         for failure in sorted(validator.iter_errors(instance), key=lambda item: list(item.absolute_path))
     ]
+
+
+def validate_acquisition_consumer_profile(
+    acquisition_profile: Any,
+    registry: dict[str, Any],
+    platform_profile: dict[str, Any],
+) -> list[str]:
+    errors = exact_key_errors(
+        acquisition_profile, ACQUISITION_PROFILE_KEYS, "acquisition consumer profile"
+    )
+    if errors:
+        return errors
+    assert isinstance(acquisition_profile, dict)
+    if acquisition_profile.get("profileSchemaVersion") != "aspx-acquisition-consumer-profile/v1":
+        errors.append("acquisition consumer profile version is unsupported")
+    if acquisition_profile.get("profileHash") != object_hash(
+        acquisition_profile, "profileHash"
+    ):
+        errors.append("acquisition consumer profileHash mismatch")
+    for key, expected in {
+        "platformBuild": platform_profile.get("platformBuild"),
+        "registryRevision": registry.get("registryRevision"),
+        "registryHash": registry.get("registryHash"),
+    }.items():
+        if acquisition_profile.get(key) != expected:
+            errors.append(f"acquisition consumer profile {key} binding mismatch")
+    if acquisition_profile.get("terminalRoleVersions") != TERMINAL_ROLE_VERSIONS_V2:
+        errors.append("acquisition consumer terminal role mapping is not exact v2")
+    dispatches = acquisition_profile.get("dispatches")
+    if not isinstance(dispatches, list):
+        return [*errors, "acquisition consumer dispatches must be an array"]
+    names: set[str] = set()
+    aggregate_versions: set[str] = set()
+    for index, dispatch in enumerate(dispatches):
+        label = f"acquisition consumer dispatches[{index}]"
+        errors.extend(exact_key_errors(dispatch, ACQUISITION_DISPATCH_KEYS, label))
+        if not isinstance(dispatch, dict):
+            continue
+        name = dispatch.get("name")
+        aggregate = dispatch.get("aggregateOutput")
+        if not isinstance(name, str) or not name:
+            errors.append(f"{label}.name is invalid")
+        elif name in names:
+            errors.append(f"{label}.name is duplicated")
+        else:
+            names.add(name)
+        if not isinstance(aggregate, str) or not aggregate:
+            errors.append(f"{label}.aggregateOutput is invalid")
+        elif aggregate in aggregate_versions:
+            errors.append(f"{label}.aggregateOutput is duplicated")
+        else:
+            aggregate_versions.add(aggregate)
+        if not PRODUCT_REF_RE.fullmatch(str(dispatch.get("productRef"))):
+            errors.append(f"{label}.productRef is invalid")
+    if names != {"assessment-v1", "assessment-v2"}:
+        errors.append("acquisition consumer profile must contain assessment-v1 and assessment-v2")
+    return errors
+
+
+def _legacy_dispatch(platform_profile: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": "assessment-v1",
+        "productRef": platform_profile.get("consumerProductRef"),
+        "aggregateOutput": VOLUME_COMPATIBILITY["aggregateOutput"],
+        "physicalOutput": VOLUME_COMPATIBILITY["physicalOutput"],
+        "physicalContract": VOLUME_COMPATIBILITY["physicalContract"],
+        "physicalStore": VOLUME_COMPATIBILITY["physicalStore"],
+        "referenceOutput": VOLUME_COMPATIBILITY["referenceOutput"],
+        "referenceContract": VOLUME_COMPATIBILITY["referenceContract"],
+        "referenceStore": VOLUME_COMPATIBILITY["referenceStore"],
+        "surfaceContract": "aspx-surface-applicability-denominator/v3",
+        "paginationReceipt": None,
+        "provider": "sharepoint-live-aspx-provider/v1",
+        "terminalReceipt": None,
+    }
+
+
+def _resolve_acquisition_dispatch(
+    envelope: dict[str, Any],
+    platform_profile: dict[str, Any],
+    acquisition_profile: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    dispatches = (
+        acquisition_profile.get("dispatches", [])
+        if acquisition_profile is not None
+        else [_legacy_dispatch(platform_profile)]
+    )
+    output_version = envelope.get("outputVersion")
+    candidates = [
+        dispatch
+        for dispatch in dispatches
+        if isinstance(dispatch, dict) and dispatch.get("aggregateOutput") == output_version
+    ]
+    if len(candidates) != 1:
+        return None, "UNSUPPORTED_OUTPUT_VERSION"
+    dispatch = candidates[0]
+    if envelope.get("productRef") != dispatch.get("productRef"):
+        return None, (
+            "PRODUCER_REF_UNSUPPORTED"
+            if acquisition_profile is not None and dispatch.get("name") == "assessment-v2"
+            else "VOLUME_REF_MISMATCH"
+        )
+    return dispatch, None
 
 
 def validate_authority(authority: dict[str, Any]) -> list[str]:
@@ -817,13 +1037,18 @@ def load_fixture_artifact_evidence(
     bindings: Any,
     fixture_root: Path,
 ) -> tuple[dict[str, bytes], list[str]]:
-    errors = exact_key_errors(bindings, ARTIFACT_BINDING_KEYS, "artifactBindings")
+    expected_binding_keys = (
+        V2_ARTIFACT_BINDING_KEYS
+        if isinstance(bindings, dict) and "terminalReceipt" in bindings
+        else ARTIFACT_BINDING_KEYS
+    )
+    errors = exact_key_errors(bindings, expected_binding_keys, "artifactBindings")
     if errors:
         return {}, errors
     assert isinstance(bindings, dict)
     resolved_root = fixture_root.resolve()
     evidence: dict[str, bytes] = {}
-    for key in sorted(ARTIFACT_BINDING_KEYS):
+    for key in sorted(expected_binding_keys):
         descriptor = bindings.get(key)
         expected_keys = (
             STORE_ARTIFACT_DESCRIPTOR_KEYS
@@ -864,6 +1089,80 @@ def load_fixture_artifact_evidence(
     return evidence, errors
 
 
+def _json_bytes(document: Any) -> bytes:
+    return (
+        json.dumps(document, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    ).encode("utf-8")
+
+
+def _mutate_reference_rows(
+    evidence: dict[str, bytes],
+    row_kind: str,
+    update: Any,
+) -> None:
+    document = json.loads(evidence["referenceOutput"])
+    rows_key, table, identity_columns = {
+        "denominator": ("denominator", "ReferenceDenominator", ("SurfaceId",)),
+        "pagination": (
+            "paginationReceipts",
+            "ReferencePaginationReceipts",
+            ("ScopeKey", "PageOrdinal"),
+        ),
+    }[row_kind]
+    for row in document[rows_key]:
+        update(row)
+    evidence["referenceOutput"] = _json_bytes(document)
+    with closing(_sqlite_connection(evidence["referenceStore"])) as connection:
+        if row_kind == "denominator":
+            selected = connection.execute(
+                f"SELECT {identity_columns[0]}, Json FROM {table}"
+            ).fetchall()
+            for identity, payload in selected:
+                row = json.loads(payload)
+                update(row)
+                connection.execute(
+                    f"UPDATE {table} SET Json=? WHERE {identity_columns[0]}=?",
+                    (json.dumps(row, separators=(",", ":")), identity),
+                )
+        else:
+            selected = connection.execute(
+                f"SELECT {identity_columns[0]}, {identity_columns[1]}, Json FROM {table}"
+            ).fetchall()
+            for first, second, payload in selected:
+                row = json.loads(payload)
+                update(row)
+                connection.execute(
+                    f"UPDATE {table} SET Json=? WHERE {identity_columns[0]}=? AND {identity_columns[1]}=?",
+                    (json.dumps(row, separators=(",", ":")), first, second),
+                )
+        connection.commit()
+        evidence["referenceStore"] = connection.serialize()
+
+
+def _rebind_aggregate_volumes(evidence: dict[str, bytes]) -> None:
+    aggregate = json.loads(evidence["aggregateOutput"])
+    for key, evidence_key in [
+        ("physicalVolume", "physicalOutput"),
+        ("referenceVolume", "referenceOutput"),
+    ]:
+        artifact_bytes = evidence[evidence_key]
+        aggregate[key]["sha256"] = hashlib.sha256(artifact_bytes).hexdigest()
+        aggregate[key]["length"] = len(artifact_bytes)
+    evidence["aggregateOutput"] = _json_bytes(aggregate)
+
+
+def _rebind_terminal_volumes(evidence: dict[str, bytes], roles: list[str] | None = None) -> None:
+    terminal = json.loads(evidence["terminalReceipt"])
+    selected = set(roles or TERMINAL_ROLE_TO_EVIDENCE)
+    for volume in terminal["volumes"]:
+        if volume["role"] not in selected:
+            continue
+        artifact_bytes = evidence[TERMINAL_ROLE_TO_EVIDENCE[volume["role"]]]
+        volume["sha256"] = hashlib.sha256(artifact_bytes).hexdigest()
+        volume["length"] = len(artifact_bytes)
+    evidence["terminalReceipt"] = _json_bytes(terminal)
+
+
 def apply_evidence_mutation(
     evidence: dict[str, bytes], mutation: dict[str, Any] | None
 ) -> dict[str, bytes]:
@@ -875,6 +1174,97 @@ def apply_evidence_mutation(
         mutated["physicalOutput"] += b"\n"
     elif kind == "appendReferenceOutputBytes":
         mutated["referenceOutput"] += b"\n"
+    elif kind in {
+        "referenceSurfaceV3",
+        "systemListNotApplicable",
+    }:
+        def update_denominator(row: dict[str, Any]) -> None:
+            if kind == "referenceSurfaceV3":
+                row["surfaceContractVersion"] = "aspx-surface-applicability-denominator/v3"
+            elif row.get("applicabilityRuleId") == "sharepoint-user-information-list-forms-http-400":
+                row["applicability"] = "NotApplicable"
+
+        _mutate_reference_rows(mutated, "denominator", update_denominator)
+    elif kind in {
+        "paginationReceiptV1",
+        "paginationRawSkiptoken",
+        "paginationRawContinuationToken",
+        "paginationAuthorization",
+        "paginationCookie",
+        "paginationSetCookie",
+    }:
+        def update_pagination(row: dict[str, Any]) -> None:
+            if kind == "paginationReceiptV1":
+                row["receiptVersion"] = "aspx-pagination-page-receipt/v1"
+            elif kind == "paginationRawSkiptoken":
+                row["actualEndpoint"] += "&$skiptoken=Paged%3dTRUE%26p_ID%3d42"
+            elif kind == "paginationRawContinuationToken":
+                row["actualEndpoint"] += "&continuationToken=replayable-token"
+            elif kind == "paginationAuthorization":
+                row["actualFilter"] = "Authorization: Bearer replayable-token"
+            elif kind == "paginationCookie":
+                row["actualFilter"] = "Cookie: FedAuth=replayable-cookie"
+            else:
+                row["actualFilter"] = "Set-Cookie: rtFa=replayable-cookie"
+
+        _mutate_reference_rows(mutated, "pagination", update_pagination)
+    elif kind == "referenceProviderV1":
+        document = json.loads(mutated["referenceOutput"])
+        for row in document["denominator"]:
+            row["providerVersion"] = "sharepoint-live-aspx-provider/v1"
+        with closing(_sqlite_connection(mutated["referenceStore"])) as connection:
+            run = connection.execute(
+                "SELECT RunId, ManifestJson FROM ReferenceRuns ORDER BY RunId LIMIT 1"
+            ).fetchone()
+            if run is None:
+                raise ValueError("ReferenceRuns has no fixture run")
+            manifest = json.loads(run[1])
+            manifest["providerVersion"] = "sharepoint-live-aspx-provider/v1"
+            manifest_json = json.dumps(manifest, separators=(",", ":"))
+            manifest_hash = discovery_hash(manifest_json)
+            connection.execute(
+                "UPDATE ReferenceRuns SET ManifestJson=?, ManifestHash=? WHERE RunId=?",
+                (manifest_json, manifest_hash, run[0]),
+            )
+            for surface_id, payload in connection.execute(
+                "SELECT SurfaceId, Json FROM ReferenceDenominator"
+            ).fetchall():
+                row = json.loads(payload)
+                row["providerVersion"] = "sharepoint-live-aspx-provider/v1"
+                connection.execute(
+                    "UPDATE ReferenceDenominator SET Json=? WHERE SurfaceId=?",
+                    (json.dumps(row, separators=(",", ":")), surface_id),
+                )
+            connection.commit()
+            mutated["referenceStore"] = connection.serialize()
+        document["manifestHash"] = manifest_hash
+        mutated["referenceOutput"] = _json_bytes(document)
+    elif kind == "aggregateOutputV1":
+        document = json.loads(mutated["aggregateOutput"])
+        document["outputVersion"] = "aspx-acquisition-verdict/v1"
+        mutated["aggregateOutput"] = _json_bytes(document)
+    elif kind in {
+        "terminalRoleVersionSwap",
+        "terminalMissingVolume",
+        "terminalDuplicateVolume",
+        "terminalHashDrift",
+        "terminalLengthDrift",
+    }:
+        terminal = json.loads(mutated["terminalReceipt"])
+        if kind == "terminalRoleVersionSwap":
+            volume = next(row for row in terminal["volumes"] if row["role"] == "reference-output")
+            volume["outputVersion"] = "aspx-reference-output/v1"
+        elif kind == "terminalMissingVolume":
+            terminal["volumes"] = [
+                row for row in terminal["volumes"] if row["role"] != "aggregate-output"
+            ]
+        elif kind == "terminalDuplicateVolume":
+            terminal["volumes"].append(copy.deepcopy(terminal["volumes"][0]))
+        elif kind == "terminalHashDrift":
+            terminal["volumes"][0]["sha256"] = "f" * 64
+        else:
+            terminal["volumes"][0]["length"] += 1
+        mutated["terminalReceipt"] = _json_bytes(terminal)
     elif kind in {
         "addPhysicalReferenceRowsField",
         "addPhysicalReferenceObservation",
@@ -1213,6 +1603,7 @@ def _validate_reference_denominator_row(
     expected_run_id: str,
     volume: dict[str, Any],
     registry: dict[str, Any],
+    dispatch: dict[str, Any] | None = None,
 ) -> list[str]:
     errors = exact_key_errors(row, REFERENCE_DENOMINATOR_KEYS, label)
     if errors:
@@ -1245,7 +1636,11 @@ def _validate_reference_denominator_row(
     if row.get("expectedCountState") == "Known" and row.get("expectedCount") is None:
         errors.append(f"{label}.expectedCount is required when expectedCountState is Known")
     bindings = {
-        "surfaceContractVersion": "aspx-surface-applicability-denominator/v3",
+        "surfaceContractVersion": (
+            dispatch.get("surfaceContract")
+            if dispatch is not None
+            else "aspx-surface-applicability-denominator/v3"
+        ),
         "acquisitionRunId": expected_run_id,
         "snapshotFence": volume.get("snapshotFence"),
         "scopeAuthorityHash": volume.get("scopeAuthorityHash"),
@@ -1258,11 +1653,32 @@ def _validate_reference_denominator_row(
     for key, expected in bindings.items():
         if row.get(key) != expected:
             errors.append(f"{label}.{key} does not match the reference volume")
+    if dispatch is not None and dispatch.get("provider") is not None:
+        if row.get("providerVersion") != dispatch.get("provider"):
+            errors.append(f"{label}.providerVersion does not match the dispatched provider")
     return errors
 
 
-def _validate_reference_pagination_row(row: Any, label: str) -> list[str]:
-    errors = exact_key_errors(row, REFERENCE_PAGINATION_KEYS, label)
+def _contains_sensitive_pagination_input(row: dict[str, Any]) -> bool:
+    for value in row.values():
+        if not isinstance(value, str):
+            continue
+        if SENSITIVE_HEADER_RE.search(value):
+            return True
+        if RAW_CONTINUATION_RE.search(value):
+            scrubbed = HASHED_SKIPTOKEN_RE.sub("", value)
+            if RAW_CONTINUATION_RE.search(scrubbed):
+                return True
+    return False
+
+
+def _validate_reference_pagination_row(
+    row: Any, label: str, dispatch: dict[str, Any] | None = None
+) -> list[str]:
+    v2 = dispatch is not None and dispatch.get("paginationReceipt") is not None
+    errors = exact_key_errors(
+        row, REFERENCE_PAGINATION_V2_KEYS if v2 else REFERENCE_PAGINATION_KEYS, label
+    )
     if errors:
         return errors
     assert isinstance(row, dict)
@@ -1270,11 +1686,92 @@ def _validate_reference_pagination_row(row: Any, label: str) -> list[str]:
         errors.extend(_string_errors(row.get(key), f"{label}.{key}"))
     for key in ["requestTokenHash", "nextTokenHash"]:
         errors.extend(_string_errors(row.get(key), f"{label}.{key}", nullable=True))
+        value = row.get(key)
+        if value is not None and not SHA256_RE.fullmatch(str(value)):
+            errors.append(f"{label}.{key} must be a SHA-256 binding")
     for key in ["pageOrdinal", "responseItemCount"]:
         errors.extend(_integer_errors(row.get(key), f"{label}.{key}"))
     if not isinstance(row.get("terminalFlag"), bool):
         errors.append(f"{label}.terminalFlag must be a boolean")
+    for key in ["actualEndpointHash", "responseDigest"]:
+        if not SHA256_RE.fullmatch(str(row.get(key))):
+            errors.append(f"{label}.{key} must be SHA-256")
+    if v2:
+        if row.get("receiptVersion") != dispatch.get("paginationReceipt"):
+            errors.append(f"{label}.receiptVersion does not match the dispatched pagination receipt")
+        if row.get("actualMethod") != "GET":
+            errors.append(f"{label}.actualMethod must be GET")
+        for key in ["actualEndpoint", "actualSelect", "actualFilter", "semanticDetectorResult"]:
+            errors.extend(_string_errors(row.get(key), f"{label}.{key}"))
+        for key in ["attemptCount", "attemptLimit"]:
+            errors.extend(_integer_errors(row.get(key), f"{label}.{key}"))
+        if isinstance(row.get("attemptCount"), int) and isinstance(row.get("attemptLimit"), int):
+            if row["attemptLimit"] < 1 or not 1 <= row["attemptCount"] <= row["attemptLimit"]:
+                errors.append(f"{label}.attempt bounds are invalid")
+        errors.extend(_integer_errors(row.get("httpStatusCode"), f"{label}.httpStatusCode", nullable=True))
+        for key in ["requestId", "correlationId", "errorCode"]:
+            errors.extend(_string_errors(row.get(key), f"{label}.{key}", nullable=True))
+        if row.get("semanticDetectorResult") not in SEMANTIC_DETECTOR_RESULTS:
+            errors.append(f"{label}.semanticDetectorResult is unsupported")
+        if _contains_sensitive_pagination_input(row):
+            errors.append(f"{label} contains raw continuation or credential/header material")
     return errors
+
+
+def _reference_v2_preflight(
+    document: dict[str, Any], dispatch: dict[str, Any]
+) -> str | None:
+    for row in document.get("denominator", []):
+        if not isinstance(row, dict):
+            continue
+        if row.get("surfaceContractVersion") != dispatch.get("surfaceContract"):
+            return "SURFACE_CONTRACT_VERSION_UNSUPPORTED"
+        if row.get("providerVersion") != dispatch.get("provider"):
+            return "PROVIDER_VERSION_UNSUPPORTED"
+    for row in document.get("paginationReceipts", []):
+        if not isinstance(row, dict):
+            continue
+        if row.get("receiptVersion") != dispatch.get("paginationReceipt"):
+            return "PAGINATION_RECEIPT_VERSION_UNSUPPORTED"
+        if _contains_sensitive_pagination_input(row):
+            return "PAGINATION_SENSITIVE_INPUT_REJECTED"
+
+    system_rows = [
+        row
+        for row in document.get("denominator", [])
+        if isinstance(row, dict)
+        and row.get("applicabilityRuleId") == "sharepoint-user-information-list-forms-http-400"
+    ]
+    for row in system_rows:
+        required = {
+            "applicability": "SystemOrVirtualOnly",
+            "terminalOutcome": "Failed",
+            "expectedCountState": "Unknown",
+            "expectedCount": None,
+        }
+        if any(row.get(key) != value for key, value in required.items()):
+            return "SYSTEM_LIST_FORMS_SEMANTICS_DRIFT"
+        matching_receipts = [
+            receipt
+            for receipt in document.get("paginationReceipts", [])
+            if isinstance(receipt, dict)
+            and receipt.get("actualEndpoint") == row.get("actualEndpoint")
+        ]
+        if len(matching_receipts) != 1 or matching_receipts[0].get("httpStatusCode") != 400:
+            return "SYSTEM_LIST_FORMS_SEMANTICS_DRIFT"
+        matching_observations = [
+            observation
+            for observation in document.get("references", [])
+            if isinstance(observation, dict)
+            and str(observation.get("rawLocator", "")).casefold().endswith(
+                "/_catalogs/users/forms"
+            )
+        ]
+        if len(matching_observations) != 1 or matching_observations[0].get(
+            "disposition"
+        ) != "ReferenceUnavailable":
+            return "SYSTEM_LIST_FORMS_SEMANTICS_DRIFT"
+    return None
 
 
 def _validate_reference_output_document(
@@ -1282,6 +1779,7 @@ def _validate_reference_output_document(
     expected_run_id: str,
     volume: dict[str, Any],
     registry: dict[str, Any],
+    dispatch: dict[str, Any] | None = None,
 ) -> list[str]:
     errors = exact_key_errors(document, REFERENCE_OUTPUT_KEYS, "reference output")
     if errors:
@@ -1304,7 +1802,7 @@ def _validate_reference_output_document(
             document.get("denominator"),
             "reference output.denominator",
             lambda row, label: _validate_reference_denominator_row(
-                row, label, expected_run_id, volume, registry
+                row, label, expected_run_id, volume, registry, dispatch
             ),
         )
     )
@@ -1312,7 +1810,7 @@ def _validate_reference_output_document(
         _rows_errors(
             document.get("paginationReceipts"),
             "reference output.paginationReceipts",
-            _validate_reference_pagination_row,
+            lambda row, label: _validate_reference_pagination_row(row, label, dispatch),
         )
     )
     errors.extend(_string_list_errors(document.get("gapCodes"), "reference output.gapCodes"))
@@ -1383,6 +1881,7 @@ def _validate_reference_store_rows(
     output_document: dict[str, Any],
     volume: dict[str, Any],
     registry: dict[str, Any],
+    dispatch: dict[str, Any] | None = None,
 ) -> list[str]:
     errors: list[str] = []
     output_reference_ids = {
@@ -1427,7 +1926,12 @@ def _validate_reference_store_rows(
             continue
         errors.extend(
             _validate_reference_denominator_row(
-                row, f"ReferenceDenominator[{surface_id}]", run_id, volume, registry
+                row,
+                f"ReferenceDenominator[{surface_id}]",
+                run_id,
+                volume,
+                registry,
+                dispatch,
             )
         )
         if isinstance(row, dict) and row.get("surfaceId") != surface_id:
@@ -1452,7 +1956,9 @@ def _validate_reference_store_rows(
             continue
         errors.extend(
             _validate_reference_pagination_row(
-                row, f"ReferencePaginationReceipts[{scope_key},{ordinal}]"
+                row,
+                f"ReferencePaginationReceipts[{scope_key},{ordinal}]",
+                dispatch,
             )
         )
         if isinstance(row, dict) and (
@@ -1478,6 +1984,7 @@ def _validate_output_artifact(
     expected_run_field: str,
     expected_run_id: str,
     registry: dict[str, Any],
+    dispatch: dict[str, Any] | None = None,
 ) -> tuple[str | None, list[str], dict[str, Any] | None]:
     if artifact_bytes is None:
         return "ARTIFACT_EVIDENCE_MISSING", ["actual output artifact bytes are missing"], None
@@ -1496,10 +2003,22 @@ def _validate_output_artifact(
         return "VOLUME_CONTENT_MISMATCH", ["actual outputVersion does not match volume binding"], None
     if document.get(expected_run_field) != expected_run_id:
         return "VOLUME_CONTENT_MISMATCH", ["actual acquisition run ID does not match envelope"], None
-    if volume.get("outputVersion") == VOLUME_COMPATIBILITY["physicalOutput"]:
+    physical_version = (
+        dispatch.get("physicalOutput") if dispatch is not None else VOLUME_COMPATIBILITY["physicalOutput"]
+    )
+    reference_version = (
+        dispatch.get("referenceOutput") if dispatch is not None else VOLUME_COMPATIBILITY["referenceOutput"]
+    )
+    if volume.get("outputVersion") == physical_version:
         errors = _validate_physical_output_document(document)
-    elif volume.get("outputVersion") == VOLUME_COMPATIBILITY["referenceOutput"]:
-        errors = _validate_reference_output_document(document, expected_run_id, volume, registry)
+    elif volume.get("outputVersion") == reference_version:
+        if dispatch is not None and dispatch.get("paginationReceipt") is not None:
+            preflight = _reference_v2_preflight(document, dispatch)
+            if preflight:
+                return preflight, ["reference v2 version/semantic preflight failed"], None
+        errors = _validate_reference_output_document(
+            document, expected_run_id, volume, registry, dispatch
+        )
     else:
         errors = ["actual outputVersion has no version-bound content validator"]
     if errors:
@@ -1517,6 +2036,8 @@ def _validate_store_artifact(
     registry: dict[str, Any],
     reference_store: bool,
     output_document: dict[str, Any],
+    dispatch: dict[str, Any] | None = None,
+    expected_sdk_ref: str | None = None,
 ) -> tuple[str | None, list[str]]:
     if database_bytes is None:
         return "ARTIFACT_EVIDENCE_MISSING", ["actual SQLite store bytes are missing"]
@@ -1542,7 +2063,7 @@ def _validate_store_artifact(
                     (run_id,),
                 ).fetchone()
                 row_errors = _validate_reference_store_rows(
-                    connection, run_id, output_document, volume, registry
+                    connection, run_id, output_document, volume, registry, dispatch
                 )
             else:
                 row = connection.execute(
@@ -1570,6 +2091,10 @@ def _validate_store_artifact(
     if manifest.get("schemaVersion") != expected_version:
         return "STORE_MANIFEST_MISMATCH", ["SQLite manifest schemaVersion is incompatible"]
     if reference_store:
+        if dispatch is not None and manifest.get("providerVersion") != dispatch.get("provider"):
+            return "PROVIDER_VERSION_UNSUPPORTED", [
+                "SQLite reference manifest providerVersion is incompatible"
+            ]
         if row[2] != volume.get("outputVersion"):
             return "STORE_MANIFEST_MISMATCH", ["SQLite reference OutputVersion is incompatible"]
         if row[3] != output_document.get("coverageVerdict"):
@@ -1597,6 +2122,170 @@ def _validate_store_artifact(
             return "STORE_MANIFEST_MISMATCH", [f"SQLite manifest {key} does not match volume binding"]
     if manifest.get("productRef") != volume.get("productRef"):
         return "STORE_MANIFEST_MISMATCH", ["SQLite manifest productRef does not exactly match volume productRef"]
+    if expected_sdk_ref is not None and manifest.get("sdkRef") != expected_sdk_ref:
+        return "STORE_MANIFEST_MISMATCH", ["SQLite manifest sdkRef does not match aggregate output"]
+    return None, []
+
+
+def _load_json_artifact(
+    artifact_bytes: bytes | None, label: str
+) -> tuple[dict[str, Any] | None, str | None, list[str]]:
+    if artifact_bytes is None:
+        return None, "ARTIFACT_EVIDENCE_MISSING", [f"actual {label} bytes are missing"]
+    try:
+        document = json.loads(artifact_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        return None, "VOLUME_CONTENT_MISMATCH", [f"{label} is not valid JSON: {error}"]
+    if not isinstance(document, dict):
+        return None, "VOLUME_CONTENT_MISMATCH", [f"{label} root must be an object"]
+    return document, None, []
+
+
+def _validate_v2_aggregate_artifact(
+    artifact_bytes: bytes | None,
+    envelope: dict[str, Any],
+    dispatch: dict[str, Any],
+    evidence: dict[str, bytes],
+    registry: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None, list[str]]:
+    document, reason, errors = _load_json_artifact(artifact_bytes, "aggregate output")
+    if reason:
+        return None, reason, errors
+    assert document is not None
+    errors = exact_key_errors(document, V2_AGGREGATE_OUTPUT_KEYS, "aggregate output")
+    if errors:
+        return None, "VOLUME_CONTENT_MISMATCH", errors
+    if document.get("outputVersion") != dispatch.get("aggregateOutput"):
+        return None, "UNSUPPORTED_OUTPUT_VERSION", ["aggregate output version is incompatible"]
+    if document.get("productRef") != dispatch.get("productRef"):
+        return None, "PRODUCER_REF_UNSUPPORTED", ["aggregate productRef is incompatible"]
+    bindings = {
+        "acquisitionRunId": envelope.get("runId"),
+        "surfaceContractVersion": dispatch.get("surfaceContract"),
+        "registryRevision": registry.get("registryRevision"),
+        "registryHash": registry.get("registryHash"),
+        "platformBuildRef": envelope.get("platformBuild"),
+        "productRef": envelope.get("productRef"),
+    }
+    for key, expected in bindings.items():
+        if document.get(key) != expected:
+            return None, "AGGREGATE_CONTENT_MISMATCH", [
+                f"aggregate output {key} does not match the reader envelope"
+            ]
+    if not GIT_SHA_RE.fullmatch(str(document.get("sdkRef"))):
+        return None, "AGGREGATE_CONTENT_MISMATCH", ["aggregate output sdkRef is invalid"]
+    for key, role, version in [
+        ("physicalVolume", "physicalOutput", dispatch.get("physicalOutput")),
+        ("referenceVolume", "referenceOutput", dispatch.get("referenceOutput")),
+    ]:
+        volume = document.get(key)
+        volume_errors = exact_key_errors(volume, V2_AGGREGATE_VOLUME_KEYS, f"aggregate output.{key}")
+        if volume_errors:
+            return None, "AGGREGATE_CONTENT_MISMATCH", volume_errors
+        assert isinstance(volume, dict)
+        actual_bytes = evidence.get(role)
+        expected_values = {
+            "outputVersion": version,
+            "runId": envelope.get("runId"),
+            "sha256": hashlib.sha256(actual_bytes).hexdigest() if actual_bytes is not None else None,
+            "length": len(actual_bytes) if actual_bytes is not None else None,
+            "productRef": envelope.get("productRef"),
+            "scopeAuthorityHash": envelope.get("scopeAuthorityHash"),
+            "snapshotFence": envelope.get("snapshotFence"),
+        }
+        for field, expected in expected_values.items():
+            if volume.get(field) != expected:
+                return None, "AGGREGATE_CONTENT_MISMATCH", [
+                    f"aggregate output.{key}.{field} binding mismatch"
+                ]
+    return document, None, []
+
+
+def _sqlite_content_version(
+    artifact_bytes: bytes, role: str, run_id: str
+) -> str | None:
+    try:
+        with closing(_sqlite_connection(artifact_bytes)) as connection:
+            table = "DiscoveryRuns" if role == "physical-database" else "ReferenceRuns"
+            row = connection.execute(
+                f"SELECT ManifestJson FROM {table} WHERE RunId=?", (run_id,)
+            ).fetchone()
+    except sqlite3.DatabaseError:
+        return None
+    if row is None:
+        return None
+    try:
+        return json.loads(row[0]).get("schemaVersion")
+    except (TypeError, json.JSONDecodeError):
+        return None
+
+
+def _validate_terminal_receipt(
+    artifact_bytes: bytes | None,
+    evidence: dict[str, bytes],
+    aggregate: dict[str, Any],
+    dispatch: dict[str, Any],
+    terminal_role_versions: dict[str, str],
+) -> tuple[str | None, list[str]]:
+    receipt, reason, errors = _load_json_artifact(artifact_bytes, "terminal receipt")
+    if reason:
+        return "TERMINAL_RECEIPT_MISSING" if reason == "ARTIFACT_EVIDENCE_MISSING" else reason, errors
+    assert receipt is not None
+    errors = exact_key_errors(receipt, TERMINAL_RECEIPT_KEYS, "terminal receipt")
+    if errors:
+        return "TERMINAL_RECEIPT_SHAPE_INVALID", errors
+    if receipt.get("receiptVersion") != dispatch.get("terminalReceipt"):
+        return "TERMINAL_RECEIPT_VERSION_UNSUPPORTED", ["terminal receipt version is incompatible"]
+    for key, expected in {
+        "artifactRunId": aggregate.get("acquisitionRunId"),
+        "productRef": aggregate.get("productRef"),
+        "sdkRef": aggregate.get("sdkRef"),
+        "snapshotFence": aggregate.get("physicalVolume", {}).get("snapshotFence"),
+        "aggregateVerdict": aggregate.get("aggregateVerdict"),
+    }.items():
+        if receipt.get(key) != expected:
+            return "TERMINAL_RECEIPT_BINDING_MISMATCH", [f"terminal receipt {key} mismatch"]
+    if receipt.get("exitCode") != 0:
+        return "TERMINAL_RECEIPT_NOT_SUCCESS", ["terminal receipt does not bind a successful run"]
+    volumes = receipt.get("volumes")
+    if not isinstance(volumes, list):
+        return "TERMINAL_RECEIPT_SHAPE_INVALID", ["terminal receipt volumes must be an array"]
+    roles = [volume.get("role") for volume in volumes if isinstance(volume, dict)]
+    for role in terminal_role_versions:
+        count = roles.count(role)
+        if count == 0:
+            return "TERMINAL_VOLUME_MISSING", [f"terminal volume missing: {role}"]
+        if count > 1:
+            return "TERMINAL_VOLUME_DUPLICATE", [f"terminal volume duplicated: {role}"]
+    if set(roles) != set(terminal_role_versions):
+        return "TERMINAL_VOLUME_ROLE_UNSUPPORTED", ["terminal volume roles are not the exact official set"]
+    for volume in volumes:
+        volume_errors = exact_key_errors(volume, TERMINAL_VOLUME_KEYS, "terminal volume")
+        if volume_errors:
+            return "TERMINAL_RECEIPT_SHAPE_INVALID", volume_errors
+        role = volume["role"]
+        expected_version = terminal_role_versions[role]
+        if volume.get("outputVersion") != expected_version:
+            return "TERMINAL_ROLE_VERSION_MISMATCH", [f"terminal role/version mismatch: {role}"]
+        evidence_key = TERMINAL_ROLE_TO_EVIDENCE[role]
+        actual_bytes = evidence.get(evidence_key)
+        if actual_bytes is None:
+            return "TERMINAL_VOLUME_MISSING", [f"terminal official bytes missing: {role}"]
+        if volume.get("sha256") != hashlib.sha256(actual_bytes).hexdigest():
+            return "TERMINAL_VOLUME_HASH_MISMATCH", [f"terminal volume hash mismatch: {role}"]
+        if volume.get("length") != len(actual_bytes):
+            return "TERMINAL_VOLUME_LENGTH_MISMATCH", [f"terminal volume length mismatch: {role}"]
+        if role.endswith("database"):
+            actual_version = _sqlite_content_version(
+                actual_bytes, role, str(aggregate.get("acquisitionRunId"))
+            )
+        else:
+            document, document_reason, _ = _load_json_artifact(actual_bytes, role)
+            actual_version = None if document_reason else document.get("outputVersion")
+        if actual_version != expected_version:
+            return "TERMINAL_VOLUME_CONTENT_VERSION_MISMATCH", [
+                f"terminal volume content version mismatch: {role}"
+            ]
     return None, []
 
 
@@ -1605,6 +2294,7 @@ def validate_acquisition_envelope(
     registry: dict[str, Any],
     profile: dict[str, Any],
     artifact_evidence: dict[str, bytes] | None = None,
+    acquisition_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if envelope is None:
         return {"verdict": "Unknown", "reasonCode": "ACQUISITION_ENVELOPE_MISSING"}
@@ -1617,8 +2307,12 @@ def validate_acquisition_envelope(
     envelope_errors = exact_key_errors(envelope, ACQUISITION_ENVELOPE_KEYS, "acquisitionEnvelope")
     if envelope_errors:
         return {"verdict": "Unknown", "reasonCode": "ACQUISITION_ENVELOPE_SHAPE_INVALID", "errors": envelope_errors}
-    if envelope.get("outputVersion") != VOLUME_COMPATIBILITY["aggregateOutput"]:
-        return {"verdict": "Unknown", "reasonCode": "UNSUPPORTED_OUTPUT_VERSION"}
+    dispatch, dispatch_reason = _resolve_acquisition_dispatch(
+        envelope, profile, acquisition_profile
+    )
+    if dispatch_reason:
+        return {"verdict": "Unknown", "reasonCode": dispatch_reason}
+    assert dispatch is not None
     physical = envelope["physicalVolume"]
     reference = envelope["referenceVolume"]
     physical_errors = exact_key_errors(physical, BASE_VOLUME_KEYS, "physicalVolume")
@@ -1628,18 +2322,22 @@ def validate_acquisition_envelope(
     if reference_errors:
         return {"verdict": "Unknown", "reasonCode": "REFERENCE_VOLUME_SHAPE_INVALID", "errors": reference_errors}
     assert isinstance(physical, dict) and isinstance(reference, dict)
-    if physical.get("outputVersion") != VOLUME_COMPATIBILITY["physicalOutput"]:
+    if physical.get("outputVersion") != dispatch["physicalOutput"]:
         return {"verdict": "Unknown", "reasonCode": "UNSUPPORTED_OUTPUT_VERSION"}
-    if physical.get("contractVersion") != VOLUME_COMPATIBILITY["physicalContract"]:
+    if physical.get("contractVersion") != dispatch["physicalContract"]:
         return {"verdict": "Unknown", "reasonCode": "UNSUPPORTED_CONTRACT_VERSION"}
-    if reference.get("outputVersion") != VOLUME_COMPATIBILITY["referenceOutput"]:
+    if reference.get("outputVersion") != dispatch["referenceOutput"]:
         return {"verdict": "Unknown", "reasonCode": "REFERENCE_OUTPUT_VERSION_UNSUPPORTED"}
-    if reference.get("contractVersion") != VOLUME_COMPATIBILITY["referenceContract"]:
+    if reference.get("contractVersion") != dispatch["referenceContract"]:
         return {"verdict": "Unknown", "reasonCode": "UNSUPPORTED_CONTRACT_VERSION"}
-    reason, errors = _validate_store(physical.get("store"), VOLUME_COMPATIBILITY["physicalStore"], "physical store")
+    reason, errors = _validate_store(
+        physical.get("store"), dispatch["physicalStore"], "physical store"
+    )
     if reason:
         return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
-    reason, errors = _validate_store(reference.get("store"), VOLUME_COMPATIBILITY["referenceStore"], "reference store")
+    reason, errors = _validate_store(
+        reference.get("store"), dispatch["referenceStore"], "reference store"
+    )
     if reason:
         return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
     if reference.get("recordKind") != REFERENCE_RECORD_KIND:
@@ -1678,10 +2376,32 @@ def validate_acquisition_envelope(
             return {"verdict": "Unknown", "reasonCode": reason_code}
     if envelope.get("platformBuild") != profile.get("platformBuild"):
         return {"verdict": "Unknown", "reasonCode": "VOLUME_BUILD_MISMATCH"}
-    if envelope.get("productRef") != profile.get("consumerProductRef"):
-        return {"verdict": "Unknown", "reasonCode": "VOLUME_REF_MISMATCH"}
+    if envelope.get("productRef") != dispatch.get("productRef"):
+        return {"verdict": "Unknown", "reasonCode": "PRODUCER_REF_UNSUPPORTED"}
 
     evidence = artifact_evidence or {}
+    aggregate_document: dict[str, Any] | None = None
+    if dispatch.get("terminalReceipt") is not None:
+        aggregate_document, reason, errors = _validate_v2_aggregate_artifact(
+            evidence.get("aggregateOutput"), envelope, dispatch, evidence, registry
+        )
+        if reason:
+            return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
+        assert aggregate_document is not None
+        terminal_versions = (
+            acquisition_profile.get("terminalRoleVersions", {})
+            if acquisition_profile is not None
+            else {}
+        )
+        reason, errors = _validate_terminal_receipt(
+            evidence.get("terminalReceipt"),
+            evidence,
+            aggregate_document,
+            dispatch,
+            terminal_versions,
+        )
+        if reason:
+            return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
     output_documents: dict[str, dict[str, Any]] = {}
     for volume, evidence_key, run_field in [
         (physical, "physicalOutput", "runId"),
@@ -1693,6 +2413,7 @@ def validate_acquisition_envelope(
             run_field,
             str(envelope.get("runId")),
             registry,
+            dispatch,
         )
         if reason:
             return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
@@ -1704,7 +2425,7 @@ def validate_acquisition_envelope(
             physical,
             "physicalStore",
             "physicalOutput",
-            VOLUME_COMPATIBILITY["physicalStore"],
+            dispatch["physicalStore"],
             ARTIFACT_VERIFICATION["physicalStoreSchemaHash"],
             False,
         ),
@@ -1712,7 +2433,7 @@ def validate_acquisition_envelope(
             reference,
             "referenceStore",
             "referenceOutput",
-            VOLUME_COMPATIBILITY["referenceStore"],
+            dispatch["referenceStore"],
             ARTIFACT_VERIFICATION["referenceStoreSchemaHash"],
             True,
         ),
@@ -1727,6 +2448,8 @@ def validate_acquisition_envelope(
             registry,
             reference_store,
             output_documents[output_key],
+            dispatch,
+            aggregate_document.get("sdkRef") if aggregate_document is not None else None,
         )
         if reason:
             return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
@@ -1741,6 +2464,7 @@ def evaluate_registry_request(
     registry_schema: dict[str, Any] | None = None,
     registry_schema_hash: str | None = None,
     artifact_evidence: dict[str, bytes] | None = None,
+    acquisition_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if registry is None:
         return {"verdict": "Unknown", "reasonCode": "REGISTRY_VOLUME_MISSING"}
@@ -1756,6 +2480,16 @@ def evaluate_registry_request(
     profile_errors = validate_profile(profile, registry, authority, registry_schema_hash)
     if profile_errors:
         return {"verdict": "Unknown", "reasonCode": "REGISTRY_PROFILE_INVALID", "errors": profile_errors}
+    if acquisition_profile is not None:
+        acquisition_profile_errors = validate_acquisition_consumer_profile(
+            acquisition_profile, registry, profile
+        )
+        if acquisition_profile_errors:
+            return {
+                "verdict": "Unknown",
+                "reasonCode": "ACQUISITION_PROFILE_INVALID",
+                "errors": acquisition_profile_errors,
+            }
 
     registry_envelope = request.get("registryEnvelope")
     if registry_envelope is None:
@@ -1793,7 +2527,11 @@ def evaluate_registry_request(
         return {"verdict": "Unknown", "reasonCode": "REFERENCE_COMPLETENESS_UNSUPPORTED"}
 
     acquisition = validate_acquisition_envelope(
-        request.get("acquisitionEnvelope"), registry, profile, artifact_evidence
+        request.get("acquisitionEnvelope"),
+        registry,
+        profile,
+        artifact_evidence,
+        acquisition_profile,
     )
     if acquisition["verdict"] != "Compatible":
         return acquisition
@@ -1926,6 +2664,7 @@ def evaluate_fixture_suite(
     registry_schema: dict[str, Any],
     registry_schema_hash: str,
     fixture_root: Path,
+    acquisition_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     baseline_evidence, evidence_errors = load_fixture_artifact_evidence(
@@ -1969,6 +2708,14 @@ def evaluate_fixture_suite(
                     reference_store=store_name == "reference",
                     run_id=str(acquisition["runId"]),
                 )
+            if case.get("rebindAggregateVolumes"):
+                _rebind_aggregate_volumes(case_evidence)
+            if "rebindTerminalVolumes" in case:
+                terminal_roles = case.get("rebindTerminalVolumes")
+                _rebind_terminal_volumes(
+                    case_evidence,
+                    terminal_roles if isinstance(terminal_roles, list) else None,
+                )
             actual = evaluate_registry_request(
                 case_registry,
                 case_profile,
@@ -1977,6 +2724,7 @@ def evaluate_fixture_suite(
                 registry_schema,
                 registry_schema_hash,
                 case_evidence,
+                acquisition_profile,
             )
             receipt_input = {
                 "readerInput": reader_input,
@@ -1986,6 +2734,11 @@ def evaluate_fixture_suite(
                 "mutatedAuthorityHash": case_authority.get("authorityArtifactHash"),
                 "mutatedRegistryHash": case_registry.get("registryHash"),
                 "mutatedProfileHash": case_profile.get("profileHash"),
+                "acquisitionProfileHash": (
+                    acquisition_profile.get("profileHash")
+                    if acquisition_profile is not None
+                    else None
+                ),
             }
             input_hash = hashlib.sha256(canonical_json_bytes(receipt_input)).hexdigest()
         elif kind == "referenceObservation":
@@ -2044,7 +2797,11 @@ def evaluate_fixture_suite(
             }
         )
     return {
-        "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v3",
+        "receiptSchemaVersion": (
+            "aspx-platform-registry-negative-receipts/v4"
+            if acquisition_profile is not None
+            else "aspx-platform-registry-negative-receipts/v3"
+        ),
         "registryRevision": registry["registryRevision"],
         "registryHash": registry["registryHash"],
         "profileRevision": profile["profileRevision"],
@@ -2052,6 +2809,11 @@ def evaluate_fixture_suite(
         "registrySchemaHash": registry_schema_hash,
         "artifactEvidence": artifact_evidence_summary(baseline_evidence),
         "fixtureProvenance": fixtures.get("fixtureProvenance"),
+        "acquisitionProfileHash": (
+            acquisition_profile.get("profileHash")
+            if acquisition_profile is not None
+            else None
+        ),
         "caseCount": len(results),
         "passCount": sum(1 for row in results if row["passed"]),
         "results": results,
@@ -2065,6 +2827,8 @@ def main() -> int:
     parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--schema", type=Path, required=True)
     parser.add_argument("--profile-schema", type=Path)
+    parser.add_argument("--acquisition-profile", type=Path)
+    parser.add_argument("--acquisition-profile-schema", type=Path)
     parser.add_argument("--fixtures", type=Path)
     parser.add_argument("--receipt-out", type=Path)
     parser.add_argument("--release-spec", type=Path)
@@ -2081,6 +2845,25 @@ def main() -> int:
     errors = schema_validation_errors(registry, registry_schema)
     errors.extend(validate_registry(registry, authority))
     errors.extend(validate_profile(profile, registry, authority, registry_schema_hash))
+    acquisition_profile = (
+        load_json(args.acquisition_profile) if args.acquisition_profile else None
+    )
+    if acquisition_profile is not None:
+        errors.extend(
+            validate_acquisition_consumer_profile(
+                acquisition_profile, registry, profile
+            )
+        )
+        if args.acquisition_profile_schema is None:
+            errors.append("--acquisition-profile-schema is required with --acquisition-profile")
+        else:
+            acquisition_profile_schema = load_json(args.acquisition_profile_schema)
+            errors.extend(
+                f"acquisition profile schema: {error}"
+                for error in schema_validation_errors(
+                    acquisition_profile, acquisition_profile_schema
+                )
+            )
     profile_schema = None
     if args.profile_schema:
         profile_schema = load_json(args.profile_schema)
@@ -2112,6 +2895,13 @@ def main() -> int:
     if profile_schema is not None and args.profile_schema is not None:
         summary["profileSchemaResourceId"] = profile_schema["$id"]
         summary["profileSchemaHash"] = artifact_sha256(args.profile_schema)
+    if acquisition_profile is not None and args.acquisition_profile is not None:
+        summary["acquisitionProfileRevision"] = acquisition_profile["profileRevision"]
+        summary["acquisitionProfileHash"] = acquisition_profile["profileHash"]
+        if args.acquisition_profile_schema is not None:
+            summary["acquisitionProfileSchemaHash"] = artifact_sha256(
+                args.acquisition_profile_schema
+            )
     if args.fixtures:
         receipts = evaluate_fixture_suite(
             load_json(args.fixtures),
@@ -2121,6 +2911,7 @@ def main() -> int:
             registry_schema,
             registry_schema_hash,
             args.fixtures.parent,
+            acquisition_profile,
         )
         summary["fixtureCases"] = receipts["caseCount"]
         summary["fixturePasses"] = receipts["passCount"]

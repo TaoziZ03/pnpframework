@@ -38,6 +38,17 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
             RELEASE / "schema" / "aspx-platform-registry-profile.schema.json"
         )
         cls.fixtures = validator.load_json(RELEASE / "fixtures" / "contract-cases.json")
+        cls.acquisition_profile = validator.load_json(
+            RELEASE
+            / "profile"
+            / "spo-online-16.0.27709.12000-acquisition-consumer.profile.json"
+        )
+        cls.acquisition_profile_schema = validator.load_json(
+            RELEASE / "schema" / "aspx-acquisition-consumer-profile.schema.json"
+        )
+        cls.v2_fixtures = validator.load_json(
+            RELEASE / "fixtures" / "contract-cases-v2.json"
+        )
 
     def test_exact_source_authority_and_release_are_valid(self) -> None:
         schema_hash = validator.artifact_sha256(self.schema_path)
@@ -94,6 +105,116 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
         self.assertEqual([], failures)
         self.assertEqual(58, receipts["caseCount"])
         self.assertEqual(58, receipts["passCount"])
+
+    def test_assessment_v1_v2_dispatch_profiles_are_closed_and_both_baselines_pass(self) -> None:
+        self.assertEqual(
+            [],
+            validator.schema_validation_errors(
+                self.acquisition_profile, self.acquisition_profile_schema
+            ),
+        )
+        self.assertEqual(
+            [],
+            validator.validate_acquisition_consumer_profile(
+                self.acquisition_profile, self.registry, self.profile
+            ),
+        )
+        dispatches = {
+            row["name"]: row for row in self.acquisition_profile["dispatches"]
+        }
+        self.assertEqual(
+            "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8",
+            dispatches["assessment-v1"]["productRef"],
+        )
+        self.assertEqual(
+            "pnp/assessment@0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
+            dispatches["assessment-v2"]["productRef"],
+        )
+        self.assertEqual(
+            "aspx-acquisition-terminal-receipt/v1",
+            dispatches["assessment-v2"]["terminalReceipt"],
+        )
+
+        schema_hash = validator.artifact_sha256(self.schema_path)
+        v1_receipt = validator.evaluate_fixture_suite(
+            self.fixtures,
+            self.registry,
+            self.authority,
+            self.profile,
+            self.schema,
+            schema_hash,
+            RELEASE / "fixtures",
+            self.acquisition_profile,
+        )
+        v2_receipt = validator.evaluate_fixture_suite(
+            self.v2_fixtures,
+            self.registry,
+            self.authority,
+            self.profile,
+            self.schema,
+            schema_hash,
+            RELEASE / "fixtures",
+            self.acquisition_profile,
+        )
+        self.assertEqual(v1_receipt["caseCount"], v1_receipt["passCount"])
+        self.assertEqual(18, v2_receipt["caseCount"])
+        self.assertEqual(18, v2_receipt["passCount"])
+        self.assertEqual(
+            v2_receipt,
+            validator.evaluate_fixture_suite(
+                self.v2_fixtures,
+                self.registry,
+                self.authority,
+                self.profile,
+                self.schema,
+                schema_hash,
+                RELEASE / "fixtures",
+                self.acquisition_profile,
+            ),
+            "the v2 admission receipt must be deterministic",
+        )
+
+    def test_v2_negative_matrix_returns_exact_fail_closed_reason_codes(self) -> None:
+        receipt = validator.evaluate_fixture_suite(
+            self.v2_fixtures,
+            self.registry,
+            self.authority,
+            self.profile,
+            self.schema,
+            validator.artifact_sha256(self.schema_path),
+            RELEASE / "fixtures",
+            self.acquisition_profile,
+        )
+        actual = {row["id"]: row["actualReasonCode"] for row in receipt["results"]}
+        expected = {
+            case["id"]: case["expectedReasonCode"]
+            for case in self.v2_fixtures["negative"]
+        }
+        self.assertEqual(expected, {key: actual[key] for key in expected})
+        self.assertEqual(
+            {
+                "physical-database": "aspx-discovery-sqlite/v2",
+                "physical-output": "aspx-discovery-output/v2",
+                "reference-database": "aspx-reference-sqlite/v2",
+                "reference-output": "aspx-reference-output/v2",
+                "aggregate-output": "aspx-acquisition-verdict/v2",
+            },
+            self.acquisition_profile["terminalRoleVersions"],
+        )
+
+    def test_v2_fixture_bytes_and_sqlite_are_reopened_not_trusted_from_metadata(self) -> None:
+        evidence, errors = validator.load_fixture_artifact_evidence(
+            self.v2_fixtures["artifactBindings"], RELEASE / "fixtures"
+        )
+        self.assertEqual([], errors)
+        summary = validator.artifact_evidence_summary(evidence)
+        for key, descriptor in self.v2_fixtures["artifactBindings"].items():
+            self.assertEqual(descriptor["sha256"], summary[key]["sha256"])
+            self.assertEqual(descriptor["length"], summary[key]["length"])
+        self.assertEqual(
+            "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec",
+            summary["referenceStore"]["schemaManifestHash"],
+        )
 
     def test_prior_release_files_remain_byte_immutable(self) -> None:
         immutable = validator.load_json(RELEASE / "old-release-immutability.json")
