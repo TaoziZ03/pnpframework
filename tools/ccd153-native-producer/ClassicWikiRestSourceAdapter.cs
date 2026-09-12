@@ -410,24 +410,35 @@ internal static class ClassicWikiRestSourceAdapter
             {
                 nameEnd++;
             }
-            if (!string.Equals(
-                wikiField.Substring(nameStart, nameEnd - nameStart),
-                tagName,
-                StringComparison.OrdinalIgnoreCase))
+            var parsedTagName = wikiField.Substring(nameStart, nameEnd - nameStart);
+            if (string.Equals(parsedTagName, tagName, StringComparison.OrdinalIgnoreCase))
+            {
+                output.Append(RestoreAttributeInTag(
+                    wikiField.Substring(tagStart, tagEnd - tagStart + 1),
+                    nameEnd - tagStart,
+                    attributeName,
+                    rewrittenValue,
+                    sourceValue,
+                    ref replacements));
+            }
+            else
             {
                 output.Append(wikiField, tagStart, tagEnd - tagStart + 1);
-                cursor = tagEnd + 1;
-                continue;
             }
-
-            output.Append(RestoreAttributeInTag(
-                wikiField.Substring(tagStart, tagEnd - tagStart + 1),
-                nameEnd - tagStart,
-                attributeName,
-                rewrittenValue,
-                sourceValue,
-                ref replacements));
             cursor = tagEnd + 1;
+
+            if (IsHtmlTextElement(parsedTagName))
+            {
+                var textEnd = FindHtmlTextElementEnd(wikiField, cursor, parsedTagName);
+                if (textEnd < 0)
+                {
+                    output.Append(wikiField, cursor, wikiField.Length - cursor);
+                    break;
+                }
+
+                output.Append(wikiField, cursor, textEnd - cursor);
+                cursor = textEnd;
+            }
         }
         return output.ToString();
     }
@@ -451,7 +462,7 @@ internal static class ClassicWikiRestSourceAdapter
                 cursor++;
             }
             var nameStart = cursor;
-            while (cursor < tag.Length - 1 && IsMarkupNameCharacter(tag[cursor]))
+            while (cursor < tag.Length - 1 && IsAttributeNameCharacter(tag[cursor]))
             {
                 cursor++;
             }
@@ -580,6 +591,53 @@ internal static class ClassicWikiRestSourceAdapter
 
     private static bool IsMarkupNameCharacter(char value) =>
         char.IsLetterOrDigit(value) || value == ':' || value == '_' || value == '-';
+
+    private static bool IsAttributeNameCharacter(char value) =>
+        !char.IsWhiteSpace(value)
+        && value != '/'
+        && value != '>'
+        && value != '=';
+
+    private static bool IsHtmlTextElement(string tagName) =>
+        string.Equals(tagName, "textarea", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "title", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "script", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "style", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "xmp", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "iframe", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "noembed", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "noframes", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tagName, "plaintext", StringComparison.OrdinalIgnoreCase);
+
+    private static int FindHtmlTextElementEnd(string value, int start, string tagName)
+    {
+        if (string.Equals(tagName, "plaintext", StringComparison.OrdinalIgnoreCase))
+        {
+            return -1;
+        }
+
+        var closingPrefix = "</" + tagName;
+        var candidate = start;
+        while (candidate < value.Length)
+        {
+            candidate = value.IndexOf(closingPrefix, candidate, StringComparison.OrdinalIgnoreCase);
+            if (candidate < 0)
+            {
+                return -1;
+            }
+
+            var delimiter = candidate + closingPrefix.Length;
+            if (delimiter >= value.Length
+                || char.IsWhiteSpace(value[delimiter])
+                || value[delimiter] == '>'
+                || value[delimiter] == '/')
+            {
+                return candidate;
+            }
+            candidate = delimiter;
+        }
+        return -1;
+    }
 
     private static string RestoreAttributeValue(
         string rawValue,

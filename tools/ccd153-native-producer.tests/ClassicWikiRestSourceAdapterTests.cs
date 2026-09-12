@@ -186,6 +186,61 @@ public class ClassicWikiRestSourceAdapterTests
     }
 
     [TestMethod]
+    public void AdaptPreservesTextareaRcdataAndRestoresOnlyTheFollowingAnchor()
+    {
+        const string sourceValue = "/teams/source/SitePages/one.aspx";
+        const string targetValue = "/teams/target/SitePages/one.aspx";
+        var wikiField = "<div>"
+            + "<textarea><a href=\"" + sourceValue + "\">example only</a></textarea>"
+            + "<a href=\"" + sourceValue + "\">Unavailable</a>"
+            + "</div>";
+        var package = CreatePackage(PageCaptureStatus.Failed, "textarea-isolation", wikiField: wikiField);
+
+        var result = ClassicWikiRestSourceAdapter.Adapt(
+            package,
+            CreateAdmittedPlan(package, "textarea-isolation"));
+
+        Assert.AreEqual(1, result.Package.Plan.Dependencies.Count);
+        Assert.AreEqual("Delegate", result.Package.Plan.Dependencies[0].Disposition);
+        var emitted = result.Package.Plan.WikiFieldPlan.ExactValue;
+        StringAssert.Contains(
+            emitted,
+            "<textarea><a href=\"" + targetValue + "\">example only</a></textarea>");
+        StringAssert.Contains(emitted, "<a href=\"" + sourceValue + "\">Unavailable</a>");
+
+        var comparison = CompareDependencies(result.Package, ReadEmittedDependencies(result.Package));
+        Assert.IsFalse(comparison.DependenciesMatched);
+        Assert.IsTrue(comparison.Differences.Any(value => value.Contains("source disposition 'Delegate'")));
+        Assert.IsFalse(comparison.Differences.Any(value => value.Contains("exact-semantics mismatch")));
+    }
+
+    [TestMethod]
+    public void AdaptPreservesDottedNonConsumerAttributeAndRestoresHref()
+    {
+        const string sourceValue = "/teams/source/SitePages/one.aspx";
+        const string targetValue = "/teams/target/SitePages/one.aspx";
+        var wikiField = "<div>"
+            + "<a data.href=\"" + sourceValue + "\" href=\"" + sourceValue + "\">Unavailable</a>"
+            + "</div>";
+        var package = CreatePackage(PageCaptureStatus.Failed, "dotted-attribute-isolation", wikiField: wikiField);
+
+        var result = ClassicWikiRestSourceAdapter.Adapt(
+            package,
+            CreateAdmittedPlan(package, "dotted-attribute-isolation"));
+
+        Assert.AreEqual(1, result.Package.Plan.Dependencies.Count);
+        Assert.AreEqual("Delegate", result.Package.Plan.Dependencies[0].Disposition);
+        var emitted = result.Package.Plan.WikiFieldPlan.ExactValue;
+        StringAssert.Contains(emitted, "data.href=\"" + targetValue + "\"");
+        StringAssert.Contains(emitted, " href=\"" + sourceValue + "\">Unavailable");
+
+        var comparison = CompareDependencies(result.Package, ReadEmittedDependencies(result.Package));
+        Assert.IsFalse(comparison.DependenciesMatched);
+        Assert.IsTrue(comparison.Differences.Any(value => value.Contains("source disposition 'Delegate'")));
+        Assert.IsFalse(comparison.Differences.Any(value => value.Contains("exact-semantics mismatch")));
+    }
+
+    [TestMethod]
     public void AdaptContinuesWithTheNextPageAfterAnUnavailableDependency()
     {
         var first = CreatePackage(PageCaptureStatus.Failed, "first");
