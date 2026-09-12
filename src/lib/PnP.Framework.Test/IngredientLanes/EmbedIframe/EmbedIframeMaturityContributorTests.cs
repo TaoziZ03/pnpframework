@@ -85,6 +85,14 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [TestMethod]
+        public void PermanentFixtureBindsTheAssignedCcd171Claim()
+        {
+            var fixture = Fixture.Create();
+            Assert.AreEqual("3f078109449c3c83552dc4ee3ea6ce3857d609c91e4b8a5c3f933887a2a324c3", fixture.Contract.ClaimId);
+            Assert.AreEqual(fixture.Contract.ClaimId, fixture.Context.Identity.ClaimId);
+        }
+
+        [TestMethod]
         public void ObservedPlanDigestMismatchWithRecomputedSyntheticPlanFailsClosed()
         {
             var fixture = Fixture.Create();
@@ -122,6 +130,9 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
             Assert.AreEqual(fixture.Contract.BinaryReceipt.TestSha256, receipt.IndependentlyObservedTestSha256);
             Assert.AreNotEqual(receipt.FrameworkSha256, receipt.TestSha256);
             Assert.AreEqual(fixture.Contract.BinaryReceipt.BuildCommand, receipt.BuildCommand);
+            Assert.IsTrue(receipt.BuildCommand.StartsWith("dotnet build ", StringComparison.Ordinal));
+            Assert.IsTrue(receipt.BuildCommand.IndexOf("pushd", StringComparison.OrdinalIgnoreCase) < 0);
+            Assert.IsTrue(receipt.BuildCommand.IndexOf("\\\\wsl.localhost", StringComparison.OrdinalIgnoreCase) < 0);
         }
 
         [TestMethod]
@@ -174,42 +185,45 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [DataTestMethod]
-        [DataRow("foreign-ingredient")]
-        [DataRow("wrong-plan-target")]
-        [DataRow("wrong-action")]
-        [DataRow("wrong-target")]
-        [DataRow("stale-binding-source-version")]
-        [DataRow("wrong-operation")]
-        [DataRow("corrupt-plan-digest")]
-        public void M3M4ContextBindingNegativesFailClosed(string mutation)
+        [DataRow("foreign-ingredient", "m3.snapshot-plan-binding", "evidence envelope")]
+        [DataRow("wrong-plan-target", "m3.snapshot-plan-binding", "iframe plan")]
+        [DataRow("wrong-action", "m3.snapshot-plan-binding", "iframe plan")]
+        [DataRow("wrong-target", "m3.snapshot-plan-binding", "evidence envelope")]
+        [DataRow("stale-binding-source-version", "m3.snapshot-plan-binding", "evidence envelope")]
+        [DataRow("wrong-operation", "m4.operation-action-binding", "iframe operation")]
+        [DataRow("corrupt-plan-digest", "m3.snapshot-plan-binding", "iframe plan")]
+        public void M3M4ContextBindingNegativesFailClosed(string mutation, string gateId, string failureFragment)
         {
             var fixture = Fixture.Create();
-            fixture.AddFrozenTargetObservations();
+            fixture.BindHermeticM5Contract();
+            Assert.AreEqual(IngredientMaturityLevel.M5, fixture.Evaluate().AttainedMaturity, "baseline");
             fixture.Mutate(mutation);
-            var assessment = fixture.Evaluate();
-            Assert.IsTrue(new[] { IngredientMaturityGateCatalog.SnapshotPlanBinding, IngredientMaturityGateCatalog.OperationActionBinding, IngredientMaturityGateCatalog.AdmittedExactPlan }
-                .Any(gate => Gate(assessment, gate).Status == IngredientMaturityGateStatus.Failed), mutation);
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+            StringAssert.Contains(receipt.FailureReason, failureFragment, mutation);
         }
 
         [DataTestMethod]
-        [DataRow("missing-intent-receipt")]
-        [DataRow("corrupt-intent-receipt")]
-        [DataRow("missing-apply-receipt")]
-        [DataRow("corrupt-apply-receipt")]
-        [DataRow("missing-readback-receipt")]
-        [DataRow("corrupt-readback-receipt")]
-        [DataRow("missing-runtime-receipt")]
-        [DataRow("corrupt-runtime-receipt")]
-        [DataRow("wrong-runtime-binding")]
-        [DataRow("missing-cleanup-receipt")]
-        [DataRow("corrupt-cleanup-receipt")]
-        public void OperationalReceiptNegativesFailClosed(string mutation)
+        [DataRow("missing-intent-receipt", "m4.admitted-exact-plan", "metadata or evidence references")]
+        [DataRow("corrupt-intent-receipt", "m4.admitted-exact-plan", "exact plan")]
+        [DataRow("missing-apply-receipt", "m4.mutation-journal-verification", "iframe operation")]
+        [DataRow("corrupt-apply-receipt", "m4.mutation-journal-verification", "receipt bindings")]
+        [DataRow("missing-readback-receipt", "m4.mutation-journal-verification", "iframe operation")]
+        [DataRow("corrupt-readback-receipt", "m4.mutation-journal-verification", "iframe operation")]
+        [DataRow("missing-runtime-receipt", "m4.runtime-cleanup-retry", "iframe operation")]
+        [DataRow("corrupt-runtime-receipt", "m4.runtime-cleanup-retry", "runtime verification")]
+        [DataRow("wrong-runtime-binding", "m4.runtime-cleanup-retry", "iframe operation")]
+        [DataRow("missing-cleanup-receipt", "m4.runtime-cleanup-retry", "iframe operation")]
+        [DataRow("corrupt-cleanup-receipt", "m4.runtime-cleanup-retry", "cleanup or retry")]
+        public void OperationalReceiptNegativesFailClosed(string mutation, string gateId, string failureFragment)
         {
             var fixture = Fixture.Create();
-            fixture.AddFrozenTargetObservations();
+            fixture.BindHermeticM5Contract();
+            Assert.AreEqual(IngredientMaturityLevel.M5, fixture.Evaluate().AttainedMaturity, "baseline");
             fixture.Mutate(mutation);
-            Assert.IsTrue(fixture.Evaluate().Levels.Single(value => value.Level == IngredientMaturityLevel.M4).Gates
-                .Any(value => value.Status == IngredientMaturityGateStatus.Failed), mutation);
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+            StringAssert.Contains(receipt.FailureReason, failureFragment, mutation);
         }
 
         [DataTestMethod]
@@ -233,18 +247,20 @@ namespace PnP.Framework.Test.IngredientLanes.EmbedIframe
         }
 
         [DataTestMethod]
-        [DataRow("same-commit-mismatch")]
-        [DataRow("wrong-compare-binding")]
-        [DataRow("corrupt-compare-digest")]
-        [DataRow("access-denied-compared-equal")]
-        [DataRow("unavailable-compared-equal")]
-        public void ProductizationCompareAndAvailabilityNegativesFailClosed(string mutation)
+        [DataRow("same-commit-mismatch", "m5.same-commit-e2e", "iframe productization")]
+        [DataRow("wrong-compare-binding", "m5.deterministic-compare", "iframe productization")]
+        [DataRow("corrupt-compare-digest", "m5.deterministic-compare", "deterministic Compare")]
+        [DataRow("access-denied-compared-equal", "m5.deterministic-compare", "iframe productization")]
+        [DataRow("unavailable-compared-equal", "m5.deterministic-compare", "iframe productization")]
+        public void ProductizationCompareAndAvailabilityNegativesFailClosed(string mutation, string gateId, string failureFragment)
         {
             var fixture = Fixture.Create();
-            fixture.AddFrozenTargetObservations();
+            fixture.BindHermeticM5Contract();
+            Assert.AreEqual(IngredientMaturityLevel.M5, fixture.Evaluate().AttainedMaturity, "baseline");
             fixture.Mutate(mutation);
-            Assert.IsTrue(fixture.Evaluate().Levels.Single(value => value.Level == IngredientMaturityLevel.M5).Gates
-                .Any(value => value.Status == IngredientMaturityGateStatus.Failed), mutation);
+            var receipt = Gate(fixture.Evaluate(), gateId);
+            Assert.AreEqual(IngredientMaturityGateStatus.Failed, receipt.Status, mutation);
+            StringAssert.Contains(receipt.FailureReason, failureFragment, mutation);
         }
 
         private static IngredientMaturityGateResult Gate(IngredientMaturityAssessment assessment, string gateId)

@@ -1,6 +1,6 @@
 {
   "schema": "pnp-ingredient-fixture/v1",
-  "claimId": "3c757d79a7e3846027fc3a97f341c3a23b5959f004cc525dfd05e30b659e3dbf",
+  "claimId": "3f078109449c3c83552dc4ee3ea6ce3857d609c91e4b8a5c3f933887a2a324c3",
   "ingredientId": "reference:1d58d34bed460770722b20ff7e809f8636b4b03f80a131e66ee3d11957dcbe69",
   "source": {
     "webUrl": "https://microsoft.sharepoint.com/sites/Marketing/Teams",
@@ -53,11 +53,11 @@
     "msBuildVersion": "18.9.6",
     "vstestVersion": "18.7.0",
     "configuration": "Debug/net10.0",
-    "buildCommand": "cmd.exe /d /c pushd \\\\wsl.localhost\\GasTown\\home\\titao\\paperclip-trial\\instance\\instances\\default\\projects\\4186ca6f-7286-4da3-ae04-41d1e85ad92c\\8ebcc27b-13fb-469e-b186-5136ea11cbbe\\_default\\worktrees\\ccd161-embed-iframe-r00871-v83 && C:\\Users\\titao\\AppData\\Local\\mise\\dotnet-root\\dotnet.exe build src\\lib\\PnP.Framework.Test\\PnP.Framework.Test.csproj --no-restore -f net10.0 -p:IncludeSourceRevisionInInformationalVersion=false -p:DebugType=None -p:DebugSymbols=false --nologo --verbosity minimal && popd",
+    "buildCommand": "dotnet build src/lib/PnP.Framework.Test/PnP.Framework.Test.csproj --no-restore --no-incremental -f net10.0 -p:ContinuousIntegrationBuild=true -p:IncludeSourceRevisionInInformationalVersion=false -p:DebugType=None -p:DebugSymbols=false --nologo --verbosity minimal",
     "frameworkArtifact": "src/lib/PnP.Framework/bin/Debug/net10.0/PnP.Framework.dll",
-    "frameworkSha256": "c7bfd9f70db820dd579dc294691f17ba1d698f6e1ad75995102afecd3677899d",
+    "frameworkSha256": "62261087d6f7dc30cb5359381cfebc5bff9118954ab48c06430d63b05d56fe43",
     "testArtifact": "src/lib/PnP.Framework.Test/bin/Debug/net10.0/PnP.Framework.Test.dll",
-    "testSha256": "136791c1b8caee1e8f7dbe19ee319b72ef72baae3ad187d34f8ca672cda46700"
+    "testSha256": "9e5775cc6878728f9ae1580c5c52d43800e6ea1fda6193c5d6ceee4ca9699a5e"
   },
   "sourceValueDigests": {
     "binding.consumer": "2aad8914cf9fd5768d7e815ed2027023cfebf07b93ad015e8dec23eba10d39cb",
