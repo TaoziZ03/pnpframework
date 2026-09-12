@@ -157,8 +157,8 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
             self.acquisition_profile,
         )
         self.assertEqual(v1_receipt["caseCount"], v1_receipt["passCount"])
-        self.assertEqual(20, v2_receipt["caseCount"])
-        self.assertEqual(20, v2_receipt["passCount"])
+        self.assertEqual(21, v2_receipt["caseCount"])
+        self.assertEqual(21, v2_receipt["passCount"])
         self.assertEqual(
             v2_receipt,
             validator.evaluate_fixture_suite(
@@ -194,6 +194,10 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
         self.assertEqual(
             "AGGREGATE_CONTENT_MISMATCH",
             actual["V2-AGGREGATE-TERMINAL-COMMON-DRIFT"],
+        )
+        self.assertEqual(
+            "AGGREGATE_CONTENT_MISMATCH",
+            actual["V2-AGGREGATE-SEMANTIC-FALSE-COMPLETE"],
         )
         self.assertEqual(
             "AGGREGATE_CONTENT_MISMATCH",

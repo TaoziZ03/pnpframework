@@ -432,7 +432,8 @@ def main() -> None:
     }
     negative = [
         ("V2-AGGREGATE-V1-AS-V2", "aggregateOutputV1", "UNSUPPORTED_OUTPUT_VERSION", {}),
-        ("V2-AGGREGATE-TERMINAL-COMMON-DRIFT", "aggregateTerminalVerdictDrift", "AGGREGATE_CONTENT_MISMATCH", {"rebindTerminalVolumes": ["aggregate-output"]}),
+        ("V2-AGGREGATE-TERMINAL-COMMON-DRIFT", "aggregateTerminalVerdictDrift", "AGGREGATE_CONTENT_MISMATCH", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/aggregateVerdict", "value": "Incomplete"}], "rebindTerminalVolumes": ["aggregate-output"]}),
+        ("V2-AGGREGATE-SEMANTIC-FALSE-COMPLETE", "aggregateTerminalFalseComplete", "AGGREGATE_CONTENT_MISMATCH", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/aggregateVerdict", "value": "CompleteAuthorizedSurface"}], "rebindTerminalVolumes": ["aggregate-output"]}),
         ("V2-AGGREGATE-VERDICT-UNSUPPORTED", "aggregateTerminalUnsupportedVerdict", "AGGREGATE_CONTENT_MISMATCH", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/aggregateVerdict", "value": "EqualitySuccess"}], "rebindTerminalVolumes": ["aggregate-output"]}),
         ("V2-PRODUCER-V1-AS-V2", None, "PRODUCER_REF_UNSUPPORTED", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/productRef", "value": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8"}]}),
         ("V2-STORE-V1-AS-V2", None, "UNSUPPORTED_STORE_VERSION", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/referenceVolume/store/schemaVersion", "value": "aspx-reference-sqlite/v1"}]}),

@@ -28,7 +28,7 @@
       "sha256": "386021178797824fefa6c0df5dab2a31baa38aa51da2e89f2c6382a99dd1899d"
     }
   },
-  "caseCount": 20,
+  "caseCount": 21,
   "fixtureProvenance": {
     "assessmentConsumerSourceRef": "0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
     "assessmentConsumerTree": "46553801a1bdab1f0feda1b638514315004d5eb5",
@@ -37,7 +37,7 @@
     "fixtureKind": "synthetic-no-tenant-payload",
     "readerShape": "aspx-platform-registry-reader-envelope/v2"
   },
-  "passCount": 20,
+  "passCount": 21,
   "profileHash": "7406683883f81c47a53171785775615fa7899b4aa565a454e5c2eedf8c676d2f",
   "profileRevision": "spo-online-16.0.27709.12000-profile-r1",
   "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v4",
@@ -82,9 +82,23 @@
       "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-AGGREGATE-TERMINAL-COMMON-DRIFT",
-      "inputHash": "89dddaef51b007a592fc8ffc3fb0463fd60d242f86f16a366802c739079f0db5",
+      "inputHash": "ff8333932da14896ffc91e5f677531b98953be856a0471a4160c70ef70aa9c91",
       "kind": "readerRequest",
-      "operationCount": 0,
+      "operationCount": 1,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "aggregateTerminalFalseComplete",
+      "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-SEMANTIC-FALSE-COMPLETE",
+      "inputHash": "a5b2883481c11b5c1582fc2bc1b0b9fbcb5603a06609372ac12e52823e608d36",
+      "kind": "readerRequest",
+      "operationCount": 1,
       "passed": true
     },
     {

@@ -60,6 +60,32 @@
       "expectedVerdict": "Unknown",
       "id": "V2-AGGREGATE-TERMINAL-COMMON-DRIFT",
       "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/aggregateVerdict",
+          "value": "Incomplete"
+        }
+      ],
+      "rebindTerminalVolumes": [
+        "aggregate-output"
+      ]
+    },
+    {
+      "evidenceMutation": {
+        "kind": "aggregateTerminalFalseComplete"
+      },
+      "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-SEMANTIC-FALSE-COMPLETE",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/aggregateVerdict",
+          "value": "CompleteAuthorizedSurface"
+        }
+      ],
       "rebindTerminalVolumes": [
         "aggregate-output"
       ]

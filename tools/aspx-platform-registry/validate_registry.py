@@ -1250,13 +1250,14 @@ def apply_evidence_mutation(
         mutated["aggregateOutput"] = _json_bytes(document)
     elif kind in {
         "aggregateTerminalVerdictDrift",
+        "aggregateTerminalFalseComplete",
         "aggregateTerminalUnsupportedVerdict",
     }:
-        verdict = (
-            "Incomplete"
-            if kind == "aggregateTerminalVerdictDrift"
-            else "EqualitySuccess"
-        )
+        verdict = {
+            "aggregateTerminalVerdictDrift": "Incomplete",
+            "aggregateTerminalFalseComplete": "CompleteAuthorizedSurface",
+            "aggregateTerminalUnsupportedVerdict": "EqualitySuccess",
+        }[kind]
         aggregate = json.loads(mutated["aggregateOutput"])
         aggregate["aggregateVerdict"] = verdict
         mutated["aggregateOutput"] = _json_bytes(aggregate)
@@ -2227,6 +2228,68 @@ def _validate_v2_aggregate_artifact(
     return document, None, []
 
 
+def _derive_v2_aggregate_semantics(
+    physical: dict[str, Any], reference: dict[str, Any]
+) -> tuple[str, list[str]]:
+    """Mirror the admitted Assessment v2 aggregate evaluator over validated bytes."""
+    gaps = set(reference.get("gapCodes", []))
+    denominator = [
+        row for row in reference.get("denominator", []) if isinstance(row, dict)
+    ]
+    references = [
+        row for row in reference.get("references", []) if isinstance(row, dict)
+    ]
+    for row in denominator:
+        if row.get("expectedCountState") == "Unknown":
+            gaps.add(f"{row.get('surfaceId')}:expected_count_unknown")
+
+    has_unknown = (
+        bool(gaps)
+        or physical.get("coverageVerdict") == "Unknown"
+        or reference.get("coverageVerdict") == "Unknown"
+        or any(row.get("terminalOutcome") in {"Pending", "Unknown"} for row in denominator)
+        or any(row.get("disposition") == "Unknown" for row in references)
+    )
+    has_incomplete = (
+        physical.get("coverageVerdict") == "Incomplete"
+        or reference.get("coverageVerdict") == "Incomplete"
+        or any(
+            row.get("terminalOutcome")
+            in {"Denied", "Failed", "Truncated", "Cancelled"}
+            for row in denominator
+        )
+        or any(row.get("disposition") == "ReferenceUnavailable" for row in references)
+    )
+    verdict = (
+        "Unknown"
+        if has_unknown
+        else "Incomplete"
+        if has_incomplete
+        else "CompleteAuthorizedSurface"
+    )
+    return verdict, sorted(gaps)
+
+
+def _validate_v2_aggregate_semantics(
+    aggregate: dict[str, Any],
+    physical: dict[str, Any],
+    reference: dict[str, Any],
+) -> tuple[str | None, list[str]]:
+    expected_verdict, expected_gaps = _derive_v2_aggregate_semantics(
+        physical, reference
+    )
+    errors: list[str] = []
+    if aggregate.get("aggregateVerdict") != expected_verdict:
+        errors.append(
+            "aggregate output aggregateVerdict does not match actual physical/reference semantics"
+        )
+    if aggregate.get("gapCodes") != expected_gaps:
+        errors.append(
+            "aggregate output gapCodes do not match actual physical/reference semantics"
+        )
+    return ("AGGREGATE_CONTENT_MISMATCH", errors) if errors else (None, [])
+
+
 def _sqlite_content_version(
     artifact_bytes: bytes, role: str, run_id: str
 ) -> str | None:
@@ -2445,6 +2508,15 @@ def validate_acquisition_envelope(
             return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
         assert document is not None
         output_documents[evidence_key] = document
+
+    if aggregate_document is not None:
+        reason, errors = _validate_v2_aggregate_semantics(
+            aggregate_document,
+            output_documents["physicalOutput"],
+            output_documents["referenceOutput"],
+        )
+        if reason:
+            return {"verdict": "Unknown", "reasonCode": reason, "errors": errors}
 
     for volume, evidence_key, output_key, store_version, schema_hash, reference_store in [
         (
