@@ -28,7 +28,7 @@
       "sha256": "386021178797824fefa6c0df5dab2a31baa38aa51da2e89f2c6382a99dd1899d"
     }
   },
-  "caseCount": 18,
+  "caseCount": 20,
   "fixtureProvenance": {
     "assessmentConsumerSourceRef": "0e54ce48c952a077b2c0f258c62b9f19c8d4a466",
     "assessmentConsumerTree": "46553801a1bdab1f0feda1b638514315004d5eb5",
@@ -37,7 +37,7 @@
     "fixtureKind": "synthetic-no-tenant-payload",
     "readerShape": "aspx-platform-registry-reader-envelope/v2"
   },
-  "passCount": 18,
+  "passCount": 20,
   "profileHash": "7406683883f81c47a53171785775615fa7899b4aa565a454e5c2eedf8c676d2f",
   "profileRevision": "spo-online-16.0.27709.12000-profile-r1",
   "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v4",
@@ -71,6 +71,34 @@
       "inputHash": "9ee0aafbc2d3733e496ca54270fee63e8feb4683121c68e84fc2db9a210fd4d4",
       "kind": "readerRequest",
       "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "aggregateTerminalVerdictDrift",
+      "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-TERMINAL-COMMON-DRIFT",
+      "inputHash": "89dddaef51b007a592fc8ffc3fb0463fd60d242f86f16a366802c739079f0db5",
+      "kind": "readerRequest",
+      "operationCount": 0,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 1,
+      "evidenceMutation": "aggregateTerminalUnsupportedVerdict",
+      "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-VERDICT-UNSUPPORTED",
+      "inputHash": "8fc13ed2ee91a0c5149e0a0d3f410acc57e6f92f648fdd003e71a7e9066494a6",
+      "kind": "readerRequest",
+      "operationCount": 1,
       "passed": true
     },
     {

@@ -178,6 +178,11 @@ V2_AGGREGATE_OUTPUT_KEYS = {
     "sealedAtUtc",
     "gapCodes",
 }
+V2_AGGREGATE_VERDICTS = {
+    "CompleteAuthorizedSurface",
+    "Incomplete",
+    "Unknown",
+}
 V2_AGGREGATE_VOLUME_KEYS = {
     "outputVersion",
     "runId",
@@ -1244,6 +1249,21 @@ def apply_evidence_mutation(
         document["outputVersion"] = "aspx-acquisition-verdict/v1"
         mutated["aggregateOutput"] = _json_bytes(document)
     elif kind in {
+        "aggregateTerminalVerdictDrift",
+        "aggregateTerminalUnsupportedVerdict",
+    }:
+        verdict = (
+            "Incomplete"
+            if kind == "aggregateTerminalVerdictDrift"
+            else "EqualitySuccess"
+        )
+        aggregate = json.loads(mutated["aggregateOutput"])
+        aggregate["aggregateVerdict"] = verdict
+        mutated["aggregateOutput"] = _json_bytes(aggregate)
+        terminal = json.loads(mutated["terminalReceipt"])
+        terminal["aggregateVerdict"] = verdict
+        mutated["terminalReceipt"] = _json_bytes(terminal)
+    elif kind in {
         "terminalRoleVersionSwap",
         "terminalMissingVolume",
         "terminalDuplicateVolume",
@@ -2159,8 +2179,14 @@ def _validate_v2_aggregate_artifact(
         return None, "UNSUPPORTED_OUTPUT_VERSION", ["aggregate output version is incompatible"]
     if document.get("productRef") != dispatch.get("productRef"):
         return None, "PRODUCER_REF_UNSUPPORTED", ["aggregate productRef is incompatible"]
+    aggregate_verdict = document.get("aggregateVerdict")
+    if not isinstance(aggregate_verdict, str) or aggregate_verdict not in V2_AGGREGATE_VERDICTS:
+        return None, "AGGREGATE_CONTENT_MISMATCH", [
+            "aggregate output aggregateVerdict is not a supported v2 value"
+        ]
     bindings = {
         "acquisitionRunId": envelope.get("runId"),
+        "aggregateVerdict": envelope.get("aggregateVerdict"),
         "surfaceContractVersion": dispatch.get("surfaceContract"),
         "registryRevision": registry.get("registryRevision"),
         "registryHash": registry.get("registryHash"),

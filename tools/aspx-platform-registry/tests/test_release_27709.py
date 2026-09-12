@@ -157,8 +157,8 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
             self.acquisition_profile,
         )
         self.assertEqual(v1_receipt["caseCount"], v1_receipt["passCount"])
-        self.assertEqual(18, v2_receipt["caseCount"])
-        self.assertEqual(18, v2_receipt["passCount"])
+        self.assertEqual(20, v2_receipt["caseCount"])
+        self.assertEqual(20, v2_receipt["passCount"])
         self.assertEqual(
             v2_receipt,
             validator.evaluate_fixture_suite(
@@ -191,6 +191,14 @@ class ExactBuild27709ReleaseTests(unittest.TestCase):
             for case in self.v2_fixtures["negative"]
         }
         self.assertEqual(expected, {key: actual[key] for key in expected})
+        self.assertEqual(
+            "AGGREGATE_CONTENT_MISMATCH",
+            actual["V2-AGGREGATE-TERMINAL-COMMON-DRIFT"],
+        )
+        self.assertEqual(
+            "AGGREGATE_CONTENT_MISMATCH",
+            actual["V2-AGGREGATE-VERDICT-UNSUPPORTED"],
+        )
         self.assertEqual(
             {
                 "physical-database": "aspx-discovery-sqlite/v2",

@@ -53,6 +53,37 @@
       "kind": "readerRequest"
     },
     {
+      "evidenceMutation": {
+        "kind": "aggregateTerminalVerdictDrift"
+      },
+      "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-TERMINAL-COMMON-DRIFT",
+      "kind": "readerRequest",
+      "rebindTerminalVolumes": [
+        "aggregate-output"
+      ]
+    },
+    {
+      "evidenceMutation": {
+        "kind": "aggregateTerminalUnsupportedVerdict"
+      },
+      "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
+      "expectedVerdict": "Unknown",
+      "id": "V2-AGGREGATE-VERDICT-UNSUPPORTED",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/aggregateVerdict",
+          "value": "EqualitySuccess"
+        }
+      ],
+      "rebindTerminalVolumes": [
+        "aggregate-output"
+      ]
+    },
+    {
       "expectedReasonCode": "PRODUCER_REF_UNSUPPORTED",
       "expectedVerdict": "Unknown",
       "id": "V2-PRODUCER-V1-AS-V2",
