@@ -1,6 +1,27 @@
 {
   "schema": "pnp-ingredient-fixture/v1",
-  "claimId": "3f078109449c3c83552dc4ee3ea6ce3857d609c91e4b8a5c3f933887a2a324c3",
+  "claimId": "3c757d79a7e3846027fc3a97f341c3a23b5959f004cc525dfd05e30b659e3dbf",
+  "identity": {
+    "laneId": "embed.iframe",
+    "fixtureId": "ccd110-r00871-v83",
+    "pageFamily": "publishing-page",
+    "sourceVersionIdentity": {
+      "sourceUrl": "https://microsoft.sharepoint.com/sites/Marketing/Teams/Pages/ACEProgram.aspx",
+      "webUrl": "https://microsoft.sharepoint.com/sites/Marketing/Teams",
+      "fileServerRelativeUrl": "/sites/Marketing/Teams/Pages/ACEProgram.aspx",
+      "listId": "fa983d97-f0cf-4728-867a-86c483cb82d9",
+      "itemId": 19,
+      "uniqueId": "f3025196-bbfe-4a90-a3de-6d0df9c78718",
+      "version": "\"{F3025196-BBFE-4A90-A3DE-6D0DF9C78718},83\"",
+      "modified": "2016-10-21T09:58:04"
+    },
+    "targetProfileId": "cupcollect-classic-page/v1",
+    "fixtureContractVersion": "pnp-ingredient-fixture/v1",
+    "graphProjectionVersion": "pnp-page-ingredient-graph/v2"
+  },
+  "canonicalIdentityBase64": "eyJmaXh0dXJlQ29udHJhY3RWZXJzaW9uIjoicG5wLWluZ3JlZGllbnQtZml4dHVyZS92MSIsImZpeHR1cmVJZCI6ImNjZDExMC1yMDA4NzEtdjgzIiwiZ3JhcGhQcm9qZWN0aW9uVmVyc2lvbiI6InBucC1wYWdlLWluZ3JlZGllbnQtZ3JhcGgvdjIiLCJsYW5lSWQiOiJlbWJlZC5pZnJhbWUiLCJwYWdlRmFtaWx5IjoicHVibGlzaGluZy1wYWdlIiwic291cmNlVmVyc2lvbklkZW50aXR5Ijp7ImZpbGVTZXJ2ZXJSZWxhdGl2ZVVybCI6Ii9zaXRlcy9NYXJrZXRpbmcvVGVhbXMvUGFnZXMvQUNFUHJvZ3JhbS5hc3B4IiwiaXRlbUlkIjoxOSwibGlzdElkIjoiZmE5ODNkOTctZjBjZi00NzI4LTg2N2EtODZjNDgzY2I4MmQ5IiwibW9kaWZpZWQiOiIyMDE2LTEwLTIxVDA5OjU4OjA0Iiwic291cmNlVXJsIjoiaHR0cHM6Ly9taWNyb3NvZnQuc2hhcmVwb2ludC5jb20vc2l0ZXMvTWFya2V0aW5nL1RlYW1zL1BhZ2VzL0FDRVByb2dyYW0uYXNweCIsInVuaXF1ZUlkIjoiZjMwMjUxOTYtYmJmZS00YTkwLWEzZGUtNmQwZGY5Yzc4NzE4IiwidmVyc2lvbiI6Ilwie0YzMDI1MTk2LUJCRkUtNEE5MC1BM0RFLTZEMERGOUM3ODcxOH0sODNcIiIsIndlYlVybCI6Imh0dHBzOi8vbWljcm9zb2Z0LnNoYXJlcG9pbnQuY29tL3NpdGVzL01hcmtldGluZy9UZWFtcyJ9LCJ0YXJnZXRQcm9maWxlSWQiOiJjdXBjb2xsZWN0LWNsYXNzaWMtcGFnZS92MSJ9",
+  "canonicalIdentityByteLength": 699,
+  "canonicalIdentitySha256": "3c757d79a7e3846027fc3a97f341c3a23b5959f004cc525dfd05e30b659e3dbf",
   "ingredientId": "reference:1d58d34bed460770722b20ff7e809f8636b4b03f80a131e66ee3d11957dcbe69",
   "source": {
     "webUrl": "https://microsoft.sharepoint.com/sites/Marketing/Teams",
@@ -35,7 +56,16 @@
     "base64": "PGlmcmFtZSB3aWR0aD0iNTYwcHgiIGhlaWdodD0iMjUwcHgiIHNyYz0iaHR0cHM6Ly9zd2F5LmNvbS9zL0JhdHNSaXpVZGZHVFRhSlMvZW1iZWQiIGZyYW1lYm9yZGVyPSIwIiBtYXJnaW53aWR0aD0iMCIgbWFyZ2luaGVpZ2h0PSIwIiBzY3JvbGxpbmc9Im5vIiBzdHlsZT0iYm9yZGVyOiBub25lOyBtYXgtd2lkdGg6MTAwJTsgbWF4LWhlaWdodDoxMDB2aCI+PC9pZnJhbWU+"
   },
   "semanticSha256": "dbffc6203c0a1b04613bf5df8fd6a58ec3807e96959f98eb7300e34ff2daf572",
+  "sourceFixtureSemanticSha256": "b8c645f3f195c4d1eda535c4fbdf92447341aa64174ad9362ac71fff5d195d43",
+  "sourceFixtureEvidenceReferences": [
+    "/api/attachments/d815a1be-2d54-4b2b-8690-8f02426bb618/content",
+    "CCD-163#04eaaeac-ac3e-4b80-afb8-173c637151eb",
+    "CCD-163#35057b93-ccd2-455d-9ccf-b9ae1e3c3a76"
+  ],
   "sourceObservedAtUtc": "2026-09-09T19:31:13.694Z",
+  "observationWindowStartUtc": "2026-09-09T19:31:13.694Z",
+  "observationWindowEndUtc": "2026-09-10T19:35:13.694Z",
+  "readbackStartedAtUtc": "2026-09-10T19:31:13.694Z",
   "targetProfile": "cupcollect-classic-page/v1",
   "targetOrigin": "https://a830edad9050849cupcollect.sharepoint.com/",
   "targetPageServerRelativeUrl": "/sites/Marketing/Teams/Pages/ACEProgram.aspx",
@@ -43,12 +73,43 @@
   "targetHostWebPartId": "0dfa910d-7712-408e-8f64-f1039afa1016",
   "observedPlanDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
   "syntheticPlanDigest": "83d4bb0632272e177b815bc25e108a7a248e8a2fd90acaf31f446662b42c29f4",
+  "historicalAdmission": {
+    "planDigest": "8f99ef2da6471dacdfd18bd72977662855776fa15f6a41f40642b02c34194f7f",
+    "status": "historical-cupcollect-m2-only",
+    "evidenceReferences": [
+      "CCD-163#04eaaeac-ac3e-4b80-afb8-173c637151eb",
+      "ccd171-plan.json"
+    ]
+  },
+  "currentCanonicalAdmission": {
+    "canonicalBaseCommit": "df7a4191a98a0779489fac25c868907d14738f81",
+    "planDigest": "83d4bb0632272e177b815bc25e108a7a248e8a2fd90acaf31f446662b42c29f4",
+    "status": "hermetic-recomputed-not-admitted",
+    "evidenceReferences": [
+      "CCD-723#68f2e2c8-248d-42ac-be3a-6ede24f7749f",
+      "EmbedIframeMaturityContributorTests.ObservedPlanDigestMismatchWithRecomputedSyntheticPlanFailsClosed"
+    ]
+  },
   "operationId": "17117117-0171-4171-8171-171171171171",
   "revisionParent": "e7ed9ca5695a208e174b3d2475cb6bd0bce04f4f",
   "historicalEndToEndCommit": "d7ab97f5270ea047ce6f3a8bbd7945b844a41ad9",
   "implementationCommit": null,
   "binaryDigest": null,
   "binaryReceipt": {
+    "canonicalBaseCommit": "df7a4191a98a0779489fac25c868907d14738f81",
+    "sourceRevisionParent": "ffbfd20f9ac37112fc2a8018be052557623698a6",
+    "sdkVersion": "10.0.400",
+    "msBuildVersion": "18.9.6",
+    "vstestVersion": "18.7.0",
+    "configuration": "Debug/net10.0",
+    "buildCommand": "dotnet build src/lib/PnP.Framework.Test/PnP.Framework.Test.csproj --no-restore --no-incremental -f net10.0 -p:ContinuousIntegrationBuild=true -p:IncludeSourceRevisionInInformationalVersion=false -p:DebugType=None -p:DebugSymbols=false --nologo --verbosity minimal",
+    "frameworkArtifact": "src/lib/PnP.Framework/bin/Debug/net10.0/PnP.Framework.dll",
+    "frameworkSha256": "ba03ac758cd807306ecb5ebbfc7df88f934791b9689a86bed78fe88893c0e20b",
+    "testArtifact": "src/lib/PnP.Framework.Test/bin/Debug/net10.0/PnP.Framework.Test.dll",
+    "testSha256": "6570ae5fd0f4f38d84ea76e78c4a9caf917af97230bcdd419436646d2d857d54"
+  },
+  "historicalBinaryReceipt": {
+    "implementationCommit": "ffbfd20f9ac37112fc2a8018be052557623698a6",
     "sdkVersion": "10.0.400",
     "msBuildVersion": "18.9.6",
     "vstestVersion": "18.7.0",

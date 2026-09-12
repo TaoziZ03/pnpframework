@@ -59,6 +59,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 
         public IngredientLiveEvidence Live { get; set; }
 
+        public DateTimeOffset ReadbackStartedAtUtc { get; set; }
+
         public IngredientPlanEvidence Plan { get; set; }
 
         public IngredientOperationalEvidence Operational { get; set; }

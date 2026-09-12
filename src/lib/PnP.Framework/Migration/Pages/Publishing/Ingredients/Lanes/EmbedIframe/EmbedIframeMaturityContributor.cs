@@ -2,6 +2,7 @@ using PnP.Framework.Migration.Pages.Assessment.Maturity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
 {
@@ -34,11 +35,13 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
             var live = EmbedIframeEvidenceNormalizer.ProjectLiveEvidence(
                 evidence.Live,
                 normalized,
+                context,
+                evidence.ReadbackStartedAtUtc,
                 evidence.ExpectedSourceValueDigests,
                 evidence.ExpectedTargetValueDigests);
             if (live != null)
             {
-                receipts.AddRange(IngredientMaturityEvidenceValidator.ValidateM1(live));
+                receipts.AddRange(ValidateLiveEvidence(context, live));
             }
             if (evidence.Source != null)
             {
@@ -83,6 +86,24 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
                 IngredientId = context?.Identity?.IngredientId,
                 GateReceipts = receipts
             };
+        }
+
+        private static IReadOnlyList<IngredientMaturityGateReceipt> ValidateLiveEvidence(
+            IngredientMaturityEvaluationContext context,
+            IngredientLiveEvidence live)
+        {
+            var contextAwareValidator = typeof(IngredientMaturityEvidenceValidator)
+                .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .SingleOrDefault(value => string.Equals(value.Name, nameof(IngredientMaturityEvidenceValidator.ValidateM1), StringComparison.Ordinal)
+                    && value.GetParameters().Length == 2);
+            if (contextAwareValidator == null)
+            {
+                return IngredientMaturityEvidenceValidator.ValidateM1(live);
+            }
+
+            return (IReadOnlyList<IngredientMaturityGateReceipt>)contextAwareValidator.Invoke(
+                null,
+                new object[] { context, live });
         }
 
         private string ValidatePlanBinding(

@@ -9,6 +9,7 @@ using PnP.Framework.Migration.Pages.References;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
@@ -243,6 +244,8 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
         public static IngredientLiveEvidence ProjectLiveEvidence(
             IngredientLiveEvidence evidence,
             EmbedIframeNormalization normalized,
+            IngredientMaturityEvaluationContext context,
+            DateTimeOffset readbackStartedAtUtc,
             IReadOnlyDictionary<string, string> expectedSource,
             IReadOnlyDictionary<string, string> expectedTarget)
         {
@@ -252,8 +255,9 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
             }
             var observations = (evidence.Observations ?? Array.Empty<IngredientValueObservation>())
                 .Where(value => value != null)
+                .Select(value => BindObservation(value, context))
                 .ToList();
-            return new IngredientLiveEvidence
+            var projected = new IngredientLiveEvidence
             {
                 SourceAuthenticated = evidence.SourceAuthenticated
                     && DictionariesMatch(normalized?.ValueDigests, expectedSource)
@@ -265,6 +269,57 @@ namespace PnP.Framework.Migration.Pages.Publishing.Ingredients.Lanes.EmbedIframe
                 SourceEvidenceReferences = (evidence.SourceEvidenceReferences ?? Array.Empty<string>()).ToList(),
                 TargetEvidenceReferences = (evidence.TargetEvidenceReferences ?? Array.Empty<string>()).ToList()
             };
+            SetOptionalProperty(projected, "ReadbackStartedAtUtc", readbackStartedAtUtc);
+            return projected;
+        }
+
+        private static IngredientValueObservation BindObservation(
+            IngredientValueObservation observation,
+            IngredientMaturityEvaluationContext context)
+        {
+            var projected = new IngredientValueObservation
+            {
+                ValuePath = observation.ValuePath,
+                ValueDigest = observation.ValueDigest,
+                ObservedAtUtc = observation.ObservedAtUtc,
+                Origin = observation.Origin,
+                EvidenceReference = observation.EvidenceReference
+            };
+            CopyOrDefaultOptionalProperty(observation, projected, "ClaimId", context?.Identity?.ClaimId);
+            CopyOrDefaultOptionalProperty(observation, projected, "IngredientId", context?.Identity?.IngredientId);
+            CopyOrDefaultOptionalProperty(observation, projected, "Source", context?.Source);
+            CopyOrDefaultOptionalProperty(observation, projected, "Target", context?.Target);
+            return projected;
+        }
+
+        private static void CopyOrDefaultOptionalProperty(
+            object source,
+            object target,
+            string propertyName,
+            object defaultValue)
+        {
+            var property = target?.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (property == null || !property.CanWrite)
+            {
+                return;
+            }
+
+            var sourceProperty = source?.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            var value = sourceProperty?.CanRead == true ? sourceProperty.GetValue(source) : null;
+            if (value == null || value is string text && string.IsNullOrWhiteSpace(text))
+            {
+                value = defaultValue;
+            }
+            property.SetValue(target, value);
+        }
+
+        private static void SetOptionalProperty(object target, string propertyName, object value)
+        {
+            var property = target?.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (property?.CanWrite == true)
+            {
+                property.SetValue(target, value);
+            }
         }
 
         private static bool DictionariesMatch(
