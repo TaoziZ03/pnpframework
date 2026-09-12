@@ -156,6 +156,36 @@ public class ClassicWikiRestSourceAdapterTests
     }
 
     [TestMethod]
+    public void AdaptRestoresOnlyTheConsumerAttributeAndPreservesTitleLiteralAndHtmlComment()
+    {
+        const string sourceValue = "/teams/source/SitePages/one.aspx";
+        const string targetValue = "/teams/target/SitePages/one.aspx";
+        var wikiField = "<div>"
+            + "<a title=\"literal href=" + sourceValue + "\" href=\"" + sourceValue + "\">Unavailable</a>"
+            + "<!-- example <a href=\"" + sourceValue + "\">comment only</a> -->"
+            + "</div>";
+        var package = CreatePackage(PageCaptureStatus.Failed, "non-reference-isolation", wikiField: wikiField);
+
+        var result = ClassicWikiRestSourceAdapter.Adapt(
+            package,
+            CreateAdmittedPlan(package, "non-reference-isolation"));
+
+        Assert.AreEqual(1, result.Package.Plan.Dependencies.Count);
+        Assert.AreEqual("Delegate", result.Package.Plan.Dependencies[0].Disposition);
+        var emitted = result.Package.Plan.WikiFieldPlan.ExactValue;
+        StringAssert.Contains(emitted, "title=\"literal href=" + targetValue + "\"");
+        StringAssert.Contains(emitted, " href=\"" + sourceValue + "\">Unavailable");
+        StringAssert.Contains(
+            emitted,
+            "<!-- example <a href=\"" + targetValue + "\">comment only</a> -->");
+
+        var comparison = CompareDependencies(result.Package, ReadEmittedDependencies(result.Package));
+        Assert.IsFalse(comparison.DependenciesMatched);
+        Assert.IsTrue(comparison.Differences.Any(value => value.Contains("source disposition 'Delegate'")));
+        Assert.IsFalse(comparison.Differences.Any(value => value.Contains("exact-semantics mismatch")));
+    }
+
+    [TestMethod]
     public void AdaptContinuesWithTheNextPageAfterAnUnavailableDependency()
     {
         var first = CreatePackage(PageCaptureStatus.Failed, "first");

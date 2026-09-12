@@ -337,67 +337,13 @@ internal static class ClassicWikiRestSourceAdapter
         var tagName = consumerMatch.Groups["tag"].Value;
         var attributeName = consumerMatch.Groups["attribute"].Value;
         var replacements = 0;
-        var tagPattern = "<(?<tag>[A-Za-z][A-Za-z0-9:_-]*)\\b(?<attributes>(?:[^>\\\"']|\\\"[^\\\"]*\\\"|'[^']*')*)>";
-        var restored = System.Text.RegularExpressions.Regex.Replace(
+        var restored = RestoreAttributeOnStartTags(
             wikiField,
-            tagPattern,
-            tagMatch =>
-            {
-                if (!string.Equals(tagMatch.Groups["tag"].Value, tagName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return tagMatch.Value;
-                }
-
-                var attributes = tagMatch.Groups["attributes"].Value;
-                var attributePattern = "(?<prefix>\\s+"
-                    + System.Text.RegularExpressions.Regex.Escape(attributeName)
-                    + "\\s*=\\s*)(?:(?<quote>[\\\"'])(?<quoted>.*?)\\k<quote>|(?<unquoted>[^\\s>]+))";
-                var rewrittenAttributes = System.Text.RegularExpressions.Regex.Replace(
-                    attributes,
-                    attributePattern,
-                    attributeMatch =>
-                    {
-                        var rawValue = attributeMatch.Groups["quoted"].Success
-                            ? attributeMatch.Groups["quoted"].Value
-                            : attributeMatch.Groups["unquoted"].Value;
-                        string updatedRawValue;
-                        if (string.Equals(attributeName, "style", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var cssReplacement = RestoreCssUrl(rawValue, rewrittenValue, sourceValue);
-                            updatedRawValue = cssReplacement.Value;
-                            replacements += cssReplacement.Count;
-                        }
-                        else
-                        {
-                            updatedRawValue = RestoreAttributeValue(
-                                rawValue,
-                                rewrittenValue,
-                                sourceValue,
-                                out var attributeReplaced);
-                            if (attributeReplaced)
-                            {
-                                replacements++;
-                            }
-                        }
-                        if (string.Equals(updatedRawValue, rawValue, StringComparison.Ordinal))
-                        {
-                            return attributeMatch.Value;
-                        }
-
-                        var quote = attributeMatch.Groups["quote"].Success
-                            ? attributeMatch.Groups["quote"].Value
-                            : "\"";
-                        return attributeMatch.Groups["prefix"].Value
-                            + quote
-                            + updatedRawValue
-                            + quote;
-                    },
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
-                        | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-                return "<" + tagMatch.Groups["tag"].Value + rewrittenAttributes + ">";
-            },
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase
-                | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            tagName,
+            attributeName,
+            rewrittenValue,
+            sourceValue,
+            ref replacements);
 
         if (replacements == 0)
         {
@@ -406,6 +352,234 @@ internal static class ClassicWikiRestSourceAdapter
         }
         return restored;
     }
+
+    private static string RestoreAttributeOnStartTags(
+        string wikiField,
+        string tagName,
+        string attributeName,
+        string rewrittenValue,
+        string sourceValue,
+        ref int replacements)
+    {
+        var output = new System.Text.StringBuilder(wikiField.Length);
+        var cursor = 0;
+        while (cursor < wikiField.Length)
+        {
+            var tagStart = wikiField.IndexOf('<', cursor);
+            if (tagStart < 0)
+            {
+                output.Append(wikiField, cursor, wikiField.Length - cursor);
+                break;
+            }
+
+            output.Append(wikiField, cursor, tagStart - cursor);
+            if (StartsWithOrdinal(wikiField, tagStart, "<!--"))
+            {
+                var commentEnd = wikiField.IndexOf("-->", tagStart + 4, StringComparison.Ordinal);
+                if (commentEnd < 0)
+                {
+                    output.Append(wikiField, tagStart, wikiField.Length - tagStart);
+                    break;
+                }
+                var commentLength = commentEnd + 3 - tagStart;
+                output.Append(wikiField, tagStart, commentLength);
+                cursor = tagStart + commentLength;
+                continue;
+            }
+
+            var tagEnd = FindTagEnd(wikiField, tagStart + 1);
+            if (tagEnd < 0)
+            {
+                output.Append(wikiField, tagStart, wikiField.Length - tagStart);
+                break;
+            }
+
+            var nameStart = tagStart + 1;
+            if (nameStart >= tagEnd
+                || wikiField[nameStart] == '/'
+                || wikiField[nameStart] == '!'
+                || wikiField[nameStart] == '?')
+            {
+                output.Append(wikiField, tagStart, tagEnd - tagStart + 1);
+                cursor = tagEnd + 1;
+                continue;
+            }
+
+            var nameEnd = nameStart;
+            while (nameEnd < tagEnd && IsMarkupNameCharacter(wikiField[nameEnd]))
+            {
+                nameEnd++;
+            }
+            if (!string.Equals(
+                wikiField.Substring(nameStart, nameEnd - nameStart),
+                tagName,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                output.Append(wikiField, tagStart, tagEnd - tagStart + 1);
+                cursor = tagEnd + 1;
+                continue;
+            }
+
+            output.Append(RestoreAttributeInTag(
+                wikiField.Substring(tagStart, tagEnd - tagStart + 1),
+                nameEnd - tagStart,
+                attributeName,
+                rewrittenValue,
+                sourceValue,
+                ref replacements));
+            cursor = tagEnd + 1;
+        }
+        return output.ToString();
+    }
+
+    private static string RestoreAttributeInTag(
+        string tag,
+        int attributesStart,
+        string attributeName,
+        string rewrittenValue,
+        string sourceValue,
+        ref int replacements)
+    {
+        var output = new System.Text.StringBuilder(tag.Length);
+        var copiedThrough = 0;
+        var cursor = attributesStart;
+        while (cursor < tag.Length - 1)
+        {
+            while (cursor < tag.Length - 1
+                && (char.IsWhiteSpace(tag[cursor]) || tag[cursor] == '/'))
+            {
+                cursor++;
+            }
+            var nameStart = cursor;
+            while (cursor < tag.Length - 1 && IsMarkupNameCharacter(tag[cursor]))
+            {
+                cursor++;
+            }
+            if (cursor == nameStart)
+            {
+                cursor++;
+                continue;
+            }
+
+            var nameEnd = cursor;
+            while (cursor < tag.Length - 1 && char.IsWhiteSpace(tag[cursor]))
+            {
+                cursor++;
+            }
+            if (cursor >= tag.Length - 1 || tag[cursor] != '=')
+            {
+                continue;
+            }
+            cursor++;
+            while (cursor < tag.Length - 1 && char.IsWhiteSpace(tag[cursor]))
+            {
+                cursor++;
+            }
+            if (cursor >= tag.Length - 1)
+            {
+                break;
+            }
+
+            var quote = tag[cursor] == '\"' || tag[cursor] == '\'' ? tag[cursor++] : '\0';
+            var valueStart = cursor;
+            if (quote == '\0')
+            {
+                while (cursor < tag.Length - 1
+                    && !char.IsWhiteSpace(tag[cursor])
+                    && tag[cursor] != '>')
+                {
+                    cursor++;
+                }
+            }
+            else
+            {
+                while (cursor < tag.Length - 1 && tag[cursor] != quote)
+                {
+                    cursor++;
+                }
+            }
+            var valueEnd = cursor;
+            if (quote != '\0' && cursor < tag.Length - 1)
+            {
+                cursor++;
+            }
+
+            if (!string.Equals(
+                tag.Substring(nameStart, nameEnd - nameStart),
+                attributeName,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var rawValue = tag.Substring(valueStart, valueEnd - valueStart);
+            string updatedRawValue;
+            var replacementCount = 0;
+            if (string.Equals(attributeName, "style", StringComparison.OrdinalIgnoreCase))
+            {
+                var cssReplacement = RestoreCssUrl(rawValue, rewrittenValue, sourceValue);
+                updatedRawValue = cssReplacement.Value;
+                replacementCount = cssReplacement.Count;
+            }
+            else
+            {
+                updatedRawValue = RestoreAttributeValue(
+                    rawValue,
+                    rewrittenValue,
+                    sourceValue,
+                    out var attributeReplaced);
+                replacementCount = attributeReplaced ? 1 : 0;
+            }
+            if (replacementCount == 0)
+            {
+                continue;
+            }
+
+            output.Append(tag, copiedThrough, valueStart - copiedThrough);
+            if (quote == '\0')
+            {
+                output.Append('\"').Append(updatedRawValue).Append('\"');
+            }
+            else
+            {
+                output.Append(updatedRawValue);
+            }
+            copiedThrough = valueEnd;
+            replacements += replacementCount;
+        }
+        output.Append(tag, copiedThrough, tag.Length - copiedThrough);
+        return output.ToString();
+    }
+
+    private static int FindTagEnd(string value, int start)
+    {
+        var quote = '\0';
+        for (var index = start; index < value.Length; index++)
+        {
+            var current = value[index];
+            if (quote == '\0' && (current == '\"' || current == '\''))
+            {
+                quote = current;
+            }
+            else if (quote != '\0' && current == quote)
+            {
+                quote = '\0';
+            }
+            else if (quote == '\0' && current == '>')
+            {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static bool StartsWithOrdinal(string value, int start, string expected) =>
+        start >= 0
+        && start + expected.Length <= value.Length
+        && string.CompareOrdinal(value, start, expected, 0, expected.Length) == 0;
+
+    private static bool IsMarkupNameCharacter(char value) =>
+        char.IsLetterOrDigit(value) || value == ':' || value == '_' || value == '-';
 
     private static string RestoreAttributeValue(
         string rawValue,
