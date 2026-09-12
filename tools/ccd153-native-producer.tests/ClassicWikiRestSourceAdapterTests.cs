@@ -6,6 +6,7 @@ using PnP.Framework.Migration.Pages.Capture;
 using PnP.Framework.Migration.Pages.ClassicWiki.Capture;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
+using PnP.Framework.Migration.Pages.ClassicWiki.Verification;
 using PnP.Framework.Migration.Pages.Fields;
 using PnP.Framework.Migration.Pages.Planning;
 using PnP.Framework.Migration.Pages.References;
@@ -15,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -85,12 +87,72 @@ public class ClassicWikiRestSourceAdapterTests
         Assert.AreEqual(
             result.Package.Snapshot.Dependencies[0].OriginalValue,
             result.Package.Plan.Dependencies[0].TargetOriginalValue);
+        Assert.AreEqual(
+            "a830edad9050849cupcollect.sharepoint.com",
+            new Uri(result.Package.Plan.Dependencies[0].TargetAbsoluteUrl).Host);
+        Assert.AreEqual(
+            "microsoft.sharepoint.com",
+            new Uri(result.Package.Snapshot.Dependencies[0].SourceAbsoluteUrl).Host);
         StringAssert.Contains(result.Package.Plan.WikiFieldPlan.ExactValue, "/teams/source/SitePages/one.aspx");
         StringAssert.Contains(result.Package.Plan.WikiFieldPlan.ExactValue, "/teams/target/Docs/two.docx");
+        var comparison = CompareDependencies(
+            result.Package,
+            ReadEmittedDependencies(result.Package));
+        Assert.IsFalse(comparison.DependenciesMatched);
+        Assert.IsTrue(comparison.Differences.Any(value => value.Contains("source disposition 'Delegate'")));
+        Assert.IsFalse(comparison.Differences.Any(value => value.Contains("exact-semantics mismatch")));
         Assert.AreNotEqual(originalOperations.MutationOperationId, result.AdmittedPlan.Operations.MutationOperationId);
         Assert.AreNotEqual(originalOperations.ReadbackOperationId, result.AdmittedPlan.Operations.ReadbackOperationId);
         Assert.AreNotEqual(originalOperations.RuntimeOperationId, result.AdmittedPlan.Operations.RuntimeOperationId);
         Assert.AreNotEqual(originalOperations.CleanupOperationId, result.AdmittedPlan.Operations.CleanupOperationId);
+    }
+
+    [TestMethod]
+    public void AdaptRestoresOnlyTheUnavailableCanonicalValueWhenAnotherReferenceHasAQuerySuffix()
+    {
+        const string sourceValue = "/teams/source/SitePages/one.aspx";
+        const string sourceQueryValue = "/teams/source/SitePages/one.aspx?view=two";
+        const string targetValue = "/teams/target/SitePages/one.aspx";
+        const string targetQueryValue = "/teams/target/SitePages/one.aspx?view=two";
+        var wikiField = "<div>"
+            + "<a href=\"" + sourceValue + "\">Unavailable</a>"
+            + "<a href=\"" + sourceQueryValue + "\">Independent</a>"
+            + "<area href=\"" + sourceValue + "\">Other consumer</area>"
+            + "<span>literal " + sourceValue + "</span>"
+            + "</div>";
+        var package = CreatePackage(PageCaptureStatus.Failed, "query-isolation", wikiField: wikiField);
+
+        var result = ClassicWikiRestSourceAdapter.Adapt(
+            package,
+            CreateAdmittedPlan(package, "query-isolation"));
+
+        Assert.AreEqual(3, result.Package.Plan.Dependencies.Count);
+        Assert.AreEqual(1, result.Package.Plan.Dependencies.Count(value => value.Disposition == "Delegate"));
+        Assert.AreEqual(2, result.Package.Plan.Dependencies.Count(value => value.Disposition == "Rewrite"));
+        StringAssert.Contains(result.Package.Plan.WikiFieldPlan.ExactValue, "href=\"" + sourceValue + "\"");
+        StringAssert.Contains(result.Package.Plan.WikiFieldPlan.ExactValue, "href=\"" + targetQueryValue + "\"");
+        StringAssert.Contains(result.Package.Plan.WikiFieldPlan.ExactValue, "<area href=\"" + targetValue + "\"");
+        StringAssert.Contains(result.Package.Plan.WikiFieldPlan.ExactValue, "<span>literal " + targetValue + "</span>");
+        Assert.IsFalse(result.Package.Plan.WikiFieldPlan.ExactValue.Contains(sourceQueryValue));
+
+        var delegatePlan = result.Package.Plan.Dependencies.Single(value => value.Disposition == "Delegate");
+        var queryRewritePlan = result.Package.Plan.Dependencies.Single(value =>
+            value.Disposition == "Rewrite" && value.Consumer == "a[href]");
+        var otherConsumerPlan = result.Package.Plan.Dependencies.Single(value => value.Consumer == "area[href]");
+        Assert.AreEqual(sourceValue, delegatePlan.TargetOriginalValue);
+        Assert.AreEqual(sourceValue, delegatePlan.TargetServerRelativeUrl);
+        Assert.AreEqual(
+            "https://a830edad9050849cupcollect.sharepoint.com" + sourceValue,
+            delegatePlan.TargetAbsoluteUrl);
+        Assert.AreEqual(targetQueryValue, queryRewritePlan.TargetOriginalValue);
+        Assert.AreEqual(targetValue, otherConsumerPlan.TargetOriginalValue);
+
+        var comparison = CompareDependencies(
+            result.Package,
+            ReadEmittedDependencies(result.Package));
+        Assert.IsFalse(comparison.DependenciesMatched);
+        Assert.IsTrue(comparison.Differences.Any(value => value.Contains("source disposition 'Delegate'")));
+        Assert.IsFalse(comparison.Differences.Any(value => value.Contains("exact-semantics mismatch")));
     }
 
     [TestMethod]
@@ -209,8 +271,10 @@ public class ClassicWikiRestSourceAdapterTests
     private static ClassicWikiMigrationPackage CreatePackage(
         PageCaptureStatus? unavailableStatus,
         string caseId,
-        int? authorizationStatus = null)
+        int? authorizationStatus = null,
+        string wikiField = null)
     {
+        wikiField ??= WikiField;
         var snapshot = new ClassicWikiCaptureBundle
         {
             CapturePolicy = new PageCaptureOptions
@@ -233,8 +297,8 @@ public class ClassicWikiRestSourceAdapterTests
                 VersionLabel = "17.0",
                 Title = caseId
             },
-            WikiField = WikiField,
-            WikiFieldSha256 = ClassicWikiDigest.ComputeSha256(WikiField),
+            WikiField = wikiField,
+            WikiFieldSha256 = ClassicWikiDigest.ComputeSha256(wikiField),
             LibraryBaseTemplate = 119,
             LibraryTitle = "Site Pages",
             LibraryServerRelativeUrl = "/teams/source/SitePages",
@@ -276,6 +340,42 @@ public class ClassicWikiRestSourceAdapterTests
             {
                 TargetPageServerRelativeUrl = "/teams/target/SitePages/" + caseId + ".aspx"
             });
+    }
+
+    private static IList<PageReferenceSnapshot> ReadEmittedDependencies(
+        ClassicWikiMigrationPackage package)
+    {
+        var targetWeb = new Uri(package.Plan.TargetLocation.TargetWebUrl);
+        var targetSnapshot = new ClassicWikiCaptureBundle
+        {
+            CapturePolicy = package.Snapshot.CapturePolicy,
+            Source = new PageIdentity
+            {
+                WebId = package.Plan.TargetLocation.TargetWebId,
+                WebUrl = package.Plan.TargetLocation.TargetWebUrl,
+                WebServerRelativeUrl = Uri.UnescapeDataString(targetWeb.AbsolutePath).TrimEnd('/'),
+                PageServerRelativeUrl = package.Plan.TargetPageServerRelativeUrl
+            },
+            WikiField = package.Plan.WikiFieldPlan.ExactValue,
+            WikiFieldSha256 = ClassicWikiDigest.ComputeSha256(package.Plan.WikiFieldPlan.ExactValue)
+        };
+        return ClassicWikiReferenceInventory.CaptureReferenceOnly(targetSnapshot);
+    }
+
+    private static ClassicWikiComparisonResult CompareDependencies(
+        ClassicWikiMigrationPackage package,
+        IList<PageReferenceSnapshot> observed)
+    {
+        var verificationType = typeof(ClassicWikiComparisonResult).Assembly.GetType(
+            "PnP.Framework.Migration.Pages.ClassicWiki.Verification.ClassicWikiFreshVerification",
+            throwOnError: true);
+        var compare = verificationType.GetMethod(
+            "CompareDependencies",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.IsNotNull(compare);
+        var result = new ClassicWikiComparisonResult();
+        compare.Invoke(null, new object[] { package.Plan.Dependencies, observed, result });
+        return result;
     }
 
     private static AdmittedReproExecutionPlan CreateAdmittedPlan(

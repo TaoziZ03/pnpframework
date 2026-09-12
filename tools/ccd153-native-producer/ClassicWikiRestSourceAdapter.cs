@@ -205,23 +205,13 @@ internal static class ClassicWikiRestSourceAdapter
             var rewrittenValue = plan.TargetOriginalValue;
             if (!string.Equals(rewrittenValue, sourceDependency.OriginalValue, StringComparison.Ordinal))
             {
-                if (safeWikiField?.IndexOf(rewrittenValue, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    safeWikiField = ReplaceCaseInsensitive(
-                        safeWikiField,
-                        rewrittenValue,
-                        sourceDependency.OriginalValue);
-                }
-                else if (safeWikiField?.IndexOf(sourceDependency.OriginalValue, StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    throw new InvalidDataException(
-                        "classic_wiki_unavailable_dependency_cannot_be_preserved_in_wiki_field");
-                }
+                safeWikiField = RestoreCanonicalReference(
+                    safeWikiField,
+                    sourceDependency.Consumer,
+                    rewrittenValue,
+                    sourceDependency.OriginalValue);
             }
 
-            plan.TargetOriginalValue = sourceDependency.OriginalValue;
-            plan.TargetAbsoluteUrl = sourceDependency.SourceAbsoluteUrl;
-            plan.TargetServerRelativeUrl = sourceDependency.SourceServerRelativeUrl;
             plan.Disposition = "Delegate";
             var reasonCode = ReasonCode(sourceDependency, source);
             result.Add(new ClassicWikiRestSourceDependencyDisposition
@@ -241,9 +231,58 @@ internal static class ClassicWikiRestSourceAdapter
         if (unavailableDependencies.Count > 0)
         {
             adaptedPackage.Plan.WikiFieldPlan = WikiFieldWritePolicy.Build(safeWikiField);
+            BindUnavailablePlansToTargetReadback(
+                adaptedPackage,
+                unavailableDependencies,
+                safeWikiField);
             adaptedPackage.Report.Status = "Conditional";
         }
         return result;
+    }
+
+    private static void BindUnavailablePlansToTargetReadback(
+        ClassicWikiMigrationPackage adaptedPackage,
+        IList<PageReferenceSnapshot> unavailableDependencies,
+        string emittedWikiField)
+    {
+        var target = adaptedPackage.Plan.TargetLocation;
+        var targetWebUri = new Uri(target.TargetWebUrl);
+        var targetSnapshot = new ClassicWikiCaptureBundle
+        {
+            CapturePolicy = adaptedPackage.Snapshot.CapturePolicy,
+            Source = new PageIdentity
+            {
+                WebId = target.TargetWebId,
+                WebUrl = target.TargetWebUrl,
+                WebServerRelativeUrl = Uri.UnescapeDataString(targetWebUri.AbsolutePath).TrimEnd('/'),
+                PageServerRelativeUrl = adaptedPackage.Plan.TargetPageServerRelativeUrl
+            },
+            WikiField = emittedWikiField,
+            WikiFieldSha256 = ClassicWikiDigest.ComputeSha256(emittedWikiField ?? string.Empty)
+        };
+        var observed = ClassicWikiReferenceInventory.CaptureReferenceOnly(targetSnapshot);
+
+        foreach (var unavailable in unavailableDependencies)
+        {
+            var matches = observed.Where(value =>
+                value != null
+                && value.Kind == unavailable.Kind
+                && RequiredEquals(value.Consumer, unavailable.Consumer)
+                && string.Equals(value.OriginalValue, unavailable.OriginalValue, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (matches.Length != 1)
+            {
+                throw new InvalidDataException(
+                    "classic_wiki_unavailable_dependency_target_readback_is_not_unique");
+            }
+
+            var plan = adaptedPackage.Plan.Dependencies.Single(value =>
+                string.Equals(value.SourceId, unavailable.Id, StringComparison.Ordinal));
+            var targetReference = matches[0];
+            plan.TargetOriginalValue = targetReference.OriginalValue;
+            plan.TargetAbsoluteUrl = targetReference.SourceAbsoluteUrl;
+            plan.TargetServerRelativeUrl = targetReference.SourceServerRelativeUrl;
+        }
     }
 
     private static bool IsKnownUnavailable(PageCaptureStatus status) =>
@@ -270,14 +309,146 @@ internal static class ClassicWikiRestSourceAdapter
             : "SOURCE_REFERENCE_CAPTURE_FAILED";
     }
 
-    private static string ReplaceCaseInsensitive(string input, string pattern, string replacement)
+    private static string RestoreCanonicalReference(
+        string wikiField,
+        string consumer,
+        string rewrittenValue,
+        string sourceValue)
     {
-        if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(pattern)) return input;
-        return System.Text.RegularExpressions.Regex.Replace(
-            input,
-            System.Text.RegularExpressions.Regex.Escape(pattern),
-            (replacement ?? string.Empty).Replace("$", "$$"),
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (string.IsNullOrEmpty(wikiField)
+            || string.IsNullOrWhiteSpace(consumer)
+            || string.IsNullOrWhiteSpace(rewrittenValue)
+            || string.IsNullOrWhiteSpace(sourceValue))
+        {
+            throw new InvalidDataException(
+                "classic_wiki_unavailable_dependency_cannot_be_preserved_in_wiki_field");
+        }
+
+        var consumerMatch = System.Text.RegularExpressions.Regex.Match(
+            consumer,
+            @"^(?<tag>[A-Za-z][A-Za-z0-9:_-]*)\[(?<attribute>[A-Za-z][A-Za-z0-9:_-]*)\]$",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (!consumerMatch.Success)
+        {
+            throw new InvalidDataException(
+                "classic_wiki_unavailable_dependency_consumer_is_not_a_wiki_field_attribute");
+        }
+
+        var tagName = consumerMatch.Groups["tag"].Value;
+        var attributeName = consumerMatch.Groups["attribute"].Value;
+        var replacements = 0;
+        var tagPattern = "<(?<tag>[A-Za-z][A-Za-z0-9:_-]*)\\b(?<attributes>(?:[^>\\\"']|\\\"[^\\\"]*\\\"|'[^']*')*)>";
+        var restored = System.Text.RegularExpressions.Regex.Replace(
+            wikiField,
+            tagPattern,
+            tagMatch =>
+            {
+                if (!string.Equals(tagMatch.Groups["tag"].Value, tagName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return tagMatch.Value;
+                }
+
+                var attributes = tagMatch.Groups["attributes"].Value;
+                var attributePattern = "(?<prefix>\\s+"
+                    + System.Text.RegularExpressions.Regex.Escape(attributeName)
+                    + "\\s*=\\s*)(?:(?<quote>[\\\"'])(?<quoted>.*?)\\k<quote>|(?<unquoted>[^\\s>]+))";
+                var rewrittenAttributes = System.Text.RegularExpressions.Regex.Replace(
+                    attributes,
+                    attributePattern,
+                    attributeMatch =>
+                    {
+                        var rawValue = attributeMatch.Groups["quoted"].Success
+                            ? attributeMatch.Groups["quoted"].Value
+                            : attributeMatch.Groups["unquoted"].Value;
+                        string updatedRawValue;
+                        if (string.Equals(attributeName, "style", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var cssReplacement = RestoreCssUrl(rawValue, rewrittenValue, sourceValue);
+                            updatedRawValue = cssReplacement.Value;
+                            replacements += cssReplacement.Count;
+                        }
+                        else
+                        {
+                            updatedRawValue = RestoreAttributeValue(
+                                rawValue,
+                                rewrittenValue,
+                                sourceValue,
+                                out var attributeReplaced);
+                            if (attributeReplaced)
+                            {
+                                replacements++;
+                            }
+                        }
+                        if (string.Equals(updatedRawValue, rawValue, StringComparison.Ordinal))
+                        {
+                            return attributeMatch.Value;
+                        }
+
+                        var quote = attributeMatch.Groups["quote"].Success
+                            ? attributeMatch.Groups["quote"].Value
+                            : "\"";
+                        return attributeMatch.Groups["prefix"].Value
+                            + quote
+                            + updatedRawValue
+                            + quote;
+                    },
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                        | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                return "<" + tagMatch.Groups["tag"].Value + rewrittenAttributes + ">";
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        if (replacements == 0)
+        {
+            throw new InvalidDataException(
+                "classic_wiki_unavailable_dependency_cannot_be_preserved_in_wiki_field");
+        }
+        return restored;
+    }
+
+    private static string RestoreAttributeValue(
+        string rawValue,
+        string rewrittenValue,
+        string sourceValue,
+        out bool replaced)
+    {
+        var decoded = System.Net.WebUtility.HtmlDecode(rawValue)?.Trim();
+        if (!string.Equals(decoded, rewrittenValue, StringComparison.OrdinalIgnoreCase))
+        {
+            replaced = false;
+            return rawValue;
+        }
+
+        replaced = true;
+        return System.Net.WebUtility.HtmlEncode(sourceValue);
+    }
+
+    private static CanonicalReferenceReplacement RestoreCssUrl(
+        string rawStyle,
+        string rewrittenValue,
+        string sourceValue)
+    {
+        var replacements = 0;
+        var value = System.Text.RegularExpressions.Regex.Replace(
+            rawStyle,
+            "(?<prefix>url\\(\\s*(?:[\\\"']?))(?<value>.*?)(?<suffix>(?:[\\\"']?)\\s*\\))",
+            match =>
+            {
+                var decoded = System.Net.WebUtility.HtmlDecode(match.Groups["value"].Value)?.Trim();
+                if (!string.Equals(decoded, rewrittenValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return match.Value;
+                }
+
+                replacements++;
+                return match.Groups["prefix"].Value
+                    + System.Net.WebUtility.HtmlEncode(sourceValue)
+                    + match.Groups["suffix"].Value;
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        return new CanonicalReferenceReplacement(value, replacements);
     }
 
     private static void RequireSameTarget(
@@ -339,6 +510,18 @@ internal sealed class ClassicWikiRestSourceAdaptationResult
     public int ReconstructedDependencyCount { get; init; }
     public bool UsedDeclaredInventory { get; init; }
     public IList<ClassicWikiRestSourceDependencyDisposition> DependencyDispositions { get; init; }
+}
+
+internal readonly struct CanonicalReferenceReplacement
+{
+    public CanonicalReferenceReplacement(string value, int count)
+    {
+        Value = value;
+        Count = count;
+    }
+
+    public string Value { get; }
+    public int Count { get; }
 }
 
 internal sealed class ClassicWikiRestSourceDependencyDisposition

@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="8915b8f1-10e7-41f4-bef1-90730f1b625a" name="titao@CPC-titao-MNZ20 2026-09-11 02:28:52" runUser="FAREAST\titao" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-09-11T02:28:52.0123117+08:00" queuing="2026-09-11T02:28:52.0123121+08:00" start="2026-09-11T02:28:50.2211786+08:00" finish="2026-09-11T02:28:52.0187917+08:00" />
+  <TestSettings name="default" id="aa4e7584-bc6b-47cb-b619-ad044d40c19b">
+    <Deployment runDeploymentRoot="titao_CPC-titao-MNZ20_2026-09-11_02_28_52" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="10c3669e-ffbe-47c1-94f9-a3fd0c6b699f" testId="713469a0-045d-63a6-64f4-a6ad8c4eea5a" testName="AdaptReturnsOneDelegatedUnavailableAndFourIndependentRewrites (Failed,&quot;SOURCE_REFERENCE_CAPTURE_FAILED&quot;)" computerName="CPC-titao-MNZ20" duration="00:00:00.5469731" startTime="2026-09-11T02:28:51.2459224+08:00" endTime="2026-09-11T02:28:51.8172033+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="10c3669e-ffbe-47c1-94f9-a3fd0c6b699f" />
+    <UnitTestResult executionId="041b3821-68b4-4078-91d2-4db025067cd9" testId="6ef3b2d1-34ee-3929-71c0-e9e7d3436cfc" testName="AdaptRestoresOnlyTheUnavailableCanonicalValueWhenAnotherReferenceHasAQuerySuffix" computerName="CPC-titao-MNZ20" duration="00:00:00.0054891" startTime="2026-09-11T02:28:51.8291426+08:00" endTime="2026-09-11T02:28:51.8372925+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="041b3821-68b4-4078-91d2-4db025067cd9" />
+    <UnitTestResult executionId="e4a963f8-a0aa-4df1-82e1-137b912a95b3" testId="58c38dde-a672-6642-3aa3-37a63e57f5b4" testName="AdaptReturnsOneDelegatedUnavailableAndFourIndependentRewrites (NotReturned,&quot;SOURCE_REFERENCE_NOT_RETURNED&quot;)" computerName="CPC-titao-MNZ20" duration="00:00:00.0041991" startTime="2026-09-11T02:28:51.8239249+08:00" endTime="2026-09-11T02:28:51.8285151+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e4a963f8-a0aa-4df1-82e1-137b912a95b3" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="AdaptReturnsOneDelegatedUnavailableAndFourIndependentRewrites (Failed,&quot;SOURCE_REFERENCE_CAPTURE_FAILED&quot;)" storage="c:\users\titao\appdata\local\temp\paperclip-ccd487-5bfc6d53\tools\ccd153-native-producer.tests\bin\debug\net10.0\ccd153-native-producer.tests.dll" id="713469a0-045d-63a6-64f4-a6ad8c4eea5a">
+      <Execution id="10c3669e-ffbe-47c1-94f9-a3fd0c6b699f" />
+      <TestMethod codeBase="C:\Users\titao\AppData\Local\Temp\paperclip-ccd487-5bfc6d53\tools\ccd153-native-producer.tests\bin\Debug\net10.0\ccd153-native-producer.tests.dll" adapterTypeName="executor://mstestadapter/v2" className="ClassicWikiRestSourceAdapterTests" name="AdaptReturnsOneDelegatedUnavailableAndFourIndependentRewrites" />
+    </UnitTest>
+    <UnitTest name="AdaptRestoresOnlyTheUnavailableCanonicalValueWhenAnotherReferenceHasAQuerySuffix" storage="c:\users\titao\appdata\local\temp\paperclip-ccd487-5bfc6d53\tools\ccd153-native-producer.tests\bin\debug\net10.0\ccd153-native-producer.tests.dll" id="6ef3b2d1-34ee-3929-71c0-e9e7d3436cfc">
+      <Execution id="041b3821-68b4-4078-91d2-4db025067cd9" />
+      <TestMethod codeBase="C:\Users\titao\AppData\Local\Temp\paperclip-ccd487-5bfc6d53\tools\ccd153-native-producer.tests\bin\Debug\net10.0\ccd153-native-producer.tests.dll" adapterTypeName="executor://mstestadapter/v2" className="ClassicWikiRestSourceAdapterTests" name="AdaptRestoresOnlyTheUnavailableCanonicalValueWhenAnotherReferenceHasAQuerySuffix" />
+    </UnitTest>
+    <UnitTest name="AdaptReturnsOneDelegatedUnavailableAndFourIndependentRewrites (NotReturned,&quot;SOURCE_REFERENCE_NOT_RETURNED&quot;)" storage="c:\users\titao\appdata\local\temp\paperclip-ccd487-5bfc6d53\tools\ccd153-native-producer.tests\bin\debug\net10.0\ccd153-native-producer.tests.dll" id="58c38dde-a672-6642-3aa3-37a63e57f5b4">
+      <Execution id="e4a963f8-a0aa-4df1-82e1-137b912a95b3" />
+      <TestMethod codeBase="C:\Users\titao\AppData\Local\Temp\paperclip-ccd487-5bfc6d53\tools\ccd153-native-producer.tests\bin\Debug\net10.0\ccd153-native-producer.tests.dll" adapterTypeName="executor://mstestadapter/v2" className="ClassicWikiRestSourceAdapterTests" name="AdaptReturnsOneDelegatedUnavailableAndFourIndependentRewrites" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="713469a0-045d-63a6-64f4-a6ad8c4eea5a" executionId="10c3669e-ffbe-47c1-94f9-a3fd0c6b699f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6ef3b2d1-34ee-3929-71c0-e9e7d3436cfc" executionId="041b3821-68b4-4078-91d2-4db025067cd9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="58c38dde-a672-6642-3aa3-37a63e57f5b4" executionId="e4a963f8-a0aa-4df1-82e1-137b912a95b3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>
