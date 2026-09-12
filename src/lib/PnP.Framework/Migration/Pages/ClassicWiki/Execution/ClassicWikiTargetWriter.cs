@@ -66,8 +66,9 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                     $"Create classic wiki page '{package.Plan.TargetPageServerRelativeUrl}'.",
                     () =>
                     {
+                        var targetFilePath = ResolveTemplateTargetPath(package);
                         var newFile = targetLocation.TargetFolder.Files.AddTemplateFile(
-                            targetLocation.FileName,
+                            targetFilePath,
                             TemplateFileType.WikiPage);
                         targetContext.Load(newFile, f => f.Exists, f => f.ServerRelativeUrl);
                         targetContext.ExecuteQueryRetry();
@@ -165,6 +166,17 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                 PersistedWikiFieldSha256 = persistedSha,
                 ImportedWebPartCount = importedWebParts
             };
+        }
+
+        internal static string ResolveTemplateTargetPath(ClassicWikiMigrationPackage package)
+        {
+            var targetFilePath = package?.Plan?.TargetPageServerRelativeUrl;
+            if (string.IsNullOrWhiteSpace(targetFilePath) || !targetFilePath.StartsWith("/", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("Classic wiki template creation requires the sealed server-relative target page path.");
+            }
+
+            return targetFilePath;
         }
 
         private static bool IsMissing(ServerException ex)

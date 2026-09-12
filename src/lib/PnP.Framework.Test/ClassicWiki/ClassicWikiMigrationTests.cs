@@ -591,6 +591,19 @@ namespace PnP.Framework.Test.ClassicWiki
             StringAssert.Contains(exception.Message, "no WikiField write plan is admitted");
         }
 
+        [TestMethod]
+        public void TargetWriterUsesSealedServerRelativePathForWikiTemplateCreation()
+        {
+            var package = ClassicWikiTestFactory.CreateMigrationPackage();
+            package.Plan.TargetPageServerRelativeUrl = "/sites/target/SitePages/Welcome-ccd35-run.aspx";
+            package.Plan.TargetLocation.TargetFolderServerRelativeUrl = "/sites/target/SitePages";
+            package.Plan.TargetLocation.FileName = "Welcome-ccd35-run.aspx";
+
+            Assert.AreEqual(
+                "/sites/target/SitePages/Welcome-ccd35-run.aspx",
+                ClassicWikiTargetWriter.ResolveTemplateTargetPath(package));
+        }
+
         private static ClassicWikiExportPackage CreateExportPackage(string content, int libraryTemplate, string pageUrl = "/sites/demo/SitePages/Welcome.aspx")
         {
             var bundle = CreateSampleBundle(content, libraryTemplate, pageUrl);
