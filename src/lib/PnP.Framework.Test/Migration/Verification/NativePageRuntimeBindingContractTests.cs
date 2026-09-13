@@ -310,6 +310,30 @@ namespace PnP.Framework.Test.Migration.Verification
 
             fixture = NativeRuntimeTestFixture.Create();
             fixture.ReplaceRuntimeArtifacts(
+                "<html><body><p style='display:/**/none'>approved content</p><main>Unrelated page</main></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><h1 aria-hidden='true'>Access Denied</h1><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><h1 inert>Access Denied</h1><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
                 "<html><body><h1>Access<br>Denied</h1><p>approved content</p></body></html>",
                 fixture.CreateDom("approved content"),
                 NativeRuntimeTestFixture.PngBytes());
@@ -352,7 +376,31 @@ namespace PnP.Framework.Test.Migration.Verification
             fixture.ReplaceRuntimeArtifacts(
                 "<html><body>approved content</body></html>",
                 fixture.CreateDom("approved content"),
+                ClearPngFinalDeflateBit(NativeRuntimeTestFixture.PngBytes()));
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
                 JpegWithoutEntropyScan());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                JpegWithEmptyTablesAndEntropy());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                JpegWithUndefinedTableSelectors());
             fixture.ValidateExternal(out status);
             Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
         }
@@ -780,6 +828,29 @@ namespace PnP.Framework.Test.Migration.Verification
             return null;
         }
 
+        private static byte[] ClearPngFinalDeflateBit(byte[] source)
+        {
+            var bytes = source.ToArray();
+            var offset = 8;
+            while (offset + 12 <= bytes.Length)
+            {
+                var length = bytes[offset] << 24 | bytes[offset + 1] << 16 | bytes[offset + 2] << 8 | bytes[offset + 3];
+                if (Encoding.ASCII.GetString(bytes, offset + 4, 4) == "IDAT" && length > 2)
+                {
+                    bytes[offset + 10] &= 0xfe;
+                    var crc = ComputeTestPngCrc(bytes, offset + 4, length + 4);
+                    bytes[offset + 8 + length] = (byte)(crc >> 24);
+                    bytes[offset + 9 + length] = (byte)(crc >> 16);
+                    bytes[offset + 10 + length] = (byte)(crc >> 8);
+                    bytes[offset + 11 + length] = (byte)crc;
+                    return bytes;
+                }
+                offset += length + 12;
+            }
+            Assert.Fail("The PNG control does not contain mutable IDAT data.");
+            return null;
+        }
+
         private static byte[] JpegWithoutEntropyScan()
         {
             var bytes = new List<byte> { 0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00 };
@@ -791,6 +862,39 @@ namespace PnP.Framework.Test.Migration.Verification
                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00,
+                0xff, 0xd9
+            });
+            return bytes.ToArray();
+        }
+
+        private static byte[] JpegWithEmptyTablesAndEntropy()
+        {
+            return new byte[]
+            {
+                0xff, 0xd8,
+                0xff, 0xdb, 0x00, 0x02,
+                0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00,
+                0xff, 0xc4, 0x00, 0x02,
+                0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00,
+                0x01,
+                0xff, 0xd9
+            };
+        }
+
+        private static byte[] JpegWithUndefinedTableSelectors()
+        {
+            var bytes = new List<byte> { 0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00 };
+            bytes.AddRange(Enumerable.Repeat((byte)1, 64));
+            bytes.AddRange(new byte[]
+            {
+                0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x03,
+                0xff, 0xc4, 0x00, 0x26,
+                0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x33, 0x00, 0x3f, 0x00,
+                0x01,
                 0xff, 0xd9
             });
             return bytes.ToArray();
