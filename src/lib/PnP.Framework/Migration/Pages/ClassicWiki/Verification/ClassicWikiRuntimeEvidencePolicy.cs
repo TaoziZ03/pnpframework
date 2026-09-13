@@ -1,3 +1,5 @@
+using AngleSharp;
+using AngleSharp.Css.Dom;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using PnP.Framework.Migration.Packaging;
@@ -207,7 +209,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
         {
             try
             {
-                var document = new HtmlParser().ParseDocument(DecodeHtml(html));
+                var configuration = Configuration.Default.WithCss();
+                var context = BrowsingContext.New(configuration);
+                var document = new HtmlParser(new HtmlParserOptions { IsEmbedded = true }, context)
+                    .ParseDocument(DecodeHtml(html));
                 var rendered = new StringBuilder();
                 AppendVisibleRenderedText(document.Body ?? document.DocumentElement, rendered);
                 return NormalizeRenderedText(rendered.ToString());
@@ -272,43 +277,31 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 || string.Equals(name, "meta", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(name, "link", StringComparison.OrdinalIgnoreCase)
                 || element.HasAttribute("hidden")
-                || element.HasAttribute("inert")
-                || string.Equals(element.GetAttribute("aria-hidden"), "true", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(element.GetAttribute("type"), "hidden", StringComparison.OrdinalIgnoreCase)
                     && string.Equals(name, "input", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
 
-            var style = element.GetAttribute("style");
-            if (string.IsNullOrWhiteSpace(style))
+            var styleText = element.GetAttribute("style");
+            if (string.IsNullOrWhiteSpace(styleText))
             {
                 return true;
             }
-            foreach (var declaration in style.Split(';'))
+            var style = element.GetStyle();
+            if (style == null)
             {
-                var separator = declaration.IndexOf(':');
-                if (separator <= 0)
-                {
-                    continue;
-                }
-                var property = declaration.Substring(0, separator).Trim();
-                var value = declaration.Substring(separator + 1).Trim();
-                var important = value.IndexOf("!important", StringComparison.OrdinalIgnoreCase);
-                if (important >= 0)
-                {
-                    value = value.Substring(0, important).Trim();
-                }
-                if (string.Equals(property, "display", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(value, "none", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(property, "visibility", StringComparison.OrdinalIgnoreCase)
-                    && (string.Equals(value, "hidden", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(value, "collapse", StringComparison.OrdinalIgnoreCase))
-                    || string.Equals(property, "content-visibility", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(value, "hidden", StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
+                return true;
+            }
+            var display = style.GetPropertyValue("display")?.Trim();
+            var visibility = style.GetPropertyValue("visibility")?.Trim();
+            var contentVisibility = style.GetPropertyValue("content-visibility")?.Trim();
+            if (string.Equals(display, "none", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(visibility, "hidden", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(visibility, "collapse", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(contentVisibility, "hidden", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
             }
             return true;
         }
@@ -554,6 +547,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 return false;
             }
+            if (!HasCompleteDeflateStream(compressed, 2, compressed.Length - 6, expectedLength))
+            {
+                return false;
+            }
             try
             {
                 byte[] decoded;
@@ -596,6 +593,343 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             }
         }
 
+        private static bool HasCompleteDeflateStream(byte[] bytes, int offset, int length, long expectedLength)
+        {
+            var reader = new DeflateBitReader(bytes, offset, length);
+            long produced = 0;
+            while (reader.TryReadBits(1, out var finalValue)
+                && reader.TryReadBits(2, out var blockType))
+            {
+                if (blockType == 0)
+                {
+                    if (!reader.TryAlignToByte()
+                        || !reader.TryReadBits(16, out var storedLength)
+                        || !reader.TryReadBits(16, out var inverseLength)
+                        || (storedLength ^ 0xffff) != inverseLength
+                        || !reader.TrySkipBytes(storedLength))
+                    {
+                        return false;
+                    }
+                    produced += storedLength;
+                }
+                else if (blockType == 1 || blockType == 2)
+                {
+                    if (!TryReadDeflateTrees(reader, blockType, out var literalTree, out var distanceTree)
+                        || !TryReadDeflateCompressedBlock(
+                            reader,
+                            literalTree,
+                            distanceTree,
+                            ref produced,
+                            expectedLength))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+
+                if (produced > expectedLength)
+                {
+                    return false;
+                }
+                if (finalValue != 0)
+                {
+                    return produced == expectedLength && reader.BytesConsumed == length;
+                }
+            }
+            return false;
+        }
+
+        private static bool TryReadDeflateTrees(
+            DeflateBitReader reader,
+            int blockType,
+            out DeflateHuffmanTree literalTree,
+            out DeflateHuffmanTree distanceTree)
+        {
+            literalTree = null;
+            distanceTree = null;
+            if (blockType == 1)
+            {
+                var literalLengths = new int[288];
+                for (var symbol = 0; symbol <= 143; symbol++) literalLengths[symbol] = 8;
+                for (var symbol = 144; symbol <= 255; symbol++) literalLengths[symbol] = 9;
+                for (var symbol = 256; symbol <= 279; symbol++) literalLengths[symbol] = 7;
+                for (var symbol = 280; symbol <= 287; symbol++) literalLengths[symbol] = 8;
+                var distanceLengths = Enumerable.Repeat(5, 32).ToArray();
+                return DeflateHuffmanTree.TryCreate(literalLengths, out literalTree)
+                    && DeflateHuffmanTree.TryCreate(distanceLengths, out distanceTree);
+            }
+
+            if (!reader.TryReadBits(5, out var literalCountValue)
+                || !reader.TryReadBits(5, out var distanceCountValue)
+                || !reader.TryReadBits(4, out var codeLengthCountValue))
+            {
+                return false;
+            }
+            var literalCount = literalCountValue + 257;
+            var distanceCount = distanceCountValue + 1;
+            var codeLengthCount = codeLengthCountValue + 4;
+            var codeLengthOrder = new[] { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };
+            var codeLengths = new int[19];
+            for (var index = 0; index < codeLengthCount; index++)
+            {
+                if (!reader.TryReadBits(3, out codeLengths[codeLengthOrder[index]]))
+                {
+                    return false;
+                }
+            }
+            if (!DeflateHuffmanTree.TryCreate(codeLengths, out var codeLengthTree))
+            {
+                return false;
+            }
+
+            var allLengths = new List<int>(literalCount + distanceCount);
+            while (allLengths.Count < literalCount + distanceCount)
+            {
+                if (!codeLengthTree.TryReadSymbol(reader, out var symbol))
+                {
+                    return false;
+                }
+                if (symbol <= 15)
+                {
+                    allLengths.Add(symbol);
+                    continue;
+                }
+                int repeat;
+                int value;
+                if (symbol == 16)
+                {
+                    if (allLengths.Count == 0 || !reader.TryReadBits(2, out var extra)) return false;
+                    repeat = extra + 3;
+                    value = allLengths[allLengths.Count - 1];
+                }
+                else if (symbol == 17)
+                {
+                    if (!reader.TryReadBits(3, out var extra)) return false;
+                    repeat = extra + 3;
+                    value = 0;
+                }
+                else if (symbol == 18)
+                {
+                    if (!reader.TryReadBits(7, out var extra)) return false;
+                    repeat = extra + 11;
+                    value = 0;
+                }
+                else
+                {
+                    return false;
+                }
+                if (allLengths.Count + repeat > literalCount + distanceCount)
+                {
+                    return false;
+                }
+                for (var index = 0; index < repeat; index++) allLengths.Add(value);
+            }
+
+            var literalLengthsResult = allLengths.Take(literalCount).ToArray();
+            var distanceLengthsResult = allLengths.Skip(literalCount).Take(distanceCount).ToArray();
+            return literalLengthsResult.Length > 256
+                && literalLengthsResult[256] != 0
+                && DeflateHuffmanTree.TryCreate(literalLengthsResult, out literalTree)
+                && DeflateHuffmanTree.TryCreate(distanceLengthsResult, out distanceTree);
+        }
+
+        private static bool TryReadDeflateCompressedBlock(
+            DeflateBitReader reader,
+            DeflateHuffmanTree literalTree,
+            DeflateHuffmanTree distanceTree,
+            ref long produced,
+            long expectedLength)
+        {
+            var lengthBases = new[]
+            {
+                3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27,
+                31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258
+            };
+            var lengthExtras = new[]
+            {
+                0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2,
+                2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0
+            };
+            var distanceBases = new[]
+            {
+                1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129,
+                193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
+                8193, 12289, 16385, 24577
+            };
+            var distanceExtras = new[]
+            {
+                0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6,
+                6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13
+            };
+
+            while (literalTree.TryReadSymbol(reader, out var symbol))
+            {
+                if (symbol < 256)
+                {
+                    produced++;
+                }
+                else if (symbol == 256)
+                {
+                    return true;
+                }
+                else
+                {
+                    var lengthIndex = symbol - 257;
+                    if (lengthIndex < 0 || lengthIndex >= lengthBases.Length
+                        || !reader.TryReadBits(lengthExtras[lengthIndex], out var lengthExtra)
+                        || !distanceTree.TryReadSymbol(reader, out var distanceSymbol)
+                        || distanceSymbol < 0 || distanceSymbol >= distanceBases.Length
+                        || !reader.TryReadBits(distanceExtras[distanceSymbol], out var distanceExtra))
+                    {
+                        return false;
+                    }
+                    var matchLength = lengthBases[lengthIndex] + lengthExtra;
+                    var matchDistance = distanceBases[distanceSymbol] + distanceExtra;
+                    if (matchDistance > produced)
+                    {
+                        return false;
+                    }
+                    produced += matchLength;
+                }
+                if (produced > expectedLength)
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private sealed class DeflateBitReader
+        {
+            private readonly byte[] bytes;
+            private readonly int offset;
+            private readonly int bitLength;
+            private int bitOffset;
+
+            public DeflateBitReader(byte[] bytes, int offset, int length)
+            {
+                this.bytes = bytes;
+                this.offset = offset;
+                bitLength = length * 8;
+            }
+
+            public int BytesConsumed => (bitOffset + 7) / 8;
+
+            public bool TryReadBits(int count, out int value)
+            {
+                value = 0;
+                if (count < 0 || count > 16 || bitOffset + count > bitLength)
+                {
+                    return false;
+                }
+                for (var bit = 0; bit < count; bit++)
+                {
+                    value |= (bytes[offset + (bitOffset >> 3)] >> (bitOffset & 7) & 1) << bit;
+                    bitOffset++;
+                }
+                return true;
+            }
+
+            public bool TryAlignToByte()
+            {
+                bitOffset = (bitOffset + 7) & ~7;
+                return bitOffset <= bitLength;
+            }
+
+            public bool TrySkipBytes(int count)
+            {
+                if (count < 0 || (long)bitOffset + count * 8L > bitLength)
+                {
+                    return false;
+                }
+                bitOffset += count * 8;
+                return true;
+            }
+        }
+
+        private sealed class DeflateHuffmanTree
+        {
+            private readonly Dictionary<int, int> symbols;
+            private readonly int maximumBits;
+
+            private DeflateHuffmanTree(Dictionary<int, int> symbols, int maximumBits)
+            {
+                this.symbols = symbols;
+                this.maximumBits = maximumBits;
+            }
+
+            public static bool TryCreate(int[] lengths, out DeflateHuffmanTree tree)
+            {
+                tree = null;
+                if (lengths == null || lengths.Length == 0)
+                {
+                    return false;
+                }
+                var counts = new int[16];
+                foreach (var length in lengths)
+                {
+                    if (length < 0 || length > 15) return false;
+                    if (length > 0) counts[length]++;
+                }
+                var total = counts.Sum();
+                if (total == 0)
+                {
+                    return false;
+                }
+                var remaining = 1;
+                for (var bits = 1; bits <= 15; bits++)
+                {
+                    remaining = (remaining << 1) - counts[bits];
+                    if (remaining < 0) return false;
+                }
+                var nextCode = new int[16];
+                var code = 0;
+                for (var bits = 1; bits <= 15; bits++)
+                {
+                    code = (code + counts[bits - 1]) << 1;
+                    nextCode[bits] = code;
+                }
+                var table = new Dictionary<int, int>();
+                var maximumBits = 0;
+                for (var symbol = 0; symbol < lengths.Length; symbol++)
+                {
+                    var length = lengths[symbol];
+                    if (length == 0) continue;
+                    var reversedCode = ReverseBits(nextCode[length]++, length);
+                    table.Add(length << 16 | reversedCode, symbol);
+                    maximumBits = Math.Max(maximumBits, length);
+                }
+                tree = new DeflateHuffmanTree(table, maximumBits);
+                return true;
+            }
+
+            public bool TryReadSymbol(DeflateBitReader reader, out int symbol)
+            {
+                symbol = -1;
+                var code = 0;
+                for (var length = 1; length <= maximumBits; length++)
+                {
+                    if (!reader.TryReadBits(1, out var bit)) return false;
+                    code |= bit << (length - 1);
+                    if (symbols.TryGetValue(length << 16 | code, out symbol)) return true;
+                }
+                return false;
+            }
+
+            private static int ReverseBits(int value, int count)
+            {
+                var result = 0;
+                for (var bit = 0; bit < count; bit++)
+                {
+                    result = result << 1 | value >> bit & 1;
+                }
+                return result;
+            }
+        }
+
         private static uint ComputeAdler32(byte[] bytes)
         {
             const uint modulus = 65521;
@@ -622,7 +956,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             var sawQuantizationTable = false;
             var sawHuffmanTable = false;
             var sawScan = false;
-            var frameComponents = new HashSet<byte>();
+            var frameComponents = new Dictionary<byte, byte>();
+            var quantizationTables = new HashSet<byte>();
+            var dcHuffmanTables = new HashSet<byte>();
+            var acHuffmanTables = new HashSet<byte>();
             while (offset < bytes.Length)
             {
                 if (offset + 1 >= bytes.Length || bytes[offset++] != 0xff)
@@ -659,7 +996,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 var segmentEnd = offset + length;
                 if (marker == 0xdb)
                 {
-                    if (!ValidateJpegQuantizationTables(bytes, segmentStart, segmentEnd))
+                    if (!ValidateJpegQuantizationTables(bytes, segmentStart, segmentEnd, quantizationTables))
                     {
                         return false;
                     }
@@ -667,7 +1004,12 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 }
                 else if (marker == 0xc4)
                 {
-                    if (!ValidateJpegHuffmanTables(bytes, segmentStart, segmentEnd))
+                    if (!ValidateJpegHuffmanTables(
+                        bytes,
+                        segmentStart,
+                        segmentEnd,
+                        dcHuffmanTables,
+                        acHuffmanTables))
                     {
                         return false;
                     }
@@ -684,7 +1026,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 else if (marker == 0xda)
                 {
                     if (!sawFrame || !sawQuantizationTable || !sawHuffmanTable
-                        || !ValidateJpegScanHeader(bytes, segmentStart, segmentEnd, frameComponents))
+                        || frameComponents.Values.Any(tableId => !quantizationTables.Contains(tableId))
+                        || !ValidateJpegScanHeader(
+                            bytes,
+                            segmentStart,
+                            segmentEnd,
+                            frameComponents,
+                            dcHuffmanTables,
+                            acHuffmanTables))
                     {
                         return false;
                     }
@@ -739,13 +1088,19 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             return marker == 0xc0 || marker == 0xc1 || marker == 0xc2;
         }
 
-        private static bool ValidateJpegQuantizationTables(byte[] bytes, int offset, int end)
+        private static bool ValidateJpegQuantizationTables(
+            byte[] bytes,
+            int offset,
+            int end,
+            ISet<byte> tables)
         {
+            var sawTable = false;
             while (offset < end)
             {
                 var descriptor = bytes[offset++];
                 var precision = descriptor >> 4;
-                if (precision > 1 || (descriptor & 0x0f) > 3)
+                var tableId = (byte)(descriptor & 0x0f);
+                if (precision > 1 || tableId > 3)
                 {
                     return false;
                 }
@@ -755,16 +1110,26 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     return false;
                 }
                 offset += tableBytes;
+                tables.Add(tableId);
+                sawTable = true;
             }
-            return offset == end;
+            return sawTable && offset == end;
         }
 
-        private static bool ValidateJpegHuffmanTables(byte[] bytes, int offset, int end)
+        private static bool ValidateJpegHuffmanTables(
+            byte[] bytes,
+            int offset,
+            int end,
+            ISet<byte> dcTables,
+            ISet<byte> acTables)
         {
+            var sawTable = false;
             while (offset < end)
             {
                 var descriptor = bytes[offset++];
-                if ((descriptor >> 4) > 1 || (descriptor & 0x0f) > 3 || offset + 16 > end)
+                var tableClass = descriptor >> 4;
+                var tableId = (byte)(descriptor & 0x0f);
+                if (tableClass > 1 || tableId > 3 || offset + 16 > end)
                 {
                     return false;
                 }
@@ -779,11 +1144,13 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                     return false;
                 }
                 offset += symbols;
+                (tableClass == 0 ? dcTables : acTables).Add(tableId);
+                sawTable = true;
             }
-            return offset == end;
+            return sawTable && offset == end;
         }
 
-        private static bool ValidateJpegFrame(byte[] bytes, int offset, int end, ISet<byte> components)
+        private static bool ValidateJpegFrame(byte[] bytes, int offset, int end, IDictionary<byte, byte> components)
         {
             if (end - offset < 6 || bytes[offset] != 8)
             {
@@ -803,17 +1170,25 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 var id = bytes[offset];
                 var sampling = bytes[offset + 1];
-                if (!components.Add(id) || (sampling >> 4) == 0 || (sampling >> 4) > 4
-                    || (sampling & 0x0f) == 0 || (sampling & 0x0f) > 4 || bytes[offset + 2] > 3)
+                var quantizationTableId = bytes[offset + 2];
+                if (components.ContainsKey(id) || (sampling >> 4) == 0 || (sampling >> 4) > 4
+                    || (sampling & 0x0f) == 0 || (sampling & 0x0f) > 4 || quantizationTableId > 3)
                 {
                     return false;
                 }
+                components.Add(id, quantizationTableId);
                 offset += 3;
             }
             return true;
         }
 
-        private static bool ValidateJpegScanHeader(byte[] bytes, int offset, int end, ISet<byte> frameComponents)
+        private static bool ValidateJpegScanHeader(
+            byte[] bytes,
+            int offset,
+            int end,
+            IDictionary<byte, byte> frameComponents,
+            ISet<byte> dcTables,
+            ISet<byte> acTables)
         {
             if (offset >= end)
             {
@@ -825,21 +1200,31 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 return false;
             }
             var scanComponents = new HashSet<byte>();
+            var tableSelectors = new List<Tuple<byte, byte>>();
             for (var index = 0; index < count; index++)
             {
                 var id = bytes[offset++];
                 var tables = bytes[offset++];
-                if (!frameComponents.Contains(id) || !scanComponents.Add(id)
+                if (!frameComponents.ContainsKey(id) || !scanComponents.Add(id)
                     || (tables >> 4) > 3 || (tables & 0x0f) > 3)
                 {
                     return false;
                 }
+                tableSelectors.Add(Tuple.Create((byte)(tables >> 4), (byte)(tables & 0x0f)));
             }
             var spectralStart = bytes[offset++];
             var spectralEnd = bytes[offset++];
             var approximation = bytes[offset];
-            return spectralStart <= spectralEnd && spectralEnd <= 63
-                && (approximation >> 4) <= 13 && (approximation & 0x0f) <= 13;
+            if (spectralStart > spectralEnd || spectralEnd > 63
+                || (approximation >> 4) > 13 || (approximation & 0x0f) > 13)
+            {
+                return false;
+            }
+            var requiresDcTable = spectralStart == 0;
+            var requiresAcTable = spectralEnd > 0;
+            return tableSelectors.All(selector =>
+                (!requiresDcTable || dcTables.Contains(selector.Item1))
+                && (!requiresAcTable || acTables.Contains(selector.Item2)));
         }
 
         private static int ReadBigEndianInt32(byte[] bytes, int offset)
