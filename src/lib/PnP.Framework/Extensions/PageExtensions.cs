@@ -1119,6 +1119,7 @@ namespace Microsoft.SharePoint.Client
             var oWebPartDefinition = limitedWebPartManager.ImportWebPart(webPart.WebPartXml);
 
             var wpdNew = limitedWebPartManager.AddWebPart(oWebPartDefinition.WebPart, zoneId, zoneIndex);
+            ViewBoundWebPartPersistence.QueueSaveIfRequired(wpdNew, webPart.WebPartXml);
             webPartPage.Context.Load(wpdNew);
             webPartPage.Context.ExecuteQueryRetry();
 
