@@ -1,0 +1,16 @@
+{
+  "artifactStem": "spo-online-16.0.27709.12001",
+  "authorityRef": "45ad38aee279ef47f54dc04dfe8eb9fe4cfe5d01",
+  "authorityTag": "release/16.0.27709.12001",
+  "expectedAuthorityArtifactHash": "8a39d64cffaebdec4ee64c9d42418e0569a525f6a533a46adba9aaf71b312691",
+  "expectedConsumerCompatibilityHash": "7a38a2b1e643637d2e6a8e34d41e3784416238519bc99e526d74ac4b65435e7a",
+  "expectedProfileHash": "e52cbb539f6bf6248830a2dc07da09137c5e991a34008a1a40483e7f7b822ba4",
+  "expectedRegistryHash": "3138b6d0b1e1af1e170801939d2c1e00793e61cb17f53c6f7d01e61cf3507830",
+  "expectedRegistrySchemaHash": "6a22625b33961ea20069b541b09c459d21db23db1548da4cce4a5538f9f4c32d",
+  "independentReviewRef": "CCD-835",
+  "platformBuild": "16.0.27709.12001",
+  "profileRevision": "spo-online-16.0.27709.12001-profile-r1",
+  "profileSchemaResourceId": "urn:ccd:pnp:aspx-platform-registry-profile:spo-online-16.0.27709.12001:r1",
+  "registryRevision": "spo-online-16.0.27709.12001-r1",
+  "releaseSpecVersion": "aspx-platform-registry-release-spec/v1"
+}

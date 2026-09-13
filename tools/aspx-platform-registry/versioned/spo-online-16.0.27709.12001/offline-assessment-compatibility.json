@@ -1,0 +1,44 @@
+{
+  "assessmentSource": {
+    "commit": "ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
+    "tree": "ffdd8db6de296516aea8ebbc61f3b12ff6f6c965"
+  },
+  "binaryHashes": {
+    "PnP.Core.dll": "eb3e104d9990495658310cd398338f943df674c8c9d5578274094011a6358678",
+    "PnP.Scanning.Core.dll": "ae01a5960960db574be2400a4960760cb98b938d916b04c39112d6914ac758e3",
+    "microsoft365-assessment.dll": "1bb8a56fd9bd687619c86b7209cd8eebd02120e1681b01125a7d83e1d711d48c",
+    "microsoft365-assessment.exe": "9115fa4ab6f27181b77010f9378d7ea7d97101be899e2124cfa40c0853ced4a4"
+  },
+  "cases": [
+    {
+      "attempt": 1,
+      "inputTransport": "WSL UNC paths",
+      "officialOutputsPresent": [],
+      "result": "terminated after more than 60 seconds without stdout, stderr or terminal receipt"
+    },
+    {
+      "attempt": 2,
+      "inputTransport": "Windows-local CCD-834 staging paths",
+      "officialOutputsPresent": [],
+      "result": "terminated after more than 60 seconds without stdout, stderr or terminal receipt"
+    }
+  ],
+  "consumerContractEvidence": {
+    "acquisitionProfileHash": "de30575284989ded91ff5ea4eb9bf57010fa89968b02c762cacb45d6e435a58d",
+    "assessmentV2ProductRef": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
+    "fixtureCases": 22,
+    "fixturePasses": 22,
+    "staticConsumerSymbols": [
+      "AspxAcquisitionCommandHandler.ExecuteAsync",
+      "AspxPlatformRegistryV1.Validate",
+      "AspxReferenceStore"
+    ]
+  },
+  "pnpCoreSource": {
+    "commit": "1f07296b186698c3cc9ca8580f00af36c0f3f4f5",
+    "tree": "0534cd65f8e942671886ae0f6820580f81031572"
+  },
+  "remainingUncertainty": "The current Assessment release process did not reach an observable offline terminal stage in two bounded attempts. No official output volume was created. This is not counted as a runtime PASS; CCD-835 must decide whether schema/current-source/fixture evidence is sufficient or whether a separate bounded runtime diagnostic is required.",
+  "schema": "ccd834-offline-assessment-compatibility/v1",
+  "verdict": "unverified"
+}
