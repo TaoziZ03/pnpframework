@@ -24,7 +24,19 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
                 throw new ArgumentException("The target mapping does not match the source Web Part list binding.", nameof(target));
             }
 
-            var document = XDocument.Parse(binding.SourceExportXml, LoadOptions.PreserveWhitespace);
+            XDocument document;
+            try
+            {
+                document = ClassicWebPartMetadataParser.ReadDocument(binding.SourceExportXml, LoadOptions.PreserveWhitespace);
+            }
+            catch (System.Xml.XmlException exception)
+            {
+                throw new InvalidDataException("The Web Part export XML is malformed.", exception);
+            }
+            if (ClassicWebPartMetadataParser.IsV2Document(document))
+            {
+                ValidateNativeV2Binding(binding, target);
+            }
             var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             SetProperty(document, "WebId", target.TargetWebId.ToString("D"), replacements);
             SetProperty(document, "ListId", target.TargetListId.ToString("D"), replacements);
@@ -41,7 +53,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
             var definition = FindProperty(document, "XmlDefinition");
             if (definition != null)
             {
-                var view = XDocument.Parse(definition.Value, LoadOptions.PreserveWhitespace);
+                var view = ClassicWebPartMetadataParser.ReadDocument(definition.Value, LoadOptions.PreserveWhitespace);
                 if (target.TargetViewId.HasValue && view.Root != null)
                 {
                     var old = (string)view.Root.Attribute("Name");
@@ -70,6 +82,31 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
             };
         }
 
+        private static void ValidateNativeV2Binding(ClassicListWebPartBindingSnapshot binding, ClassicListWebPartTargetMap target)
+        {
+            var parsed = ClassicListWebPartBindingParser.Parse(new ClassicWebPartSnapshot
+            {
+                Id = binding.SourceWebPartId,
+                TypeName = binding.TypeName,
+                ExportXml = binding.SourceExportXml,
+                ExportSha256 = binding.SourceExportSha256
+            }, binding.SourcePageWebId, binding.SourcePageWebUrl, binding.SourcePageServerRelativeUrl);
+            if (!parsed.IsExecutable || parsed.Binding.SourceListWebId != binding.SourceListWebId
+                || parsed.Binding.SourceListId != binding.SourceListId || parsed.Binding.SourceViewId != binding.SourceViewId
+                || !string.Equals(parsed.Binding.XmlDefinition, binding.XmlDefinition, StringComparison.Ordinal)
+                || !string.Equals(parsed.Binding.SourceTitleUrl, binding.SourceTitleUrl, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The native v2 captured binding does not match its authoritative export.");
+            }
+            if (target.SourceViewId != binding.SourceViewId || target.TargetWebId == Guid.Empty || target.TargetListId == Guid.Empty
+                || !target.TargetViewId.HasValue || target.TargetViewId == Guid.Empty
+                || string.IsNullOrWhiteSpace(target.TargetPageServerRelativeUrl)
+                || (!string.IsNullOrWhiteSpace(binding.SourceTitleUrl) && string.IsNullOrWhiteSpace(target.TargetListServerRelativeUrl)))
+            {
+                throw new ArgumentException("The native v2 target mapping requires matching source View and nonempty target Web/List/View and page/list paths.", nameof(target));
+            }
+        }
+
         private static void SetProperty(XDocument document, string name, string value, IDictionary<string, string> replacements)
         {
             var property = FindProperty(document, name);
@@ -83,6 +120,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
 
         private static XElement FindProperty(XDocument document, string name)
         {
+            if (ClassicWebPartMetadataParser.IsV2Document(document))
+            {
+                return ClassicListWebPartBindingParser.FindNativeV2Property(document, name);
+            }
             return document.Descendants().LastOrDefault(element => string.Equals(element.Name.LocalName, "property", StringComparison.OrdinalIgnoreCase)
                 && string.Equals((string)element.Attribute("name"), name, StringComparison.OrdinalIgnoreCase));
         }
