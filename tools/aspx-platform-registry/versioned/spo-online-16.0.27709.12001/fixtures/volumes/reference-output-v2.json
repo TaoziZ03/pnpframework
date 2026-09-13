@@ -38,7 +38,7 @@
       "parentScopeKey": "list:system-users",
       "permissionContext": "synthetic read-only fixture",
       "platformBuildRef": "16.0.27709.12001",
-      "productRef": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
+      "productRef": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
       "providerVersion": "sharepoint-live-aspx-provider/v2",
       "registryHash": "3138b6d0b1e1af1e170801939d2c1e00793e61cb17f53c6f7d01e61cf3507830",
       "registryRevision": "spo-online-16.0.27709.12001-r1",
@@ -57,7 +57,7 @@
   "gapCodes": [
     "forms:system-users:expected_count_unknown"
   ],
-  "manifestHash": "cb568805ede7e8b386405da74126d7cb536b40a638b459d9aeb985149f1f0acf",
+  "manifestHash": "d3d4ce56c859fe56b3bf086f668a414be5a0a4a07e7ca4be14f8a0eca7a90db6",
   "outputVersion": "aspx-reference-output/v2",
   "paginationReceipts": [
     {

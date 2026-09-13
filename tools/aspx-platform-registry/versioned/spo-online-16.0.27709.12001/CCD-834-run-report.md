@@ -2,20 +2,23 @@
 
 ## 结论
 
-实现与本轮作者验证为 **PASS**；产品准入仍为 **待独立 Verification**。
+独立 authority/registry 生成与 successor consumer profile 集成为 **PASS**；
+产品准入仍为 **待 fresh independent Verification**。
 
 已从独立 SPO.Core shipping authority 为 exact build
 `16.0.27709.12001` 全量生成 `aspx-platform-registry/v1`、平台 profile、
-Assessment current-v2 consumer profile、schemas、legacy/current fixtures 与
+Assessment successor-v2 consumer profile、schemas、legacy/current fixtures 与
 adverse receipts。`platformBuildMin` 与 `platformBuildMax` 均为
 `16.0.27709.12001`；没有建立 `12000..12001` 范围，也没有发行跨 build
 equivalence certificate。
 
 ## 输入证据与边界
 
-- 下游：[CCD-746](/CCD/issues/CCD-746)，Assessment commit/tree
-  `ccc655b68fc6be9cdf107e6d8fe7d9f56266182a` /
-  `ffdd8db6de296516aea8ebbc61f3b12ff6f6c965`。
+- 下游：[CCD-746](/CCD/issues/CCD-746)，Assessment successor commit/tree
+  `a33e21eed513e470cfbbb4af4451cb1b37880d0e` /
+  `07cfec44626f8617e63d34e270a4fc7f3baf761c`；predecessor
+  `ccc655b68fc6be9cdf107e6d8fe7d9f56266182a` 已由 [CCD-835](/CCD/issues/CCD-835)
+  判定存在 F1/F2，并在 profile `r2` 中作为 unsupported producer 负例保留。
 - PnP.Core commit/tree：`1f07296b186698c3cc9ca8580f00af36c0f3f4f5` /
   `0534cd65f8e942671886ae0f6820580f81031572`。
 - CUPCollect fresh build observation：
@@ -62,10 +65,10 @@ commit 全量重算，不据此推断 build range 或 freshness。
 | Authority | `8a39d64cffaebdec4ee64c9d42418e0569a525f6a533a46adba9aaf71b312691` | `b5df9f58fedea0db72136d55d2eb2c6c977c16780b393f2b57aeb8e9487ae94d` |
 | Registry | `spo-online-16.0.27709.12001-r1` / `3138b6d0b1e1af1e170801939d2c1e00793e61cb17f53c6f7d01e61cf3507830` | `203eec0e6b1d69242589c2d430ba52c2bd3fe973c80f6659d6a2176757e5a5dc` |
 | Platform profile | `spo-online-16.0.27709.12001-profile-r1` / `e52cbb539f6bf6248830a2dc07da09137c5e991a34008a1a40483e7f7b822ba4` | `e7b6532622afd529de93fe585e27faa5c6c7bec32af165a4e42fd7f5350b594a` |
-| Assessment consumer profile | `spo-online-16.0.27709.12001-acquisition-consumer-r1` / `de30575284989ded91ff5ea4eb9bf57010fa89968b02c762cacb45d6e435a58d` | `9642c31c0b79cd0d2b9fc4ac6fe156cca5c1c19fffdd681eb76150c08ebe73d1` |
+| Assessment consumer profile | `spo-online-16.0.27709.12001-acquisition-consumer-r2` / `3aff8e059b8f129844fbd713ebf36d37048651427734a6f22917ff01c011a444` | `7fffdfb79db792a26cbb92966147928e1e1f10da6dc2fc576b19ed6eb36b80b4` |
 | Registry schema | `6a22625b33961ea20069b541b09c459d21db23db1548da4cce4a5538f9f4c32d` | same |
 | Platform profile schema | `5e33167c65e451a1f6f40ae9e1825d32bf105188ad1d146f5c1e05b265b080e3` | same |
-| Consumer profile schema | `84bf71701a5cfe8b679ca93bad581d5ff35c81921ccf63120f031e2fcb8cc32c` | same |
+| Consumer profile schema | `f6bca58ba671aa2e60e979f09c589f5d3a12dc25fc53e6dc5751600ee3c5464c` | same |
 
 Registry 有 1,161 entries。setup application pages 与 virtual mapped requests
 保持不同 `surfaceKind`/`handlerOrArtifactType`；physical acquisition volume
@@ -78,45 +81,48 @@ current-v2 terminal/pagination adverse paths继续 fail closed。
 ```text
 generate_registry.py exact generation: PASS
 validate_registry.py legacy fixtures: 58/58 PASS
-validate_registry.py Assessment v2 fixtures: 22/22 PASS
+validate_registry.py Assessment v2 fixtures: 23/23 PASS
 test_release_27709_12001.py: 6/6 PASS
 unittest discover tools/aspx-platform-registry/tests: 38/38 PASS
 ```
 
-Current Assessment source读取：
+Assessment successor source与作者证据读取：
 
-- `AspxAcquisitionCommandHandler.ExecuteAsync` 在任何 auth/provider/network
-  work 前 deserialize `AspxPlatformRegistryV1` 并调用
-  `registry.Validate(options.PlatformBuild)`。
-- `AspxPlatformRegistryV1.Validate` 保持 exact build 与 alias collision
-  fail-closed。
+- `AspxAcquisitionCommandHandler.ExecuteAsync` 在 auth/provider/network
+  continuation 前调用 `AspxPlatformRegistryAuthorityGate`。
+- gate 固定 official schema/file/canonical hash、reviewed revision/authority、
+  exact `min=max=16.0.27709.12001`，负例注入证据为 `network callback=0`。
+- `AspxReferenceCollector.Build` 直接消费 `DownstreamDisposition`；官方
+  1,161 entries 中 1,150 available、11 `ReferenceUnavailable`，不再将
+  unavailable virtual handler 提升为 available。
+- successor author suite 为 `70/70`；TRX SHA-256
+  `8b5d43721cba199ceff3f54ff69faf7aff70de3bc0ed5e43216b8bd0a0997bcf`。
 - consumer profile 的 `assessment-v2.productRef` exact pin 到
-  `pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a`。
+  `pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e`；旧 v2 ref
+  现在永久返回 `PRODUCER_REF_UNSUPPORTED`。
 
-用 CCD-746 exact Release bytes 做了两次 bounded offline runtime 尝试（UNC 与
-Windows-local input），均持续超过 60 秒且没有 stdout/stderr/terminal receipt，也没有
-official output volume；进程已终止。这两次不计 PASS，也不证明 network stage。
-详见 `offline-assessment-compatibility.json`。
+[CCD-845](/CCD/issues/CCD-845) 提交了绑定新 DLL 的 bounded five-role fixture，
+但实际 DLL probe 30 秒与 apphost `aspx-acquisition --help` 10 秒均 exit 124，
+没有可观察 terminal receipt。因此 actual CLI-host runtime 仍为 `unverified`，
+不计 PASS；详见 `offline-assessment-compatibility.json`。
 
 ## KB
 
-- scenario 查询：`classic page ASPX platform setup virtual`、
-  `assessment ASPX acquisition shipping manifest`、
-  `product tenant authority exact build`、`source control exact ref`。
+- scenario 查询：`ASPX platform registry exact build Assessment consumer profile shipping authority`、
+  `ASPX`、`SPO.Core registry`、`Assessment classic page`。
 - 阅读：
-  `aspx-virtual-path-and-publishing-handler-redirection.md`、
-  `page-parser-virtual-path.md`、`ghosting-setup-path.md`、
-  `aspx-single-container-denominator-needs-enumeration-evidence.md`、
-  `escalate-test-tenant-issues-to-sandbox.md`。
-- Windows GCM exact-ref scenario 已存在于 `dev.titao/main` commit
-  `ab71978aa0e6a598347ef1a320fd9f8745c3bb40`；本轮没有重复 KB 修改。
+  `kb-local/spo/scenarios/page-family/expand-page-family-coverage.md`、
+  `kb-local/private/personal/titao/pnp-modernization/validate-assessment-query-and-site-optout.md`。
+- 规范继续要求 exact authority/revision、negative fixtures 与 fail-closed；
+  执行证据无冲突，本轮没有 KB 修改或 commit。
 
 ## 准入与下一步
 
-- 独立 Verification：[CCD-835](/CCD/issues/CCD-835)。Verifier 必须在自己的
-  issue 给出 PASS/CONDITIONAL/FAIL；adverse verdict 也是 done。
-- 在 CCD-835 PASS 前，CCD-834 不得解锁 CCD-746。
-- PASS 后，CCD-746 owner 从新的 official registry path 重新执行 fresh
+- [CCD-835](/CCD/issues/CCD-835) 是 predecessor consumer 的独立 FAIL，
+  [CCD-845](/CCD/issues/CCD-845) 是 Assessment F1/F2 作者修复。successor PnP
+  commit 仍须由非作者在新的 Verification issue 给出 PASS/CONDITIONAL/FAIL。
+- Fresh independent PASS 前，CCD-834 不得解锁 CCD-746。
+- PASS 后，CCD-746 owner 从新的 official registry/profile path 重新执行 fresh
   preflight → `product_tenant_authority` first → exact run-ID resume →
   terminal/volume/store integrity → 32,077 exact delta。不得复用本次
   `12000` failure path 作为 fresh success。

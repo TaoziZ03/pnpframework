@@ -3,7 +3,7 @@
     "aggregateOutput": {
       "length": 1544,
       "path": "volumes/aggregate-output-v2.json",
-      "sha256": "8df036058a284c3d2d9c9135c570fb5118401c592fd733e14d397f324c9b498f"
+      "sha256": "6ac022d8dab7d4aca34a2cf10bd4e65e9935b831cedfc29cc4ab3890ddd180ee"
     },
     "physicalOutput": {
       "length": 324,
@@ -14,29 +14,29 @@
       "length": 126976,
       "path": "volumes/physical-store-assessment-v2.sqlite",
       "schemaManifestHash": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504",
-      "sha256": "abe7f9bda0c9bd41483f278ce3ad36c2b93a4a8b0e486ca35b35de0b797681ac"
+      "sha256": "8248828a936e14121b8b3a623d1874f33e0e339097720657d79def880dbddb9c"
     },
     "referenceOutput": {
       "length": 5475,
       "path": "volumes/reference-output-v2.json",
-      "sha256": "3aab8f145b22893bd140c2cd2d5729d9ba478aa0088a0beb1e4a10d3c6ace784"
+      "sha256": "c5a7afa81ab11655bed5adcaced39eeca4180e0a60222d236e4b4b135324e0bb"
     },
     "referenceStore": {
       "length": 45056,
       "path": "volumes/reference-store-v2.sqlite",
       "schemaManifestHash": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec",
-      "sha256": "3c9a38203ffeea48e32cab164bf3b6e105688fd5d29b50364cce660bf8639ab9"
+      "sha256": "58eb1bfb1fb205bd122a7126ffe7143d775c2bb16c3ae5bd0d3240669c2f85a7"
     },
     "terminalReceipt": {
-      "length": 1817,
+      "length": 1816,
       "path": "volumes/terminal-receipt-v1.json",
-      "sha256": "4533918e0aa79d5b4823a774a3ecbb2d88af6de91a5bc1dc002c599d2e2352e2"
+      "sha256": "6e7b3413970c38c6ad1f4a9b6b5018c2894dcb9b6ee1fc9aedde354594bb89cc"
     }
   },
   "fixtureProvenance": {
-    "assessmentConsumerSourceRef": "ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
-    "assessmentConsumerTree": "ffdd8db6de296516aea8ebbc61f3b12ff6f6c965",
-    "baselineReview": "CCD-745+CCD-755+CCD-756+CCD-834",
+    "assessmentConsumerSourceRef": "a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+    "assessmentConsumerTree": "07cfec44626f8617e63d34e270a4fc7f3baf761c",
+    "baselineReview": "CCD-745+CCD-755+CCD-756+CCD-834+CCD-845",
     "consumerWireShape": "aspx-acquisition-verdict/v2",
     "fixtureKind": "synthetic-no-tenant-payload",
     "readerShape": "aspx-platform-registry-reader-envelope/v2"
@@ -140,6 +140,19 @@
           "op": "replace",
           "path": "/acquisitionEnvelope/productRef",
           "value": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8"
+        }
+      ]
+    },
+    {
+      "expectedReasonCode": "PRODUCER_REF_UNSUPPORTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-PRODUCER-PREVIOUS-V2",
+      "kind": "readerRequest",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/acquisitionEnvelope/productRef",
+          "value": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a"
         }
       ]
     },
@@ -351,20 +364,20 @@
         "contractVersion": "aspx-discovery/v2",
         "outputVersion": "aspx-discovery-output/v2",
         "platformBuild": "16.0.27709.12001",
-        "productRef": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
+        "productRef": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
         "runId": "11111111-2222-3333-4444-555555555555",
         "scopeAuthorityHash": "5555555555555555555555555555555555555555555555555555555555555555",
         "snapshotFence": "fixture-snapshot-v2-001",
         "store": {
-          "manifestHash": "94b161a47aa0f22fbf3a16b1445d132841433a1c729d5f060a6723dafbfaf333",
+          "manifestHash": "df0d3b982a6b222f18adb19ada59587af71f7e758ca5cbeac0546bd95c5c85d2",
           "schemaVersion": "aspx-discovery-sqlite/v2"
         }
       },
       "platformBuild": "16.0.27709.12001",
-      "productRef": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
-      "referenceArtifactHash": "3aab8f145b22893bd140c2cd2d5729d9ba478aa0088a0beb1e4a10d3c6ace784",
+      "productRef": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+      "referenceArtifactHash": "c5a7afa81ab11655bed5adcaced39eeca4180e0a60222d236e4b4b135324e0bb",
       "referenceVolume": {
-        "artifactHash": "3aab8f145b22893bd140c2cd2d5729d9ba478aa0088a0beb1e4a10d3c6ace784",
+        "artifactHash": "c5a7afa81ab11655bed5adcaced39eeca4180e0a60222d236e4b4b135324e0bb",
         "artifactLength": 5475,
         "contractVersion": "aspx-reference/v2",
         "dispositions": [
@@ -378,7 +391,7 @@
         ],
         "outputVersion": "aspx-reference-output/v2",
         "platformBuild": "16.0.27709.12001",
-        "productRef": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
+        "productRef": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
         "recordKind": "AspxReferenceObservation",
         "registryHash": "3138b6d0b1e1af1e170801939d2c1e00793e61cb17f53c6f7d01e61cf3507830",
         "registryRevision": "spo-online-16.0.27709.12001-r1",
@@ -393,7 +406,7 @@
           "RuntimeRequestReference"
         ],
         "store": {
-          "manifestHash": "cb568805ede7e8b386405da74126d7cb536b40a638b459d9aeb985149f1f0acf",
+          "manifestHash": "d3d4ce56c859fe56b3bf086f668a414be5a0a4a07e7ca4be14f8a0eca7a90db6",
           "schemaVersion": "aspx-reference-sqlite/v2"
         }
       },

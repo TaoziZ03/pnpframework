@@ -15,12 +15,14 @@ not accepted as authority inputs.
 - Registry revision/hash: `spo-online-16.0.27709.12001-r1` / `3138b6d0b1e1af1e170801939d2c1e00793e61cb17f53c6f7d01e61cf3507830`
 - Registry file SHA-256: `203eec0e6b1d69242589c2d430ba52c2bd3fe973c80f6659d6a2176757e5a5dc`
 - Platform profile revision/hash: `spo-online-16.0.27709.12001-profile-r1` / `e52cbb539f6bf6248830a2dc07da09137c5e991a34008a1a40483e7f7b822ba4`
-- Assessment consumer profile revision/hash: `spo-online-16.0.27709.12001-acquisition-consumer-r1` / `de30575284989ded91ff5ea4eb9bf57010fa89968b02c762cacb45d6e435a58d`
-- Current Assessment v2 consumer: `pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a`
+- Assessment consumer profile revision/hash: `spo-online-16.0.27709.12001-acquisition-consumer-r2` / `3aff8e059b8f129844fbd713ebf36d37048651427734a6f22917ff01c011a444`
+- Current Assessment v2 consumer: `pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e`
+- Current Assessment v2 tree: `07cfec44626f8617e63d34e270a4fc7f3baf761c`
+- Assessment remediation evidence: `CCD-845`; predecessor `ccc655b68fc6be9cdf107e6d8fe7d9f56266182a` is an explicit unsupported producer negative case
 - PnP.Core source: `1f07296b186698c3cc9ca8580f00af36c0f3f4f5`
 - Entry count: `1161`
 - Exact build range: `min=max=16.0.27709.12001`
-- Independent Verification gate: `CCD-835`
+- Independent Verification history: `CCD-835` reproduced the registry but rejected the predecessor consumer; a fresh successor verdict is required before downstream admission
 
 The bounded authority blobs happen to match the previous build, but no range or
 cross-build certificate is declared. The exact source ref, commit time,
@@ -52,8 +54,10 @@ python3 -m unittest discover \
   -s tools/aspx-platform-registry/tests -p 'test_*.py' -v
 ```
 
-This run produced `58/58` legacy fixture passes, `22/22` current Assessment v2
+This run produced `58/58` legacy fixture passes, `23/23` current Assessment v2
 fixture passes, `6/6` release-focused unit passes and `38/38` complete tool
-suite passes. See `CCD-834-run-report.md` and
+suite passes. The successor Assessment author suite separately produced `70/70`
+passes and a bounded five-role fixture, while actual CLI-host terminal startup
+remains unverified. See `CCD-834-run-report.md` and
 `offline-assessment-compatibility.json` for evidence classes and remaining
-runtime uncertainty.
+uncertainty.

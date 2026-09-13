@@ -151,7 +151,7 @@ class ExactBuild2770912001ReleaseTests(unittest.TestCase):
             for dispatch in self.acquisition_profile["dispatches"]
         }
         self.assertEqual(
-            "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
+            "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
             dispatches["assessment-v2"]["productRef"],
         )
         self.assertEqual(
@@ -159,7 +159,7 @@ class ExactBuild2770912001ReleaseTests(unittest.TestCase):
             dispatches["assessment-v1"]["productRef"],
         )
         self.assertEqual(
-            "ffdd8db6de296516aea8ebbc61f3b12ff6f6c965",
+            "07cfec44626f8617e63d34e270a4fc7f3baf761c",
             self.v2_fixtures["fixtureProvenance"]["assessmentConsumerTree"],
         )
         aggregate = validator.load_json(
@@ -192,7 +192,7 @@ class ExactBuild2770912001ReleaseTests(unittest.TestCase):
             self.acquisition_profile,
         )
         self.assertEqual((58, 58), (v1_receipt["caseCount"], v1_receipt["passCount"]))
-        self.assertEqual((22, 22), (v2_receipt["caseCount"], v2_receipt["passCount"]))
+        self.assertEqual((23, 23), (v2_receipt["caseCount"], v2_receipt["passCount"]))
         self.assertEqual(
             v2_receipt,
             validator.evaluate_fixture_suite(
@@ -211,6 +211,9 @@ class ExactBuild2770912001ReleaseTests(unittest.TestCase):
             for result in v2_receipt["results"]
         }
         self.assertEqual("PRODUCER_REF_UNSUPPORTED", reasons["V2-PRODUCER-V1-AS-V2"])
+        self.assertEqual(
+            "PRODUCER_REF_UNSUPPORTED", reasons["V2-PRODUCER-PREVIOUS-V2"]
+        )
         self.assertEqual("TERMINAL_VOLUME_MISSING", reasons["V2-TERMINAL-MISSING"])
         self.assertEqual(
             "PAGINATION_SENSITIVE_INPUT_REJECTED", reasons["V2-AUTHORIZATION"]

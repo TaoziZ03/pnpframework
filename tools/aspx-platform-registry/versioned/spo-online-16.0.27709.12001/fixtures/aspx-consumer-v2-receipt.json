@@ -1,9 +1,9 @@
 {
-  "acquisitionProfileHash": "de30575284989ded91ff5ea4eb9bf57010fa89968b02c762cacb45d6e435a58d",
+  "acquisitionProfileHash": "3aff8e059b8f129844fbd713ebf36d37048651427734a6f22917ff01c011a444",
   "artifactEvidence": {
     "aggregateOutput": {
       "length": 1544,
-      "sha256": "8df036058a284c3d2d9c9135c570fb5118401c592fd733e14d397f324c9b498f"
+      "sha256": "6ac022d8dab7d4aca34a2cf10bd4e65e9935b831cedfc29cc4ab3890ddd180ee"
     },
     "physicalOutput": {
       "length": 324,
@@ -12,32 +12,32 @@
     "physicalStore": {
       "length": 126976,
       "schemaManifestHash": "899aa84b3c1786e1e4754d23b943b4609d23dd4b19d34819c1b7e80ea1f4e504",
-      "sha256": "abe7f9bda0c9bd41483f278ce3ad36c2b93a4a8b0e486ca35b35de0b797681ac"
+      "sha256": "8248828a936e14121b8b3a623d1874f33e0e339097720657d79def880dbddb9c"
     },
     "referenceOutput": {
       "length": 5475,
-      "sha256": "3aab8f145b22893bd140c2cd2d5729d9ba478aa0088a0beb1e4a10d3c6ace784"
+      "sha256": "c5a7afa81ab11655bed5adcaced39eeca4180e0a60222d236e4b4b135324e0bb"
     },
     "referenceStore": {
       "length": 45056,
       "schemaManifestHash": "73eabd7a2001f7dbaaafa48db4f0c6489b57305a630b53aa2194d1c8cb9af5ec",
-      "sha256": "3c9a38203ffeea48e32cab164bf3b6e105688fd5d29b50364cce660bf8639ab9"
+      "sha256": "58eb1bfb1fb205bd122a7126ffe7143d775c2bb16c3ae5bd0d3240669c2f85a7"
     },
     "terminalReceipt": {
-      "length": 1817,
-      "sha256": "4533918e0aa79d5b4823a774a3ecbb2d88af6de91a5bc1dc002c599d2e2352e2"
+      "length": 1816,
+      "sha256": "6e7b3413970c38c6ad1f4a9b6b5018c2894dcb9b6ee1fc9aedde354594bb89cc"
     }
   },
-  "caseCount": 22,
+  "caseCount": 23,
   "fixtureProvenance": {
-    "assessmentConsumerSourceRef": "ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
-    "assessmentConsumerTree": "ffdd8db6de296516aea8ebbc61f3b12ff6f6c965",
-    "baselineReview": "CCD-745+CCD-755+CCD-756+CCD-834",
+    "assessmentConsumerSourceRef": "a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+    "assessmentConsumerTree": "07cfec44626f8617e63d34e270a4fc7f3baf761c",
+    "baselineReview": "CCD-745+CCD-755+CCD-756+CCD-834+CCD-845",
     "consumerWireShape": "aspx-acquisition-verdict/v2",
     "fixtureKind": "synthetic-no-tenant-payload",
     "readerShape": "aspx-platform-registry-reader-envelope/v2"
   },
-  "passCount": 22,
+  "passCount": 23,
   "profileHash": "e52cbb539f6bf6248830a2dc07da09137c5e991a34008a1a40483e7f7b822ba4",
   "profileRevision": "spo-online-16.0.27709.12001-profile-r1",
   "receiptSchemaVersion": "aspx-platform-registry-negative-receipts/v4",
@@ -54,7 +54,7 @@
       "expectedReasonCode": "REGISTRY_MATCH",
       "expectedVerdict": "ReferenceOnlyAvailable",
       "id": "V2-Q1",
-      "inputHash": "bfa3ad82e0b1107ed22d698f34c4b112420d8d1112cbd8a9058d215befc69264",
+      "inputHash": "550b425bb24884d6a20112b1f7db422b68cf2df8c80c8eee0ca9008e8205a748",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -68,7 +68,7 @@
       "expectedReasonCode": "UNSUPPORTED_OUTPUT_VERSION",
       "expectedVerdict": "Unknown",
       "id": "V2-AGGREGATE-V1-AS-V2",
-      "inputHash": "2c0386b82a293eda50267576a9283bda0f17dffa34de1b82d2a2eaea7c43ca31",
+      "inputHash": "4c86f1bf26d510d5fde94dfeffab3db62c47e057e3fb433b8874f04ff688d51e",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -82,7 +82,7 @@
       "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-AGGREGATE-TERMINAL-COMMON-DRIFT",
-      "inputHash": "db1bba2965c8d47a7958a4f42800eff530d1444e4e98eb025bd37d276af05129",
+      "inputHash": "dcba5b3b79458882e9c78902a52c069004b06034be3b7cd941e072ae27651972",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -96,7 +96,7 @@
       "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-AGGREGATE-SEMANTIC-FALSE-COMPLETE",
-      "inputHash": "2b462f64b2d48cbffc378404ef0d06547d7c8051d9aa4ccc25e67d667db3c0e2",
+      "inputHash": "a6937cd828a19f30d63207fbda5322c593ca8bb999f745f239d4c02b57c9cad3",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -110,7 +110,7 @@
       "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-AGGREGATE-OUTSTANDING-PAGINATION-FALSE-COMPLETE",
-      "inputHash": "6cf3c2847bb5408701c64e5579808bce261f76afd28dd6565ae4d215316bc6d4",
+      "inputHash": "ffa6fc968681610d846dae48ff58bb6f47eacebf4fa0aed03338cee127330292",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -124,7 +124,7 @@
       "expectedReasonCode": "AGGREGATE_CONTENT_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-AGGREGATE-VERDICT-UNSUPPORTED",
-      "inputHash": "a7fd691dc9f3f744937fdb1055a43e9d80d505ee483b117ff3545161d6fcb96b",
+      "inputHash": "cfe9ef9a3748268ba74873d9759051948e3955c33697b7bf30fd9c2f1b3bce41",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -138,7 +138,21 @@
       "expectedReasonCode": "PRODUCER_REF_UNSUPPORTED",
       "expectedVerdict": "Unknown",
       "id": "V2-PRODUCER-V1-AS-V2",
-      "inputHash": "39d2d1ae69174b9875dd0e838dcf825d5fd27bee3eb198ebc67501c6efe654d8",
+      "inputHash": "bc252809396531f291d71a5582c9bd63ac27ede1dc4c4e633f7117fb8a603347",
+      "kind": "readerRequest",
+      "operationCount": 1,
+      "passed": true
+    },
+    {
+      "actualReasonCode": "PRODUCER_REF_UNSUPPORTED",
+      "actualVerdict": "Unknown",
+      "artifactMutation": null,
+      "errorCount": 0,
+      "evidenceMutation": null,
+      "expectedReasonCode": "PRODUCER_REF_UNSUPPORTED",
+      "expectedVerdict": "Unknown",
+      "id": "V2-PRODUCER-PREVIOUS-V2",
+      "inputHash": "b7258964a2b36997aa3506fd0ac7978cbda25485c3ed796a0ac45962251977bf",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -152,7 +166,7 @@
       "expectedReasonCode": "UNSUPPORTED_STORE_VERSION",
       "expectedVerdict": "Unknown",
       "id": "V2-STORE-V1-AS-V2",
-      "inputHash": "21a460da982291b80e25aacdf08a4ca53005a3bb1f011a0f5a2f7e6cc9b604c8",
+      "inputHash": "6e81f4156e07f3bd41ac565347c1ce0c22d336a6df3ac1d44502b57b24838f43",
       "kind": "readerRequest",
       "operationCount": 1,
       "passed": true
@@ -166,7 +180,7 @@
       "expectedReasonCode": "PROVIDER_VERSION_UNSUPPORTED",
       "expectedVerdict": "Unknown",
       "id": "V2-PROVIDER-V1-AS-V2",
-      "inputHash": "d788084f6ddf933623be025456620fb37ed8ab362aa4dab106a82c0a0146336f",
+      "inputHash": "2b2834f3a9701edbf8ae1dc69f63058f28b0b415b62e4b25d97093e7b4dbc132",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -180,7 +194,7 @@
       "expectedReasonCode": "SURFACE_CONTRACT_VERSION_UNSUPPORTED",
       "expectedVerdict": "Unknown",
       "id": "V2-SURFACE-V3-AS-V4",
-      "inputHash": "cc4d2c88726407178f9ca175450cf66d0cc569434c10965d57008fb2f004bf26",
+      "inputHash": "7329d06a9841e9f931fe522a1ea4a85197a7c8cc41a8ef6ae724165d9d8e5a2b",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -194,7 +208,7 @@
       "expectedReasonCode": "PAGINATION_RECEIPT_VERSION_UNSUPPORTED",
       "expectedVerdict": "Unknown",
       "id": "V2-PAGINATION-V1-AS-V2",
-      "inputHash": "f2025be580a06ec64dd1e4e39c1d9dd52737a82bc28b41c3921621c2b8d3d380",
+      "inputHash": "085ced848515ae24e1f81b33af642434e76a33da7763d74af3626113016427df",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -208,7 +222,7 @@
       "expectedReasonCode": "TERMINAL_ROLE_VERSION_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-TERMINAL-ROLE-VERSION",
-      "inputHash": "43cab57d4515b4746071e5b67e71356beafa64879fe92a2b97dde67505386db9",
+      "inputHash": "08311b6ab117bc202e26fc3a472e568cf5fe133796f362656738d486239c37b9",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -222,7 +236,7 @@
       "expectedReasonCode": "TERMINAL_VOLUME_MISSING",
       "expectedVerdict": "Unknown",
       "id": "V2-TERMINAL-MISSING",
-      "inputHash": "4885f0fff7692e9d37c2993f135dc373da49898c655c228eaf321ce964bf2c79",
+      "inputHash": "c5b882c6b5fe73f189559955e189e2349ab1888b871b9fb85ccbcc4ea57fe807",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -236,7 +250,7 @@
       "expectedReasonCode": "TERMINAL_VOLUME_DUPLICATE",
       "expectedVerdict": "Unknown",
       "id": "V2-TERMINAL-DUPLICATE",
-      "inputHash": "1537f84b157c49a57e729c73eef278e1755b6630141fc90ba470e615ae72b63d",
+      "inputHash": "f618028647e8d94481cd3b1bf3432c62130394036523ad2a5bf37abd75317883",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -250,7 +264,7 @@
       "expectedReasonCode": "TERMINAL_VOLUME_HASH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-TERMINAL-HASH",
-      "inputHash": "c1640d33b5b21180ff4e2834770b7b572d1437dbf320ff91b687a0ce7268cad3",
+      "inputHash": "fdd11e2684c18ea9c6c110fdd80efc6610531489262e287d100afa635e1d706f",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -264,7 +278,7 @@
       "expectedReasonCode": "TERMINAL_VOLUME_LENGTH_MISMATCH",
       "expectedVerdict": "Unknown",
       "id": "V2-TERMINAL-LENGTH",
-      "inputHash": "a0750cdf47b5f6344b00a1e926458266d6e3c51e797c768b1b3fca37376fbc41",
+      "inputHash": "5f4c0b222917006bad1e214648030d899fdcfe6af6e4150211036c560e258152",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -278,7 +292,7 @@
       "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
       "expectedVerdict": "Unknown",
       "id": "V2-RAW-SKIPTOKEN",
-      "inputHash": "9aa3bac0b378d86486ef80911ee055555916bd297bb5a53725a77b35c6358d88",
+      "inputHash": "0c7ed646cbc22e28b98783efc5cd96f10ad0d21e0d1a0e2b3457844e32897919",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -292,7 +306,7 @@
       "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
       "expectedVerdict": "Unknown",
       "id": "V2-RAW-CONTINUATION",
-      "inputHash": "941740defa006330bc4eb2d1853da6fcc58b65ee0470d458133952369591ea5b",
+      "inputHash": "d5e5568e287c8e7e6f2d5f93ce64398aa98b25591b5f69226424403b4081639e",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -306,7 +320,7 @@
       "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
       "expectedVerdict": "Unknown",
       "id": "V2-AUTHORIZATION",
-      "inputHash": "2fc6b953f22fba1a76bc639eb2436507aff03091716c9a306334f12c1c36adb6",
+      "inputHash": "dbf56e7f6d279e4daedea047dc543187f434352b70f69c2b918fd9c8995fa9fe",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -320,7 +334,7 @@
       "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
       "expectedVerdict": "Unknown",
       "id": "V2-COOKIE",
-      "inputHash": "0a5ce69ba000b0ff08f792ea90edf8c8a0a8d785c3d95570861b3b114ccb2079",
+      "inputHash": "ff0ee68edb450ffdc1d8b5f6c1301cb14d18a5c87af4247cbfe39eb3348a44ce",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -334,7 +348,7 @@
       "expectedReasonCode": "PAGINATION_SENSITIVE_INPUT_REJECTED",
       "expectedVerdict": "Unknown",
       "id": "V2-SET-COOKIE",
-      "inputHash": "9dde25eec40991b25b7f597ec66ea5e3869aa0a45960fc7d78b1d177eaeaa787",
+      "inputHash": "dd89cf8885726b9fe408f2d3996c873ffff2eacc89339d33d9c988d16a376350",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true
@@ -348,7 +362,7 @@
       "expectedReasonCode": "SYSTEM_LIST_FORMS_SEMANTICS_DRIFT",
       "expectedVerdict": "Unknown",
       "id": "V2-SYSTEM-LIST-NOT-APPLICABLE",
-      "inputHash": "b85b3de13079cb5cb199caa3c7de5ad58d8fcc2ace39153d831300678e0a433f",
+      "inputHash": "1d70be5d37ef942f49365c7b05da6fc6100d5790a3a5d98c4d1c241233654c88",
       "kind": "readerRequest",
       "operationCount": 0,
       "passed": true

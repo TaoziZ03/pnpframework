@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ccd:pnp:aspx-acquisition-consumer-profile:spo-online-16.0.27709.12001:r1",
+  "$id": "urn:ccd:pnp:aspx-acquisition-consumer-profile:spo-online-16.0.27709.12001:r2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
   "properties": {
     "$schema": { "const": "../schema/aspx-acquisition-consumer-profile.schema.json" },
     "profileSchemaVersion": { "const": "aspx-acquisition-consumer-profile/v1" },
-    "profileRevision": { "const": "spo-online-16.0.27709.12001-acquisition-consumer-r1" },
+    "profileRevision": { "const": "spo-online-16.0.27709.12001-acquisition-consumer-r2" },
     "profileHash": { "$ref": "#/$defs/sha256" },
     "platformBuild": { "const": "16.0.27709.12001" },
     "registryRevision": { "const": "spo-online-16.0.27709.12001-r1" },
@@ -112,7 +112,7 @@
         {
           "properties": {
             "name": { "const": "assessment-v2" },
-            "productRef": { "const": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a" },
+            "productRef": { "const": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e" },
             "aggregateOutput": { "const": "aspx-acquisition-verdict/v2" },
             "referenceOutput": { "const": "aspx-reference-output/v2" },
             "referenceContract": { "const": "aspx-reference/v2" },

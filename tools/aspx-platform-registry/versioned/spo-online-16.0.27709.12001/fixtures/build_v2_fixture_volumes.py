@@ -18,7 +18,7 @@ from generate_registry import discovery_hash  # noqa: E402
 
 
 RUN_ID = "11111111-2222-3333-4444-555555555555"
-PRODUCT_REF = "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a"
+PRODUCT_REF = "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e"
 SDK_REF = "1f07296b186698c3cc9ca8580f00af36c0f3f4f5"
 BUILD = "16.0.27709.12001"
 REGISTRY_REVISION = "spo-online-16.0.27709.12001-r1"
@@ -53,7 +53,7 @@ def build_physical_store() -> tuple[bytes, str]:
         manifest.update(
             productRef=PRODUCT_REF,
             sdkRef=SDK_REF,
-            fixtureRevision="ccd-834-assessment-v2-r1",
+            fixtureRevision="ccd-834-assessment-v2-r2",
         )
         manifest_json = json.dumps(manifest, separators=(",", ":"))
         manifest_hash = discovery_hash(manifest_json)
@@ -314,7 +314,7 @@ def main() -> None:
         "completionState": "Succeeded",
         "errorCode": None,
         "errorDigest": None,
-        "executable": {"fixture": "pnp/assessment@ccc655b6"},
+        "executable": {"fixture": "pnp/assessment@a33e21e"},
         "exitCode": 0,
         "productRef": PRODUCT_REF,
         "receiptVersion": "aspx-acquisition-terminal-receipt/v1",
@@ -437,6 +437,7 @@ def main() -> None:
         ("V2-AGGREGATE-OUTSTANDING-PAGINATION-FALSE-COMPLETE", "aggregateOutstandingPaginationFalseComplete", "AGGREGATE_CONTENT_MISMATCH", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/aggregateVerdict", "value": "CompleteAuthorizedSurface"}], "rebindActualArtifact": ["reference"], "rebindAggregateVolumes": True, "rebindTerminalVolumes": True}),
         ("V2-AGGREGATE-VERDICT-UNSUPPORTED", "aggregateTerminalUnsupportedVerdict", "AGGREGATE_CONTENT_MISMATCH", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/aggregateVerdict", "value": "EqualitySuccess"}], "rebindTerminalVolumes": ["aggregate-output"]}),
         ("V2-PRODUCER-V1-AS-V2", None, "PRODUCER_REF_UNSUPPORTED", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/productRef", "value": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8"}]}),
+        ("V2-PRODUCER-PREVIOUS-V2", None, "PRODUCER_REF_UNSUPPORTED", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/productRef", "value": "pnp/assessment@ccc655b68fc6be9cdf107e6d8fe7d9f56266182a"}]}),
         ("V2-STORE-V1-AS-V2", None, "UNSUPPORTED_STORE_VERSION", {"operations": [{"op": "replace", "path": "/acquisitionEnvelope/referenceVolume/store/schemaVersion", "value": "aspx-reference-sqlite/v1"}]}),
         ("V2-PROVIDER-V1-AS-V2", "referenceProviderV1", "PROVIDER_VERSION_UNSUPPORTED", {"rebindActualArtifact": ["reference"], "rebindStoreManifestHash": ["reference"], "rebindAggregateVolumes": True, "rebindTerminalVolumes": True}),
         ("V2-SURFACE-V3-AS-V4", "referenceSurfaceV3", "SURFACE_CONTRACT_VERSION_UNSUPPORTED", {"rebindActualArtifact": ["reference"], "rebindAggregateVolumes": True, "rebindTerminalVolumes": True}),
@@ -456,9 +457,9 @@ def main() -> None:
     fixtures = {
         "artifactBindings": artifact_bindings,
         "fixtureProvenance": {
-            "assessmentConsumerSourceRef": "ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
-            "assessmentConsumerTree": "ffdd8db6de296516aea8ebbc61f3b12ff6f6c965",
-            "baselineReview": "CCD-745+CCD-755+CCD-756+CCD-834",
+            "assessmentConsumerSourceRef": "a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+            "assessmentConsumerTree": "07cfec44626f8617e63d34e270a4fc7f3baf761c",
+            "baselineReview": "CCD-745+CCD-755+CCD-756+CCD-834+CCD-845",
             "consumerWireShape": "aspx-acquisition-verdict/v2",
             "readerShape": "aspx-platform-registry-reader-envelope/v2",
             "fixtureKind": "synthetic-no-tenant-payload",
