@@ -1,0 +1,48 @@
+{
+  "$schema": "../schema/aspx-acquisition-consumer-profile.schema.json",
+  "dispatches": [
+    {
+      "aggregateOutput": "aspx-acquisition-verdict/v1",
+      "name": "assessment-v1",
+      "paginationReceipt": null,
+      "physicalContract": "aspx-discovery/v2",
+      "physicalOutput": "aspx-discovery-output/v2",
+      "physicalStore": "aspx-discovery-sqlite/v2",
+      "productRef": "pnp/assessment@3012555317d5a8ee981b9e103206f3f0680333d8",
+      "provider": "sharepoint-live-aspx-provider/v1",
+      "referenceContract": "aspx-reference/v1",
+      "referenceOutput": "aspx-reference-output/v1",
+      "referenceStore": "aspx-reference-sqlite/v1",
+      "surfaceContract": "aspx-surface-applicability-denominator/v3",
+      "terminalReceipt": null
+    },
+    {
+      "aggregateOutput": "aspx-acquisition-verdict/v2",
+      "name": "assessment-v2",
+      "paginationReceipt": "aspx-pagination-page-receipt/v2",
+      "physicalContract": "aspx-discovery/v2",
+      "physicalOutput": "aspx-discovery-output/v2",
+      "physicalStore": "aspx-discovery-sqlite/v2",
+      "productRef": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+      "provider": "sharepoint-live-aspx-provider/v2",
+      "referenceContract": "aspx-reference/v2",
+      "referenceOutput": "aspx-reference-output/v2",
+      "referenceStore": "aspx-reference-sqlite/v2",
+      "surfaceContract": "aspx-surface-applicability-denominator/v4",
+      "terminalReceipt": "aspx-acquisition-terminal-receipt/v1"
+    }
+  ],
+  "platformBuild": "16.0.27711.12757",
+  "profileHash": "7ac773f404477da51162daef2986947792f01feff73f15da33619bbac0e3f14b",
+  "profileRevision": "spo-online-16.0.27711.12757-acquisition-consumer-r2",
+  "profileSchemaVersion": "aspx-acquisition-consumer-profile/v1",
+  "registryHash": "342b8ed81dfba8404ef70d7c3f876e950f641e861b0d0eab8f30b9cdbfdba5a2",
+  "registryRevision": "spo-online-16.0.27711.12757-r1",
+  "terminalRoleVersions": {
+    "aggregate-output": "aspx-acquisition-verdict/v2",
+    "physical-database": "aspx-discovery-sqlite/v2",
+    "physical-output": "aspx-discovery-output/v2",
+    "reference-database": "aspx-reference-sqlite/v2",
+    "reference-output": "aspx-reference-output/v2"
+  }
+}

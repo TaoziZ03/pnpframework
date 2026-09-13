@@ -1,0 +1,53 @@
+{
+  "aggregateVerdict": "Unknown",
+  "artifactRunId": "11111111-2222-3333-4444-555555555555",
+  "completedAtUtc": "2026-09-12T00:00:04Z",
+  "completionState": "Succeeded",
+  "errorCode": null,
+  "errorDigest": null,
+  "executable": {
+    "fixture": "pnp/assessment@a33e21e"
+  },
+  "exitCode": 0,
+  "productRef": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+  "receiptVersion": "aspx-acquisition-terminal-receipt/v1",
+  "sdkRef": "1f07296b186698c3cc9ca8580f00af36c0f3f4f5",
+  "snapshotFence": "fixture-snapshot-v2-001",
+  "volumes": [
+    {
+      "fileName": "aggregate-output-v2.json",
+      "length": 1544,
+      "outputVersion": "aspx-acquisition-verdict/v2",
+      "role": "aggregate-output",
+      "sha256": "955273196cb2aad2f4717eb187159fa089ed0c67065d72e580fc7625d696cac8"
+    },
+    {
+      "fileName": "physical-store-assessment-v2.sqlite",
+      "length": 126976,
+      "outputVersion": "aspx-discovery-sqlite/v2",
+      "role": "physical-database",
+      "sha256": "9ad81039845b9abbce27decb5d0da69f94e7ca9277285c6133ca913d41e08030"
+    },
+    {
+      "fileName": "physical-output-v2.json",
+      "length": 324,
+      "outputVersion": "aspx-discovery-output/v2",
+      "role": "physical-output",
+      "sha256": "669404cc1a96db9d2a7a48c54b1a2981ffc815fa1e25319a19e495f78b41df8b"
+    },
+    {
+      "fileName": "reference-store-v2.sqlite",
+      "length": 45056,
+      "outputVersion": "aspx-reference-sqlite/v2",
+      "role": "reference-database",
+      "sha256": "b622de7d5dcefc90da0d4ebed249921b6ad83d319ba73980183aea68952edc7b"
+    },
+    {
+      "fileName": "reference-output-v2.json",
+      "length": 5475,
+      "outputVersion": "aspx-reference-output/v2",
+      "role": "reference-output",
+      "sha256": "02db4709479b0c1255adba2b261f0f57f7bcca519b7da40d7eeeab7f51ee22d0"
+    }
+  ]
+}

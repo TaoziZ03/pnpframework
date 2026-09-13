@@ -1,0 +1,41 @@
+{
+  "acquisitionMethod": "Windows Git 2.55.0.windows.3 + existing Git Credential Manager exact ls-remote, followed by an isolated run-owned bare fetch and Linux Git object reads",
+  "authorityCommit": "0ff1276087a43640144d8072fa347a886473855f",
+  "authorityRef": "release/16.0.27711.12757",
+  "authorityTree": "6c992a8ae11e186bf5fdaba77c082a7c9a893f99",
+  "boundedAuthorityDiffFromPrevious": {
+    "changedShippingAuthorityManifestCount": 4,
+    "changedShippingAuthorityManifestPaths": [
+      "otools/deploy/projectserver.xml",
+      "otools/deploy/spo.xml",
+      "otools/deploy/spx.xml",
+      "otools/deploy/sts.xml"
+    ],
+    "changedSourcePathCount": 9,
+    "deployRowsAdded": 0,
+    "deployRowsRemoved": 10,
+    "newDeployRowCount": 2289,
+    "newRegistryEntryCount": 1156,
+    "previousBuild": "16.0.27709.12001",
+    "previousCommit": "45ad38aee279ef47f54dc04dfe8eb9fe4cfe5d01",
+    "previousDeployRowCount": 2299,
+    "previousRegistryEntryCount": 1161,
+    "result": "the bounded shipping authority changed; this exact release was independently regenerated and no cross-build range or equivalence certificate is declared"
+  },
+  "forbiddenInputs": [
+    "Assessment provider output",
+    "Assessment scanner-observed paths",
+    "CUPCollect scan output",
+    "tenant runtime enumeration",
+    "historical 16.0.27709.12001 registry payload as authority"
+  ],
+  "platformBuild": "16.0.27711.12757",
+  "sourceAuthorityPaths": [
+    "otools/deploy/*.xml",
+    "sts/template/sts/layouts/FilesToRedirect.sts.xms",
+    "sts/stsom/ApplicationRuntime/spvirtualpathprovider.cs",
+    "sts/stsom/ApplicationRuntime/spvirtualfile.cs"
+  ],
+  "sourceRepository": "SPO.Core",
+  "verificationIssue": "CCD-873"
+}

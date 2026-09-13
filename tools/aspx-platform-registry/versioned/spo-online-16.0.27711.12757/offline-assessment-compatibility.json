@@ -1,0 +1,51 @@
+{
+  "assessmentSource": {
+    "baseCommit": "ccc655b68fc6be9cdf107e6d8fe7d9f56266182a",
+    "commit": "a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+    "tree": "07cfec44626f8617e63d34e270a4fc7f3baf761c"
+  },
+  "authorEvidence": {
+    "assessmentSourceBundleHead": "a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+    "bundleSha256": "48ecfbb3f41b01895d8465262a17f894ec1ddc08563cd724b100feed8bcd2fe3",
+    "issue": "CCD-845",
+    "testResultSha256": "8b5d43721cba199ceff3f54ff69faf7aff70de3bc0ed5e43216b8bd0a0997bcf"
+  },
+  "binaryHashes": {
+    "PnP.Scanning.Core.Tests.dll": "2c7d9960961e7e86243ef9fe95f14113af7a1449d6b2ed802ef050352590302a",
+    "PnP.Scanning.Core.dll": "097a8e66d475c0a4fd6e1d1b81193bf2497f80568f1d59c326b5cdba2b6c1405",
+    "microsoft365-assessment.dll": "5c7e2dc2941e5e7e758451731849429c22698e228d8672a7bb4467f9dfc0a968",
+    "microsoft365-assessment.exe": "9115fa4ab6f27181b77010f9378d7ea7d97101be899e2124cfa40c0853ced4a4"
+  },
+  "boundedOfficialFixture": {
+    "aggregateVerdict": "Unknown",
+    "availableRegistryEntries": 1145,
+    "executableSha256": "5c7e2dc2941e5e7e758451731849429c22698e228d8672a7bb4467f9dfc0a968",
+    "registryEntryCount": 1156,
+    "terminalRoleCount": 5,
+    "unavailableRegistryEntries": 11
+  },
+  "cliRuntimeExecution": "not executed; CCD-869 forbids CUPCollect acquisition and tenant access, and relies on the exact Assessment source/bytes plus deterministic offline consumer fixtures",
+  "consumerContractEvidence": {
+    "acquisitionProfileHash": "7ac773f404477da51162daef2986947792f01feff73f15da33619bbac0e3f14b",
+    "acquisitionProfileRevision": "spo-online-16.0.27711.12757-acquisition-consumer-r2",
+    "assessmentV2ProductRef": "pnp/assessment@a33e21eed513e470cfbbb4af4451cb1b37880d0e",
+    "fixtureCases": 23,
+    "fixturePasses": 23,
+    "negativeNetworkCallbackCount": 0,
+    "previousAssessmentV2RefDisposition": "PRODUCER_REF_UNSUPPORTED",
+    "historicalSourceTestsFailed": 0,
+    "historicalSourceTestsPassed": 70,
+    "staticConsumerSymbols": [
+      "AspxAcquisitionCommandHandler.ExecuteAsync",
+      "AspxPlatformRegistryAuthorityGate",
+      "AspxReferenceCollector.Build"
+    ]
+  },
+  "pnpCoreSource": {
+    "commit": "1f07296b186698c3cc9ca8580f00af36c0f3f4f5",
+    "tree": "0534cd65f8e942671886ae0f6820580f81031572"
+  },
+  "remainingUncertainty": "This run proves the exact static consumer binding and deterministic five-role offline fixtures, not a fresh tenant acquisition. CCD-873 independent Verification must pass before CCD-746 admission and fresh first/resume.",
+  "schema": "ccd869-offline-assessment-compatibility/v1",
+  "verdict": "author-fixture-pass-independent-pending"
+}
