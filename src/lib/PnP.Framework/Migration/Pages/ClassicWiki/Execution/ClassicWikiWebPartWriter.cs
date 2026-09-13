@@ -2,6 +2,7 @@ using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.WebParts;
 using PnP.Framework.Migration.Execution;
 using PnP.Framework.Migration.Pages.ClassicWiki.Planning;
+using PnP.Framework.Utilities.WebParts;
 using System;
 using System.Collections.Generic;
 
@@ -32,6 +33,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Execution
                             {
                                 var def = wpm.ImportWebPart(wp.Xml);
                                 var added = wpm.AddWebPart(def.WebPart, wp.ZoneId ?? "Bottom", wp.TargetZoneIndex);
+                                ViewBoundWebPartPersistence.QueueSaveIfRequired(added, wp.Xml);
                                 context.Load(added, a => a.Id);
                                 context.ExecuteQueryRetry();
                                 return added;
