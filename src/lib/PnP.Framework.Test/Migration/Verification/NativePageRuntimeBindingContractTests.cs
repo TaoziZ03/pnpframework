@@ -463,6 +463,50 @@ namespace PnP.Framework.Test.Migration.Verification
                 NativeRuntimeTestFixture.TruncatedJpegEntropyBytes());
             fixture.ValidateExternal(out status);
             Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><div style='visibility:hidden'><h1 style='visibility:visible'>Access Denied</h1></div><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><div style='visibility:hidden'><h1>Access Denied</h1></div><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Passed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><head><style>.parent { visibility:hidden; } .child { visibility:visible; }</style></head><body><div class='parent'><h1 class='child'>Access Denied</h1></div><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><div style='visibility:hidden'><p style='visibility:visible'>approved content</p></div></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Passed, status);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            var fullCodeSpace = NativeRuntimeTestFixture.AllOnesHuffmanJpegBytes();
+            Assert.AreEqual(
+                "96befbd18c151d00b88b93b86d462a1923290242c1eaaa71b5faac39603f90a6",
+                MigrationDigest.ComputeSha256(fullCodeSpace));
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                fullCodeSpace);
+            fixture.ValidateExternal(out status);
+            Assert.AreEqual(RuntimeVerificationStatus.Failed, status);
         }
 
         [TestMethod]
@@ -1511,6 +1555,12 @@ namespace PnP.Framework.Test.Migration.Verification
             bytes[acCounts + 7] = 1;
             bytes[bytes.Length - 3] = 0;
             return bytes;
+        }
+
+        public static byte[] AllOnesHuffmanJpegBytes()
+        {
+            return Convert.FromBase64String(
+                "/9j/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAALCAABAAEBAREA/8QAFQACAAAAAAAAAAAAAAAAAAAAAAH/xAAVEAIAAAAAAAAAAAAAAAAAAAAAAf/aAAgBAQAAPwA//9k=");
         }
 
         private NativePageRuntimeTargetIdentityEvidence CreateTargetReadback(string id, DateTimeOffset observedAt)
