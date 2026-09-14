@@ -1,0 +1,1 @@
+{"schemaVersion":"ccd272.browser-runtime-fixture/v1","caseId":"output-alias-binding","mode":"positive","mutation":"output-alias-binding","expectSuccess":false,"expectedError":"output_input_alias_forbidden"}

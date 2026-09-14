@@ -1,0 +1,1 @@
+{"schemaVersion":"ccd272.browser-runtime-fixture/v1","caseId":"foreign-snapshot-digest","mode":"positive","mutation":"foreign-snapshot-digest","expectSuccess":false,"expectedError":"claim_snapshot_digest_mismatch"}

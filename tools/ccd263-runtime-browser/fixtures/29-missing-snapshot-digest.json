@@ -1,0 +1,1 @@
+{"schemaVersion":"ccd272.browser-runtime-fixture/v1","caseId":"missing-snapshot-digest","mode":"positive","mutation":"missing-snapshot-digest","expectSuccess":false,"expectedError":"snapshot_digest_required"}

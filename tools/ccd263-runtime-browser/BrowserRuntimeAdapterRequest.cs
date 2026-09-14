@@ -7,6 +7,7 @@ public sealed class BrowserRuntimeAdapterRequest
 {
     public string SchemaVersion { get; set; }
     public string BindingPath { get; set; }
+    public string AdmittedPlanPath { get; set; }
     public string ArtifactStorePath { get; set; }
     public string OutputPath { get; set; }
     public BrowserRuntimeExpectedIdentity Expected { get; set; }

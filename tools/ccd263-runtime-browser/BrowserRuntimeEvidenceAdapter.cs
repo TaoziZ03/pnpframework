@@ -19,6 +19,12 @@ public static class BrowserRuntimeEvidenceAdapter
     public const string AdapterId = "ccd272.browser-runtime-adapter";
     public const string AdapterVersion = "1.0.0";
     public const string AuthorizedTargetHost = "a830edad9050849cupcollect.sharepoint.com";
+    public const string OriginEvidencePackageDigest = "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283";
+    public const string ClaimSnapshotDigest = "518fb815a78d760eeb709ad4ba8008657ce8319e41d3baff0096debb5c56b76a";
+    public const string ClaimSourceVersionDigest = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5";
+    public static readonly Guid ClaimSourceFileUniqueId = Guid.Parse("c3b2c2bb-663d-47ed-8562-840c9fd685fb");
+    public static readonly Guid ClaimRuntimeOperationId = Guid.Parse("77fa33e6-9814-434d-bd7f-919747fe3f60");
+    public static readonly Guid ClaimTargetFileUniqueId = Guid.Parse("4881af85-37b6-4ae7-b307-df93c52994a7");
 
     private static readonly JsonSerializerOptions StrictOptions = CreateOptions(false);
     private static readonly JsonSerializerOptions IndentedOptions = CreateOptions(true);
@@ -30,29 +36,45 @@ public static class BrowserRuntimeEvidenceAdapter
         RejectDuplicateKeys(requestJson, requestPath);
         var request = JsonSerializer.Deserialize<BrowserRuntimeAdapterRequest>(requestJson, StrictOptions);
         Require(request != null, "request_invalid");
-        return Emit(request, Path.GetDirectoryName(requestPath));
+        return Emit(request, Path.GetDirectoryName(requestPath), requestPath);
     }
 
     public static BrowserRuntimeAdapterResult Emit(BrowserRuntimeAdapterRequest request, string requestDirectory)
+        => Emit(request, requestDirectory, null);
+
+    private static BrowserRuntimeAdapterResult Emit(
+        BrowserRuntimeAdapterRequest request,
+        string requestDirectory,
+        string requestPath)
     {
         Require(request != null, "request_required");
         Require(string.Equals(request.SchemaVersion, RequestSchemaVersion, StringComparison.Ordinal),
             "request_schema_unsupported");
         Require(request.Expected != null, "expected_identity_required");
         var bindingPath = Resolve(requestDirectory, request.BindingPath);
+        var admittedPlanPath = Resolve(requestDirectory, request.AdmittedPlanPath);
         var artifactStorePath = Resolve(requestDirectory, request.ArtifactStorePath);
         var outputPath = Resolve(requestDirectory, request.OutputPath);
         Require(File.Exists(bindingPath), "binding_missing");
+        Require(File.Exists(admittedPlanPath), "admitted_plan_missing");
         Require(Directory.Exists(artifactStorePath), "artifact_store_missing");
+        ValidateOutputFence(outputPath, requestPath, bindingPath, admittedPlanPath, artifactStorePath);
 
         var bindingJson = File.ReadAllText(bindingPath);
         RejectDuplicateKeys(bindingJson, bindingPath);
         var binding = JsonSerializer.Deserialize<NativePageRuntimeBinding>(bindingJson, StrictOptions);
         Require(binding != null, "binding_invalid");
-        ValidateBindingEnvelope(binding, request.Expected);
+        var admittedPlanJson = File.ReadAllText(admittedPlanPath);
+        RejectDuplicateKeys(admittedPlanJson, admittedPlanPath);
+        var admittedPlan = JsonSerializer.Deserialize<AdmittedReproExecutionPlan>(admittedPlanJson, StrictOptions);
+        Require(admittedPlan != null, "admitted_plan_invalid");
+        ValidateBindingEnvelope(binding, admittedPlan, request.Expected);
         ValidateProducer(request.CaptureProducer);
+        ValidateOriginEvidencePackage(request.Extensions);
 
         var artifactStore = new DirectoryMigrationArtifactStore(artifactStorePath);
+        var policy = new ClassicWikiRuntimeEvidencePolicy();
+        policy.ValidateBinding(binding, artifactStore);
         var hasResults = request.Results != null && request.Results.Count > 0;
         var hasTerminal = request.TerminalObservation != null;
         Require(hasResults != hasTerminal, "request_result_one_of_required");
@@ -63,7 +85,16 @@ public static class BrowserRuntimeEvidenceAdapter
         if (hasResults)
         {
             ValidatePositiveObservation(request, binding);
-            runtimeReceipt = CreateRuntimeReceipt(request, binding);
+            runtimeReceipt = RuntimeVerificationReceiptFactory.Create(
+                admittedPlan,
+                binding.AdmittedPlanDigestSha256,
+                binding.ImportReceiptDigestSha256,
+                binding.TargetStorageIdentity.CanonicalUrl,
+                binding.RequirementsManifest,
+                binding.ContractProducerRef,
+                request.BrowserContext,
+                request.Results,
+                request.CompletedAtUtc);
             runtimeReceiptDigest = MigrationDigest.ComputeSha256(
                 ClassicWikiPackageSerializer.SerializeCanonical(runtimeReceipt));
             resultKind = NativePageRuntimeContract.RuntimeResultKind;
@@ -100,7 +131,7 @@ public static class BrowserRuntimeEvidenceAdapter
         var validatedDigest = NativePageRuntimeBindingValidator.ValidateExternalEvidenceAndComputeDigest(
             evidence,
             binding,
-            new ClassicWikiRuntimeEvidencePolicy(),
+            policy,
             artifactStore,
             out var semanticStatus);
         if (runtimeReceipt != null)
@@ -114,11 +145,32 @@ public static class BrowserRuntimeEvidenceAdapter
                 "terminal_observation_must_remain_degraded");
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
         var temporaryPath = outputPath + ".tmp-" + Guid.NewGuid().ToString("N");
-        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(evidence, IndentedOptions) + Environment.NewLine,
-            new UTF8Encoding(false));
-        File.Move(temporaryPath, outputPath, true);
+        try
+        {
+            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(evidence, IndentedOptions) + Environment.NewLine,
+                new UTF8Encoding(false));
+            File.Move(temporaryPath, outputPath);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
+
+        var publishedJson = File.ReadAllText(outputPath);
+        RejectDuplicateKeys(publishedJson, outputPath);
+        var published = JsonSerializer.Deserialize<ExternalPageRuntimeEvidence>(publishedJson, StrictOptions);
+        Require(published != null, "published_evidence_invalid");
+        var publishedDigest = NativePageRuntimeBindingValidator.ValidateExternalEvidenceAndComputeDigest(
+            published,
+            binding,
+            policy,
+            artifactStore,
+            out var publishedSemanticStatus);
+        Require(DigestEquals(publishedDigest, validatedDigest)
+            && publishedSemanticStatus == semanticStatus,
+            "published_evidence_reopen_mismatch");
 
         return new BrowserRuntimeAdapterResult
         {
@@ -135,6 +187,7 @@ public static class BrowserRuntimeEvidenceAdapter
 
     private static void ValidateBindingEnvelope(
         NativePageRuntimeBinding binding,
+        AdmittedReproExecutionPlan admittedPlan,
         BrowserRuntimeExpectedIdentity expected)
     {
         Require(string.Equals(binding.SchemaVersion, NativePageRuntimeContract.BindingSchemaVersion, StringComparison.Ordinal),
@@ -143,16 +196,54 @@ public static class BrowserRuntimeEvidenceAdapter
             "binding_profile_unsupported");
         Require(string.Equals(binding.ClaimId, NativePageRuntimeContract.ClaimId, StringComparison.Ordinal),
             "binding_claim_foreign");
+        Require(binding.RunId != Guid.Empty, "binding_run_id_required");
+        Require(binding.SourceIdentity?.FileUniqueId == ClaimSourceFileUniqueId,
+            "claim_source_file_identity_mismatch");
+        ValidateDigest(binding.ContentSha256, "binding_content_digest_required");
+        ValidateDigest(binding.SnapshotDigestSha256, "snapshot_digest_required");
+        ValidateDigest(binding.PlanDigest, "plan_digest_required");
+        ValidateDigest(binding.AdmittedPlanDigestSha256, "admitted_plan_digest_required");
+        ValidateDigest(binding.ImportReceiptDigestSha256, "import_receipt_digest_required");
+        ValidateDigest(binding.SourceVersion?.IdentityDigestSha256, "source_identity_digest_required");
+        ValidateDigest(binding.SourceVersion?.VersionDigestSha256, "source_version_digest_required");
+        ValidateDigest(binding.RequirementsManifestDigestSha256, "requirements_manifest_digest_required");
+        ValidateDigest(binding.ExpectedAuthoredContentSha256, "expected_authored_content_digest_required");
+        RequireDigestEquals(binding.SnapshotDigestSha256, ClaimSnapshotDigest, "claim_snapshot_digest_mismatch");
+        RequireDigestEquals(binding.SourceVersion?.VersionDigestSha256, ClaimSourceVersionDigest,
+            "claim_source_version_digest_mismatch");
+        ValidateImplementationRef(binding.ContractProducerRef, "contract_producer_ref_invalid");
+        Require(binding.RequirementsManifest?.Requirements != null
+            && binding.RequirementsManifest.Requirements.Count > 0,
+            "requirements_manifest_required");
+        Require(binding.TargetStorageIdentity != null, "target_identity_required");
+        Require(binding.TargetStorageIdentity.FileUniqueId == ClaimTargetFileUniqueId
+            && binding.TargetStorageIdentity.ListItemId == 2
+            && string.Equals(binding.TargetStorageIdentity.ListItemVersion, "3.0", StringComparison.Ordinal),
+            "claim_target_identity_mismatch");
+        Require(binding.Operations?.RuntimeOperationId == ClaimRuntimeOperationId,
+            "claim_runtime_operation_id_mismatch");
+        AdmittedReproExecutionPlanValidator.ValidateSourceVersion(binding.SourceVersion);
+        AdmittedReproExecutionPlanValidator.ValidateOperations(binding.Operations);
         var declaredSeal = binding.ContentSha256;
         var computedSeal = NativePageRuntimeBindingValidator.SealBinding(binding);
-        Require(DigestEquals(declaredSeal, computedSeal), "binding_content_seal_stale");
-        Require(DigestEquals(declaredSeal, expected.BindingDigestSha256), "binding_digest_mismatch");
-        Require(DigestEquals(binding.SourceVersion?.VersionDigestSha256, expected.SourceVersionDigestSha256),
+        RequireDigestEquals(declaredSeal, computedSeal, "binding_content_seal_stale");
+        RequireDigestEquals(declaredSeal, expected.BindingDigestSha256, "binding_digest_mismatch");
+        RequireDigestEquals(binding.SourceVersion.VersionDigestSha256, expected.SourceVersionDigestSha256,
             "source_version_digest_mismatch");
-        Require(DigestEquals(binding.AdmittedPlanDigestSha256, expected.AdmittedPlanDigestSha256),
+        var computedAdmissionDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+            admittedPlan,
+            binding.PlanDigest,
+            binding.TargetStorageIdentity.CanonicalUrl);
+        Require(AdmittedReproExecutionPlanValidator.SameSourceVersion(binding.SourceVersion, admittedPlan.SourceVersion)
+            && AdmittedReproExecutionPlanValidator.SameOperations(binding.Operations, admittedPlan.Operations),
+            "admitted_plan_lineage_mismatch");
+        RequireDigestEquals(binding.AdmittedPlanDigestSha256, computedAdmissionDigest,
+            "admitted_plan_digest_stale");
+        RequireDigestEquals(binding.AdmittedPlanDigestSha256, expected.AdmittedPlanDigestSha256,
             "admitted_plan_digest_mismatch");
-        Require(DigestEquals(binding.ImportReceiptDigestSha256, expected.ImportReceiptDigestSha256),
+        RequireDigestEquals(binding.ImportReceiptDigestSha256, expected.ImportReceiptDigestSha256,
             "import_receipt_digest_mismatch");
+        Require(expected.RuntimeOperationId != Guid.Empty, "expected_runtime_operation_id_required");
         Require(binding.Operations?.RuntimeOperationId == expected.RuntimeOperationId,
             "runtime_operation_id_mismatch");
         Require(binding.TargetStorageIdentity?.FileUniqueId == expected.TargetFileUniqueId
@@ -183,6 +274,16 @@ public static class BrowserRuntimeEvidenceAdapter
             "capture_producer_version_incomplete");
     }
 
+    private static void ValidateOriginEvidencePackage(IDictionary<string, string> extensions)
+    {
+        string packageDigest = null;
+        Require(extensions != null
+            && extensions.TryGetValue("ccd272.originEvidencePackageDigest", out packageDigest),
+            "origin_evidence_package_digest_required");
+        RequireDigestEquals(packageDigest, OriginEvidencePackageDigest,
+            "origin_evidence_package_digest_mismatch");
+    }
+
     private static void ValidatePositiveObservation(
         BrowserRuntimeAdapterRequest request,
         NativePageRuntimeBinding binding)
@@ -202,36 +303,6 @@ public static class BrowserRuntimeEvidenceAdapter
                 && string.Equals(value.ImplementationRef, binding.ContractProducerRef, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(value.BrowserContextId, request.BrowserContext.BrowserContextId, StringComparison.Ordinal)),
             "runtime_result_producer_or_context_mismatch");
-    }
-
-    private static RuntimeVerificationReceipt CreateRuntimeReceipt(
-        BrowserRuntimeAdapterRequest request,
-        NativePageRuntimeBinding binding)
-    {
-        var manifestIds = binding.RequirementsManifest.Requirements
-            .Select(value => value.Id)
-            .ToHashSet(StringComparer.Ordinal);
-        var resultsById = request.Results.ToDictionary(value => value.RequirementId, StringComparer.Ordinal);
-        Require(manifestIds.SetEquals(resultsById.Keys), "runtime_result_coverage_mismatch");
-        var status = manifestIds.All(id => resultsById[id].Passed)
-            ? RuntimeVerificationStatus.Passed
-            : RuntimeVerificationStatus.Failed;
-        return new RuntimeVerificationReceipt
-        {
-            PlanDigest = binding.PlanDigest,
-            AdmittedPlanDigestSha256 = binding.AdmittedPlanDigestSha256,
-            OperationId = binding.Operations.RuntimeOperationId,
-            ImportReceiptDigestSha256 = binding.ImportReceiptDigestSha256,
-            RequirementsManifestDigestSha256 = binding.RequirementsManifestDigestSha256,
-            ImplementationRef = binding.ContractProducerRef,
-            SourceVersion = binding.SourceVersion,
-            Operations = binding.Operations,
-            TargetIdentity = binding.TargetStorageIdentity.CanonicalUrl,
-            BrowserContext = request.BrowserContext,
-            CompletedAtUtc = request.CompletedAtUtc,
-            Results = request.Results,
-            Status = status
-        };
     }
 
     private static void ValidateTerminalObservation(BrowserRuntimeAdapterRequest request)
@@ -341,6 +412,54 @@ public static class BrowserRuntimeEvidenceAdapter
         return Path.GetFullPath(Path.IsPathRooted(value) ? value : Path.Combine(root ?? Directory.GetCurrentDirectory(), value));
     }
 
+    private static void ValidateOutputFence(
+        string outputPath,
+        string requestPath,
+        string bindingPath,
+        string admittedPlanPath,
+        string artifactStorePath)
+    {
+        var output = NormalizePath(outputPath);
+        foreach (var input in new[] { requestPath, bindingPath, admittedPlanPath })
+        {
+            if (!string.IsNullOrWhiteSpace(input))
+                Require(!PathEquals(output, NormalizePath(input)), "output_input_alias_forbidden");
+        }
+        var store = NormalizePath(artifactStorePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        Require(!PathEquals(output, store)
+            && !output.StartsWith(store + Path.DirectorySeparatorChar, PathComparison),
+            "output_artifact_store_alias_forbidden");
+        Require(!File.Exists(outputPath) && !Directory.Exists(outputPath), "output_path_must_be_new");
+    }
+
+    private static string NormalizePath(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(fullPath)!;
+        var current = root;
+        foreach (var segment in Path.GetRelativePath(root, fullPath)
+                     .Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                         StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = Path.Combine(current, segment);
+            FileSystemInfo info = Directory.Exists(candidate)
+                ? new DirectoryInfo(candidate)
+                : new FileInfo(candidate);
+            FileSystemInfo target = null;
+            if (info.Exists || !string.IsNullOrWhiteSpace(info.LinkTarget))
+                target = info.ResolveLinkTarget(true);
+            current = target?.FullName ?? candidate;
+        }
+        return Path.GetFullPath(current)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool PathEquals(string left, string right) =>
+        string.Equals(left, right, PathComparison);
+
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
     private static JsonSerializerOptions CreateOptions(bool indented)
     {
         var options = new JsonSerializerOptions
@@ -359,6 +478,18 @@ public static class BrowserRuntimeEvidenceAdapter
     private static void ValidateImplementationRef(string value, string error)
     {
         Require(value != null && value.Length == 40 && value.All(Uri.IsHexDigit), error);
+    }
+
+    private static void ValidateDigest(string value, string error)
+    {
+        Require(value != null && value.Length == 64 && value.All(Uri.IsHexDigit), error);
+    }
+
+    private static void RequireDigestEquals(string left, string right, string error)
+    {
+        ValidateDigest(left, error);
+        ValidateDigest(right, error);
+        Require(DigestEquals(left, right), error);
     }
 
     private static bool DigestEquals(string left, string right) =>

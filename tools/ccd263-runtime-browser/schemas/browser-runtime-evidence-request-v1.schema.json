@@ -6,6 +6,7 @@
   "required": [
     "schemaVersion",
     "bindingPath",
+    "admittedPlanPath",
     "artifactStorePath",
     "outputPath",
     "expected",
@@ -24,6 +25,7 @@
   "properties": {
     "schemaVersion": { "const": "ccd272.browser-runtime-evidence-request/v1" },
     "bindingPath": { "$ref": "#/$defs/path" },
+    "admittedPlanPath": { "$ref": "#/$defs/path" },
     "artifactStorePath": { "$ref": "#/$defs/path" },
     "outputPath": { "$ref": "#/$defs/path" },
     "expected": {
@@ -75,6 +77,12 @@
     "terminalObservation": { "type": ["object", "null"] },
     "extensions": {
       "type": "object",
+      "required": ["ccd272.originEvidencePackageDigest"],
+      "properties": {
+        "ccd272.originEvidencePackageDigest": {
+          "const": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283"
+        }
+      },
       "propertyNames": { "pattern": "^[^.]+\\..+$" },
       "additionalProperties": { "type": "string" }
     }

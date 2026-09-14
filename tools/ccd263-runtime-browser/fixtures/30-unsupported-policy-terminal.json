@@ -1,0 +1,1 @@
+{"schemaVersion":"ccd272.browser-runtime-fixture/v1","caseId":"unsupported-policy-terminal","mode":"terminal-access","mutation":"unsupported-policy-terminal","expectSuccess":false,"expectedError":"profile/policy"}
