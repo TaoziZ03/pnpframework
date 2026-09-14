@@ -1,0 +1,5 @@
+bin/
+obj/
+.artifacts-*/
+tests/bin/
+tests/obj/

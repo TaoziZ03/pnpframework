@@ -1,0 +1,1 @@
+{"schemaVersion":"ccd272.browser-runtime-fixture/v1","caseId":"cache-no-store-failure","mode":"positive","mutation":"cache","expectSuccess":false,"expectedError":"cache:no-store"}

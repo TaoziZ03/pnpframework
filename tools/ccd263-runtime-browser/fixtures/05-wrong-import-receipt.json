@@ -1,0 +1,1 @@
+{"schemaVersion":"ccd272.browser-runtime-fixture/v1","caseId":"wrong-import-receipt","mode":"positive","mutation":"import-receipt","expectSuccess":false,"expectedError":"import_receipt_digest_mismatch"}
