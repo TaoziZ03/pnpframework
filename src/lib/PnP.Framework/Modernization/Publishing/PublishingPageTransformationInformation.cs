@@ -47,6 +47,7 @@ namespace PnP.Framework.Modernization.Publishing
             DisablePageComments = false;
             SkipUserMapping = false;
             TargetPageFolderOverridesDefaultFolder = false;
+            InPlacePublishingPage = false;
             // Populate with OOB mapping properties
             MappingProperties = new Dictionary<string, string>(5)
             {
@@ -95,6 +96,11 @@ namespace PnP.Framework.Modernization.Publishing
         #endregion
 
         #region Page Properties
+        /// <summary>
+        /// Explicitly allows an Enterprise Wiki publishing page to be transformed to Site Pages in the same Web.
+        /// The source publishing page is retained and an existing target page is never overwritten.
+        /// </summary>
+        public bool InPlacePublishingPage { get; set; }
         #endregion
     }
 }

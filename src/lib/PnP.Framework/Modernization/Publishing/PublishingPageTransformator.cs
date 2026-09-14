@@ -175,17 +175,52 @@ namespace PnP.Framework.Modernization.Publishing
 
                 PopulateGlobalProperties(sourceClientContext, targetClientContext);
 
-                if (sourceClientContext.Site.Id.Equals(targetClientContext.Site.Id))
+                var sameSiteCollection = sourceClientContext.Site.Id.Equals(targetClientContext.Site.Id);
+                var sourceWebId = sameSiteCollection ? sourceClientContext.Web.EnsureProperty(p => p.Id) : Guid.Empty;
+                var hasWritableSitePages = false;
+
+                if (sameSiteCollection &&
+                    sourceWebId.Equals(targetClientContext.Web.Id) &&
+                    publishingPageTransformationInformation.InPlacePublishingPage &&
+                    string.Equals(targetClientContext.Web.WebTemplate, "ENTERWIKI", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    // Oops, seems source and target point to the same site collection...that's a no go for publishing portal page transformation!                
-                    LogError(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages, LogStrings.Heading_SharePointConnection);
-                    throw new ArgumentNullException(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages);
+                    hasWritableSitePages = HasWritableSitePagesLibrary(sourceClientContext);
+                }
+
+                var transformationTarget = PublishingPageTransformationValidator.ValidateTarget(
+                    publishingPageTransformationInformation.InPlacePublishingPage,
+                    sourceClientContext.Site.Id,
+                    targetClientContext.Site.Id,
+                    sourceWebId,
+                    targetClientContext.Web.Id,
+                    targetClientContext.Web.WebTemplate,
+                    hasWritableSitePages);
+
+                switch (transformationTarget)
+                {
+                    case PublishingPageTransformationTarget.SameSiteCollectionNotAllowed:
+                        LogError(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages, LogStrings.Heading_SharePointConnection);
+                        throw new ArgumentNullException(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages);
+                    case PublishingPageTransformationTarget.SameSiteCollectionDifferentWeb:
+                        LogError(LogStrings.Error_InPlacePublishingPageDifferentWeb, LogStrings.Heading_SharePointConnection);
+                        throw new ArgumentException(LogStrings.Error_InPlacePublishingPageDifferentWeb);
+                    case PublishingPageTransformationTarget.SameWebRequiresEnterpriseWiki:
+                        LogError(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki, LogStrings.Heading_SharePointConnection);
+                        throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki);
+                    case PublishingPageTransformationTarget.SameWebRequiresWritableSitePages:
+                        LogError(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages, LogStrings.Heading_SharePointConnection);
+                        throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages);
+                    case PublishingPageTransformationTarget.SameWeb:
+                        // Use the source context for all writes so existing in-place permission, URL and asset semantics apply.
+                        targetClientContext = sourceClientContext;
+                        break;
                 }
 
                 LogInfo($"{targetClientContext.Web.GetUrl()}", LogStrings.Heading_Summary, LogEntrySignificance.TargetSiteUrl);
 
                 // Need to add further validation for target template
-                if (targetClientContext.Web.WebTemplate != "SITEPAGEPUBLISHING" && targetClientContext.Web.WebTemplate != "STS" && 
+                if (transformationTarget == PublishingPageTransformationTarget.CrossSiteCollection &&
+                    targetClientContext.Web.WebTemplate != "SITEPAGEPUBLISHING" && targetClientContext.Web.WebTemplate != "STS" &&
                     targetClientContext.Web.WebTemplate != "GROUP" && targetClientContext.Web.WebTemplate != "BDR" && targetClientContext.Web.WebTemplate != "DEV")
                 {
 
@@ -323,10 +358,18 @@ namespace PnP.Framework.Modernization.Publishing
                 }
                 catch (Exception ex)
                 {
-                    if(ex is ArgumentException)
+                    var targetPageDoesNotExist = ex is ArgumentException &&
+                        ex.Message.EndsWith(LogStrings.TransformPageDoesNotExistInWeb, StringComparison.InvariantCulture);
+
+                    if (targetPageDoesNotExist)
                     {
                         //Non-critical error generated 
                         LogInfo(LogStrings.CheckPageExistsError, LogStrings.Heading_PageCreation);
+                    }
+                    else if (transformationTarget == PublishingPageTransformationTarget.SameWeb)
+                    {
+                        // The in-place opt-in must fail closed when the target collision probe is inconclusive.
+                        throw;
                     }
                     else
                     {
@@ -343,9 +386,11 @@ namespace PnP.Framework.Modernization.Publishing
                 {
                     LogInfo(LogStrings.PageAlreadyExistsInTargetLocation, LogStrings.Heading_PageCreation);
 
-                    if (!publishingPageTransformationInformation.Overwrite)
+                    if (!PublishingPageTransformationValidator.CanOverwriteTarget(transformationTarget, publishingPageTransformationInformation.Overwrite))
                     {
-                        var message = $"{LogStrings.PageNotOverwriteIfExists}  {publishingPageTransformationInformation.TargetPageName}.";
+                        var message = transformationTarget == PublishingPageTransformationTarget.SameWeb
+                            ? $"{LogStrings.Error_InPlacePublishingPageTargetExists} {publishingPageTransformationInformation.TargetPageName}."
+                            : $"{LogStrings.PageNotOverwriteIfExists}  {publishingPageTransformationInformation.TargetPageName}.";
                         LogError(message, LogStrings.Heading_PageCreation);
                         throw new ArgumentException(message);
                     }
@@ -534,10 +579,10 @@ namespace PnP.Framework.Modernization.Publishing
                 Start();
 #endif
                     // Check if we do have item level permissions we want to take over
-                    listItemPermissionsToKeep = GetItemLevelPermissions(true, pagesLibrary, publishingPageTransformationInformation.SourcePage, savedTargetPage.ListItemAllFields);
+                    var usesCrossSitePermissionSemantics = PublishingPageTransformationValidator.UsesCrossSitePermissionSemantics(transformationTarget);
+                    listItemPermissionsToKeep = GetItemLevelPermissions(usesCrossSitePermissionSemantics, pagesLibrary, publishingPageTransformationInformation.SourcePage, savedTargetPage.ListItemAllFields);
 
-                    // When creating the page in another site collection we'll always want to copy item level permissions if specified
-                    ApplyItemLevelPermissions(true, savedTargetPage.ListItemAllFields, listItemPermissionsToKeep);
+                    ApplyItemLevelPermissions(usesCrossSitePermissionSemantics, savedTargetPage.ListItemAllFields, listItemPermissionsToKeep);
 #if DEBUG && MEASURE
                 Stop("Permission handling");
 #endif
@@ -668,6 +713,30 @@ namespace PnP.Framework.Modernization.Publishing
         }
 
         #region Helper methods
+        private bool HasWritableSitePagesLibrary(ClientContext context)
+        {
+            try
+            {
+                var sitePagesServerRelativeUrl = UrlUtility.Combine(context.Web.ServerRelativeUrl, "SitePages");
+                var sitePagesLibrary = context.Web.GetList(sitePagesServerRelativeUrl);
+                context.Load(sitePagesLibrary,
+                    p => p.Id,
+                    p => p.BaseTemplate,
+                    p => p.EffectiveBasePermissions);
+                context.ExecuteQueryRetry();
+
+                return sitePagesLibrary.Id != Guid.Empty &&
+                    sitePagesLibrary.BaseTemplate == (int)ListTemplateType.WebPageLibrary &&
+                    sitePagesLibrary.EffectiveBasePermissions.Has(PermissionKind.AddListItems) &&
+                    sitePagesLibrary.EffectiveBasePermissions.Has(PermissionKind.EditListItems);
+            }
+            catch (Exception ex)
+            {
+                LogWarning($"{LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages} {ex.Message}", LogStrings.Heading_SharePointConnection);
+                return false;
+            }
+        }
+
         private void SetPageTitle(PublishingPageTransformationInformation publishingPageTransformationInformation, PnPCore.IPage targetPage)
         {
             string titleValue = "";

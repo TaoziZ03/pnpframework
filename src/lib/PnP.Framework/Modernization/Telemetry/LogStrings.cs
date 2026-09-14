@@ -78,6 +78,10 @@
         public const string Error_OverridingTagePageTakesSourcePageName = "Overriding 'TargetPageTakesSourcePageName' to ensure that the newly created page in the other site collection gets the same name as the source page";
         public const string Error_FallBackToSameSiteTransfer = "Oops, seems source and target point to the same site collection...switch back the 'source only' mode";
         public const string Error_SameSiteTransferNoAllowedForPublishingPages = "Oops, seems source and target point to the same site collection...that's a no go for publishing portal page transformation!";
+        public const string Error_InPlacePublishingPageDifferentWeb = "In-place publishing page transformation requires source and target to be the same Web.";
+        public const string Error_InPlacePublishingPageRequiresEnterpriseWiki = "In-place publishing page transformation is only supported for an Enterprise Wiki Web.";
+        public const string Error_InPlacePublishingPageRequiresWritableSitePages = "In-place publishing page transformation requires an existing Site Pages library with Add Items and Edit Items permissions.";
+        public const string Error_InPlacePublishingPageTargetExists = "In-place publishing page transformation cannot overwrite an existing target page.";
         public const string Error_CrossSiteTransferTargetsNonModernSite = "Page transformation for targeting non-modern sites is currently not supported.";
         public const string Error_GetVersionError = "Setting version stamp error";
         public const string Error_MissingSitePagesLibrary = "Site does not have a sitepages library and therefore this page can't be a client side page.";
