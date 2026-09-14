@@ -691,24 +691,24 @@ namespace PnP.Framework.Modernization.Functions
 
                 results.Add("ImageListId", pageHeaderImage.ListId.ToString());
                 results.Add("ImageUniqueId", pageHeaderImage.UniqueId.ToString());
+                results.Add("ImageHeight", "-1");
+                results.Add("ImageWidth", "-1");
 
-                if (pageHeaderImage.Properties.FieldValues.ContainsKey("vti_lastheight"))
+                if (pageHeaderImage.Properties.FieldValues.TryGetValue("vti_lastheight", out var heightValue))
                 {
-                    var height = pageHeaderImage.Properties.FieldValues["vti_lastheight"].ToString();
-                    if (string.IsNullOrEmpty(height) || height == "0")
+                    var height = heightValue?.ToString();
+                    if (!string.IsNullOrEmpty(height) && height != "0")
                     {
-                        height = "-1";
+                        results["ImageHeight"] = height;
                     }
-                    results.Add("ImageHeight", height);
                 }
-                if (pageHeaderImage.Properties.FieldValues.ContainsKey("vti_lastwidth"))
+                if (pageHeaderImage.Properties.FieldValues.TryGetValue("vti_lastwidth", out var widthValue))
                 {
-                    var width = pageHeaderImage.Properties.FieldValues["vti_lastwidth"].ToString();
-                    if (string.IsNullOrEmpty(width) || width == "0")
+                    var width = widthValue?.ToString();
+                    if (!string.IsNullOrEmpty(width) && width != "0")
                     {
-                        width = "-1";
+                        results["ImageWidth"] = width;
                     }
-                    results.Add("ImageWidth", width);
                 }
 
 
