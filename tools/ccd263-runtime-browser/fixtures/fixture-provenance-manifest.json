@@ -3,7 +3,7 @@
   "manifestKind": "aggregate",
   "synthetic": true,
   "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-  "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+  "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
   "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
   "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
   "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -15,7 +15,7 @@
       "caseId": "positive-exact-binding",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -29,13 +29,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "9802a898e6785ae191b0dc6701ba3b42e54d3f3031a5f2f687e3dcbc8a7e0fe6",
+      "recipeDigestSha256": "86dca94989fafb36a26a4979e7ccabc398c083ad29fb826320fc6eea0b6636ac",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "07517081dfdd0223ba20072df68eda1e239b8c3e50dfb02e8290ab3a2a78f0a7"
+      "generatedInputDigestSha256": "3c79bb36ab6ef91566ede18e8aac928ad3f1071f53a044375c6dadea3bf0e054"
     },
     {
       "file": "02-stale-binding.json",
@@ -43,7 +43,7 @@
       "caseId": "stale-binding",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -57,13 +57,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "efe0f2515d8c6812c5fbdc252ba5c49119c414020e00e0bb541ce94fa9c9665d",
+      "recipeDigestSha256": "10a97db03a8fc2f42bc414b803ce7e72a11795964f4cb893d87d798670544409",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "9b5600a4292e1f4d2dfcda76d2824456a5c59379fa453b4fdb7a3fa0ad47bded"
+      "generatedInputDigestSha256": "8b48cf52a16081e9254b3561b62bdfc4c0a947659f5a5accb8775f0f66d3e169"
     },
     {
       "file": "03-stale-source-version.json",
@@ -71,7 +71,7 @@
       "caseId": "stale-source-version",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -85,13 +85,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "b834d80a80ae02081e61923a891a275e1d64093484af88bb4c4119b2c6c96679",
+      "recipeDigestSha256": "d02941c05b51264147b8b25e0ad4e4966c8652636f48f036ca47f5c60f32a0bd",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "4428aca0a1d79cf3f381358a317e0ac8e3989dd948a28196a075f2d19013165d"
+      "generatedInputDigestSha256": "5167585743742a129c00c73b20a7d0629bce3e88d480726598421bc277cf5893"
     },
     {
       "file": "04-wrong-admitted-plan.json",
@@ -99,7 +99,7 @@
       "caseId": "wrong-admitted-plan",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -113,13 +113,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "87455b6a5600d1bbe14d5c77e5079e342da9b6f5c0a74ee426cfd064f1b6f51a",
+      "recipeDigestSha256": "09140306c8ae6e02b26c4cda2e90cfdc1eb2602366041818d3e144c9036505b9",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "7df21ab0f0f5875aeffc37fde7842d1467a5181c65667e9111ff2c5bd5b66316"
+      "generatedInputDigestSha256": "32830afe13aa5a43c2dd1f825d1ea6a0359300f9a154446add8fe1d2a94a83b2"
     },
     {
       "file": "05-wrong-import-receipt.json",
@@ -127,7 +127,7 @@
       "caseId": "wrong-import-receipt",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -141,13 +141,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "8092b79109325051f551b4f41ae4fe52dc17ae484e658f5fff7ace150a71a235",
+      "recipeDigestSha256": "41710d4dc356c2aaabf2574fe8e9aca064440be682b49d6c16c52b81eb6703f4",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "f02a7a2700a7c445bb4a7eda53a4081a286f5ea2987f4eb9387e91ee5438734d"
+      "generatedInputDigestSha256": "d521182de3e9cddbb5098df51d17a9369079fb4d5a9e2d454f41afcdbe050b1a"
     },
     {
       "file": "06-wrong-operation.json",
@@ -155,7 +155,7 @@
       "caseId": "wrong-operation",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -169,13 +169,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "1d4bd53e596a9773d0bb0f8b2fd69fe87757a6ac5226eef90a7b667bbd5035d8",
+      "recipeDigestSha256": "59ca63579ad9d6c61aee495f8d5f3d036f3eefed5bbe31c35f2b07d4303b9d51",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "44d6225f91f5afbde3a9b045463fa3067549e04f073506ee66d849149535179e"
+      "generatedInputDigestSha256": "2489ad706db1f710860f423d6d737c0971c830b1ce6b6ac5cbab7f6247887770"
     },
     {
       "file": "07-wrong-target.json",
@@ -183,7 +183,7 @@
       "caseId": "wrong-target",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -197,13 +197,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "ea8fc63063caf45a774fb603063c59deb6b03b5a46b9090d4a078345d7d24dc0",
+      "recipeDigestSha256": "757b570cbc70d9a8dbe0720c8b1bddae2db17ad5fde4f4fa5681469d1658210a",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "0c43f1edbffe0c184004c6b1c6332f2488eedca95e59d62c6c07a69a5d40f357"
+      "generatedInputDigestSha256": "b92c5d2e78c60c17a1567c8ba244958446d1e003a6f1348afd108189b72cccc0"
     },
     {
       "file": "08-url-mismatch.json",
@@ -211,7 +211,7 @@
       "caseId": "requested-final-url-mismatch",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -225,13 +225,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "08f4dd3f57d85fb02f10930400289b8c3193011f305e14b16019737a650be005",
+      "recipeDigestSha256": "79c80e46462f3eadcea22ea1a02435a986e5630fdfd66c2f9a56e51c64aa67b8",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "805b5a29931ee06d029832324c2daad09e9978d9f48a60effaefb0ee5916a554"
+      "generatedInputDigestSha256": "f3d9a0d3645f538b33bfc7db33da5cb1d92235c4023a983fba8fb94610815fbc"
     },
     {
       "file": "09-cache-failure.json",
@@ -239,7 +239,7 @@
       "caseId": "cache-no-store-failure",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -253,13 +253,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "a525140cd002b8ecf8abdebc15de04ce5ba1a81f35aad3ad3fc7c8f739745c05",
+      "recipeDigestSha256": "1d6d0a9855bc2dd62cd0ec2d76ebbb405b9aa8cd68a1771f77ef2a47e13bfa89",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "984ef9395188bd87b17b0e166039e36de8970fa3a55b05a71b076db69b9ba1ae"
+      "generatedInputDigestSha256": "e0ed15623fa7a46cf2d1507bef5ccffe4a0d72c030a38da9f1ffd5a7d78d33f0"
     },
     {
       "file": "10-service-worker-failure.json",
@@ -267,7 +267,7 @@
       "caseId": "service-worker-failure",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -281,13 +281,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "2d8eade4efff8b248653cb80dd52bad408a47f367487182f35cce47c7c5d5756",
+      "recipeDigestSha256": "43bcfc5e0333f7f941ee20f9d79a072e2146dc0046a9fd33fa0070aaadfe8548",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "0bcd6e428afd28b1315e40648c3bab747eba11be0824163913a9f73ceac29cf5"
+      "generatedInputDigestSha256": "d6428e9c918e86b36a0d72e9080f9f29197618bf107aa25c2dd50f1ff66eddda"
     },
     {
       "file": "11-fresh-context-failure.json",
@@ -295,7 +295,7 @@
       "caseId": "fresh-context-failure",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -309,13 +309,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "609c4d43fb4c29b36a6506ad081f0649d4d6f2ec1be67baa8afa27fd8f3412c7",
+      "recipeDigestSha256": "0d3cfc156f17399dba6c91a9aab87a46b0467e800cc9d9823ab4afce1a881481",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "be0c96ed57820798e3c6724dcd6561bfb9c783426a3380e59da7b0b3d582f852"
+      "generatedInputDigestSha256": "fe52c4c013d7b022140639fc7fb38f14d983072b5b52fbcd478cffda82eba5a2"
     },
     {
       "file": "12-altered-html.json",
@@ -323,7 +323,7 @@
       "caseId": "altered-html-bytes",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -337,13 +337,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "ce9ef085eec16d7b299d77a354cd9c6471022a2054c962703efc1e0dc8813842",
+      "recipeDigestSha256": "3035c5b63822cf578284199f303b7c63c7634a3f14a30da288be1c4e78500747",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "127dd0243ced86fc41c27def0856f4a08034c3e872824e691f7ac43aace07286"
+      "generatedInputDigestSha256": "6d1719aa16204d945bcf5791945c3e29e7538d4c1ae6909e06b730bb8468101a"
     },
     {
       "file": "13-altered-dom.json",
@@ -351,7 +351,7 @@
       "caseId": "altered-dom-bytes",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -365,13 +365,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "d086870e59d0cdc35898b93133521b509cf311c166218f8be5b8c2156bfb16f0",
+      "recipeDigestSha256": "993df623811739655c973e50fc1f46b210d38d97b607d9b523b640db2304e134",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "d17480d311029a7e3bfab06565df2d3f26d3da6065f321e18aef21b7b796c674"
+      "generatedInputDigestSha256": "31aed41c405dd3f815db700f2428a86f44d85166d142b8e9ab7785731d6effaf"
     },
     {
       "file": "14-altered-screenshot.json",
@@ -379,7 +379,7 @@
       "caseId": "altered-screenshot-bytes",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -393,13 +393,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "3a0f14dc6c5e7861ec931e851fd43e0fd5cc7a22ce5ae5862bac2d409ffc1440",
+      "recipeDigestSha256": "5ec9184e4283370692dad5df725078bb2084f1a6a2d279583943a835716a2785",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "772a1a5f0cb6a2fdc512c791e47ac20f37abb33ab69fe26dd6db34e98dd79d67"
+      "generatedInputDigestSha256": "57d6bd243cfd3fccc6e1354169dfa5ca517d33d3d70667afcd3ce7f78874a2a7"
     },
     {
       "file": "15-semantic-detector-positive-failure.json",
@@ -407,7 +407,7 @@
       "caseId": "semantic-detector-positive-failure",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -421,13 +421,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "4b74529b9b51fc9520c472c051ecdeb8156c859c3351432b387946ca64f14e0b",
+      "recipeDigestSha256": "ba6474ecf2ba282030a387209b047c2fb7cc56b93e48b29907dac5719cc59a19",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "12b76ad335d2448440e8923028821e3cca196b289a2987ef67715bbcc82caa7c"
+      "generatedInputDigestSha256": "1c90c21af00bea7e3a9877e2c1ba8e49962eb7237f08cd037bc14c45d017085e"
     },
     {
       "file": "16-access-denied-terminal.json",
@@ -435,7 +435,7 @@
       "caseId": "access-denied-terminal",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -449,13 +449,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "7c8f2cd1c7f00e2d2e1b9d799208eaa6e7c54fe46b618aeafa5eb3160f528fa0",
+      "recipeDigestSha256": "e21a2524fbc265532eb0d8c498df20821eadaa844e9c5e0aacc3930d53ef4d83",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "3729546a506b7604582fe94835e62906715e8d18c8463c4fe81eae5ee8142cca"
+      "generatedInputDigestSha256": "a93dde1ac6b2a44bddbc3826992a6f7996fd5b0cbb24e8d1f28fe86b04b52f6b"
     },
     {
       "file": "17-transport-unavailable-terminal.json",
@@ -463,7 +463,7 @@
       "caseId": "transport-unavailable-terminal",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -477,13 +477,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "827f7a7dfa15ef0d0e9eb90f281aef070940db0056df256a42427ba0f519184f",
+      "recipeDigestSha256": "76c2909debaee8ab116b1eefd43a2dc33769f1be75c286e999b30621c706ce90",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "a56b35f412743dc2baeabfe986c12e57770c3de51754c505a403b1e6f4959458"
+      "generatedInputDigestSha256": "0da1c53f683343be4534b52becfbb211e3d592a9e114ac63733b020e4c43c0e0"
     },
     {
       "file": "18-semantic-detector-terminal.json",
@@ -491,7 +491,7 @@
       "caseId": "semantic-detector-terminal",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -505,13 +505,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "c0e614fc7fff7dd99673c67cf79119971267b148a23e9b0347981f92d176cf86",
+      "recipeDigestSha256": "b9d320733b9a94bc6bfacb53101d87737493ffaf0525d25f636cb29e7fb6fa94",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "dbd7b7929dd7a6e13149fd6dee00f534c3a1fd4e3a8ce8268a88a8dcfeb84f1c"
+      "generatedInputDigestSha256": "3ae34aa0eed37a5cce452c0c07c2553d715180df0825b1c3fd91a2bd35021064"
     },
     {
       "file": "19-missing-request-id-explicit.json",
@@ -519,7 +519,7 @@
       "caseId": "missing-request-id-explicit",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -533,13 +533,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "0e1b4163ffed6eb2265189a75621fd7c653d71af34ad01609c97e6019439cb0b",
+      "recipeDigestSha256": "56a3b89d0296266fad0ebee213ec52b3af2bdd656bd363e699d1e16006be372f",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "8754e0c1b2cd4f7fb986e2339f04b15b280cc7f557d959ad019bfe1227d94ed9"
+      "generatedInputDigestSha256": "ea16f02fa148bb74111cdbb7203f5aa2cb04ca8f1b6331ed9fe03bfbd76eb729"
     },
     {
       "file": "20-missing-request-id-no-reason.json",
@@ -547,7 +547,7 @@
       "caseId": "missing-request-id-no-reason",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -561,13 +561,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "c43a695534694f04c8fb367226d0070472119d05bd829842548e516a73b0b557",
+      "recipeDigestSha256": "a22c4c93873be994f566c66a9813d47c91d81de82a4e7dcdf44b1b1d14e5cf6c",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "60cc07ac9162ec490063e777ab6b3da97dab5ab7c9d7c1a5b572e61d67e422a7"
+      "generatedInputDigestSha256": "0a29462c6037a6ee5e7c0fcba3c7fe61a588d4cce68540ad2ed23c71b962e9ab"
     },
     {
       "file": "21-unknown-schema.json",
@@ -575,7 +575,7 @@
       "caseId": "unknown-schema",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -589,13 +589,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "62e4c5dabe02132d5c7fd32bfb35be493c081cf8357108d286e466defe2cdc3a",
+      "recipeDigestSha256": "2009a72589fd4339a7a6df278c298a3631201717832fda41a4b51d970e889824",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "de1ea1be02aa8b68fcf0590da6ee6a11772a28031f28cd0471be44c22f575847"
+      "generatedInputDigestSha256": "39e960718df7fd99f986479229156ab88d20f5a8cb4610d8b33475ac30122aba"
     },
     {
       "file": "22-unknown-profile.json",
@@ -603,7 +603,7 @@
       "caseId": "unknown-profile",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -617,13 +617,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "94f5b2ec1ca5ed9f608fd271e5931794e0c1613095401d30613f601ff6b8a19c",
+      "recipeDigestSha256": "bc90748c62935380f3cbf4e9291206d62dbe9170ae11cced68909f31f2807165",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "56fd0eff54ed6a6e2ad20e28f9c9e1b75f0df37b86452f971b4c9124d557924a"
+      "generatedInputDigestSha256": "3f19d19a15899d6e1435705241efa74de649e0d5eae5fba12a03de97aaa07359"
     },
     {
       "file": "23-native-authority-field.json",
@@ -631,7 +631,7 @@
       "caseId": "native-authority-field",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -645,13 +645,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "ad159da8fefaa5748c4cffa64988cc69bd56008e1910e31874fe106542566478",
+      "recipeDigestSha256": "b5519fb078de860686aeccd54f68c4208338ba83c72141ba57a56a6428172e24",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "5b92be2dcd4caef57f6b193167e68ee6c6cb9e4d00fe1e44aa78bf513386151d"
+      "generatedInputDigestSha256": "60723db3d589997b6b02e957c064da6871a9034cacfb6940d7284e9d4d674bf4"
     },
     {
       "file": "24-too-many-attempts.json",
@@ -659,7 +659,7 @@
       "caseId": "too-many-attempts",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -673,13 +673,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "3653b761191857ab5662fe5a4e7d1d0654d97e43fd7c0d432a675b858493e657",
+      "recipeDigestSha256": "8d583112d88282f837ce9f5c566b218791f0ea40be54ce507fc00ecb7fef810f",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "9efe30f8de616fc907307c9b676043ec4fd7b757e53894b60feda8233f020623"
+      "generatedInputDigestSha256": "0eae158f6d4807c1d80e364a1fe920ee82752e4bf0f8d6a3b9747caa4ab7cd15"
     },
     {
       "file": "25-output-alias-binding.json",
@@ -687,7 +687,7 @@
       "caseId": "output-alias-binding",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -701,13 +701,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "177ea6237bba3b4ba0d8720bb8a2eb2f4926ec8879ef45e3956103ac6ab73ac4",
+      "recipeDigestSha256": "103ab8470ae5e1dae9ecf17b992365a33042f9e40ced43529b29cfdb81c219f0",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "46af5eb2aa83e60c631a5ebbb20c960158bc77edf882cc23d7f8135345e19ecb"
+      "generatedInputDigestSha256": "72df3995fd93ac8db6bd7b2a78ec010988b4ce762da3f8fd54afa26c445890fd"
     },
     {
       "file": "26-output-alias-artifact.json",
@@ -715,7 +715,7 @@
       "caseId": "output-alias-artifact",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -729,13 +729,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "69413176774cd6b4d466d2060d52eef07fb5d89473c98bc670c2fe4bec350d64",
+      "recipeDigestSha256": "30a0a5914363871c459ee81efd40efbb23f3265abc85c245dd3abd17c078c29b",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "27d373b4bf711d10f48e956adcc8a011d8e4800534538aba41795e0715a49a2e"
+      "generatedInputDigestSha256": "09088fb647b80e402611ac604c150768baa8733595966a8df66fc5d95937a433"
     },
     {
       "file": "27-output-inside-artifact-store.json",
@@ -743,7 +743,7 @@
       "caseId": "output-inside-artifact-store",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -757,13 +757,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "42bdfa408b2e9096b7f42df0a71599d5ffd3066cd4aa862941d8a74480754941",
+      "recipeDigestSha256": "8efb6eec105b578ded3f9a654bf4d680b315368aec658d0fcb6e287237ae5579",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "9c6835cbd8ce4effd2b91bd01f4052ef0085732100bf79bc54fed1d43d49c391"
+      "generatedInputDigestSha256": "33b8ac2e721ae062e2e46125f570a6194f2322ae6a90efadffac8e19956ff958"
     },
     {
       "file": "28-missing-admitted-plan-digest.json",
@@ -771,7 +771,7 @@
       "caseId": "missing-admitted-plan-digest",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -785,13 +785,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "45f2852d12f27cd682c934a76c4221922632c4f60639c33f83ff58dcd4c67dca",
+      "recipeDigestSha256": "23702f34a171cdef7330dece4294e7eb70266c246b2023bf48f08151ff4885f9",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "94d3144355a80f1976e68a9ea754c3bf4235fb01bb0843d7871ff15c05c6fcb6"
+      "generatedInputDigestSha256": "dcfb40212a8d6cde0153068e7bfc2ccbe20cf52869238f8ca2df7643ba0d9b8e"
     },
     {
       "file": "29-missing-snapshot-digest.json",
@@ -799,7 +799,7 @@
       "caseId": "missing-snapshot-digest",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -813,13 +813,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "b5df15b4f12afde2c34366481aceeba7fa8c22873beb4751227cef9d10ba0a66",
+      "recipeDigestSha256": "c697c79ca4ddee46e7549cb6b088bc06be78ec2c51cbda6320f14f004f663b58",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "931226147f2d7af7971a0cd98ac6bdc62d65e2d3c94c9ec77e27b5aaeab3ec60"
+      "generatedInputDigestSha256": "895176df527b0b9ffb61ad6e9c6a483a623e19289ba08b3a8ce779612b59a9c2"
     },
     {
       "file": "30-unsupported-policy-terminal.json",
@@ -827,7 +827,7 @@
       "caseId": "unsupported-policy-terminal",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -841,13 +841,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "649085688c6d4deee927d1490d99463f09f6789e52f60fd9fdd1a2b3c59542fb",
+      "recipeDigestSha256": "77be35822e62f990974af94a68dfea22d7710ed438c707cf3097b9ff58255e4d",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "673bb07f1047211261eff8341353d9b8150774c1bbad7a7ebd0945bb4f4ba967"
+      "generatedInputDigestSha256": "a857578c7a8dda4a27d63b2a8018e866a7c9606f25600ec8521c692566925df4"
     },
     {
       "file": "31-access-denied-401-terminal.json",
@@ -855,7 +855,7 @@
       "caseId": "access-denied-401-terminal",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -869,13 +869,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "cf350684436d6e974b4476d581cb3f1a5ed181990641241e6c96b06298cdf208",
+      "recipeDigestSha256": "46b022ac02658adf437f806ecc5d0271c6181bed18bb0604d8c75a935b36d6ec",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "0d568b77302ab604dd563f47c8a81401d63f26cc1c423ef52fcf6549052e54eb"
+      "generatedInputDigestSha256": "2d91170c1d69ef78f463d8167edda9881ad34a605a3a2ea961d3389db4b8411b"
     },
     {
       "file": "32-access-denied-200-body-terminal.json",
@@ -883,7 +883,7 @@
       "caseId": "access-denied-200-body-terminal",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -897,13 +897,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "c2950a1175932379f6e750d7a34e09a647261000110b18b130393a27cc2b6c36",
+      "recipeDigestSha256": "9d10c5caeab70fd0cf24b0115814ed441cfb4390588ead799aff11eb8efee38c",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "c849212a6fdedd9c23d31089637e5e9c5b6e53c332945d89ce6309e036df983f"
+      "generatedInputDigestSha256": "4200e57ad4fb7a514d20e715757bfeecfee5822d714fb09eb28c3d7976b8122a"
     },
     {
       "file": "33-admitted-plan-source-lineage.json",
@@ -911,7 +911,7 @@
       "caseId": "admitted-plan-source-lineage",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -925,13 +925,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "e5032ce76f59bac8fe74c9227a026712312c8a7912eb688ccdfa275e5a342a36",
+      "recipeDigestSha256": "ed73599d904763b7d7775e84c8872b969e2bd08f972206ccdc8ecb46b4dfb85d",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "8ac745f4776004c23fb8666c47e08e66d6855f83fee0cac001b5269897abd44e"
+      "generatedInputDigestSha256": "fec4102ee6b62a8bfa1710743428f6c4f24257b630fb34d6119c4b6318709515"
     },
     {
       "file": "34-output-alias-request.json",
@@ -939,7 +939,7 @@
       "caseId": "output-alias-request",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -953,13 +953,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "da3d6be754ad2a004f0b22f5785c2ecb5a31180e669fdb5762836cb01ba71256",
+      "recipeDigestSha256": "b63d7a8eee6a52c1de26c898e29b73b1e114ac6124968c2f8371a3b4141d73fe",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "fe5df6cc5c98daee9e8127eec45a73e5ba1c0a035838807f428cabae67c66526"
+      "generatedInputDigestSha256": "8609ae9e19416417ab1fe7a7a4c065ef3e964318e980f173dac6e1b13bb255d7"
     },
     {
       "file": "35-missing-admitted-plan-file.json",
@@ -967,7 +967,7 @@
       "caseId": "missing-admitted-plan-file",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -981,13 +981,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "fd3ebdb06c2cde9ad8b013ba3e29cbcf1f278b589f29c4d1fb451d1422c0c4f9",
+      "recipeDigestSha256": "86dafac1fd964f46f870510e5940e9f7dfb9000cd2a0fad7152f5c652f05223d",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "087ed57614553794ddb3d8b8533cd9f1cb508a9f748eeea7a3c07d67a6e1d33e"
+      "generatedInputDigestSha256": "e9eb2485acfdb06251b3a3e304fcc65b9a2a7b28e14777f1e857874cd3b9f8b3"
     },
     {
       "file": "36-output-alias-admitted-plan.json",
@@ -995,7 +995,7 @@
       "caseId": "output-alias-admitted-plan",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1009,13 +1009,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "70f4afd01284082f53ec014af9344eae389900ddf837fcc6a42d8d6c0bf0d1d7",
+      "recipeDigestSha256": "06eacc373f504aa7d1556a20a422a2cee90bed13e92cce5bd47adddcb3af0507",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "8f536a7b716acad4a1ed953f582d792a52bd566d3940652fa9db1e33bbea0ff1"
+      "generatedInputDigestSha256": "3f88460fbb3f0caac0a4327b524ad849587f390c5663eb231844344fcdd4a66e"
     },
     {
       "file": "37-foreign-snapshot-digest.json",
@@ -1023,7 +1023,7 @@
       "caseId": "foreign-snapshot-digest",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1037,13 +1037,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "01d1585ecfad6a0151e7609c1bc71f1942a733f7c1b902235a6939b165a39f81",
+      "recipeDigestSha256": "5580abea6385587346d69fb291884bb4057f6d70f26e0a90d4ae1f291ae2c507",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "68b5444e1225c72d196129d9f79408fd7d02d5919b9efc376a5d3484cec68dce"
+      "generatedInputDigestSha256": "da74af223a65c50e91cfe07b6c9d86bb6f8bed0f760e4cf168d9d995510ad758"
     },
     {
       "file": "38-missing-origin-package.json",
@@ -1051,7 +1051,7 @@
       "caseId": "missing-origin-package",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1065,13 +1065,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "7992ac4f202abe12441a299de6262c5a579e2926e0eedd8af81a6412937266e9",
+      "recipeDigestSha256": "83d1c39ef6a3ae99100ffba64bcdece6eff80b5b0446ecf9068ebfa7080915e3",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "ad8135a584156367eb95051923989c6d68c4fa15288a8dc8362ff223e0bde434"
+      "generatedInputDigestSha256": "b98528d2ef09d7aecd1be8b2351c28b2c8a4721756b399059cffbe67bbafda6d"
     },
     {
       "file": "39-foreign-origin-package.json",
@@ -1079,7 +1079,7 @@
       "caseId": "foreign-origin-package",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1093,13 +1093,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "b68b53142b0fba9e38b335838f86b97425f3172852f2ddcfe1c7d6539dacd40a",
+      "recipeDigestSha256": "d92747f9238f8ffd378880d97f5f7dcf2012d14159cb3003336018429ce2d704",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "1deeaa98bf05e9669dea4f53b670594f5e318f674c8abf7296a4487a763eaa11"
+      "generatedInputDigestSha256": "c2d8886ebe2be1450d98af7dd3e8e2cf5b22bf8d8404d05d03a525fe24f4f92e"
     },
     {
       "file": "40-foreign-source-file.json",
@@ -1107,7 +1107,7 @@
       "caseId": "foreign-source-file",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1121,13 +1121,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "bcefe0af073bf9a84d2ea6e3ca4772cd0168e92d4fdc358968a01e6765c70d03",
+      "recipeDigestSha256": "7a6055c3c5d2d9a4a3a4c0c17ad3ebc56e64d180afded713600a6fb271c1e0d0",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "ea098a1508a8d9d6366cab2de8617818054daa851ca1561b65fa5fbbd1a1ffb7"
+      "generatedInputDigestSha256": "e04639014824e6678977ed455ea47259b6af82df8063311bea8e3c05e7bf3fb3"
     },
     {
       "file": "41-missing-subject.json",
@@ -1135,7 +1135,7 @@
       "caseId": "missing-subject",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1149,13 +1149,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "b5ddf89312bb458e01b6327f706b7a2eac20ca5e96d159ecf3e1797a3e6e07d3",
+      "recipeDigestSha256": "68e2c1fe1c4c99065b406da7a7a95085519c4208bfd33391b4e3b28e32429d0e",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "571a32778d42c148ae42131e2c4d025ce24e350120b4b271dffe1bba1917f58d"
+      "generatedInputDigestSha256": "ebcd53a8acf074445e5d04a9222c278ca55918764083dc2fcb6685c9e81918a5"
     },
     {
       "file": "42-foreign-subject.json",
@@ -1163,7 +1163,7 @@
       "caseId": "foreign-subject",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1177,13 +1177,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "d186994eeeed30c989e01eed20a56380773f716df2e412bf79e1a61eebd91ca1",
+      "recipeDigestSha256": "731995b460014286b88bd64a5a568d93c617ed59dbba1d213ae1ed6bc890fd65",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "ac169c32fcff5c7ecf6af5a535624c5613eceace7229353a8ab38157622eb954"
+      "generatedInputDigestSha256": "eacdbd117d3d3f8f1484c97b8ccfd9d7a98b5b5c6a7fe4ff7e493cff26ef14de"
     },
     {
       "file": "43-foreign-primary-owner.json",
@@ -1191,7 +1191,7 @@
       "caseId": "foreign-primary-owner",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1205,13 +1205,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "49822fafdc411bc93b8a208e4c9440ca474bdfdaba5a851e558e2d10776e44b5",
+      "recipeDigestSha256": "1a5585736733e14eed9dfbc43607a6ba13639b60edcd723d446912739cbda4fa",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "a28490109fe81e1ac49e944ed4ef6e53f2c5aa05ec88a47dff2fcd58ea294df2"
+      "generatedInputDigestSha256": "6856554285db5f19e9e7cd915511913d480d012a2632631399865250698972f5"
     },
     {
       "file": "44-source-version-label.json",
@@ -1219,7 +1219,7 @@
       "caseId": "source-version-label",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1233,13 +1233,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "22879e2cc93fc3f74309dff54d71b84f489b5d8d069a6394ce78c63e062738eb",
+      "recipeDigestSha256": "f1fcbc2d049cd4428d067a89101d05b706bf4cbeab5b78abdbb44039551dd8ae",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "1b41b0244ab295225dc478e4d4d995c08b93f25d72213c5108457b648fab0b76"
+      "generatedInputDigestSha256": "9ef4a83120005977055ebe3abf902e6e9b1dccef1425dca9fe0afe539b013207"
     },
     {
       "file": "45-foreign-source-list.json",
@@ -1247,7 +1247,7 @@
       "caseId": "foreign-source-list",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1261,13 +1261,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "fe95e9493b5dbea5d2bb56d4228cb72eba6c8b7a06cdccec80000e469bcb0e93",
+      "recipeDigestSha256": "3613f79dc362fe1a7e00385a4cf608f34381b6d5547e2126894eda035f850f92",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "b3b13cddc0babde0536adf3799d4de0a511e5ca7477d100a1c43ac229b3456b7"
+      "generatedInputDigestSha256": "dbd409e41ccf926eda1eccfd05cf1ab7129b87e5e63ac43f8db38738ea575ced"
     },
     {
       "file": "46-manifest-without-screenshot.json",
@@ -1275,7 +1275,7 @@
       "caseId": "manifest-without-screenshot",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1289,13 +1289,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "01083168239235ad31849c3c750c904cad20366635e044339a89a67e1651626c",
+      "recipeDigestSha256": "d284affc1b86438721a973fd7eb14855a9f36ba5936f355615af9843e4aed926",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "e410143b3f832d863bf4e08e4160e30bcbc56111712eb9fa75072dd1eb7ba49a"
+      "generatedInputDigestSha256": "93f681f15bb6f7ed763154bf4ad94ede742b5391a07b42f3f3ee6b815e1f569e"
     },
     {
       "file": "47-manifest-optional-requirement.json",
@@ -1303,7 +1303,7 @@
       "caseId": "manifest-optional-requirement",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1317,13 +1317,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "d77642881f983c7b625ec179fb73577d16d877736d2bf7db17f35ed0265636f9",
+      "recipeDigestSha256": "7db87fd3ae3f15b2aca7452ad3ace3e7025a1be90b3417267de5ca1e37b6d3e9",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "ab2dd0ffe46c0e5a89afb7f794e5b6c4f27519cba25703fe55cbee3a78130d9b"
+      "generatedInputDigestSha256": "7091b20af088896b4917e7871607bce102c43088596ddd0613682fad8f28e5b3"
     },
     {
       "file": "48-manifest-reordered.json",
@@ -1331,7 +1331,7 @@
       "caseId": "manifest-reordered",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1345,13 +1345,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "762788c6fb9da05633ecac0c0906be9565c919fec882a6803d8d895189ab99dc",
+      "recipeDigestSha256": "0569cce3cf38cd607c96a8bd2695dde8d7369c22fb4face6329f03e67e6ff758",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "77986025fc4f22119fcba83f34abeab2dd4fbf5378cc963e46cf41dfeb007e79"
+      "generatedInputDigestSha256": "ef03df1b199c800fae5b5942c674c38c7607cbbd317fccc174b4b472280845c9"
     },
     {
       "file": "49-manifest-altered-requirement.json",
@@ -1359,7 +1359,7 @@
       "caseId": "manifest-altered-requirement",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1373,13 +1373,13 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "d217ce5c1f7548b65f3b4692cfbcb394af3d9286a95993b6990e9cd54ad29368",
+      "recipeDigestSha256": "36de333ee9e81815f834324d25fb690d8d3c18efc2845ae924d007243a234794",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "91b7040dd28b2ddb77822071d894b593daa26894388e75ff57110e78bb7c82bf"
+      "generatedInputDigestSha256": "76f936228c971abf55cb489f54f0e8a394711bc4f0aaf314f9e4a888c055969f"
     },
     {
       "file": "50-manifest-screenshot-only-denial.json",
@@ -1387,7 +1387,7 @@
       "caseId": "manifest-screenshot-only-denial",
       "synthetic": true,
       "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
-      "sourceIdentity": "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
       "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
       "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
       "contractRevision": "pnp-external-page-runtime-evidence/v1",
@@ -1401,13 +1401,125 @@
       "inputArtifacts": [
         {
           "path": "fixture-input.json",
-          "sha256": "9adf2b736edb4264d8793384537f7a08c2f2882b9e1300c7f2404a7650457ab2",
-          "length": 635
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
         }
       ],
-      "recipeDigestSha256": "5a765d89e2062e679e703af310351e2bafa8aed8e3d6abc1bab3afed75752b73",
+      "recipeDigestSha256": "c8b23b36cc792dfb64f206d59e6f2250f127baf4a3d36bc0c19dcefe851587f4",
       "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
-      "generatedInputDigestSha256": "34c4285308502f26aaff2436920758a67aae9116945487831647a1f03d36be13"
+      "generatedInputDigestSha256": "9e1a3c07de94767a09930e5d40b0444b33cbd04d105eda73924d168cff055a20"
+    },
+    {
+      "file": "51-foreign-source-site.json",
+      "fixtureSchemaVersion": "ccd263-conformance-fixture/v1",
+      "caseId": "foreign-source-site",
+      "synthetic": true,
+      "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
+      "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
+      "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
+      "contractRevision": "pnp-external-page-runtime-evidence/v1",
+      "transformRecipe": "mode:positive;mutation:foreign-source-site",
+      "transformRecipeDigest": "396e88b9afe0bf1d3b6abb29da5922c912f2709fd5e9701265fcdf3bb4bcb7cd",
+      "expected": {
+        "success": false,
+        "resultKind": null,
+        "diagnostic": "claim_source_site_web_list_item_file_path_mismatch"
+      },
+      "inputArtifacts": [
+        {
+          "path": "fixture-input.json",
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
+        }
+      ],
+      "recipeDigestSha256": "c36f214d26afed7244271c734901e21b1a72f1663f0f934f288ccb49e878504e",
+      "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
+      "generatedInputDigestSha256": "1036b248bd93f6d17e45049f53e9b24afea1179a7c2b4fea155681ac9e524b49"
+    },
+    {
+      "file": "52-foreign-source-web.json",
+      "fixtureSchemaVersion": "ccd263-conformance-fixture/v1",
+      "caseId": "foreign-source-web",
+      "synthetic": true,
+      "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
+      "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
+      "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
+      "contractRevision": "pnp-external-page-runtime-evidence/v1",
+      "transformRecipe": "mode:positive;mutation:foreign-source-web",
+      "transformRecipeDigest": "b8f321b2031344047de84b16bda798a513ed89b889b4f7a320e30c5c99c00a04",
+      "expected": {
+        "success": false,
+        "resultKind": null,
+        "diagnostic": "claim_source_site_web_list_item_file_path_mismatch"
+      },
+      "inputArtifacts": [
+        {
+          "path": "fixture-input.json",
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
+        }
+      ],
+      "recipeDigestSha256": "fc486bad498f7b4395d9524bc739ded434ceed42cafa0abf586d9178d7f22b5b",
+      "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
+      "generatedInputDigestSha256": "ddd8288156add83cf2162f73f5ccbee5f80e055ebf5969b8baa77e5e57221113"
+    },
+    {
+      "file": "53-foreign-source-path.json",
+      "fixtureSchemaVersion": "ccd263-conformance-fixture/v1",
+      "caseId": "foreign-source-path",
+      "synthetic": true,
+      "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
+      "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
+      "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
+      "contractRevision": "pnp-external-page-runtime-evidence/v1",
+      "transformRecipe": "mode:positive;mutation:foreign-source-path",
+      "transformRecipeDigest": "823bf083609abdc773d3e4a23c3143a4bdd15d8fb4b4b92b5381dff6ad62595c",
+      "expected": {
+        "success": false,
+        "resultKind": null,
+        "diagnostic": "claim_source_site_web_list_item_file_path_mismatch"
+      },
+      "inputArtifacts": [
+        {
+          "path": "fixture-input.json",
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
+        }
+      ],
+      "recipeDigestSha256": "f3cb1d530f4e2405c7cdbab2962ecf5655ad3fa240f057bcd58f5c6849397bbe",
+      "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
+      "generatedInputDigestSha256": "b54384d5ba809791d845831857dc485428255f8acb20f6d2f627a535ff78085a"
+    },
+    {
+      "file": "54-foreign-source-identity-digest.json",
+      "fixtureSchemaVersion": "ccd263-conformance-fixture/v1",
+      "caseId": "foreign-source-identity-digest",
+      "synthetic": true,
+      "originEvidencePackageDigest": "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283",
+      "sourceIdentity": "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx",
+      "sourceVersionDigest": "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
+      "claimId": "d0a831ec152233e675736e599fb92c04d7a73f7de6402ed50b59b98129d94f53",
+      "contractRevision": "pnp-external-page-runtime-evidence/v1",
+      "transformRecipe": "mode:positive;mutation:foreign-source-identity-digest",
+      "transformRecipeDigest": "7c15719f74b348cc0b740d14bca9034993c63259ae7b4c5c8fe8c889d465cbae",
+      "expected": {
+        "success": false,
+        "resultKind": null,
+        "diagnostic": "claim_source_identity_digest_mismatch"
+      },
+      "inputArtifacts": [
+        {
+          "path": "fixture-input.json",
+          "sha256": "d2e721e409ab352ceaaaac7127e6495a73f1183cfb6686b648af16ac0a625777",
+          "length": 674
+        }
+      ],
+      "recipeDigestSha256": "cc562d88fb3d3d6a23382203adf5de44456c123d2372970ec9038d8118adae3f",
+      "originDigestSha256": "a584be1916917f34e7d8d761a33e0bd6d63b5b694edb365a797b1489f8cbfe2e",
+      "generatedInputDigestSha256": "0c66762fac2f2be7e7a3b4ee483f308c2fdd906f112d8fa90eea23c092cd096f"
     }
   ]
 }

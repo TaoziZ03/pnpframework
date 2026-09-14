@@ -221,7 +221,7 @@ static class FixtureContract
     public const string SharedContractCommit = "93451dc5188cdf8e495102456d4195fdbb62c6c9";
     public const string OriginEvidencePackageDigest = "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283";
     public const string SourceVersionDigest = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5";
-    public const string SourceIdentity = "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx";
+    public const string SourceIdentity = "site:c37b3679-4601-4a1d-a0f8-c8ed3ee477f2/web:041e70b3-0d2d-4040-91a3-1f57c3b9df53/list:3fed0145-2216-40a0-a29c-56104f25fc7d/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx";
 
     public static void Validate(FixtureCase fixture, string fixturePath)
     {
@@ -353,12 +353,12 @@ sealed class Scenario : IDisposable
             PolicyVersion = NativePageRuntimeContract.ClassicWikiPolicyVersion,
             SourceIdentity = new NativePageRuntimeSourceIdentity
             {
-                SiteId = Guid.Parse("c37b3679-0000-0000-0000-000000000001"),
-                WebId = Guid.Parse("041e70b3-0000-0000-0000-000000000001"),
-                ListId = Guid.Parse("3fed0145-0000-0000-0000-000000000001"),
-                ListItemId = 2,
-                FileUniqueId = Guid.Parse("c3b2c2bb-663d-47ed-8562-840c9fd685fb"),
-                PageServerRelativeUrl = "/sites/ccd/source/SitePages/wiki.aspx"
+                SiteId = BrowserRuntimeEvidenceAdapter.ClaimSourceSiteId,
+                WebId = BrowserRuntimeEvidenceAdapter.ClaimSourceWebId,
+                ListId = BrowserRuntimeEvidenceAdapter.ClaimSourceListId,
+                ListItemId = BrowserRuntimeEvidenceAdapter.ClaimSourceListItemId,
+                FileUniqueId = BrowserRuntimeEvidenceAdapter.ClaimSourceFileUniqueId,
+                PageServerRelativeUrl = BrowserRuntimeEvidenceAdapter.ClaimSourcePageServerRelativeUrl
             },
             SourceVersion = CopySourceVersion(sourceVersion),
             SnapshotDigestSha256 = "518fb815a78d760eeb709ad4ba8008657ce8319e41d3baff0096debb5c56b76a",
@@ -688,6 +688,29 @@ sealed class Scenario : IDisposable
                 binding.SourceIdentity.ListId = Guid.Parse("3fed0145-0000-0000-0000-000000000099");
                 ResealBinding(request, binding);
                 return;
+            case "foreign-source-site":
+                binding.SourceIdentity.SiteId = Guid.Parse("c37b3679-4601-4a1d-a0f8-c8ed3ee477f3");
+                ResealBinding(request, binding);
+                return;
+            case "foreign-source-web":
+                binding.SourceIdentity.WebId = Guid.Parse("041e70b3-0d2d-4040-91a3-1f57c3b9df54");
+                ResealBinding(request, binding);
+                return;
+            case "foreign-source-path":
+                binding.SourceIdentity.PageServerRelativeUrl =
+                    "/sites/ccd226-source-c19f82d4/WorkshopPages/foreign.aspx";
+                ResealBinding(request, binding);
+                return;
+            case "foreign-source-identity-digest":
+                binding.SourceVersion.IdentityDigestSha256 = Hash("foreign-source-identity");
+                admittedPlan.SourceVersion.IdentityDigestSha256 = binding.SourceVersion.IdentityDigestSha256;
+                binding.AdmittedPlanDigestSha256 = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+                    admittedPlan,
+                    admittedPlan.PlanDigest,
+                    admittedPlan.TargetIdentity);
+                request.Expected.AdmittedPlanDigestSha256 = binding.AdmittedPlanDigestSha256;
+                ResealBinding(request, binding);
+                return;
             case "manifest-without-screenshot":
                 binding.RequirementsManifest.Requirements = binding.RequirementsManifest.Requirements
                     .Where(value => !string.Equals(value.Id, NativePageRuntimeContract.ScreenshotRequirementId, StringComparison.Ordinal))
@@ -939,7 +962,7 @@ sealed class Scenario : IDisposable
 
     private static CurrentSourceVersionIdentity CreateSourceVersion() => new()
     {
-        IdentityDigestSha256 = Hash("source-identity"),
+        IdentityDigestSha256 = BrowserRuntimeEvidenceAdapter.ClaimSourceIdentityDigest,
         VersionDigestSha256 = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
         ETag = "\"source,3\"",
         LastModifiedUtc = BaseTime,

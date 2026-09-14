@@ -15,7 +15,7 @@ through `RuntimeVerificationReceiptFactory.Create`. The request repeats the
 expected operation, source-version, admission, import-receipt, and target
 identity so missing, stale, or foreign lineage fails closed. The shared
 `ClassicWikiRuntimeEvidencePolicy` validates the binding before either result
-branch. Before that branch, adapter version `1.1.0` compares the binding's
+branch. Before that branch, adapter version `1.2.0` compares the binding's
 requirements manifest byte-for-byte with the authoritative
 `NativePageRuntimeBindingValidator.CreateClassicWikiManifest()` result. A
 removed, optional, reordered, or altered requirement therefore cannot weaken
@@ -33,9 +33,10 @@ It additionally pins the reviewed source File/version digest, snapshot,
 runtime operation, target File/item/version, CUPCollect host, and origin
 evidence-package digest from the claim. A self-consistent foreign binding is
 therefore rejected even when a caller reseals it and changes its local
-`expected` copy. The canonical subject/primary owner and complete source
-Site/Web/List/item/File/path tuple are also fixed, and source `VersionLabel`
-must remain `3.0` in both the binding and typed admission lineage.
+`expected` copy. The canonical subject/primary owner, complete source
+Site/Web/List/item/File/path tuple, and source-identity digest are also fixed
+to the frozen rev3 claim. Source `VersionLabel` must remain `3.0` in both the
+binding and typed admission lineage.
 
 The output is strictly one of:
 
@@ -105,13 +106,15 @@ dotnet run --project .\tools\ccd263-runtime-browser\tests\ccd263-runtime-browser
   -p:TargetFrameworks=net9.0
 ```
 
-The 50 fixtures cover exact binding, typed-admission/source lineage,
+The 54 fixtures cover exact binding against the frozen rev3 source tuple,
+typed-admission/source lineage,
 stale/foreign or structurally missing identity, URL redirects,
 cache/service-worker reuse, non-fresh contexts, altered HTML/DOM/screenshot
 bytes, semantic detector failure, bounded 401, 403, semantic HTTP-200 denial,
 and transport terminals, request-ID unavailability, unsupported policy/profile,
 forbidden authority fields, retry bounds, output aliases, missing/foreign
-subject and owner, foreign source tuple/version, and weakened fixed-manifest
+subject and owner, foreign source Site/Web/List/File/path/identity digest or
+version, and weakened fixed-manifest
 counterexamples (including screenshot-only actual denial HTML). Every selector
 and aggregate entry carries `ccd263-conformance-fixture/v1` metadata: synthetic
 origin package, readable source identity/version, claim/contract revision,
