@@ -17,21 +17,22 @@ public static class BrowserRuntimeEvidenceAdapter
     public const string RequestSchemaVersion = "ccd272.browser-runtime-evidence-request/v1";
     public const string ResultSchemaVersion = "ccd272.browser-runtime-evidence-result/v1";
     public const string AdapterId = "ccd272.browser-runtime-adapter";
-    public const string AdapterVersion = "1.1.0";
+    public const string AdapterVersion = "1.2.0";
     public const string AuthorizedTargetHost = "a830edad9050849cupcollect.sharepoint.com";
     public const string OriginEvidencePackageDigest = "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283";
     public const string ClaimSnapshotDigest = "518fb815a78d760eeb709ad4ba8008657ce8319e41d3baff0096debb5c56b76a";
+    public const string ClaimSourceIdentityDigest = "2bf0d203ab5381bf583da236d0749b79cad5bec18aab3393d5f3932520379895";
     public const string ClaimSourceVersionDigest = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5";
     public const string ClaimSourceVersionLabel = "3.0";
-    public const string ClaimSourcePageServerRelativeUrl = "/sites/ccd/source/SitePages/wiki.aspx";
+    public const string ClaimSourcePageServerRelativeUrl = "/sites/ccd226-source-c19f82d4/WorkshopPages/01-Portable-Enterprise-Wiki.aspx";
     public const string ClaimSubjectIngredientId = "node:runtime";
     public const string ClaimSubjectPageIngredientKind = "Runtime";
     public const string ClaimSubjectSubtype = "runtime.page";
     public const string ClaimSubjectSemanticRole = "runtime.wiki acceptance binding";
     public const string ClaimSubjectPrimaryOwnerLane = "shared integration";
-    public static readonly Guid ClaimSourceSiteId = Guid.Parse("c37b3679-0000-0000-0000-000000000001");
-    public static readonly Guid ClaimSourceWebId = Guid.Parse("041e70b3-0000-0000-0000-000000000001");
-    public static readonly Guid ClaimSourceListId = Guid.Parse("3fed0145-0000-0000-0000-000000000001");
+    public static readonly Guid ClaimSourceSiteId = Guid.Parse("c37b3679-4601-4a1d-a0f8-c8ed3ee477f2");
+    public static readonly Guid ClaimSourceWebId = Guid.Parse("041e70b3-0d2d-4040-91a3-1f57c3b9df53");
+    public static readonly Guid ClaimSourceListId = Guid.Parse("3fed0145-2216-40a0-a29c-56104f25fc7d");
     public const int ClaimSourceListItemId = 2;
     public static readonly Guid ClaimSourceFileUniqueId = Guid.Parse("c3b2c2bb-663d-47ed-8562-840c9fd685fb");
     public static readonly Guid ClaimRuntimeOperationId = Guid.Parse("77fa33e6-9814-434d-bd7f-919747fe3f60");
@@ -223,6 +224,8 @@ public static class BrowserRuntimeEvidenceAdapter
         ValidateDigest(binding.RequirementsManifestDigestSha256, "requirements_manifest_digest_required");
         ValidateDigest(binding.ExpectedAuthoredContentSha256, "expected_authored_content_digest_required");
         RequireDigestEquals(binding.SnapshotDigestSha256, ClaimSnapshotDigest, "claim_snapshot_digest_mismatch");
+        RequireDigestEquals(binding.SourceVersion?.IdentityDigestSha256, ClaimSourceIdentityDigest,
+            "claim_source_identity_digest_mismatch");
         RequireDigestEquals(binding.SourceVersion?.VersionDigestSha256, ClaimSourceVersionDigest,
             "claim_source_version_digest_mismatch");
         Require(string.Equals(binding.SourceVersion?.VersionLabel, ClaimSourceVersionLabel, StringComparison.Ordinal),
