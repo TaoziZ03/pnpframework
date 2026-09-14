@@ -173,6 +173,58 @@ namespace PnP.Framework.Test.ClassicWiki
             Assert.AreEqual(MigrationAcceptanceStatus.Rejected, receipt.AcceptanceStatus);
         }
 
+        [TestMethod]
+        public void RenderedVisibilityAndJpegCounterexamplesCannotReachAcceptance()
+        {
+            var fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><head><style>.concealed { display: none; }</style></head><body><div class='concealed'>approved content</div></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            var receipt = Evaluate(fixture, new VerifiedTestProducerBuildProvenanceVerifier());
+            Assert.AreNotEqual(MigrationAcceptanceStatus.Accepted, receipt.AcceptanceStatus);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><head><style>.shown { display: block; opacity: 1; }</style></head><body><div class='shown'>approved content</div></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.ValidJpegBytes());
+            receipt = Evaluate(fixture, new VerifiedTestProducerBuildProvenanceVerifier());
+            Assert.AreEqual(MigrationAcceptanceStatus.Accepted, receipt.AcceptanceStatus);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><head><style>.concealed { display: none; }</style></head><body><h1 class='concealed'>Access Denied</h1><p>approved content</p></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.ValidJpegBytes());
+            receipt = Evaluate(fixture, new VerifiedTestProducerBuildProvenanceVerifier());
+            Assert.AreEqual(MigrationAcceptanceStatus.Accepted, receipt.AcceptanceStatus);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body><div style='opacity:0'>approved content</div></body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.PngBytes());
+            receipt = Evaluate(fixture, new VerifiedTestProducerBuildProvenanceVerifier());
+            Assert.AreNotEqual(MigrationAcceptanceStatus.Accepted, receipt.AcceptanceStatus);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.OversubscribedHuffmanJpegBytes());
+            receipt = Evaluate(fixture, new VerifiedTestProducerBuildProvenanceVerifier());
+            Assert.AreNotEqual(MigrationAcceptanceStatus.Accepted, receipt.AcceptanceStatus);
+
+            fixture = NativeRuntimeTestFixture.Create();
+            fixture.ReplaceRuntimeArtifacts(
+                "<html><body>approved content</body></html>",
+                fixture.CreateDom("approved content"),
+                NativeRuntimeTestFixture.TruncatedJpegEntropyBytes());
+            receipt = Evaluate(fixture, new VerifiedTestProducerBuildProvenanceVerifier());
+            Assert.AreNotEqual(MigrationAcceptanceStatus.Accepted, receipt.AcceptanceStatus);
+        }
+
         private static NativePageRuntimeAcceptanceReceipt Evaluate(
             NativeRuntimeTestFixture fixture,
             IProducerBuildProvenanceVerifier verifier)

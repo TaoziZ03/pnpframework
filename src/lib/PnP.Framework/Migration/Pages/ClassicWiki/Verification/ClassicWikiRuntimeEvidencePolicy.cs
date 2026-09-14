@@ -7,6 +7,7 @@ using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Verification.NativePageRuntime;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -283,23 +284,21 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 return false;
             }
 
-            var styleText = element.GetAttribute("style");
-            if (string.IsNullOrWhiteSpace(styleText))
-            {
-                return true;
-            }
-            var style = element.GetStyle();
+            var style = element.ComputeCurrentStyle();
             if (style == null)
             {
-                return true;
+                return false;
             }
             var display = style.GetPropertyValue("display")?.Trim();
             var visibility = style.GetPropertyValue("visibility")?.Trim();
             var contentVisibility = style.GetPropertyValue("content-visibility")?.Trim();
+            var opacity = style.GetPropertyValue("opacity")?.Trim();
             if (string.Equals(display, "none", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(visibility, "hidden", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(visibility, "collapse", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(contentVisibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                || string.Equals(contentVisibility, "hidden", StringComparison.OrdinalIgnoreCase)
+                || double.TryParse(opacity, NumberStyles.Float, CultureInfo.InvariantCulture, out var opacityValue)
+                    && opacityValue <= 0)
             {
                 return false;
             }
@@ -955,11 +954,10 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             var sawFrame = false;
             var sawQuantizationTable = false;
             var sawHuffmanTable = false;
-            var sawScan = false;
-            var frameComponents = new Dictionary<byte, byte>();
+            var frame = new JpegFrame();
             var quantizationTables = new HashSet<byte>();
-            var dcHuffmanTables = new HashSet<byte>();
-            var acHuffmanTables = new HashSet<byte>();
+            var dcHuffmanTables = new Dictionary<byte, JpegHuffmanTable>();
+            var acHuffmanTables = new Dictionary<byte, JpegHuffmanTable>();
             while (offset < bytes.Length)
             {
                 if (offset + 1 >= bytes.Length || bytes[offset++] != 0xff)
@@ -977,7 +975,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 var marker = bytes[offset++];
                 if (marker == 0xd9)
                 {
-                    return sawFrame && sawQuantizationTable && sawHuffmanTable && sawScan && offset == bytes.Length;
+                    return false;
                 }
                 if (marker == 0x00 || marker == 0x01 || marker >= 0xd0 && marker <= 0xd8)
                 {
@@ -1017,7 +1015,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 }
                 else if (IsJpegStartOfFrame(marker))
                 {
-                    if (sawFrame || !ValidateJpegFrame(bytes, segmentStart, segmentEnd, frameComponents))
+                    if (sawFrame || !ValidateJpegFrame(bytes, segmentStart, segmentEnd, frame))
                     {
                         return false;
                     }
@@ -1026,57 +1024,30 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 else if (marker == 0xda)
                 {
                     if (!sawFrame || !sawQuantizationTable || !sawHuffmanTable
-                        || frameComponents.Values.Any(tableId => !quantizationTables.Contains(tableId))
+                        || frame.Components.Values.Any(component =>
+                            !quantizationTables.Contains(component.QuantizationTableId))
                         || !ValidateJpegScanHeader(
                             bytes,
                             segmentStart,
                             segmentEnd,
-                            frameComponents,
+                            frame.Components,
                             dcHuffmanTables,
-                            acHuffmanTables))
+                            acHuffmanTables,
+                            out var scanComponents))
                     {
                         return false;
                     }
-                    var scanOffset = segmentEnd;
-                    var entropyBytes = 0;
-                    while (scanOffset < bytes.Length)
-                    {
-                        if (bytes[scanOffset] != 0xff)
-                        {
-                            entropyBytes++;
-                            scanOffset++;
-                            continue;
-                        }
-                        if (scanOffset + 1 >= bytes.Length)
-                        {
-                            return false;
-                        }
-                        var next = bytes[scanOffset + 1];
-                        if (next == 0x00)
-                        {
-                            entropyBytes++;
-                            scanOffset += 2;
-                            continue;
-                        }
-                        if (next == 0xff)
-                        {
-                            scanOffset++;
-                            continue;
-                        }
-                        if (next >= 0xd0 && next <= 0xd7)
-                        {
-                            scanOffset += 2;
-                            continue;
-                        }
-                        break;
-                    }
-                    if (entropyBytes == 0)
-                    {
-                        return false;
-                    }
-                    sawScan = true;
-                    offset = scanOffset;
-                    continue;
+                    return TryDecodeJpegBaselineScan(
+                            bytes,
+                            segmentEnd,
+                            frame,
+                            scanComponents,
+                            dcHuffmanTables,
+                            acHuffmanTables,
+                            out var scanEnd)
+                        && scanEnd + 2 == bytes.Length
+                        && bytes[scanEnd] == 0xff
+                        && bytes[scanEnd + 1] == 0xd9;
                 }
                 offset = segmentEnd;
             }
@@ -1085,7 +1056,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
 
         private static bool IsJpegStartOfFrame(byte marker)
         {
-            return marker == 0xc0 || marker == 0xc1 || marker == 0xc2;
+            return marker == 0xc0 || marker == 0xc1;
         }
 
         private static bool ValidateJpegQuantizationTables(
@@ -1120,8 +1091,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             byte[] bytes,
             int offset,
             int end,
-            ISet<byte> dcTables,
-            ISet<byte> acTables)
+            IDictionary<byte, JpegHuffmanTable> dcTables,
+            IDictionary<byte, JpegHuffmanTable> acTables)
         {
             var sawTable = false;
             while (offset < end)
@@ -1133,24 +1104,42 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 {
                     return false;
                 }
+                var counts = new byte[16];
                 var symbols = 0;
+                var nextCode = 0;
                 for (var index = 0; index < 16; index++)
                 {
-                    symbols += bytes[offset + index];
+                    counts[index] = bytes[offset + index];
+                    symbols += counts[index];
+                    if (nextCode + counts[index] > (1 << (index + 1)))
+                    {
+                        return false;
+                    }
+                    nextCode = (nextCode + counts[index]) << 1;
                 }
                 offset += 16;
                 if (symbols == 0 || symbols > 256 || offset + symbols > end)
                 {
                     return false;
                 }
+                var target = tableClass == 0 ? dcTables : acTables;
+                if (target.ContainsKey(tableId))
+                {
+                    return false;
+                }
+                var table = JpegHuffmanTable.Create(counts, bytes, offset, symbols);
+                if (table == null)
+                {
+                    return false;
+                }
                 offset += symbols;
-                (tableClass == 0 ? dcTables : acTables).Add(tableId);
+                target.Add(tableId, table);
                 sawTable = true;
             }
             return sawTable && offset == end;
         }
 
-        private static bool ValidateJpegFrame(byte[] bytes, int offset, int end, IDictionary<byte, byte> components)
+        private static bool ValidateJpegFrame(byte[] bytes, int offset, int end, JpegFrame frame)
         {
             if (end - offset < 6 || bytes[offset] != 8)
             {
@@ -1164,19 +1153,26 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 return false;
             }
-            components.Clear();
+            frame.Width = width;
+            frame.Height = height;
+            frame.Components.Clear();
             offset += 6;
             for (var index = 0; index < count; index++)
             {
                 var id = bytes[offset];
                 var sampling = bytes[offset + 1];
                 var quantizationTableId = bytes[offset + 2];
-                if (components.ContainsKey(id) || (sampling >> 4) == 0 || (sampling >> 4) > 4
+                if (frame.Components.ContainsKey(id) || (sampling >> 4) == 0 || (sampling >> 4) > 4
                     || (sampling & 0x0f) == 0 || (sampling & 0x0f) > 4 || quantizationTableId > 3)
                 {
                     return false;
                 }
-                components.Add(id, quantizationTableId);
+                frame.Components.Add(id, new JpegFrameComponent
+                {
+                    HorizontalSampling = sampling >> 4,
+                    VerticalSampling = sampling & 0x0f,
+                    QuantizationTableId = quantizationTableId
+                });
                 offset += 3;
             }
             return true;
@@ -1186,10 +1182,12 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             byte[] bytes,
             int offset,
             int end,
-            IDictionary<byte, byte> frameComponents,
-            ISet<byte> dcTables,
-            ISet<byte> acTables)
+            IDictionary<byte, JpegFrameComponent> frameComponents,
+            IDictionary<byte, JpegHuffmanTable> dcTables,
+            IDictionary<byte, JpegHuffmanTable> acTables,
+            out IList<JpegScanComponent> scanComponents)
         {
+            scanComponents = null;
             if (offset >= end)
             {
                 return false;
@@ -1199,32 +1197,286 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             {
                 return false;
             }
-            var scanComponents = new HashSet<byte>();
-            var tableSelectors = new List<Tuple<byte, byte>>();
+            var componentIds = new HashSet<byte>();
+            var values = new List<JpegScanComponent>();
             for (var index = 0; index < count; index++)
             {
                 var id = bytes[offset++];
                 var tables = bytes[offset++];
-                if (!frameComponents.ContainsKey(id) || !scanComponents.Add(id)
+                if (!frameComponents.ContainsKey(id) || !componentIds.Add(id)
                     || (tables >> 4) > 3 || (tables & 0x0f) > 3)
                 {
                     return false;
                 }
-                tableSelectors.Add(Tuple.Create((byte)(tables >> 4), (byte)(tables & 0x0f)));
+                values.Add(new JpegScanComponent
+                {
+                    ComponentId = id,
+                    DcTableId = (byte)(tables >> 4),
+                    AcTableId = (byte)(tables & 0x0f)
+                });
             }
             var spectralStart = bytes[offset++];
             var spectralEnd = bytes[offset++];
             var approximation = bytes[offset];
-            if (spectralStart > spectralEnd || spectralEnd > 63
-                || (approximation >> 4) > 13 || (approximation & 0x0f) > 13)
+            if (spectralStart != 0 || spectralEnd != 63 || approximation != 0
+                || count != frameComponents.Count)
             {
                 return false;
             }
-            var requiresDcTable = spectralStart == 0;
-            var requiresAcTable = spectralEnd > 0;
-            return tableSelectors.All(selector =>
-                (!requiresDcTable || dcTables.Contains(selector.Item1))
-                && (!requiresAcTable || acTables.Contains(selector.Item2)));
+            if (!values.All(value => dcTables.ContainsKey(value.DcTableId)
+                && acTables.ContainsKey(value.AcTableId)))
+            {
+                return false;
+            }
+            scanComponents = values;
+            return true;
+        }
+
+        private static bool TryDecodeJpegBaselineScan(
+            byte[] bytes,
+            int offset,
+            JpegFrame frame,
+            IList<JpegScanComponent> scanComponents,
+            IDictionary<byte, JpegHuffmanTable> dcTables,
+            IDictionary<byte, JpegHuffmanTable> acTables,
+            out int scanEnd)
+        {
+            scanEnd = offset;
+            if (frame == null || frame.Width <= 0 || frame.Height <= 0
+                || frame.Components.Count == 0 || scanComponents == null
+                || scanComponents.Count != frame.Components.Count)
+            {
+                return false;
+            }
+            var maximumHorizontalSampling = frame.Components.Values.Max(value => value.HorizontalSampling);
+            var maximumVerticalSampling = frame.Components.Values.Max(value => value.VerticalSampling);
+            var mcuColumns = (frame.Width + 8 * maximumHorizontalSampling - 1) / (8 * maximumHorizontalSampling);
+            var mcuRows = (frame.Height + 8 * maximumVerticalSampling - 1) / (8 * maximumVerticalSampling);
+            var reader = new JpegEntropyBitReader(bytes, offset);
+            for (var row = 0; row < mcuRows; row++)
+            {
+                for (var column = 0; column < mcuColumns; column++)
+                {
+                    foreach (var scanComponent in scanComponents)
+                    {
+                        var frameComponent = frame.Components[scanComponent.ComponentId];
+                        var blockCount = frameComponent.HorizontalSampling * frameComponent.VerticalSampling;
+                        for (var block = 0; block < blockCount; block++)
+                        {
+                            if (!TryDecodeJpegBlock(
+                                reader,
+                                dcTables[scanComponent.DcTableId],
+                                acTables[scanComponent.AcTableId]))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            return reader.TryFinishScan(out scanEnd);
+        }
+
+        private static bool TryDecodeJpegBlock(
+            JpegEntropyBitReader reader,
+            JpegHuffmanTable dcTable,
+            JpegHuffmanTable acTable)
+        {
+            if (!dcTable.TryReadSymbol(reader, out var dcSize) || dcSize > 11
+                || !reader.TrySkipBits(dcSize))
+            {
+                return false;
+            }
+            var coefficient = 1;
+            while (coefficient < 64)
+            {
+                if (!acTable.TryReadSymbol(reader, out var symbol))
+                {
+                    return false;
+                }
+                if (symbol == 0)
+                {
+                    return true;
+                }
+                if (symbol == 0xf0)
+                {
+                    coefficient += 16;
+                    if (coefficient > 64)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+                var zeroRun = symbol >> 4;
+                var size = symbol & 0x0f;
+                if (size == 0 || size > 10)
+                {
+                    return false;
+                }
+                coefficient += zeroRun;
+                if (coefficient >= 64 || !reader.TrySkipBits(size))
+                {
+                    return false;
+                }
+                coefficient++;
+            }
+            return true;
+        }
+
+        private sealed class JpegFrame
+        {
+            public int Width { get; set; }
+            public int Height { get; set; }
+            public IDictionary<byte, JpegFrameComponent> Components { get; }
+                = new Dictionary<byte, JpegFrameComponent>();
+        }
+
+        private sealed class JpegFrameComponent
+        {
+            public int HorizontalSampling { get; set; }
+            public int VerticalSampling { get; set; }
+            public byte QuantizationTableId { get; set; }
+        }
+
+        private sealed class JpegScanComponent
+        {
+            public byte ComponentId { get; set; }
+            public byte DcTableId { get; set; }
+            public byte AcTableId { get; set; }
+        }
+
+        private sealed class JpegHuffmanTable
+        {
+            private readonly IDictionary<int, byte> symbols;
+            private readonly int maximumCodeLength;
+
+            private JpegHuffmanTable(IDictionary<int, byte> symbols, int maximumCodeLength)
+            {
+                this.symbols = symbols;
+                this.maximumCodeLength = maximumCodeLength;
+            }
+
+            public static JpegHuffmanTable Create(byte[] counts, byte[] bytes, int offset, int symbolCount)
+            {
+                var symbols = new Dictionary<int, byte>();
+                var code = 0;
+                var symbolOffset = 0;
+                var maximumCodeLength = 0;
+                for (var length = 1; length <= 16; length++)
+                {
+                    var count = counts[length - 1];
+                    if (code + count > 1 << length)
+                    {
+                        return null;
+                    }
+                    for (var index = 0; index < count; index++)
+                    {
+                        symbols.Add(length << 16 | code, bytes[offset + symbolOffset++]);
+                        code++;
+                        maximumCodeLength = length;
+                    }
+                    code <<= 1;
+                }
+                return symbolOffset == symbolCount
+                    ? new JpegHuffmanTable(symbols, maximumCodeLength)
+                    : null;
+            }
+
+            public bool TryReadSymbol(JpegEntropyBitReader reader, out byte symbol)
+            {
+                symbol = 0;
+                var code = 0;
+                for (var length = 1; length <= maximumCodeLength; length++)
+                {
+                    if (!reader.TryReadBit(out var bit))
+                    {
+                        return false;
+                    }
+                    code = code << 1 | bit;
+                    if (symbols.TryGetValue(length << 16 | code, out symbol))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        private sealed class JpegEntropyBitReader
+        {
+            private readonly byte[] bytes;
+            private int offset;
+            private int currentByte;
+            private int bitsRemaining;
+
+            public JpegEntropyBitReader(byte[] bytes, int offset)
+            {
+                this.bytes = bytes;
+                this.offset = offset;
+            }
+
+            public bool TryReadBit(out int bit)
+            {
+                bit = 0;
+                if (bitsRemaining == 0 && !TryLoadByte())
+                {
+                    return false;
+                }
+                bitsRemaining--;
+                bit = currentByte >> bitsRemaining & 1;
+                return true;
+            }
+
+            public bool TrySkipBits(int count)
+            {
+                for (var index = 0; index < count; index++)
+                {
+                    if (!TryReadBit(out _))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            public bool TryFinishScan(out int scanEnd)
+            {
+                scanEnd = offset;
+                while (bitsRemaining > 0)
+                {
+                    if (!TryReadBit(out var bit) || bit != 1)
+                    {
+                        return false;
+                    }
+                }
+                while (offset + 1 < bytes.Length && bytes[offset] == 0xff && bytes[offset + 1] == 0xff)
+                {
+                    offset++;
+                }
+                scanEnd = offset;
+                return scanEnd + 1 < bytes.Length && bytes[scanEnd] == 0xff;
+            }
+
+            private bool TryLoadByte()
+            {
+                if (offset >= bytes.Length)
+                {
+                    return false;
+                }
+                var value = bytes[offset++];
+                if (value == 0xff)
+                {
+                    if (offset >= bytes.Length || bytes[offset] != 0x00)
+                    {
+                        offset--;
+                        return false;
+                    }
+                    offset++;
+                }
+                currentByte = value;
+                bitsRemaining = 8;
+                return true;
+            }
         }
 
         private static int ReadBigEndianInt32(byte[] bytes, int offset)
