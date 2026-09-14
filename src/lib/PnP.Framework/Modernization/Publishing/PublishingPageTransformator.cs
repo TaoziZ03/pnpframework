@@ -196,24 +196,12 @@ namespace PnP.Framework.Modernization.Publishing
                     targetClientContext.Web.WebTemplate,
                     hasWritableSitePages);
 
-                switch (transformationTarget)
+                EnsureTransformationTargetAllowed(transformationTarget);
+
+                if (transformationTarget == PublishingPageTransformationTarget.SameWeb)
                 {
-                    case PublishingPageTransformationTarget.SameSiteCollectionNotAllowed:
-                        LogError(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages, LogStrings.Heading_SharePointConnection);
-                        throw new ArgumentNullException(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages);
-                    case PublishingPageTransformationTarget.SameSiteCollectionDifferentWeb:
-                        LogError(LogStrings.Error_InPlacePublishingPageDifferentWeb, LogStrings.Heading_SharePointConnection);
-                        throw new ArgumentException(LogStrings.Error_InPlacePublishingPageDifferentWeb);
-                    case PublishingPageTransformationTarget.SameWebRequiresEnterpriseWiki:
-                        LogError(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki, LogStrings.Heading_SharePointConnection);
-                        throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki);
-                    case PublishingPageTransformationTarget.SameWebRequiresWritableSitePages:
-                        LogError(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages, LogStrings.Heading_SharePointConnection);
-                        throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages);
-                    case PublishingPageTransformationTarget.SameWeb:
-                        // Use the source context for all writes so existing in-place permission, URL and asset semantics apply.
-                        targetClientContext = sourceClientContext;
-                        break;
+                    // Use the source context for all writes so existing in-place permission, URL and asset semantics apply.
+                    targetClientContext = sourceClientContext;
                 }
 
                 LogInfo($"{targetClientContext.Web.GetUrl()}", LogStrings.Heading_Summary, LogEntrySignificance.TargetSiteUrl);
@@ -340,7 +328,6 @@ namespace PnP.Framework.Modernization.Publishing
 #if DEBUG && MEASURE
             Start();
 #endif
-                bool pageExists = false;
                 PnPCore.IPage targetPage = null;
                 List pagesLibrary = null;
                 Microsoft.SharePoint.Client.File existingFile = null;
@@ -348,56 +335,17 @@ namespace PnP.Framework.Modernization.Publishing
                 //The determines of the target client context has been specified and use that to generate the target page
                 var context = targetClientContext;
 
-                try
-                {
-                    LogDebug(LogStrings.LoadingExistingPageIfExists, LogStrings.Heading_PageCreation);
+                targetPage = CreateTargetPageAfterCollisionProbe(
+                    transformationTarget,
+                    publishingPageTransformationInformation,
+                    () => Load(sourceClientContext, targetClientContext, publishingPageTransformationInformation, out pagesLibrary),
+                    pageName => context.Web.AddClientSidePage(pageName),
+                    out existingFile);
 
-                    // Just try to load the page in the fastest possible manner, we only want to see if the page exists or not
-                    existingFile = Load(sourceClientContext, targetClientContext, publishingPageTransformationInformation, out pagesLibrary);
-                    pageExists = true;
-                }
-                catch (Exception ex)
-                {
-                    var targetPageDoesNotExist = ex is ArgumentException &&
-                        ex.Message.EndsWith(LogStrings.TransformPageDoesNotExistInWeb, StringComparison.InvariantCulture);
-
-                    if (targetPageDoesNotExist)
-                    {
-                        //Non-critical error generated 
-                        LogInfo(LogStrings.CheckPageExistsError, LogStrings.Heading_PageCreation);
-                    }
-                    else if (transformationTarget == PublishingPageTransformationTarget.SameWeb)
-                    {
-                        // The in-place opt-in must fail closed when the target collision probe is inconclusive.
-                        throw;
-                    }
-                    else
-                    {
-                        //Something else occurred
-                        LogError(LogStrings.CheckPageExistsError, LogStrings.Heading_PageCreation, ex);
-                    }
-                }
-                
 #if DEBUG && MEASURE
             Stop("Load Page");
 #endif
 
-                if (pageExists)
-                {
-                    LogInfo(LogStrings.PageAlreadyExistsInTargetLocation, LogStrings.Heading_PageCreation);
-
-                    if (!PublishingPageTransformationValidator.CanOverwriteTarget(transformationTarget, publishingPageTransformationInformation.Overwrite))
-                    {
-                        var message = transformationTarget == PublishingPageTransformationTarget.SameWeb
-                            ? $"{LogStrings.Error_InPlacePublishingPageTargetExists} {publishingPageTransformationInformation.TargetPageName}."
-                            : $"{LogStrings.PageNotOverwriteIfExists}  {publishingPageTransformationInformation.TargetPageName}.";
-                        LogError(message, LogStrings.Heading_PageCreation);
-                        throw new ArgumentException(message);
-                    }
-                }
-
-                // Create the client side page
-                targetPage = context.Web.AddClientSidePage($"{publishingPageTransformationInformation.Folder}{publishingPageTransformationInformation.TargetPageName}");
                 LogInfo($"{LogStrings.ModernPageCreated} ", LogStrings.Heading_PageCreation);
                 #endregion
 
@@ -713,6 +661,90 @@ namespace PnP.Framework.Modernization.Publishing
         }
 
         #region Helper methods
+        /// <summary>
+        /// Production seam that keeps the collision probe and the first target-page operation in one fail-closed flow.
+        /// </summary>
+        internal PnPCore.IPage CreateTargetPageAfterCollisionProbe(
+            PublishingPageTransformationTarget transformationTarget,
+            PublishingPageTransformationInformation publishingPageTransformationInformation,
+            Func<Microsoft.SharePoint.Client.File> targetPageProbe,
+            Func<string, PnPCore.IPage> addClientSidePage,
+            out Microsoft.SharePoint.Client.File existingFile)
+        {
+            // Keep the first target operation fail-closed even if a future caller bypasses the earlier routing guard.
+            EnsureTransformationTargetAllowed(transformationTarget);
+
+            var pageExists = false;
+            existingFile = null;
+
+            try
+            {
+                LogDebug(LogStrings.LoadingExistingPageIfExists, LogStrings.Heading_PageCreation);
+
+                // A successful probe means the target name is already occupied, even if the caller does not need the file object.
+                existingFile = targetPageProbe();
+                pageExists = true;
+            }
+            catch (Exception ex)
+            {
+                var targetPageDoesNotExist = ex is ArgumentException &&
+                    ex.Message.EndsWith(LogStrings.TransformPageDoesNotExistInWeb, StringComparison.InvariantCulture);
+
+                if (targetPageDoesNotExist)
+                {
+                    LogInfo(LogStrings.CheckPageExistsError, LogStrings.Heading_PageCreation);
+                }
+                else if (transformationTarget == PublishingPageTransformationTarget.SameWeb)
+                {
+                    // The in-place opt-in must fail closed when the target collision probe is inconclusive.
+                    throw;
+                }
+                else
+                {
+                    // Preserve the existing default cross-site behavior.
+                    LogError(LogStrings.CheckPageExistsError, LogStrings.Heading_PageCreation, ex);
+                }
+            }
+
+            if (pageExists)
+            {
+                LogInfo(LogStrings.PageAlreadyExistsInTargetLocation, LogStrings.Heading_PageCreation);
+
+                if (!PublishingPageTransformationValidator.CanOverwriteTarget(transformationTarget, publishingPageTransformationInformation.Overwrite))
+                {
+                    var message = transformationTarget == PublishingPageTransformationTarget.SameWeb
+                        ? $"{LogStrings.Error_InPlacePublishingPageTargetExists} {publishingPageTransformationInformation.TargetPageName}."
+                        : $"{LogStrings.PageNotOverwriteIfExists}  {publishingPageTransformationInformation.TargetPageName}.";
+                    LogError(message, LogStrings.Heading_PageCreation);
+                    throw new ArgumentException(message);
+                }
+            }
+
+            return addClientSidePage($"{publishingPageTransformationInformation.Folder}{publishingPageTransformationInformation.TargetPageName}");
+        }
+
+        private void EnsureTransformationTargetAllowed(PublishingPageTransformationTarget transformationTarget)
+        {
+            switch (transformationTarget)
+            {
+                case PublishingPageTransformationTarget.SameSiteCollectionNotAllowed:
+                    LogError(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages, LogStrings.Heading_SharePointConnection);
+                    throw new ArgumentNullException(LogStrings.Error_SameSiteTransferNoAllowedForPublishingPages);
+                case PublishingPageTransformationTarget.InPlaceDifferentSiteCollection:
+                    LogError(LogStrings.Error_InPlacePublishingPageDifferentSiteCollection, LogStrings.Heading_SharePointConnection);
+                    throw new ArgumentException(LogStrings.Error_InPlacePublishingPageDifferentSiteCollection);
+                case PublishingPageTransformationTarget.SameSiteCollectionDifferentWeb:
+                    LogError(LogStrings.Error_InPlacePublishingPageDifferentWeb, LogStrings.Heading_SharePointConnection);
+                    throw new ArgumentException(LogStrings.Error_InPlacePublishingPageDifferentWeb);
+                case PublishingPageTransformationTarget.SameWebRequiresEnterpriseWiki:
+                    LogError(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki, LogStrings.Heading_SharePointConnection);
+                    throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki);
+                case PublishingPageTransformationTarget.SameWebRequiresWritableSitePages:
+                    LogError(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages, LogStrings.Heading_SharePointConnection);
+                    throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages);
+            }
+        }
+
         private bool HasWritableSitePagesLibrary(ClientContext context)
         {
             try

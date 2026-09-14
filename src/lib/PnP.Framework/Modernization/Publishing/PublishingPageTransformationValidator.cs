@@ -7,6 +7,7 @@ namespace PnP.Framework.Modernization.Publishing
         CrossSiteCollection,
         SameWeb,
         SameSiteCollectionNotAllowed,
+        InPlaceDifferentSiteCollection,
         SameSiteCollectionDifferentWeb,
         SameWebRequiresEnterpriseWiki,
         SameWebRequiresWritableSitePages,
@@ -28,19 +29,21 @@ namespace PnP.Framework.Modernization.Publishing
             string targetWebTemplate,
             bool hasWritableSitePages)
         {
+            if (!inPlacePublishingPage)
+            {
+                return sourceSiteId != targetSiteId
+                    ? PublishingPageTransformationTarget.CrossSiteCollection
+                    : PublishingPageTransformationTarget.SameSiteCollectionNotAllowed;
+            }
+
             if (sourceSiteId != targetSiteId)
             {
-                return PublishingPageTransformationTarget.CrossSiteCollection;
+                return PublishingPageTransformationTarget.InPlaceDifferentSiteCollection;
             }
 
             if (sourceWebId != targetWebId)
             {
                 return PublishingPageTransformationTarget.SameSiteCollectionDifferentWeb;
-            }
-
-            if (!inPlacePublishingPage)
-            {
-                return PublishingPageTransformationTarget.SameSiteCollectionNotAllowed;
             }
 
             if (!string.Equals(targetWebTemplate, EnterpriseWikiWebTemplate, StringComparison.OrdinalIgnoreCase))
