@@ -2,6 +2,7 @@ using Ccd263.RuntimeBrowser;
 using PnP.Framework.Migration.Evidence;
 using PnP.Framework.Migration.Packaging;
 using PnP.Framework.Migration.Pages.ClassicWiki.Packaging;
+using PnP.Framework.Migration.Pages.ClassicWiki.Verification;
 using PnP.Framework.Migration.Verification;
 using PnP.Framework.Migration.Verification.NativePageRuntime;
 using System.Security.Cryptography;
@@ -14,15 +15,49 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 var fixtureDirectory = Path.Combine(AppContext.BaseDirectory, "fixtures");
-var fixturePaths = Directory.GetFiles(fixtureDirectory, "*.json").OrderBy(value => value, StringComparer.Ordinal).ToList();
+var fixturePaths = Directory.GetFiles(fixtureDirectory, "*.json")
+    .Where(value => Regex.IsMatch(Path.GetFileName(value), "^[0-9]{2}-"))
+    .OrderBy(value => value, StringComparer.Ordinal)
+    .ToList();
 if (fixturePaths.Count == 0) throw new InvalidDataException("No CCD-272 fixtures were found.");
+var printProvenance = args.Length == 1 && string.Equals(args[0], "--print-provenance", StringComparison.Ordinal);
+var provenancePath = Path.Combine(fixtureDirectory, "fixture-provenance-manifest.json");
+var provenance = printProvenance
+    ? null
+    : JsonSerializer.Deserialize<FixtureProvenanceManifest>(File.ReadAllText(provenancePath), TestJson.Options())
+        ?? throw new InvalidDataException("Fixture provenance manifest is invalid.");
+var provenanceByFile = provenance?.Fixtures.ToDictionary(value => value.File, StringComparer.Ordinal)
+    ?? new Dictionary<string, FixtureProvenanceEntry>(StringComparer.Ordinal);
+if (!printProvenance && (!string.Equals(provenance.SchemaVersion, "ccd272.browser-runtime-fixture-provenance/v1", StringComparison.Ordinal)
+    || !string.Equals(provenance.SharedContractCommit, "93451dc5188cdf8e495102456d4195fdbb62c6c9", StringComparison.Ordinal)))
+    throw new InvalidDataException("Fixture provenance manifest authority is stale.");
+if (!printProvenance && provenanceByFile.Count != fixturePaths.Count)
+    throw new InvalidDataException("Fixture provenance manifest coverage is stale.");
 
 var passed = 0;
 foreach (var fixturePath in fixturePaths)
 {
+    var fixtureFile = Path.GetFileName(fixturePath);
     var fixture = JsonSerializer.Deserialize<FixtureCase>(File.ReadAllText(fixturePath), TestJson.Options())
         ?? throw new InvalidDataException("Fixture is invalid: " + fixturePath);
     using var scenario = Scenario.Create(fixture);
+    var actualProvenance = new FixtureProvenanceEntry
+    {
+        File = fixtureFile,
+        RecipeDigestSha256 = TestJson.HashBytes(File.ReadAllBytes(fixturePath)),
+        OriginDigestSha256 = scenario.OriginDigestSha256,
+        InputDigestSha256 = scenario.InputDigestSha256
+    };
+    if (printProvenance)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(actualProvenance, TestJson.Options()));
+        continue;
+    }
+    if (!provenanceByFile.TryGetValue(fixtureFile, out var expectedProvenance)
+        || !expectedProvenance.Equals(actualProvenance))
+        throw new InvalidDataException("Fixture provenance is stale: " + fixtureFile);
+
+    var inputState = scenario.CaptureInputState();
     Exception failure = null;
     try
     {
@@ -34,11 +69,13 @@ foreach (var fixturePath in fixturePaths)
         if (emitted.RootElement.TryGetProperty("runtimeVerificationStatus", out _)
             || emitted.RootElement.TryGetProperty("acceptanceStatus", out _))
             throw new InvalidDataException("External evidence asserted native authority fields.");
+        scenario.ReopenPublishedEvidence();
     }
     catch (Exception exception)
     {
         failure = exception;
     }
+    scenario.AssertInputState(inputState);
 
     if (fixture.ExpectSuccess && failure != null)
         throw new InvalidDataException(fixture.CaseId + " unexpectedly failed: " + failure.Message, failure);
@@ -52,6 +89,7 @@ foreach (var fixturePath in fixturePaths)
     passed++;
 }
 
+if (printProvenance) return;
 Console.WriteLine($"CCD-272 fixtures passed: {passed}/{fixturePaths.Count}");
 
 sealed class FixtureCase
@@ -65,6 +103,27 @@ sealed class FixtureCase
     public string ExpectedError { get; set; }
 }
 
+sealed class FixtureProvenanceManifest
+{
+    public string SchemaVersion { get; set; }
+    public string SharedContractCommit { get; set; }
+    public IList<FixtureProvenanceEntry> Fixtures { get; set; } = new List<FixtureProvenanceEntry>();
+}
+
+sealed class FixtureProvenanceEntry : IEquatable<FixtureProvenanceEntry>
+{
+    public string File { get; set; }
+    public string RecipeDigestSha256 { get; set; }
+    public string OriginDigestSha256 { get; set; }
+    public string InputDigestSha256 { get; set; }
+
+    public bool Equals(FixtureProvenanceEntry other) => other != null
+        && string.Equals(File, other.File, StringComparison.Ordinal)
+        && string.Equals(RecipeDigestSha256, other.RecipeDigestSha256, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(OriginDigestSha256, other.OriginDigestSha256, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(InputDigestSha256, other.InputDigestSha256, StringComparison.OrdinalIgnoreCase);
+}
+
 sealed class Scenario : IDisposable
 {
     private static readonly DateTimeOffset BaseTime = new(2026, 9, 10, 0, 0, 0, TimeSpan.Zero);
@@ -72,17 +131,36 @@ sealed class Scenario : IDisposable
     private static readonly Guid ReadbackOperationId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     private static readonly Guid RuntimeOperationId = Guid.Parse("77fa33e6-9814-434d-bd7f-919747fe3f60");
     private static readonly string ContractRef = "60f2e50e8d60670a75d4258afbb2934b7bb4d4c0";
+    private const string EvidencePackageDigest = "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283";
     private readonly string root;
+    private readonly string bindingPath;
+    private readonly string admittedPlanPath;
+    private readonly string artifactStorePath;
 
-    private Scenario(string root, string requestPath, string outputPath)
+    private Scenario(
+        string root,
+        string requestPath,
+        string outputPath,
+        string bindingPath,
+        string admittedPlanPath,
+        string artifactStorePath,
+        string originDigestSha256,
+        string inputDigestSha256)
     {
         this.root = root;
+        this.bindingPath = bindingPath;
+        this.admittedPlanPath = admittedPlanPath;
+        this.artifactStorePath = artifactStorePath;
         RequestPath = requestPath;
         OutputPath = outputPath;
+        OriginDigestSha256 = originDigestSha256;
+        InputDigestSha256 = inputDigestSha256;
     }
 
     public string RequestPath { get; }
     public string OutputPath { get; }
+    public string OriginDigestSha256 { get; }
+    public string InputDigestSha256 { get; }
 
     public static Scenario Create(FixtureCase fixture)
     {
@@ -93,7 +171,19 @@ sealed class Scenario : IDisposable
         var storePath = Path.Combine(root, "artifacts");
         var store = new DirectoryMigrationArtifactStore(storePath);
         var target = CreateTarget();
-        var admittedPlanDigest = Hash("admitted-plan");
+        var sourceVersion = CreateSourceVersion();
+        var operations = CreateOperations();
+        var admittedPlan = new AdmittedReproExecutionPlan
+        {
+            PlanDigest = Hash("plan"),
+            TargetIdentity = target.CanonicalUrl,
+            SourceVersion = CopySourceVersion(sourceVersion),
+            Operations = CopyOperations(operations)
+        };
+        var admittedPlanDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+            admittedPlan,
+            admittedPlan.PlanDigest,
+            admittedPlan.TargetIdentity);
         var importReceiptDigest = Hash("import-receipt");
         const string authoredContent = "synthetic wiki";
         var bindingTargetEvidence = CreateTargetEvidence(
@@ -127,26 +217,12 @@ sealed class Scenario : IDisposable
                 FileUniqueId = Guid.Parse("c3b2c2bb-663d-47ed-8562-840c9fd685fb"),
                 PageServerRelativeUrl = "/sites/ccd/source/SitePages/wiki.aspx"
             },
-            SourceVersion = new CurrentSourceVersionIdentity
-            {
-                IdentityDigestSha256 = Hash("source-identity"),
-                VersionDigestSha256 = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
-                ETag = "\"source,3\"",
-                LastModifiedUtc = BaseTime,
-                VersionLabel = "3.0",
-                ObservedAtUtc = BaseTime.AddMinutes(1)
-            },
+            SourceVersion = CopySourceVersion(sourceVersion),
             SnapshotDigestSha256 = "518fb815a78d760eeb709ad4ba8008657ce8319e41d3baff0096debb5c56b76a",
-            PlanDigest = Hash("plan"),
+            PlanDigest = admittedPlan.PlanDigest,
             AdmittedPlanDigestSha256 = admittedPlanDigest,
             ImportReceiptDigestSha256 = importReceiptDigest,
-            Operations = new ReproOperationIds
-            {
-                MutationOperationId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                ReadbackOperationId = ReadbackOperationId,
-                RuntimeOperationId = RuntimeOperationId,
-                CleanupOperationId = Guid.Parse("44444444-4444-4444-4444-444444444444")
-            },
+            Operations = CopyOperations(operations),
             TargetStorageIdentity = target,
             TargetIdentityEvidence = bindingTargetEvidence,
             RequirementsManifest = manifest,
@@ -193,6 +269,7 @@ sealed class Scenario : IDisposable
         {
             SchemaVersion = BrowserRuntimeEvidenceAdapter.RequestSchemaVersion,
             BindingPath = "binding.json",
+            AdmittedPlanPath = "admitted-plan.json",
             ArtifactStorePath = "artifacts",
             OutputPath = "external-runtime-evidence.json",
             Expected = new BrowserRuntimeExpectedIdentity
@@ -237,21 +314,59 @@ sealed class Scenario : IDisposable
             Results = manifest.Requirements.Select(requirement => CreateResult(requirement.Id, target, html, dom, screenshot)).ToList(),
             Extensions = new Dictionary<string, string>
             {
-                ["ccd272.originEvidencePackageDigest"] = "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283"
+                ["ccd272.originEvidencePackageDigest"] = EvidencePackageDigest
             }
         };
 
-        ApplyMode(request, fixture.Mode);
-        ApplyMutation(fixture.Mutation, request, binding, storePath, html, dom, screenshot);
+        ApplyMode(request, fixture.Mode, store, html, dom, screenshot);
+        if (string.Equals(fixture.Mode, "terminal-access-200", StringComparison.Ordinal))
+        {
+            using var denialStream = store.OpenRead(request.Attempts[0].RawEvidence[0].Sha256);
+            using var denialReader = new StreamReader(denialStream, Encoding.UTF8);
+            if (denialReader.ReadToEnd().IndexOf("Access Denied", StringComparison.OrdinalIgnoreCase) < 0)
+                throw new InvalidDataException("The semantic HTTP-200 denial fixture lacks denial-body evidence.");
+        }
+        ApplyMutation(fixture.Mutation, request, binding, admittedPlan, root, storePath, html, dom, screenshot);
         var options = TestJson.Options(true);
         var bindingPath = Path.Combine(root, "binding.json");
         File.WriteAllText(bindingPath, JsonSerializer.Serialize(binding, options));
+        var admittedPlanPath = Path.Combine(root, "admitted-plan.json");
+        File.WriteAllText(admittedPlanPath, JsonSerializer.Serialize(admittedPlan, options));
         var requestPath = Path.Combine(root, "request.json");
         var requestNode = JsonNode.Parse(JsonSerializer.Serialize(request, options)).AsObject();
         if (string.Equals(fixture.Mutation, "native-authority-field", StringComparison.Ordinal))
             requestNode["acceptanceStatus"] = "Accepted";
         File.WriteAllText(requestPath, requestNode.ToJsonString(options));
-        return new Scenario(root, requestPath, Path.Combine(root, "external-runtime-evidence.json"));
+        var originDigest = TestJson.HashObject(new
+        {
+            runId = RunId,
+            claimId = NativePageRuntimeContract.ClaimId,
+            sourceFileUniqueId = BrowserRuntimeEvidenceAdapter.ClaimSourceFileUniqueId,
+            sourceVersionDigestSha256 = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
+            snapshotDigestSha256 = "518fb815a78d760eeb709ad4ba8008657ce8319e41d3baff0096debb5c56b76a",
+            evidencePackageDigestSha256 = EvidencePackageDigest,
+            runtimeOperationId = RuntimeOperationId,
+            targetFileUniqueId = target.FileUniqueId,
+            targetCanonicalUrl = target.CanonicalUrl
+        });
+        var stableRequestNode = requestNode.DeepClone().AsObject();
+        stableRequestNode["captureProducer"]["implementationRef"] = "<adapter-commit-bound-at-build>";
+        var inputDigest = TestJson.HashObject(new
+        {
+            binding = JsonNode.Parse(File.ReadAllText(bindingPath)),
+            admittedPlan = JsonNode.Parse(File.ReadAllText(admittedPlanPath)),
+            request = stableRequestNode,
+            artifacts = ArtifactState(storePath)
+        });
+        return new Scenario(
+            root,
+            requestPath,
+            Path.GetFullPath(Path.Combine(root, request.OutputPath)),
+            bindingPath,
+            admittedPlanPath,
+            storePath,
+            originDigest,
+            inputDigest);
     }
 
     public void Dispose()
@@ -259,7 +374,54 @@ sealed class Scenario : IDisposable
         try { Directory.Delete(root, true); } catch { }
     }
 
-    private static void ApplyMode(BrowserRuntimeAdapterRequest request, string mode)
+    public IReadOnlyDictionary<string, string> CaptureInputState()
+    {
+        var result = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        foreach (var path in new[] { RequestPath, bindingPath, admittedPlanPath })
+            result[Path.GetRelativePath(root, path)] = TestJson.HashBytes(File.ReadAllBytes(path));
+        foreach (var path in Directory.GetFiles(artifactStorePath, "*", SearchOption.AllDirectories)
+                     .OrderBy(value => value, StringComparer.Ordinal))
+            result[Path.GetRelativePath(root, path)] = TestJson.HashBytes(File.ReadAllBytes(path));
+        return result;
+    }
+
+    public void AssertInputState(IReadOnlyDictionary<string, string> expected)
+    {
+        var actual = CaptureInputState();
+        if (expected.Count != actual.Count || expected.Any(pair =>
+                !actual.TryGetValue(pair.Key, out var digest)
+                || !string.Equals(pair.Value, digest, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException("Adapter mutated a read-only input or artifact-store object.");
+    }
+
+    public void ReopenPublishedEvidence()
+    {
+        var binding = JsonSerializer.Deserialize<NativePageRuntimeBinding>(File.ReadAllText(bindingPath), TestJson.Options())
+            ?? throw new InvalidDataException("Published evidence binding reopen failed.");
+        var evidence = JsonSerializer.Deserialize<ExternalPageRuntimeEvidence>(File.ReadAllText(OutputPath), TestJson.Options())
+            ?? throw new InvalidDataException("Published external evidence reopen failed.");
+        var store = new DirectoryMigrationArtifactStore(artifactStorePath);
+        var policy = new ClassicWikiRuntimeEvidencePolicy();
+        policy.ValidateBinding(binding, store);
+        NativePageRuntimeBindingValidator.ValidateExternalEvidenceAndComputeDigest(
+            evidence,
+            binding,
+            policy,
+            store,
+            out var semanticStatus);
+        if (evidence.RuntimeReceipt != null && semanticStatus != evidence.RuntimeReceipt.Status)
+            throw new InvalidDataException("Published runtime receipt semantic status changed on reopen.");
+        if (evidence.TerminalObservation != null && semanticStatus != RuntimeVerificationStatus.Failed)
+            throw new InvalidDataException("Published terminal observation was not degraded on reopen.");
+    }
+
+    private static void ApplyMode(
+        BrowserRuntimeAdapterRequest request,
+        string mode,
+        IMigrationArtifactStore store,
+        ArtifactReference html,
+        ArtifactReference dom,
+        ArtifactReference screenshot)
     {
         if (string.Equals(mode, "positive", StringComparison.Ordinal)) return;
         request.Results = new List<RuntimeVerificationResult>();
@@ -275,6 +437,40 @@ sealed class Scenario : IDisposable
                 SemanticDetectorResult = "access_denied",
                 ReasonCode = "ACCESS_DENIED_SKIPPED",
                 Message = "Synthetic per-instance denial"
+            };
+            return;
+        }
+        if (string.Equals(mode, "terminal-access-401", StringComparison.Ordinal))
+        {
+            request.Attempts[0].HttpStatusCode = 401;
+            request.Attempts[0].SemanticResult = "unauthorized";
+            request.TerminalObservation = new NativePageRuntimeTerminalObservation
+            {
+                Kind = "access-denied",
+                HttpStatusCode = 401,
+                SemanticDetectorResult = "unauthorized",
+                ReasonCode = "ACCESS_DENIED_SKIPPED",
+                Message = "Synthetic per-instance 401 denial"
+            };
+            return;
+        }
+        if (string.Equals(mode, "terminal-access-200", StringComparison.Ordinal))
+        {
+            var denial = Put(
+                store,
+                Encoding.UTF8.GetBytes("<html><body><main>Access Denied</main></body></html>"),
+                "text/html",
+                "access-denied.html");
+            request.Attempts[0].RawEvidence[0] = Native(denial, "artifacts/access-denied.html");
+            request.Attempts[0].HttpStatusCode = 200;
+            request.Attempts[0].SemanticResult = "access_denied";
+            request.TerminalObservation = new NativePageRuntimeTerminalObservation
+            {
+                Kind = "access-denied",
+                HttpStatusCode = 200,
+                SemanticDetectorResult = "access_denied",
+                ReasonCode = "ACCESS_DENIED_SKIPPED",
+                Message = "Synthetic HTTP 200 denial body"
             };
             return;
         }
@@ -312,6 +508,8 @@ sealed class Scenario : IDisposable
         string mutation,
         BrowserRuntimeAdapterRequest request,
         NativePageRuntimeBinding binding,
+        AdmittedReproExecutionPlan admittedPlan,
+        string root,
         string storePath,
         ArtifactReference html,
         ArtifactReference dom,
@@ -354,6 +552,55 @@ sealed class Scenario : IDisposable
                 NativePageRuntimeBindingValidator.SealBinding(binding);
                 request.Expected.BindingDigestSha256 = binding.ContentSha256;
                 return;
+            case "unsupported-policy-terminal":
+                binding.PolicyVersion = "unsupported-policy/v999";
+                NativePageRuntimeBindingValidator.SealBinding(binding);
+                request.Expected.BindingDigestSha256 = binding.ContentSha256;
+                return;
+            case "missing-admitted-plan-digest":
+                binding.AdmittedPlanDigestSha256 = null;
+                request.Expected.AdmittedPlanDigestSha256 = null;
+                NativePageRuntimeBindingValidator.SealBinding(binding);
+                request.Expected.BindingDigestSha256 = binding.ContentSha256;
+                return;
+            case "missing-snapshot-digest":
+                binding.SnapshotDigestSha256 = null;
+                NativePageRuntimeBindingValidator.SealBinding(binding);
+                request.Expected.BindingDigestSha256 = binding.ContentSha256;
+                return;
+            case "foreign-snapshot-digest":
+                binding.SnapshotDigestSha256 = Hash("foreign-snapshot");
+                NativePageRuntimeBindingValidator.SealBinding(binding);
+                request.Expected.BindingDigestSha256 = binding.ContentSha256;
+                return;
+            case "missing-origin-package": request.Extensions.Remove("ccd272.originEvidencePackageDigest"); return;
+            case "foreign-origin-package":
+                request.Extensions["ccd272.originEvidencePackageDigest"] = Hash("foreign-origin-package");
+                return;
+            case "foreign-source-file":
+                binding.SourceIdentity.FileUniqueId = Guid.Parse("c3b2c2bb-663d-47ed-8562-840c9fd685fa");
+                NativePageRuntimeBindingValidator.SealBinding(binding);
+                request.Expected.BindingDigestSha256 = binding.ContentSha256;
+                return;
+            case "admitted-plan-source-lineage":
+                admittedPlan.SourceVersion.VersionLabel = "4.0";
+                var admittedDigest = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+                    admittedPlan,
+                    admittedPlan.PlanDigest,
+                    admittedPlan.TargetIdentity);
+                binding.AdmittedPlanDigestSha256 = admittedDigest;
+                request.Expected.AdmittedPlanDigestSha256 = admittedDigest;
+                NativePageRuntimeBindingValidator.SealBinding(binding);
+                request.Expected.BindingDigestSha256 = binding.ContentSha256;
+                return;
+            case "output-alias-binding": request.OutputPath = request.BindingPath; return;
+            case "output-alias-admitted-plan": request.OutputPath = request.AdmittedPlanPath; return;
+            case "output-alias-request": request.OutputPath = "request.json"; return;
+            case "output-alias-artifact":
+                request.OutputPath = Path.GetRelativePath(root, Path.Combine(storePath, html.Sha256[..2], html.Sha256));
+                return;
+            case "output-inside-artifact-store": request.OutputPath = "artifacts/external-runtime-evidence.json"; return;
+            case "missing-admitted-plan-file": request.AdmittedPlanPath = "missing-admitted-plan.json"; return;
             case "native-authority-field": return;
             case "too-many-attempts":
                 var original = request.Attempts[0];
@@ -462,6 +709,52 @@ sealed class Scenario : IDisposable
         Message = "Synthetic exact binding"
     };
 
+    private static CurrentSourceVersionIdentity CreateSourceVersion() => new()
+    {
+        IdentityDigestSha256 = Hash("source-identity"),
+        VersionDigestSha256 = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5",
+        ETag = "\"source,3\"",
+        LastModifiedUtc = BaseTime,
+        VersionLabel = "3.0",
+        ObservedAtUtc = BaseTime.AddMinutes(1)
+    };
+
+    private static ReproOperationIds CreateOperations() => new()
+    {
+        MutationOperationId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+        ReadbackOperationId = ReadbackOperationId,
+        RuntimeOperationId = RuntimeOperationId,
+        CleanupOperationId = Guid.Parse("44444444-4444-4444-4444-444444444444")
+    };
+
+    private static CurrentSourceVersionIdentity CopySourceVersion(CurrentSourceVersionIdentity value) => new()
+    {
+        IdentityDigestSha256 = value.IdentityDigestSha256,
+        VersionDigestSha256 = value.VersionDigestSha256,
+        ETag = value.ETag,
+        LastModifiedUtc = value.LastModifiedUtc,
+        VersionLabel = value.VersionLabel,
+        ObservedAtUtc = value.ObservedAtUtc
+    };
+
+    private static ReproOperationIds CopyOperations(ReproOperationIds value) => new()
+    {
+        MutationOperationId = value.MutationOperationId,
+        ReadbackOperationId = value.ReadbackOperationId,
+        RuntimeOperationId = value.RuntimeOperationId,
+        CleanupOperationId = value.CleanupOperationId
+    };
+
+    private static object ArtifactState(string storePath) => Directory.GetFiles(storePath, "*", SearchOption.AllDirectories)
+        .OrderBy(value => value, StringComparer.Ordinal)
+        .Select(value => new
+        {
+            locator = Path.GetRelativePath(storePath, value).Replace(Path.DirectorySeparatorChar, '/'),
+            length = new FileInfo(value).Length,
+            actualDigestSha256 = TestJson.HashBytes(File.ReadAllBytes(value))
+        })
+        .ToList();
+
     private static NativePageRuntimeTargetIdentity CreateTarget()
     {
         const string path = "/sites/ccd272/SitePages/wiki.aspx";
@@ -548,6 +841,12 @@ sealed class Scenario : IDisposable
 
 static class TestJson
 {
+    public static string HashBytes(byte[] bytes) =>
+        Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+    public static string HashObject<T>(T value) =>
+        HashBytes(JsonSerializer.SerializeToUtf8Bytes(value, Options()));
+
     public static JsonSerializerOptions Options(bool indented = false)
     {
         var result = new JsonSerializerOptions

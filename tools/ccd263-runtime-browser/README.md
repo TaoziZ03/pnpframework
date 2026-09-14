@@ -8,13 +8,28 @@ redefine, the reviewed CCD-271 contracts:
 - `pnp-migration-runtime-verification-receipt/v1`
 - `pnp-external-page-runtime-evidence/v1`
 
-The adapter copies operation, source-version, admitted-plan, import-receipt,
-and target identity from the sealed native binding. The request repeats the
-expected immutable identity so stale or foreign orchestration inputs fail
-closed. `NativePageRuntimeBindingValidator.SealExternalEvidence` creates the
+The adapter consumes both the sealed native binding and its reopenable typed
+`AdmittedReproExecutionPlan`. It validates that admission with
+`AdmittedReproExecutionPlanValidator`, then creates positive receipts only
+through `RuntimeVerificationReceiptFactory.Create`. The request repeats the
+expected operation, source-version, admission, import-receipt, and target
+identity so missing, stale, or foreign lineage fails closed. The shared
+`ClassicWikiRuntimeEvidencePolicy` validates the binding before either result
+branch. `NativePageRuntimeBindingValidator.SealExternalEvidence` creates the
 content seal, and `ValidateExternalEvidenceAndComputeDigest` reopens all
-artifacts and applies the shared `ClassicWikiRuntimeEvidencePolicy` before the
-output file is moved into place.
+artifacts both before and after publication.
+
+Publication is create-only. The output must not already exist, alias the
+request/binding/admitted-plan input, or be located in the content-addressed
+artifact store. Tests hash every read-only input and every CAS object before
+the adapter call and require the same set and bytes afterward.
+
+This is the owner-specific CCD-272 adapter, not a general runtime authority.
+It additionally pins the reviewed source File/version digest, snapshot,
+runtime operation, target File/item/version, CUPCollect host, and origin
+evidence-package digest from the claim. A self-consistent foreign binding is
+therefore rejected even when a caller reseals it and changes its local
+`expected` copy.
 
 The output is strictly one of:
 
@@ -54,10 +69,11 @@ dotnet build .\tools\ccd263-runtime-browser\ccd263-runtime-browser.csproj `
 
 The request schema is
 [`schemas/browser-runtime-evidence-request-v1.schema.json`](schemas/browser-runtime-evidence-request-v1.schema.json).
-All paths are resolved relative to the request file. The artifact store uses
-the normal `DirectoryMigrationArtifactStore` digest layout. The request schema
-defines the adapter-owned orchestration envelope; nested binding/runtime types
-remain owned and strictly validated by the referenced shared CLR contracts.
+All paths, including `admittedPlanPath`, are resolved relative to the request
+file. The artifact store uses the normal `DirectoryMigrationArtifactStore`
+digest layout. The request schema defines the adapter-owned orchestration
+envelope; nested binding/admission/runtime types remain owned and strictly
+validated by the referenced shared CLR contracts.
 
 ```powershell
 dotnet .\tools\ccd263-runtime-browser\bin\Release\net9.0\ccd263-runtime-browser.dll `
@@ -79,11 +95,16 @@ exact emission or a named fail-closed rejection.
 $pnp = Resolve-Path ..\ccd271-runtime-native-contract\src\lib\PnP.Framework\PnP.Framework.csproj
 dotnet run --project .\tools\ccd263-runtime-browser\tests\ccd263-runtime-browser.Tests.csproj `
   -c Release `
-  -p:PnpFrameworkProject=$pnp
+  -p:PnpFrameworkProject=$pnp `
+  -p:TargetFrameworks=net9.0
 ```
 
-The fixtures cover exact binding, stale/foreign identity, URL redirects,
+The 40 fixtures cover exact binding, typed-admission/source lineage,
+stale/foreign or structurally missing identity, URL redirects,
 cache/service-worker reuse, non-fresh contexts, altered HTML/DOM/screenshot
-bytes, semantic detector failure, bounded 401/403 and transport terminals,
-request-ID unavailability, unknown schema/profile, forbidden authority fields,
-and retry bounds.
+bytes, semantic detector failure, bounded 401, 403, semantic HTTP-200 denial,
+and transport terminals, request-ID unavailability, unsupported policy/profile,
+forbidden authority fields, retry bounds, and output aliases. Every fixture has
+frozen recipe, origin, and generated-input digests in
+`fixtures/fixture-provenance-manifest.json`; every successful publication is
+reopened through the shared validator.
