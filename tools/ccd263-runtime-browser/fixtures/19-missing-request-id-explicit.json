@@ -1,0 +1,1 @@
+{"schemaVersion":"ccd272.browser-runtime-fixture/v1","caseId":"missing-request-id-explicit","mode":"positive","mutation":"request-id-with-reason","expectSuccess":true,"expectedResultKind":"runtime-receipt"}
