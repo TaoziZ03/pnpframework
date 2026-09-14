@@ -237,23 +237,29 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             }
             if (node is IElement element)
             {
-                if (!IsPotentiallyVisible(element))
+                if (!TryGetRenderedVisibility(element, out var textVisible))
                 {
                     return;
                 }
-                var boundary = IsRenderedTextBoundary(element.LocalName);
+                var boundary = textVisible && IsRenderedTextBoundary(element.LocalName);
                 if (boundary)
                 {
                     AppendTextBoundary(result);
                 }
                 if (string.Equals(element.LocalName, "br", StringComparison.OrdinalIgnoreCase))
                 {
-                    AppendTextBoundary(result);
+                    if (textVisible)
+                    {
+                        AppendTextBoundary(result);
+                    }
                     return;
                 }
                 foreach (var child in element.ChildNodes)
                 {
-                    AppendVisibleRenderedText(child, result);
+                    if (!(child is IText) || textVisible)
+                    {
+                        AppendVisibleRenderedText(child, result);
+                    }
                 }
                 if (boundary)
                 {
@@ -267,8 +273,9 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             }
         }
 
-        private static bool IsPotentiallyVisible(IElement element)
+        private static bool TryGetRenderedVisibility(IElement element, out bool textVisible)
         {
+            textVisible = false;
             var name = element.LocalName;
             if (string.Equals(name, "script", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(name, "style", StringComparison.OrdinalIgnoreCase)
@@ -294,14 +301,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
             var contentVisibility = style.GetPropertyValue("content-visibility")?.Trim();
             var opacity = style.GetPropertyValue("opacity")?.Trim();
             if (string.Equals(display, "none", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(visibility, "hidden", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(visibility, "collapse", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(contentVisibility, "hidden", StringComparison.OrdinalIgnoreCase)
                 || double.TryParse(opacity, NumberStyles.Float, CultureInfo.InvariantCulture, out var opacityValue)
                     && opacityValue <= 0)
             {
                 return false;
             }
+            textVisible = !string.Equals(visibility, "hidden", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(visibility, "collapse", StringComparison.OrdinalIgnoreCase);
             return true;
         }
 
@@ -1111,7 +1118,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 {
                     counts[index] = bytes[offset + index];
                     symbols += counts[index];
-                    if (nextCode + counts[index] > (1 << (index + 1)))
+                    if (nextCode + counts[index] >= (1 << (index + 1)))
                     {
                         return false;
                     }
@@ -1365,7 +1372,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWiki.Verification
                 for (var length = 1; length <= 16; length++)
                 {
                     var count = counts[length - 1];
-                    if (code + count > 1 << length)
+                    if (code + count >= 1 << length)
                     {
                         return null;
                     }
