@@ -28,33 +28,42 @@ var provenance = printProvenance
         ?? throw new InvalidDataException("Fixture provenance manifest is invalid.");
 var provenanceByFile = provenance?.Fixtures.ToDictionary(value => value.File, StringComparer.Ordinal)
     ?? new Dictionary<string, FixtureProvenanceEntry>(StringComparer.Ordinal);
-if (!printProvenance && (!string.Equals(provenance.SchemaVersion, "ccd272.browser-runtime-fixture-provenance/v1", StringComparison.Ordinal)
-    || !string.Equals(provenance.SharedContractCommit, "93451dc5188cdf8e495102456d4195fdbb62c6c9", StringComparison.Ordinal)))
+if (!printProvenance && (!string.Equals(provenance.FixtureSchemaVersion, FixtureContract.SchemaVersion, StringComparison.Ordinal)
+    || !string.Equals(provenance.ManifestKind, "aggregate", StringComparison.Ordinal)
+    || !provenance.Synthetic
+    || !string.Equals(provenance.OriginEvidencePackageDigest, FixtureContract.OriginEvidencePackageDigest, StringComparison.Ordinal)
+    || !string.Equals(provenance.SourceIdentity, FixtureContract.SourceIdentity, StringComparison.Ordinal)
+    || !string.Equals(provenance.SourceVersionDigest, FixtureContract.SourceVersionDigest, StringComparison.Ordinal)
+    || !string.Equals(provenance.ClaimId, NativePageRuntimeContract.ClaimId, StringComparison.Ordinal)
+    || !string.Equals(provenance.ContractRevision, NativePageRuntimeContract.ExternalEvidenceSchemaVersion, StringComparison.Ordinal)
+    || !string.Equals(provenance.SharedContractCommit, FixtureContract.SharedContractCommit, StringComparison.Ordinal)))
     throw new InvalidDataException("Fixture provenance manifest authority is stale.");
 if (!printProvenance && provenanceByFile.Count != fixturePaths.Count)
     throw new InvalidDataException("Fixture provenance manifest coverage is stale.");
 
 var passed = 0;
+var actualProvenanceEntries = new List<FixtureProvenanceEntry>();
 foreach (var fixturePath in fixturePaths)
 {
     var fixtureFile = Path.GetFileName(fixturePath);
     var fixture = JsonSerializer.Deserialize<FixtureCase>(File.ReadAllText(fixturePath), TestJson.Options())
         ?? throw new InvalidDataException("Fixture is invalid: " + fixturePath);
+    FixtureContract.Validate(fixture, fixturePath);
     using var scenario = Scenario.Create(fixture);
-    var actualProvenance = new FixtureProvenanceEntry
-    {
-        File = fixtureFile,
-        RecipeDigestSha256 = TestJson.HashBytes(File.ReadAllBytes(fixturePath)),
-        OriginDigestSha256 = scenario.OriginDigestSha256,
-        InputDigestSha256 = scenario.InputDigestSha256
-    };
+    var actualProvenance = FixtureProvenanceEntry.Create(
+        fixtureFile,
+        fixture,
+        TestJson.HashBytes(File.ReadAllBytes(fixturePath)),
+        scenario.OriginDigestSha256,
+        scenario.InputDigestSha256);
+    actualProvenanceEntries.Add(actualProvenance);
     if (printProvenance)
-    {
-        Console.WriteLine(JsonSerializer.Serialize(actualProvenance, TestJson.Options()));
         continue;
-    }
     if (!provenanceByFile.TryGetValue(fixtureFile, out var expectedProvenance)
-        || !expectedProvenance.Equals(actualProvenance))
+        || !string.Equals(
+            TestJson.HashObject(expectedProvenance),
+            TestJson.HashObject(actualProvenance),
+            StringComparison.OrdinalIgnoreCase))
         throw new InvalidDataException("Fixture provenance is stale: " + fixtureFile);
 
     var inputState = scenario.CaptureInputState();
@@ -62,8 +71,8 @@ foreach (var fixturePath in fixturePaths)
     try
     {
         var result = BrowserRuntimeEvidenceAdapter.EmitFromFile(scenario.RequestPath);
-        if (!fixture.ExpectSuccess) throw new InvalidDataException("Expected rejection but emission succeeded.");
-        if (!string.Equals(result.ResultKind, fixture.ExpectedResultKind, StringComparison.Ordinal))
+        if (!fixture.Expected.Success) throw new InvalidDataException("Expected rejection but emission succeeded.");
+        if (!string.Equals(result.ResultKind, fixture.Expected.ResultKind, StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected result kind: " + result.ResultKind);
         using var emitted = JsonDocument.Parse(File.ReadAllText(scenario.OutputPath));
         if (emitted.RootElement.TryGetProperty("runtimeVerificationStatus", out _)
@@ -77,51 +86,185 @@ foreach (var fixturePath in fixturePaths)
     }
     scenario.AssertInputState(inputState);
 
-    if (fixture.ExpectSuccess && failure != null)
+    if (fixture.Expected.Success && failure != null)
         throw new InvalidDataException(fixture.CaseId + " unexpectedly failed: " + failure.Message, failure);
-    if (!fixture.ExpectSuccess && failure == null)
+    if (!fixture.Expected.Success && failure == null)
         throw new InvalidDataException(fixture.CaseId + " unexpectedly succeeded.");
-    if (!fixture.ExpectSuccess && !string.IsNullOrWhiteSpace(fixture.ExpectedError)
-        && failure.Message.IndexOf(fixture.ExpectedError, StringComparison.OrdinalIgnoreCase) < 0)
+    if (!fixture.Expected.Success && !string.IsNullOrWhiteSpace(fixture.Expected.Diagnostic)
+        && failure.Message.IndexOf(fixture.Expected.Diagnostic, StringComparison.OrdinalIgnoreCase) < 0)
         throw new InvalidDataException(fixture.CaseId + " rejected for the wrong reason: " + failure.Message, failure);
 
     Console.WriteLine("PASS " + fixture.CaseId + (failure == null ? " emitted" : " rejected:" + failure.Message));
     passed++;
 }
 
-if (printProvenance) return;
+if (printProvenance)
+{
+    Console.WriteLine(JsonSerializer.Serialize(
+        FixtureProvenanceManifest.Create(actualProvenanceEntries),
+        TestJson.Options(true)));
+    return;
+}
 Console.WriteLine($"CCD-272 fixtures passed: {passed}/{fixturePaths.Count}");
 
 sealed class FixtureCase
 {
-    public string SchemaVersion { get; set; }
+    public string FixtureSchemaVersion { get; set; }
     public string CaseId { get; set; }
+    public bool Synthetic { get; set; }
+    public string OriginEvidencePackageDigest { get; set; }
+    public string SourceIdentity { get; set; }
+    public string SourceVersionDigest { get; set; }
+    public string ClaimId { get; set; }
+    public string ContractRevision { get; set; }
+    public string TransformRecipe { get; set; }
+    public string TransformRecipeDigest { get; set; }
+    public FixtureExpected Expected { get; set; }
+    public IList<FixtureInputArtifact> InputArtifacts { get; set; } = new List<FixtureInputArtifact>();
     public string Mode { get; set; }
     public string Mutation { get; set; }
-    public bool ExpectSuccess { get; set; }
-    public string ExpectedResultKind { get; set; }
-    public string ExpectedError { get; set; }
 }
 
 sealed class FixtureProvenanceManifest
 {
-    public string SchemaVersion { get; set; }
+    public string FixtureSchemaVersion { get; set; }
+    public string ManifestKind { get; set; }
+    public bool Synthetic { get; set; }
+    public string OriginEvidencePackageDigest { get; set; }
+    public string SourceIdentity { get; set; }
+    public string SourceVersionDigest { get; set; }
+    public string ClaimId { get; set; }
+    public string ContractRevision { get; set; }
     public string SharedContractCommit { get; set; }
     public IList<FixtureProvenanceEntry> Fixtures { get; set; } = new List<FixtureProvenanceEntry>();
+
+    public static FixtureProvenanceManifest Create(IList<FixtureProvenanceEntry> fixtures) => new()
+    {
+        FixtureSchemaVersion = FixtureContract.SchemaVersion,
+        ManifestKind = "aggregate",
+        Synthetic = true,
+        OriginEvidencePackageDigest = FixtureContract.OriginEvidencePackageDigest,
+        SourceIdentity = FixtureContract.SourceIdentity,
+        SourceVersionDigest = FixtureContract.SourceVersionDigest,
+        ClaimId = NativePageRuntimeContract.ClaimId,
+        ContractRevision = NativePageRuntimeContract.ExternalEvidenceSchemaVersion,
+        SharedContractCommit = FixtureContract.SharedContractCommit,
+        Fixtures = fixtures
+    };
 }
 
-sealed class FixtureProvenanceEntry : IEquatable<FixtureProvenanceEntry>
+sealed class FixtureProvenanceEntry
 {
     public string File { get; set; }
+    public string FixtureSchemaVersion { get; set; }
+    public string CaseId { get; set; }
+    public bool Synthetic { get; set; }
+    public string OriginEvidencePackageDigest { get; set; }
+    public string SourceIdentity { get; set; }
+    public string SourceVersionDigest { get; set; }
+    public string ClaimId { get; set; }
+    public string ContractRevision { get; set; }
+    public string TransformRecipe { get; set; }
+    public string TransformRecipeDigest { get; set; }
+    public FixtureExpected Expected { get; set; }
+    public IList<FixtureInputArtifact> InputArtifacts { get; set; } = new List<FixtureInputArtifact>();
     public string RecipeDigestSha256 { get; set; }
     public string OriginDigestSha256 { get; set; }
-    public string InputDigestSha256 { get; set; }
+    public string GeneratedInputDigestSha256 { get; set; }
 
-    public bool Equals(FixtureProvenanceEntry other) => other != null
-        && string.Equals(File, other.File, StringComparison.Ordinal)
-        && string.Equals(RecipeDigestSha256, other.RecipeDigestSha256, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(OriginDigestSha256, other.OriginDigestSha256, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(InputDigestSha256, other.InputDigestSha256, StringComparison.OrdinalIgnoreCase);
+    public static FixtureProvenanceEntry Create(
+        string file,
+        FixtureCase fixture,
+        string recipeDigestSha256,
+        string originDigestSha256,
+        string generatedInputDigestSha256) => new()
+    {
+        File = file,
+        FixtureSchemaVersion = fixture.FixtureSchemaVersion,
+        CaseId = fixture.CaseId,
+        Synthetic = fixture.Synthetic,
+        OriginEvidencePackageDigest = fixture.OriginEvidencePackageDigest,
+        SourceIdentity = fixture.SourceIdentity,
+        SourceVersionDigest = fixture.SourceVersionDigest,
+        ClaimId = fixture.ClaimId,
+        ContractRevision = fixture.ContractRevision,
+        TransformRecipe = fixture.TransformRecipe,
+        TransformRecipeDigest = fixture.TransformRecipeDigest,
+        Expected = fixture.Expected,
+        InputArtifacts = fixture.InputArtifacts,
+        RecipeDigestSha256 = recipeDigestSha256,
+        OriginDigestSha256 = originDigestSha256,
+        GeneratedInputDigestSha256 = generatedInputDigestSha256
+    };
+
+}
+
+sealed class FixtureExpected
+{
+    public bool Success { get; set; }
+    public string ResultKind { get; set; }
+    public string Diagnostic { get; set; }
+
+}
+
+sealed class FixtureInputArtifact
+{
+    public string Path { get; set; }
+    public string Sha256 { get; set; }
+    public long Length { get; set; }
+
+}
+
+static class FixtureContract
+{
+    public const string SchemaVersion = "ccd263-conformance-fixture/v1";
+    public const string SharedContractCommit = "93451dc5188cdf8e495102456d4195fdbb62c6c9";
+    public const string OriginEvidencePackageDigest = "40aef6bc9c8b443a93839cdc99b8f06d2e0980e2883625766ac3b81bdf032283";
+    public const string SourceVersionDigest = "7c0ed8c29e1a81c925f93bca41affa5035116f444af278a35c62ca807045f8d5";
+    public const string SourceIdentity = "site:c37b3679-0000-0000-0000-000000000001/web:041e70b3-0000-0000-0000-000000000001/list:3fed0145-0000-0000-0000-000000000001/item:2/file:c3b2c2bb-663d-47ed-8562-840c9fd685fb/path:/sites/ccd/source/SitePages/wiki.aspx";
+
+    public static void Validate(FixtureCase fixture, string fixturePath)
+    {
+        if (!string.Equals(fixture.FixtureSchemaVersion, SchemaVersion, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(fixture.CaseId)
+            || !fixture.Synthetic
+            || !string.Equals(fixture.OriginEvidencePackageDigest, OriginEvidencePackageDigest, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(fixture.SourceIdentity, SourceIdentity, StringComparison.Ordinal)
+            || !string.Equals(fixture.SourceVersionDigest, SourceVersionDigest, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(fixture.ClaimId, NativePageRuntimeContract.ClaimId, StringComparison.Ordinal)
+            || !string.Equals(fixture.ContractRevision, NativePageRuntimeContract.ExternalEvidenceSchemaVersion, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(fixture.Mode)
+            || string.IsNullOrWhiteSpace(fixture.Mutation)
+            || fixture.Expected == null)
+            throw new InvalidDataException("Fixture conformance metadata is missing or foreign: " + fixturePath);
+
+        var expectedRecipe = "mode:" + fixture.Mode + ";mutation:" + fixture.Mutation;
+        if (!string.Equals(fixture.TransformRecipe, expectedRecipe, StringComparison.Ordinal)
+            || !string.Equals(
+                fixture.TransformRecipeDigest,
+                TestJson.HashBytes(Encoding.UTF8.GetBytes(expectedRecipe)),
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Fixture transform recipe is stale: " + fixturePath);
+        if (fixture.Expected.Success == string.IsNullOrWhiteSpace(fixture.Expected.ResultKind)
+            || fixture.Expected.Success && !string.IsNullOrWhiteSpace(fixture.Expected.Diagnostic)
+            || !fixture.Expected.Success && string.IsNullOrWhiteSpace(fixture.Expected.Diagnostic))
+            throw new InvalidDataException("Fixture expected outcome is incomplete: " + fixturePath);
+        if (fixture.InputArtifacts == null || fixture.InputArtifacts.Count == 0)
+            throw new InvalidDataException("Fixture input artifact metadata is missing: " + fixturePath);
+
+        var fixtureDirectory = Path.GetFullPath(Path.GetDirectoryName(fixturePath)!);
+        foreach (var input in fixture.InputArtifacts)
+        {
+            var path = Path.GetFullPath(Path.Combine(fixtureDirectory, input.Path ?? string.Empty));
+            if (!path.StartsWith(fixtureDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || !File.Exists(path))
+                throw new InvalidDataException("Fixture input artifact locator is invalid: " + fixturePath);
+            var bytes = File.ReadAllBytes(path);
+            if (bytes.LongLength != input.Length
+                || !string.Equals(TestJson.HashBytes(bytes), input.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Fixture input artifact hash/length is stale: " + fixturePath);
+        }
+    }
 }
 
 sealed class Scenario : IDisposable
@@ -164,7 +307,7 @@ sealed class Scenario : IDisposable
 
     public static Scenario Create(FixtureCase fixture)
     {
-        if (!string.Equals(fixture.SchemaVersion, "ccd272.browser-runtime-fixture/v1", StringComparison.Ordinal))
+        if (!string.Equals(fixture.FixtureSchemaVersion, FixtureContract.SchemaVersion, StringComparison.Ordinal))
             throw new InvalidDataException("Fixture schema unsupported: " + fixture.CaseId);
         var root = Path.Combine(Path.GetTempPath(), "ccd272-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -519,6 +662,74 @@ sealed class Scenario : IDisposable
         {
             case "none": return;
             case "stale-binding": binding.SourceVersion.VersionLabel = "4.0"; return;
+            case "missing-subject":
+                binding.Subject = null;
+                ResealBinding(request, binding);
+                return;
+            case "foreign-subject":
+                binding.Subject.Subtype = "runtime.foreign";
+                ResealBinding(request, binding);
+                return;
+            case "foreign-primary-owner":
+                binding.Subject.PrimaryOwnerLane = "browser-runtime";
+                ResealBinding(request, binding);
+                return;
+            case "source-version-label":
+                binding.SourceVersion.VersionLabel = "4.0";
+                admittedPlan.SourceVersion.VersionLabel = "4.0";
+                binding.AdmittedPlanDigestSha256 = AdmittedReproExecutionPlanValidator.ValidateAndComputeDigest(
+                    admittedPlan,
+                    admittedPlan.PlanDigest,
+                    admittedPlan.TargetIdentity);
+                request.Expected.AdmittedPlanDigestSha256 = binding.AdmittedPlanDigestSha256;
+                ResealBinding(request, binding);
+                return;
+            case "foreign-source-list":
+                binding.SourceIdentity.ListId = Guid.Parse("3fed0145-0000-0000-0000-000000000099");
+                ResealBinding(request, binding);
+                return;
+            case "manifest-without-screenshot":
+                binding.RequirementsManifest.Requirements = binding.RequirementsManifest.Requirements
+                    .Where(value => !string.Equals(value.Id, NativePageRuntimeContract.ScreenshotRequirementId, StringComparison.Ordinal))
+                    .ToList();
+                request.Results = request.Results
+                    .Where(value => !string.Equals(value.RequirementId, NativePageRuntimeContract.ScreenshotRequirementId, StringComparison.Ordinal))
+                    .ToList();
+                ResealBindingManifest(request, binding);
+                return;
+            case "manifest-optional-requirement":
+                binding.RequirementsManifest.Requirements[0].Required = false;
+                ResealBindingManifest(request, binding);
+                return;
+            case "manifest-reordered":
+                binding.RequirementsManifest.Requirements = binding.RequirementsManifest.Requirements.Reverse().ToList();
+                request.Results = request.Results.Reverse().ToList();
+                ResealBindingManifest(request, binding);
+                return;
+            case "manifest-altered-requirement":
+                binding.RequirementsManifest.Requirements[0].Description = "Caller-weakened runtime requirement";
+                ResealBindingManifest(request, binding);
+                return;
+            case "manifest-screenshot-only-denial":
+                var denialStore = new DirectoryMigrationArtifactStore(storePath);
+                var denial = Put(
+                    denialStore,
+                    Encoding.UTF8.GetBytes("<html><body><main>Access Denied</main></body></html>"),
+                    "text/html",
+                    "positive-access-denied.html");
+                binding.RequirementsManifest.Requirements = binding.RequirementsManifest.Requirements
+                    .Where(value => string.Equals(value.Id, NativePageRuntimeContract.ScreenshotRequirementId, StringComparison.Ordinal))
+                    .ToList();
+                request.Results = request.Results
+                    .Where(value => string.Equals(value.RequirementId, NativePageRuntimeContract.ScreenshotRequirementId, StringComparison.Ordinal))
+                    .ToList();
+                request.Results[0].EvidenceArtifactSha256 = denial.Sha256;
+                request.Results[0].EvidenceArtifactLength = denial.Length;
+                request.Results[0].EvidenceArtifactLocator = "artifacts/positive-access-denied.html";
+                request.Results[0].Http.EncodedDataLength = denial.Length;
+                request.Attempts[0].RawEvidence[0] = Native(denial, "artifacts/positive-access-denied.html");
+                ResealBindingManifest(request, binding);
+                return;
             case "source-version": request.Expected.SourceVersionDigestSha256 = Hash("stale-source"); return;
             case "admitted-plan": request.Expected.AdmittedPlanDigestSha256 = Hash("wrong-plan"); return;
             case "import-receipt": request.Expected.ImportReceiptDigestSha256 = Hash("wrong-import"); return;
@@ -629,6 +840,23 @@ sealed class Scenario : IDisposable
                 return;
             default: throw new InvalidDataException("Unsupported fixture mutation: " + mutation);
         }
+    }
+
+    private static void ResealBindingManifest(
+        BrowserRuntimeAdapterRequest request,
+        NativePageRuntimeBinding binding)
+    {
+        binding.RequirementsManifestDigestSha256 = MigrationDigest.ComputeSha256(
+            ClassicWikiPackageSerializer.SerializeCanonical(binding.RequirementsManifest));
+        ResealBinding(request, binding);
+    }
+
+    private static void ResealBinding(
+        BrowserRuntimeAdapterRequest request,
+        NativePageRuntimeBinding binding)
+    {
+        NativePageRuntimeBindingValidator.SealBinding(binding);
+        request.Expected.BindingDigestSha256 = binding.ContentSha256;
     }
 
     private static NativePageRuntimeAttempt CreateAttempt(
