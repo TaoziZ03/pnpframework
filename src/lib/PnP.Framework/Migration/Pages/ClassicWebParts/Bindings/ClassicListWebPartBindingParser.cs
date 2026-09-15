@@ -1,13 +1,18 @@
 using PnP.Framework.Migration.Diagnostics;
+using PnP.Framework.Migration.Packaging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Xml.Linq;
 
 namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
 {
     public static class ClassicListWebPartBindingParser
     {
+        private const string NativeV2Type = "Microsoft.SharePoint.WebPartPages.ListViewWebPart";
+
         public static ClassicListWebPartBindingParseResult Parse(
             ClassicWebPartSnapshot webPart,
             Guid sourcePageWebId,
@@ -23,7 +28,7 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
             XDocument document;
             try
             {
-                document = XDocument.Parse(webPart.ExportXml, LoadOptions.PreserveWhitespace);
+                document = ClassicWebPartMetadataParser.ReadDocument(webPart.ExportXml, LoadOptions.PreserveWhitespace);
             }
             catch (System.Xml.XmlException exception)
             {
@@ -31,16 +36,51 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
                 return new ClassicListWebPartBindingParseResult { Issues = issues };
             }
 
-            var properties = document.Descendants()
-                .Where(element => string.Equals(element.Name.LocalName, "property", StringComparison.OrdinalIgnoreCase))
-                .Where(element => !string.IsNullOrWhiteSpace((string)element.Attribute("name")))
-                .GroupBy(element => (string)element.Attribute("name"), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.Last().Value.Trim(), StringComparer.OrdinalIgnoreCase);
+            var isV2 = ClassicWebPartMetadataParser.IsV2Document(document);
+            IDictionary<string, string> properties;
+            try
+            {
+                if (isV2)
+                {
+                    properties = ReadNativeV2Properties(document);
+                    var typeName = ClassicWebPartMetadataParser.ReadTypeName(webPart.ExportXml);
+                    if (!string.IsNullOrWhiteSpace(webPart.TypeName)
+                        && !string.Equals(webPart.TypeName.Trim(), NativeV2Type, StringComparison.Ordinal)
+                        && !string.Equals(webPart.TypeName.Trim(), typeName, StringComparison.Ordinal))
+                    {
+                        throw new InvalidDataException("The captured type does not match the authoritative v2 TypeName/Assembly.");
+                    }
+                    if (!string.Equals(webPart.ExportSha256, MigrationDigest.ComputeSha256(webPart.ExportXml), StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException("The native v2 export does not match its captured digest.");
+                    }
+                }
+                else
+                {
+                    // Preserve the established v3 and namespace-free legacy binding path.
+                    properties = document.Descendants()
+                        .Where(element => string.Equals(element.Name.LocalName, "property", StringComparison.OrdinalIgnoreCase))
+                        .Where(element => !string.IsNullOrWhiteSpace((string)element.Attribute("name")))
+                        .GroupBy(element => (string)element.Attribute("name"), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(group => group.Key, group => group.Last().Value.Trim(), StringComparer.OrdinalIgnoreCase);
+                }
+            }
+            catch (Exception exception) when (exception is InvalidDataException || exception is ArgumentException || exception is FileLoadException)
+            {
+                AddBlocker(issues, webPart.Id, "ListBindingUnavailable", exception.Message);
+                return new ClassicListWebPartBindingParseResult { Issues = issues };
+            }
             string listIdValue;
             properties.TryGetValue("ListId", out listIdValue);
             string listNameValue;
             properties.TryGetValue("ListName", out listNameValue);
-            var listId = ParseGuid(listIdValue) ?? ParseGuid(listNameValue);
+            var declaredListId = ParseGuid(listIdValue, isV2);
+            var declaredListName = ParseGuid(listNameValue, isV2);
+            var listId = declaredListId ?? declaredListName;
+            if (isV2 && (!declaredListId.HasValue || declaredListId == Guid.Empty || declaredListId != declaredListName))
+            {
+                AddBlocker(issues, webPart.Id, "ListBindingUnavailable", "The native v2 ListId/ListName must declare the same nonempty GUID.");
+            }
             if (!listId.HasValue)
             {
                 AddBlocker(issues, webPart.Id, "ListBindingUnavailable", "A list-bound Web Part has no parseable ListId/ListName GUID.");
@@ -48,14 +88,18 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
 
             string webIdValue;
             properties.TryGetValue("WebId", out webIdValue);
-            var declaredWebId = ParseGuid(webIdValue);
+            var declaredWebId = ParseGuid(webIdValue, isV2);
             var sourceListWebId = !declaredWebId.HasValue || declaredWebId.Value == Guid.Empty ? sourcePageWebId : declaredWebId.Value;
+            if (isV2 && (!declaredWebId.HasValue || sourceListWebId == Guid.Empty))
+            {
+                AddBlocker(issues, webPart.Id, "ListBindingUnavailable", "The native v2 WebId requires a valid GUID and a resolved source Web.");
+            }
             string xmlDefinition;
             properties.TryGetValue("XmlDefinition", out xmlDefinition);
             xmlDefinition = xmlDefinition ?? string.Empty;
             string viewGuid;
             properties.TryGetValue("ViewGuid", out viewGuid);
-            var viewId = ParseGuid(viewGuid);
+            var viewId = ParseGuid(viewGuid, isV2);
             string jsLink;
             properties.TryGetValue("JSLink", out jsLink);
             string xslLink;
@@ -64,8 +108,12 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
             {
                 try
                 {
-                    var view = XDocument.Parse(xmlDefinition, LoadOptions.PreserveWhitespace).Root;
-                    viewId = viewId ?? ParseGuid(view == null ? null : (string)view.Attribute("Name"));
+                    var view = ClassicWebPartMetadataParser.ReadDocument(xmlDefinition, LoadOptions.PreserveWhitespace).Root;
+                    viewId = viewId ?? ParseGuid(view == null ? null : (string)view.Attribute("Name"), isV2);
+                    if (isV2 && (view?.Name != "View" || !viewId.HasValue || viewId == Guid.Empty))
+                    {
+                        AddBlocker(issues, webPart.Id, "ViewMappingUnavailable", "The native v2 ListViewXml requires an unqualified View with a nonempty Name GUID.");
+                    }
                     jsLink = FirstNonempty(jsLink, ReadElement(view, "JSLink"));
                     xslLink = FirstNonempty(xslLink, ReadElement(view, "XslLink"));
                 }
@@ -91,7 +139,8 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
                 Binding = new ClassicListWebPartBindingSnapshot
                 {
                     SourceWebPartId = webPart.Id,
-                    TypeName = webPart.TypeName ?? ClassicWebPartMetadataParser.ReadTypeName(webPart.ExportXml),
+                    TypeName = isV2 ? ClassicWebPartMetadataParser.ReadTypeName(webPart.ExportXml)
+                        : webPart.TypeName ?? ClassicWebPartMetadataParser.ReadTypeName(webPart.ExportXml),
                     Title = webPart.Title,
                     SourcePageWebId = sourcePageWebId,
                     SourcePageWebUrl = sourcePageWebUrl,
@@ -119,7 +168,16 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
             }
             try
             {
-                return XDocument.Parse(webPart.ExportXml).Descendants()
+                var document = ClassicWebPartMetadataParser.ReadDocument(webPart.ExportXml, LoadOptions.None);
+                if (ClassicWebPartMetadataParser.IsV2Document(document))
+                {
+                    // Candidate detection is not validation or replay permission. Malformed bindings
+                    // must still reach Parse and produce an instance-scoped diagnostic.
+                    return document.Root.Elements().Any(element => element.Name.Namespace == ClassicWebPartMetadataParser.V2ListView
+                        || element.Name.LocalName == "ListId" || element.Name.LocalName == "ListName"
+                        || (element.Name.LocalName == "TypeName" && element.Value.Trim() == NativeV2Type));
+                }
+                return document.Descendants()
                     .Where(element => string.Equals(element.Name.LocalName, "property", StringComparison.OrdinalIgnoreCase))
                     .Any(element => string.Equals((string)element.Attribute("name"), "ListId", StringComparison.OrdinalIgnoreCase)
                         || string.Equals((string)element.Attribute("name"), "ListName", StringComparison.OrdinalIgnoreCase));
@@ -130,15 +188,56 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
             }
         }
 
+        private static IDictionary<string, string> ReadNativeV2Properties(XDocument document)
+        {
+            var type = ClassicWebPartMetadataParser.ReadV2Property(document, ClassicWebPartMetadataParser.V2 + "TypeName", true).Value.Trim();
+            var identity = ClassicWebPartMetadataParser.ReadV2Property(document, ClassicWebPartMetadataParser.V2 + "Assembly", true).Value.Trim();
+            var assembly = new AssemblyName(identity);
+            var token = assembly.GetPublicKeyToken();
+            // AssemblyName can normalize away or ignore extra qualifiers. Require exactly
+            // the three declared identity fields, even when an extra field has its default value.
+            var identityFields = identity.Split(',').Skip(1)
+                .Select(field => field.Split('=')[0].Trim())
+                .OrderBy(field => field, StringComparer.OrdinalIgnoreCase);
+            if (type != NativeV2Type || !string.Equals(assembly.Name, "Microsoft.SharePoint.Core", StringComparison.OrdinalIgnoreCase)
+                || assembly.Version != new Version(16, 0, 0, 0) || !string.IsNullOrEmpty(assembly.CultureName)
+                || !identityFields.SequenceEqual(new[] { "Culture", "PublicKeyToken", "Version" }, StringComparer.OrdinalIgnoreCase)
+                || token == null || !token.SequenceEqual(new byte[] { 0x71, 0xe9, 0xbc, 0xe1, 0x11, 0xe9, 0x42, 0x9c }))
+            {
+                throw new InvalidDataException("The v2 binding is not the supported native ListViewWebPart/Microsoft.SharePoint.Core 16.0.0.0 declaration.");
+            }
+            return new[] { "WebId", "ListId", "ListName", "XmlDefinition", "TitleUrl" }
+                .ToDictionary(name => name, name => FindNativeV2Property(document, name)?.Value.Trim(), StringComparer.OrdinalIgnoreCase);
+        }
+
+        internal static XElement FindNativeV2Property(XDocument document, string name)
+        {
+            switch (name)
+            {
+                case "WebId":
+                case "ListId":
+                case "ListName":
+                    return ClassicWebPartMetadataParser.ReadV2Property(document, ClassicWebPartMetadataParser.V2ListView + name, true);
+                case "XmlDefinition":
+                    return ClassicWebPartMetadataParser.ReadV2Property(document, ClassicWebPartMetadataParser.V2ListView + "ListViewXml", true);
+                case "TitleUrl":
+                    return ClassicWebPartMetadataParser.ReadV2Property(document, ClassicWebPartMetadataParser.V2 + "DetailLink", false);
+                default:
+                    // Do not synthesize v3 ViewGuid/XmlDefinition/property elements in a DWP.
+                    return null;
+            }
+        }
+
         private static string ReadElement(XElement root, string name)
         {
             return root == null ? null : root.Elements().FirstOrDefault(value => string.Equals(value.Name.LocalName, name, StringComparison.OrdinalIgnoreCase))?.Value;
         }
 
-        private static Guid? ParseGuid(string value)
+        private static Guid? ParseGuid(string value, bool strict = false)
         {
             Guid result;
-            return Guid.TryParse((value ?? string.Empty).Trim().Trim('{', '}'), out result) ? result : (Guid?)null;
+            var text = (value ?? string.Empty).Trim();
+            return Guid.TryParse(strict ? text : text.Trim('{', '}'), out result) ? result : (Guid?)null;
         }
 
         private static string ServerRelativePath(string value, string sourceWebUrl)
