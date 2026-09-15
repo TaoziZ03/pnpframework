@@ -194,8 +194,14 @@ namespace PnP.Framework.Migration.Pages.ClassicWebParts.Bindings
             var identity = ClassicWebPartMetadataParser.ReadV2Property(document, ClassicWebPartMetadataParser.V2 + "Assembly", true).Value.Trim();
             var assembly = new AssemblyName(identity);
             var token = assembly.GetPublicKeyToken();
+            // AssemblyName can normalize away or ignore extra qualifiers. Require exactly
+            // the three declared identity fields, even when an extra field has its default value.
+            var identityFields = identity.Split(',').Skip(1)
+                .Select(field => field.Split('=')[0].Trim())
+                .OrderBy(field => field, StringComparer.OrdinalIgnoreCase);
             if (type != NativeV2Type || !string.Equals(assembly.Name, "Microsoft.SharePoint.Core", StringComparison.OrdinalIgnoreCase)
                 || assembly.Version != new Version(16, 0, 0, 0) || !string.IsNullOrEmpty(assembly.CultureName)
+                || !identityFields.SequenceEqual(new[] { "Culture", "PublicKeyToken", "Version" }, StringComparer.OrdinalIgnoreCase)
                 || token == null || !token.SequenceEqual(new byte[] { 0x71, 0xe9, 0xbc, 0xe1, 0x11, 0xe9, 0x42, 0x9c }))
             {
                 throw new InvalidDataException("The v2 binding is not the supported native ListViewWebPart/Microsoft.SharePoint.Core 16.0.0.0 declaration.");

@@ -164,6 +164,59 @@ namespace PnP.Framework.Test.Migration.Pages.ClassicWebParts
             AssertInvalidXml(root.ToString(SaveOptions.DisableFormatting));
         }
 
+        [DataTestMethod]
+        [DataRow("Retargetable=Yes")]
+        [DataRow("ContentType=WindowsRuntime")]
+        [DataRow("ProcessorArchitecture=MSIL")]
+        public void UnsupportedNativeV2AssemblyQualifiersFailClosed(string qualifier)
+        {
+            var root = XElement.Parse(NativeV2Export.Xml);
+            root.Element(V2 + "Assembly").Value += ", " + qualifier;
+            AssertInvalidXml(root.ToString(SaveOptions.DisableFormatting));
+        }
+
+        [DataTestMethod]
+        [DataRow("Retargetable=No")]
+        [DataRow("ContentType=Default")]
+        [DataRow("ProcessorArchitecture=None")]
+        [DataRow("Flags=None")]
+        [DataRow("Unknown=ignored")]
+        [DataRow("Version=16.0.0.0")]
+        [DataRow("Culture=neutral")]
+        [DataRow("PublicKeyToken=71e9bce111e9429c")]
+        public void DefaultUnknownOrDuplicateNativeV2AssemblyFieldsFailClosed(string field)
+        {
+            var root = XElement.Parse(NativeV2Export.Xml);
+            root.Element(V2 + "Assembly").Value += ", " + field;
+            AssertInvalidXml(root.ToString(SaveOptions.DisableFormatting));
+        }
+
+        [DataTestMethod]
+        [DataRow("Version")]
+        [DataRow("Culture")]
+        [DataRow("PublicKeyToken")]
+        public void MissingExplicitNativeV2AssemblyIdentityFieldFailsClosed(string field)
+        {
+            var root = XElement.Parse(NativeV2Export.Xml);
+            var assembly = root.Element(V2 + "Assembly");
+            assembly.Value = string.Join(",", assembly.Value.Split(',')
+                .Where(value => !value.TrimStart().StartsWith(field + "=", StringComparison.Ordinal)));
+            AssertInvalidXml(root.ToString(SaveOptions.DisableFormatting));
+        }
+
+        [DataTestMethod]
+        [DataRow("microsoft.sharepoint.core, publickeytoken=71E9BCE111E9429C, culture=neutral, version=16.0.0.0")]
+        [DataRow("  Microsoft.SharePoint.Core  ,  Version = 16.0.0.0 , Culture = neutral , PublicKeyToken = 71e9bce111e9429c  ")]
+        public void NativeV2AssemblyIdentityRetainsCaseOrderAndWhitespaceCompatibility(string identity)
+        {
+            var root = XElement.Parse(NativeV2Export.Xml);
+            root.Element(V2 + "Assembly").Value = identity;
+            var result = Parse(Capture(root.ToString(SaveOptions.DisableFormatting)));
+            Assert.IsTrue(result.IsExecutable, Issues(result));
+            var rewritten = XElement.Parse(ClassicListWebPartRewriter.Rewrite(result.Binding, Target()).ExportXml);
+            Assert.AreEqual(identity, rewritten.Element(V2 + "Assembly").Value);
+        }
+
         [TestMethod]
         public void WrongRootNamespaceDtdAndDigestMismatchFailClosed()
         {
