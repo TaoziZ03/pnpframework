@@ -97,7 +97,7 @@ namespace PnP.Framework.Modernization.Publishing
 
         #region Page Properties
         /// <summary>
-        /// Explicitly allows an Enterprise Wiki publishing page to be transformed to Site Pages in the same Web.
+        /// Explicitly allows a publishing page to be transformed to Site Pages in the same Web.
         /// The source publishing page is retained and an existing target page is never overwritten.
         /// </summary>
         public bool InPlacePublishingPage { get; set; }

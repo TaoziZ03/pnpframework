@@ -9,7 +9,6 @@ namespace PnP.Framework.Modernization.Publishing
         SameSiteCollectionNotAllowed,
         InPlaceDifferentSiteCollection,
         SameSiteCollectionDifferentWeb,
-        SameWebRequiresEnterpriseWiki,
         SameWebRequiresWritableSitePages,
     }
 
@@ -18,15 +17,12 @@ namespace PnP.Framework.Modernization.Publishing
     /// </summary>
     internal static class PublishingPageTransformationValidator
     {
-        private const string EnterpriseWikiWebTemplate = "ENTERWIKI";
-
         internal static PublishingPageTransformationTarget ValidateTarget(
             bool inPlacePublishingPage,
             Guid sourceSiteId,
             Guid targetSiteId,
             Guid sourceWebId,
             Guid targetWebId,
-            string targetWebTemplate,
             bool hasWritableSitePages)
         {
             if (!inPlacePublishingPage)
@@ -44,11 +40,6 @@ namespace PnP.Framework.Modernization.Publishing
             if (sourceWebId != targetWebId)
             {
                 return PublishingPageTransformationTarget.SameSiteCollectionDifferentWeb;
-            }
-
-            if (!string.Equals(targetWebTemplate, EnterpriseWikiWebTemplate, StringComparison.OrdinalIgnoreCase))
-            {
-                return PublishingPageTransformationTarget.SameWebRequiresEnterpriseWiki;
             }
 
             if (!hasWritableSitePages)

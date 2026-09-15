@@ -181,8 +181,7 @@ namespace PnP.Framework.Modernization.Publishing
 
                 if (sameSiteCollection &&
                     sourceWebId.Equals(targetClientContext.Web.Id) &&
-                    publishingPageTransformationInformation.InPlacePublishingPage &&
-                    string.Equals(targetClientContext.Web.WebTemplate, "ENTERWIKI", StringComparison.InvariantCultureIgnoreCase))
+                    publishingPageTransformationInformation.InPlacePublishingPage)
                 {
                     hasWritableSitePages = HasWritableSitePagesLibrary(sourceClientContext);
                 }
@@ -193,7 +192,6 @@ namespace PnP.Framework.Modernization.Publishing
                     targetClientContext.Site.Id,
                     sourceWebId,
                     targetClientContext.Web.Id,
-                    targetClientContext.Web.WebTemplate,
                     hasWritableSitePages);
 
                 EnsureTransformationTargetAllowed(transformationTarget);
@@ -736,9 +734,6 @@ namespace PnP.Framework.Modernization.Publishing
                 case PublishingPageTransformationTarget.SameSiteCollectionDifferentWeb:
                     LogError(LogStrings.Error_InPlacePublishingPageDifferentWeb, LogStrings.Heading_SharePointConnection);
                     throw new ArgumentException(LogStrings.Error_InPlacePublishingPageDifferentWeb);
-                case PublishingPageTransformationTarget.SameWebRequiresEnterpriseWiki:
-                    LogError(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki, LogStrings.Heading_SharePointConnection);
-                    throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresEnterpriseWiki);
                 case PublishingPageTransformationTarget.SameWebRequiresWritableSitePages:
                     LogError(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages, LogStrings.Heading_SharePointConnection);
                     throw new ArgumentException(LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages);
@@ -747,9 +742,10 @@ namespace PnP.Framework.Modernization.Publishing
 
         private bool HasWritableSitePagesLibrary(ClientContext context)
         {
+            var sitePagesServerRelativeUrl = UrlUtility.Combine(context.Web.ServerRelativeUrl, "SitePages");
+
             try
             {
-                var sitePagesServerRelativeUrl = UrlUtility.Combine(context.Web.ServerRelativeUrl, "SitePages");
                 var sitePagesLibrary = context.Web.GetList(sitePagesServerRelativeUrl);
                 context.Load(sitePagesLibrary,
                     p => p.Id,
@@ -757,15 +753,43 @@ namespace PnP.Framework.Modernization.Publishing
                     p => p.EffectiveBasePermissions);
                 context.ExecuteQueryRetry();
 
-                return sitePagesLibrary.Id != Guid.Empty &&
-                    sitePagesLibrary.BaseTemplate == (int)ListTemplateType.WebPageLibrary &&
-                    sitePagesLibrary.EffectiveBasePermissions.Has(PermissionKind.AddListItems) &&
-                    sitePagesLibrary.EffectiveBasePermissions.Has(PermissionKind.EditListItems);
+                if (sitePagesLibrary.Id == Guid.Empty)
+                {
+                    LogError($"{LogStrings.Error_InPlacePublishingPageSitePagesNotFound} Path: {sitePagesServerRelativeUrl}.", LogStrings.Heading_SharePointConnection);
+                    return false;
+                }
+
+                if (sitePagesLibrary.BaseTemplate != (int)ListTemplateType.WebPageLibrary)
+                {
+                    LogError($"{LogStrings.Error_InPlacePublishingPageSitePagesInvalidTemplate} Path: {sitePagesServerRelativeUrl}; BaseTemplate: {sitePagesLibrary.BaseTemplate}.", LogStrings.Heading_SharePointConnection);
+                    return false;
+                }
+
+                var canAdd = sitePagesLibrary.EffectiveBasePermissions.Has(PermissionKind.AddListItems);
+                var canEdit = sitePagesLibrary.EffectiveBasePermissions.Has(PermissionKind.EditListItems);
+                if (!canAdd || !canEdit)
+                {
+                    LogError($"{LogStrings.Error_InPlacePublishingPageSitePagesInsufficientPermissions} Path: {sitePagesServerRelativeUrl}; AddListItems: {canAdd}; EditListItems: {canEdit}.", LogStrings.Heading_SharePointConnection);
+                    return false;
+                }
+
+                return true;
+            }
+            catch (ServerUnauthorizedAccessException ex)
+            {
+                LogError($"{LogStrings.Error_InPlacePublishingPageSitePagesProbeUnauthorized} Path: {sitePagesServerRelativeUrl}; {ex.Message}", LogStrings.Heading_SharePointConnection);
+                return false;
+            }
+            catch (ServerException ex) when (string.Equals(ex.ServerErrorTypeName, "System.IO.FileNotFoundException", StringComparison.Ordinal))
+            {
+                LogError($"{LogStrings.Error_InPlacePublishingPageSitePagesNotFound} Path: {sitePagesServerRelativeUrl}; {ex.Message}", LogStrings.Heading_SharePointConnection);
+                return false;
             }
             catch (Exception ex)
             {
-                LogWarning($"{LogStrings.Error_InPlacePublishingPageRequiresWritableSitePages} {ex.Message}", LogStrings.Heading_SharePointConnection);
-                return false;
+                var message = $"{LogStrings.Error_InPlacePublishingPageSitePagesProbeFailed} Path: {sitePagesServerRelativeUrl}; {ex.Message}";
+                LogError(message, LogStrings.Heading_SharePointConnection);
+                throw new InvalidOperationException(message, ex);
             }
         }
 

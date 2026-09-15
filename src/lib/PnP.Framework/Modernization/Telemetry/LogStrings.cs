@@ -80,8 +80,12 @@
         public const string Error_SameSiteTransferNoAllowedForPublishingPages = "Oops, seems source and target point to the same site collection...that's a no go for publishing portal page transformation!";
         public const string Error_InPlacePublishingPageDifferentSiteCollection = "In-place publishing page transformation requires source and target to be in the same site collection and Web.";
         public const string Error_InPlacePublishingPageDifferentWeb = "In-place publishing page transformation requires source and target to be the same Web.";
-        public const string Error_InPlacePublishingPageRequiresEnterpriseWiki = "In-place publishing page transformation is only supported for an Enterprise Wiki Web.";
         public const string Error_InPlacePublishingPageRequiresWritableSitePages = "In-place publishing page transformation requires an existing Site Pages library with Add Items and Edit Items permissions.";
+        public const string Error_InPlacePublishingPageSitePagesNotFound = "The Site Pages library required for in-place publishing page transformation was not found.";
+        public const string Error_InPlacePublishingPageSitePagesInvalidTemplate = "The Site Pages path does not resolve to a Web Page Library.";
+        public const string Error_InPlacePublishingPageSitePagesInsufficientPermissions = "The current user cannot add and edit items in the Site Pages library.";
+        public const string Error_InPlacePublishingPageSitePagesProbeUnauthorized = "The Site Pages capability probe was denied.";
+        public const string Error_InPlacePublishingPageSitePagesProbeFailed = "The Site Pages capability probe could not determine whether the library is writable; transformation was stopped without creating a target page.";
         public const string Error_InPlacePublishingPageTargetExists = "In-place publishing page transformation cannot overwrite an existing target page.";
         public const string Error_CrossSiteTransferTargetsNonModernSite = "Page transformation for targeting non-modern sites is currently not supported.";
         public const string Error_GetVersionError = "Setting version stamp error";

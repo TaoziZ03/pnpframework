@@ -691,6 +691,10 @@ namespace PnP.Framework.Modernization.Functions
 
                 results.Add("ImageListId", pageHeaderImage.ListId.ToString());
                 results.Add("ImageUniqueId", pageHeaderImage.UniqueId.ToString());
+
+                // Pages and image files created entirely through programmatic flows can bypass the
+                // post-save processing that populates vti_lastheight and vti_lastwidth. Treat those
+                // dimensions as unknown so transformation can continue for these customer edge cases.
                 results.Add("ImageHeight", "-1");
                 results.Add("ImageWidth", "-1");
 

@@ -29,7 +29,7 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
         [TestMethod]
         public void SameWebRequiresExplicitOptIn()
         {
-            var result = ValidateSameWeb(inPlacePublishingPage: false, targetWebTemplate: "ENTERWIKI", hasWritableSitePages: true);
+            var result = ValidateSameWeb(inPlacePublishingPage: false, hasWritableSitePages: true);
 
             Assert.AreEqual(PublishingPageTransformationTarget.SameSiteCollectionNotAllowed, result);
         }
@@ -43,7 +43,6 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
                 SourceSiteId,
                 SourceWebId,
                 Guid.Parse("7896708f-f5ea-4f22-aeb3-6223bf8897b0"),
-                "ENTERWIKI",
                 true);
 
             Assert.AreEqual(PublishingPageTransformationTarget.SameSiteCollectionDifferentWeb, result);
@@ -58,7 +57,6 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
                 Guid.Parse("2e33ad34-f43a-4d75-af55-e0deba981252"),
                 SourceWebId,
                 Guid.Parse("7896708f-f5ea-4f22-aeb3-6223bf8897b0"),
-                "STS",
                 true);
 
             Assert.AreEqual(PublishingPageTransformationTarget.InPlaceDifferentSiteCollection, result);
@@ -75,24 +73,20 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
                 SourceSiteId,
                 SourceWebId,
                 Guid.Parse("7896708f-f5ea-4f22-aeb3-6223bf8897b0"),
-                "STS",
                 false);
 
             Assert.AreEqual(PublishingPageTransformationTarget.SameSiteCollectionNotAllowed, result);
         }
 
         [TestMethod]
-        public void SameWebRequiresEnterpriseWikiAndWritableSitePages()
+        public void SameWebSupportsGeneralPublishingPagesAndRequiresWritableSitePages()
         {
             Assert.AreEqual(
-                PublishingPageTransformationTarget.SameWebRequiresEnterpriseWiki,
-                ValidateSameWeb(true, "STS", true));
-            Assert.AreEqual(
                 PublishingPageTransformationTarget.SameWebRequiresWritableSitePages,
-                ValidateSameWeb(true, "ENTERWIKI", false));
+                ValidateSameWeb(true, false));
             Assert.AreEqual(
                 PublishingPageTransformationTarget.SameWeb,
-                ValidateSameWeb(true, "enterwiki", true));
+                ValidateSameWeb(true, true));
         }
 
         [TestMethod]
@@ -104,7 +98,6 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
                 Guid.Parse("2e33ad34-f43a-4d75-af55-e0deba981252"),
                 SourceWebId,
                 Guid.Empty,
-                "UNSUPPORTED",
                 false);
 
             Assert.AreEqual(PublishingPageTransformationTarget.CrossSiteCollection, result);
@@ -115,7 +108,7 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
         [TestMethod]
         public void SameWebNeverOverwritesAndUsesInPlacePermissionSemantics()
         {
-            var result = ValidateSameWeb(true, "ENTERWIKI", true);
+            var result = ValidateSameWeb(true, true);
 
             Assert.IsFalse(PublishingPageTransformationValidator.CanOverwriteTarget(result, true));
             Assert.IsFalse(PublishingPageTransformationValidator.UsesCrossSitePermissionSemantics(result));
@@ -284,7 +277,6 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
 
         private static PublishingPageTransformationTarget ValidateSameWeb(
             bool inPlacePublishingPage,
-            string targetWebTemplate,
             bool hasWritableSitePages)
         {
             return PublishingPageTransformationValidator.ValidateTarget(
@@ -293,7 +285,6 @@ namespace PnP.Framework.Modernization.Tests.Transform.Publishing
                 SourceSiteId,
                 SourceWebId,
                 SourceWebId,
-                targetWebTemplate,
                 hasWritableSitePages);
         }
 
